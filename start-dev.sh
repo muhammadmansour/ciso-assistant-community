@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CISO Assistant Development Startup Script
+# CISO Wathba Development Startup Script
 # Usage: ./start-dev.sh [start|stop|restart|status]
 
 set -e
@@ -10,6 +10,32 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$PROJECT_DIR/backend"
 FRONTEND_DIR="$PROJECT_DIR/frontend"
 LOG_DIR="$PROJECT_DIR/logs"
+
+# Add common paths for poetry and pnpm
+export PATH="$HOME/.local/bin:$HOME/.poetry/bin:/usr/local/bin:$PATH"
+
+# Find poetry
+if command -v poetry &> /dev/null; then
+    POETRY_CMD="poetry"
+elif [ -f "$HOME/.local/bin/poetry" ]; then
+    POETRY_CMD="$HOME/.local/bin/poetry"
+elif [ -f "$HOME/.poetry/bin/poetry" ]; then
+    POETRY_CMD="$HOME/.poetry/bin/poetry"
+else
+    echo "ERROR: Poetry not found. Install it with:"
+    echo "  curl -sSL https://install.python-poetry.org | python3 -"
+    exit 1
+fi
+
+# Find pnpm
+if command -v pnpm &> /dev/null; then
+    PNPM_CMD="pnpm"
+elif [ -f "$HOME/.local/share/pnpm/pnpm" ]; then
+    PNPM_CMD="$HOME/.local/share/pnpm/pnpm"
+else
+    echo "WARNING: pnpm not found. Install it with: npm install -g pnpm"
+    PNPM_CMD="pnpm"
+fi
 
 # Environment variables
 export DJANGO_DEBUG=True
@@ -36,11 +62,17 @@ start_backend() {
     echo -e "${GREEN}Starting backend...${NC}"
     cd "$BACKEND_DIR"
     
+    # Install dependencies if needed
+    if [ ! -d ".venv" ] && [ ! -f "poetry.lock" ]; then
+        echo -e "${YELLOW}Installing backend dependencies...${NC}"
+        $POETRY_CMD install
+    fi
+    
     # Run migrations first
-    poetry run python manage.py migrate --noinput
+    $POETRY_CMD run python manage.py migrate --noinput
     
     # Start backend server
-    nohup poetry run python manage.py runserver 0.0.0.0:8000 > "$LOG_DIR/backend.log" 2>&1 &
+    nohup $POETRY_CMD run python manage.py runserver 0.0.0.0:8000 > "$LOG_DIR/backend.log" 2>&1 &
     echo $! > "$BACKEND_PID_FILE"
     echo -e "${GREEN}Backend started (PID: $(cat $BACKEND_PID_FILE))${NC}"
 }
@@ -48,7 +80,7 @@ start_backend() {
 start_huey() {
     echo -e "${GREEN}Starting Huey task queue...${NC}"
     cd "$BACKEND_DIR"
-    nohup poetry run python manage.py run_huey -w 2 --scheduler-interval 60 > "$LOG_DIR/huey.log" 2>&1 &
+    nohup $POETRY_CMD run python manage.py run_huey -w 2 --scheduler-interval 60 > "$LOG_DIR/huey.log" 2>&1 &
     echo $! > "$HUEY_PID_FILE"
     echo -e "${GREEN}Huey started (PID: $(cat $HUEY_PID_FILE))${NC}"
 }
@@ -60,10 +92,10 @@ start_frontend() {
     # Install dependencies if node_modules doesn't exist
     if [ ! -d "node_modules" ]; then
         echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-        pnpm install
+        $PNPM_CMD install
     fi
     
-    nohup pnpm run dev --host 0.0.0.0 > "$LOG_DIR/frontend.log" 2>&1 &
+    nohup $PNPM_CMD run dev --host 0.0.0.0 > "$LOG_DIR/frontend.log" 2>&1 &
     echo $! > "$FRONTEND_PID_FILE"
     echo -e "${GREEN}Frontend started (PID: $(cat $FRONTEND_PID_FILE))${NC}"
 }
@@ -87,7 +119,7 @@ stop_service() {
 
 start() {
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  Starting CISO Assistant (Dev Mode)   ${NC}"
+    echo -e "${GREEN}  Starting CISO Wathba (Dev Mode)      ${NC}"
     echo -e "${GREEN}========================================${NC}"
     
     start_backend
@@ -111,7 +143,7 @@ start() {
 
 stop() {
     echo -e "${RED}========================================${NC}"
-    echo -e "${RED}  Stopping CISO Assistant              ${NC}"
+    echo -e "${RED}  Stopping CISO Wathba                 ${NC}"
     echo -e "${RED}========================================${NC}"
     
     stop_service "$FRONTEND_PID_FILE" "Frontend"
@@ -127,7 +159,7 @@ stop() {
 
 status() {
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  CISO Assistant Status                ${NC}"
+    echo -e "${GREEN}  CISO Wathba Status                   ${NC}"
     echo -e "${GREEN}========================================${NC}"
     
     check_service() {
