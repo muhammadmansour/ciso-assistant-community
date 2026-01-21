@@ -65,10 +65,14 @@ export const handle: Handle = async ({ event, resolve }) =>
 
 		await ensureCsrfToken(event);
 
+		// RTL languages
+		const rtlLanguages = ['ar', 'he', 'fa', 'ur'];
+		const dir = rtlLanguages.includes(locale) ? 'rtl' : 'ltr';
+
 		if (event.locals.user)
 			return await resolve(event, {
 				transformPageChunk: ({ html }) => {
-					return html.replace('%lang%', locale);
+					return html.replace('%lang%', locale).replace('%dir%', dir);
 				}
 			});
 
@@ -107,7 +111,7 @@ export const handle: Handle = async ({ event, resolve }) =>
 
 		return await resolve(event, {
 			transformPageChunk: ({ html }) => {
-				return html.replace('%lang%', locale);
+				return html.replace('%lang%', locale).replace('%dir%', dir);
 			}
 		});
 	});

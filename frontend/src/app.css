@@ -4,10 +4,34 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton/optional/presets';
 
+/* Cairo Font for Arabic Support */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900&display=swap');
+
 /*
   Add your theme import for your theme: "ciso-theme" here
 */
 @import '../ciso-theme.css';
+
+/* Arabic RTL and Cairo Font Support */
+:root {
+  --font-cairo: 'Cairo', sans-serif;
+}
+
+html[dir="rtl"],
+html[lang="ar"] {
+  direction: rtl;
+  font-family: var(--font-cairo), sans-serif;
+}
+
+html[lang="ar"] * {
+  font-family: var(--font-cairo), sans-serif;
+}
+
+/* RTL specific adjustments */
+[dir="rtl"] .ml-auto { margin-left: unset; margin-right: auto; }
+[dir="rtl"] .mr-auto { margin-right: unset; margin-left: auto; }
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
 @source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
 
 @source './**/*.{html,js,svelte,ts}';
