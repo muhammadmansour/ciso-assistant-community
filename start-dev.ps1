@@ -1,4 +1,4 @@
-# CISO Assistant Development Startup Script for Windows
+# CISO Wathba Development Startup Script for Windows
 # Usage: .\start-dev.ps1 [-Action start|stop|restart|status]
 
 param(
@@ -10,6 +10,31 @@ $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendDir = Join-Path $ProjectDir "backend"
 $FrontendDir = Join-Path $ProjectDir "frontend"
 $LogDir = Join-Path $ProjectDir "logs"
+
+# Find Poetry
+$PoetryCmd = $null
+$PoetryPaths = @(
+    "poetry",
+    "$env:APPDATA\Python\Python311\Scripts\poetry.exe",
+    "$env:APPDATA\Python\Python312\Scripts\poetry.exe",
+    "$env:LOCALAPPDATA\Programs\Python\Python311\Scripts\poetry.exe",
+    "$env:USERPROFILE\.local\bin\poetry.exe"
+)
+foreach ($path in $PoetryPaths) {
+    if (Get-Command $path -ErrorAction SilentlyContinue) {
+        $PoetryCmd = $path
+        break
+    }
+    if (Test-Path $path) {
+        $PoetryCmd = $path
+        break
+    }
+}
+if (-not $PoetryCmd) {
+    Write-Host "ERROR: Poetry not found. Install it with: pip install poetry" -ForegroundColor Red
+    exit 1
+}
+Write-Host "Using Poetry: $PoetryCmd" -ForegroundColor Cyan
 
 # Environment variables
 $env:DJANGO_DEBUG = "True"
@@ -37,17 +62,18 @@ function Start-Backend {
     
     # Run migrations
     Push-Location $BackendDir
-    & poetry run python manage.py migrate --noinput
+    & $PoetryCmd run python manage.py migrate --noinput
     
     # Start backend
+    $poetryPath = $PoetryCmd
     $backendJob = Start-Job -ScriptBlock {
-        param($dir, $logDir)
+        param($dir, $logDir, $poetry)
         Set-Location $dir
         $env:DJANGO_DEBUG = "True"
         $env:CISO_ASSISTANT_URL = "http://localhost:5173"
         $env:ALLOWED_HOSTS = "localhost,127.0.0.1"
-        & poetry run python manage.py runserver 0.0.0.0:8000 2>&1 | Tee-Object -FilePath "$logDir\backend.log"
-    } -ArgumentList $BackendDir, $LogDir
+        & $poetry run python manage.py runserver 0.0.0.0:8000 2>&1 | Tee-Object -FilePath "$logDir\backend.log"
+    } -ArgumentList $BackendDir, $LogDir, $poetryPath
     
     Pop-Location
     $backendJob.Id | Out-File "$LogDir\backend.jobid"
@@ -57,11 +83,12 @@ function Start-Backend {
 function Start-Huey {
     Write-ColorOutput Green "Starting Huey task queue..."
     
+    $poetryPath = $PoetryCmd
     $hueyJob = Start-Job -ScriptBlock {
-        param($dir, $logDir)
+        param($dir, $logDir, $poetry)
         Set-Location $dir
-        & poetry run python manage.py run_huey -w 2 --scheduler-interval 60 2>&1 | Tee-Object -FilePath "$logDir\huey.log"
-    } -ArgumentList $BackendDir, $LogDir
+        & $poetry run python manage.py run_huey -w 2 --scheduler-interval 60 2>&1 | Tee-Object -FilePath "$logDir\huey.log"
+    } -ArgumentList $BackendDir, $LogDir, $poetryPath
     
     $hueyJob.Id | Out-File "$LogDir\huey.jobid"
     Write-ColorOutput Green "Huey started (Job ID: $($hueyJob.Id))"
@@ -119,7 +146,7 @@ function Stop-AllServices {
 
 function Get-ServiceStatus {
     Write-Host "========================================"
-    Write-Host "  CISO Assistant Status"
+    Write-Host "  CISO Wathba Status"
     Write-Host "========================================"
     
     @(
@@ -150,7 +177,7 @@ function Get-ServiceStatus {
 switch ($Action) {
     "start" {
         Write-Host "========================================"
-        Write-Host "  Starting CISO Assistant (Dev Mode)"
+        Write-Host "  Starting CISO Wathba (Dev Mode)"
         Write-Host "========================================"
         
         Start-Backend
