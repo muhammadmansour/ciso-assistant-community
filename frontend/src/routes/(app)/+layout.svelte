@@ -35,7 +35,7 @@
 
 	let sidebarOpen = $state(true);
 
-	let classesSidebarOpen = $derived((open: boolean) => (open ? 'ml-64' : 'ml-7'));
+	let classesSidebarOpen = $derived((open: boolean) => (open ? 'ltr:ml-64 rtl:mr-64' : 'ltr:ml-7 rtl:mr-7'));
 
 	interface Props {
 		data: PageData;
