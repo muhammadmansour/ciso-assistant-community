@@ -1,4 +1,4 @@
-# CISO Wathba Development Startup Script for Windows
+# CISO Wathbah Development Startup Script for Windows
 # Usage: .\start-dev.ps1 [-Action start|stop|restart|status]
 
 param(
@@ -146,7 +146,7 @@ function Stop-AllServices {
 
 function Get-ServiceStatus {
     Write-Host "========================================"
-    Write-Host "  CISO Wathba Status"
+    Write-Host "  CISO Wathbah Status"
     Write-Host "========================================"
     
     @(
@@ -177,7 +177,7 @@ function Get-ServiceStatus {
 switch ($Action) {
     "start" {
         Write-Host "========================================"
-        Write-Host "  Starting CISO Wathba (Dev Mode)"
+        Write-Host "  Starting CISO Wathbah (Dev Mode)"
         Write-Host "========================================"
         
         Start-Backend

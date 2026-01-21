@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CISO Wathba Development Startup Script
+# CISO Wathbah Development Startup Script
 # Usage: ./start-dev.sh [start|stop|restart|status]
 
 set -e
@@ -119,7 +119,7 @@ stop_service() {
 
 start() {
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  Starting CISO Wathba (Dev Mode)      ${NC}"
+    echo -e "${GREEN}  Starting CISO Wathbah (Dev Mode)      ${NC}"
     echo -e "${GREEN}========================================${NC}"
     
     start_backend
@@ -143,7 +143,7 @@ start() {
 
 stop() {
     echo -e "${RED}========================================${NC}"
-    echo -e "${RED}  Stopping CISO Wathba                 ${NC}"
+    echo -e "${RED}  Stopping CISO Wathbah                 ${NC}"
     echo -e "${RED}========================================${NC}"
     
     stop_service "$FRONTEND_PID_FILE" "Frontend"
@@ -159,7 +159,7 @@ stop() {
 
 status() {
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}  CISO Wathba Status                   ${NC}"
+    echo -e "${GREEN}  CISO Wathbah Status                   ${NC}"
     echo -e "${GREEN}========================================${NC}"
     
     check_service() {
