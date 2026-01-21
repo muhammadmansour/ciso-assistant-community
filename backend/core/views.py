@@ -110,7 +110,14 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound, PermissionDenied
 
 
-from weasyprint import HTML
+# WeasyPrint is optional - PDF generation will be disabled if not available
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    print(f"WeasyPrint not available: {e}. PDF export will be disabled.")
 
 from core.helpers import *
 from core.models import (
@@ -3326,6 +3333,11 @@ class RiskAssessmentViewSet(BaseModelViewSet):
                 "settings": matrix_settings,
                 "feature_flags": feature_flags,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/ra_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -3373,6 +3385,11 @@ class RiskAssessmentViewSet(BaseModelViewSet):
                 "context": context,
                 "risk_assessment": risk_assessment_object,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/risk_action_plan_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -8356,6 +8373,11 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 "context": context,
                 "compliance_assessment": compliance_assessment_object,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/action_plan_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -10506,6 +10528,11 @@ class FindingsAssessmentViewSet(BaseModelViewSet):
             "finding_status_choices": dict(Finding.Status.choices),
         }
 
+        if not WEASYPRINT_AVAILABLE:
+            return Response(
+                {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                status=status.HTTP_501_NOT_IMPLEMENTED
+            )
         html = render_to_string("core/findings_assessment_pdf.html", context)
         pdf_file = HTML(string=html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -10889,6 +10916,11 @@ class IncidentViewSet(ExportMixin, BaseModelViewSet):
             "mitigation_count": mitigation_count,
         }
 
+        if not WEASYPRINT_AVAILABLE:
+            return Response(
+                {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                status=status.HTTP_501_NOT_IMPLEMENTED
+            )
         html = render_to_string("core/incident_pdf.html", context)
         pdf_file = HTML(string=html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
