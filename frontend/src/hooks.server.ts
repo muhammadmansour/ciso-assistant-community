@@ -6,6 +6,22 @@ import { setFlash } from 'sveltekit-flash-message/server';
 
 import { loadFeatureFlags } from '$lib/feature-flags';
 import { paraglideMiddleware } from '$paraglide/server';
+import { defineCustomServerStrategy } from '$paraglide/runtime';
+
+// Define server-side custom strategies for locale detection
+defineCustomServerStrategy('custom-userPreference', {
+	getLocale: () => {
+		// User preference is handled via cookie on server side
+		return undefined;
+	}
+});
+
+defineCustomServerStrategy('custom-fallback', {
+	getLocale: () => {
+		// Default to Arabic for CISO Wathba
+		return 'ar';
+	}
+});
 
 async function ensureCsrfToken(event: RequestEvent): Promise<string> {
 	let csrfToken = event.cookies.get('csrftoken') || '';
