@@ -112,6 +112,11 @@ export const actions: Actions = {
 				return;
 			}
 			
+			// First, get existing libraries to check for duplicates
+			const existingLibsResponse = await event.fetch(`${BASE_API_URL}/stored-libraries/`);
+			const existingLibs = await existingLibsResponse.json();
+			const existingUrns = new Set(existingLibs.results?.map((lib: any) => lib.urn) || []);
+			
 			let successCount = 0;
 			let skipCount = 0;
 			let errorCount = 0;
@@ -119,9 +124,14 @@ export const actions: Actions = {
 			// Process each library from Muraji
 			for (const library of murajiData.data) {
 				try {
+					// Check if library already exists
+					if (existingUrns.has(library.urn)) {
+						console.log(`Library ${library.name} (${library.urn}) already exists, skipping`);
+						skipCount++;
+						continue;
+					}
+					
 					// Convert Muraji format to CISO Assistant YAML format
-					// Muraji has: { content: { framework: {...} } }
-					// CISO expects: { urn, locale, name, ..., objects: { framework: {...} } }
 					const yamlContent = {
 						urn: library.urn,
 						locale: library.locale || 'en',
@@ -133,7 +143,7 @@ export const actions: Actions = {
 						provider: library.provider,
 						packager: library.packager,
 						publication_date: library.publication_date ? library.publication_date.split('T')[0] : null,
-						objects: library.content // { framework: { ... } }
+						objects: library.content
 					};
 					
 					// Convert to YAML string format
@@ -158,7 +168,6 @@ export const actions: Actions = {
 					if (yamlContent.packager) {
 						yamlLines.push(`packager: ${yamlContent.packager}`);
 					}
-					// For objects, we need to use JSON since YAML serialization is complex
 					yamlLines.push(`objects:`);
 					yamlLines.push(`  framework:`);
 					
@@ -190,12 +199,8 @@ export const actions: Actions = {
 					}
 					
 					const yamlString = yamlLines.join('\n');
-					
-					// Create FormData with proper file
-					const formData = new FormData();
 					const filename = `${library.ref_id || 'library'}.yaml`;
 					const file = new Blob([yamlString], { type: 'application/x-yaml' });
-					formData.append('file', file, filename);
 					
 					// Upload to CISO Assistant
 					const endpoint = `${BASE_API_URL}/stored-libraries/upload/`;
@@ -209,13 +214,18 @@ export const actions: Actions = {
 					});
 					
 					if (uploadResponse.ok) {
-						successCount++;
-						console.log(`Successfully uploaded library: ${library.name}`);
+						const responseData = await uploadResponse.json().catch(() => null);
+						if (responseData && responseData.id) {
+							successCount++;
+							console.log(`Successfully uploaded library: ${library.name}`);
+						} else {
+							// Upload returned OK but no library created (duplicate hash)
+							skipCount++;
+							console.log(`Library ${library.name} has same content as existing, skipping`);
+						}
 					} else {
 						const errorData = await uploadResponse.json().catch(() => ({}));
-						// Library might already exist, which is OK
 						if (errorData.error === 'libraryAlreadyLoadedError') {
-							console.log(`Library ${library.name} already exists, skipping`);
 							skipCount++;
 						} else {
 							console.error(`Failed to upload library ${library.name}:`, errorData);
@@ -228,26 +238,28 @@ export const actions: Actions = {
 				}
 			}
 			
+			// Show appropriate message
+			const totalFromMuraji = murajiData.data.length;
 			if (successCount > 0) {
 				setFlash({ 
 					type: 'success', 
-					message: `تم جلب ${successCount} مكتبة من مراجي بنجاح` 
+					message: `تم مزامنة ${successCount} مكتبة جديدة من مراجع` 
 				}, event);
-			} else if (skipCount > 0 && errorCount === 0) {
+			} else if (skipCount === totalFromMuraji) {
 				setFlash({ 
 					type: 'info', 
-					message: `جميع المكتبات (${skipCount}) موجودة بالفعل` 
+					message: `جميع المكتبات (${skipCount}) موجودة بالفعل في النظام` 
 				}, event);
 			} else if (errorCount > 0) {
 				setFlash({ 
 					type: 'error', 
-					message: `فشل في جلب المكتبات. الأخطاء: ${errorCount}` 
+					message: `فشل في المزامنة. نجح: ${successCount}، موجود: ${skipCount}، أخطاء: ${errorCount}` 
 				}, event);
 			}
 			
 		} catch (error) {
 			console.error('Error fetching from Muraji:', error);
-			setFlash({ type: 'error', message: 'خطأ في الاتصال بمراجي API' }, event);
+			setFlash({ type: 'error', message: 'خطأ في الاتصال بمراجع API' }, event);
 			return fail(500);
 		}
 	}
