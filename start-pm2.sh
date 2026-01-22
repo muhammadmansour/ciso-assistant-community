@@ -89,6 +89,7 @@ module.exports = {
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://ciso.wathbahs.com/api',
+        ORIGIN: 'https://ciso.wathbahs.com',
         NODE_ENV: 'production'
       },
       watch: false,
