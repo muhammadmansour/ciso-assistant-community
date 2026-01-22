@@ -112,12 +112,15 @@ export const actions: Actions = {
 			}
 			
 			let successCount = 0;
+			let skipCount = 0;
 			let errorCount = 0;
 			
 			// Process each library from Muraji
 			for (const library of murajiData.data) {
 				try {
-					// Convert the library to YAML format for upload
+					// Convert Muraji format to CISO Assistant YAML format
+					// Muraji has: { content: { framework: {...} } }
+					// CISO expects: { urn, locale, name, ..., objects: { framework: {...} } }
 					const yamlContent = {
 						urn: library.urn,
 						locale: library.locale || 'en',
@@ -128,33 +131,91 @@ export const actions: Actions = {
 						version: library.version,
 						provider: library.provider,
 						packager: library.packager,
-						objects: library.content // The framework/requirements data
+						publication_date: library.publication_date ? library.publication_date.split('T')[0] : null,
+						objects: library.content // { framework: { ... } }
 					};
 					
-					// Create a blob with YAML content
-					const yamlString = JSON.stringify(yamlContent);
-					const blob = new Blob([yamlString], { type: 'application/json' });
+					// Convert to YAML string format
+					const yamlLines: string[] = [];
+					yamlLines.push(`urn: ${yamlContent.urn}`);
+					yamlLines.push(`locale: ${yamlContent.locale}`);
+					yamlLines.push(`ref_id: ${yamlContent.ref_id}`);
+					yamlLines.push(`name: ${yamlContent.name}`);
+					if (yamlContent.description) {
+						yamlLines.push(`description: "${yamlContent.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
+					}
+					if (yamlContent.copyright) {
+						yamlLines.push(`copyright: "${yamlContent.copyright}"`);
+					}
+					yamlLines.push(`version: ${yamlContent.version}`);
+					if (yamlContent.publication_date) {
+						yamlLines.push(`publication_date: ${yamlContent.publication_date}`);
+					}
+					if (yamlContent.provider) {
+						yamlLines.push(`provider: ${yamlContent.provider}`);
+					}
+					if (yamlContent.packager) {
+						yamlLines.push(`packager: ${yamlContent.packager}`);
+					}
+					// For objects, we need to use JSON since YAML serialization is complex
+					yamlLines.push(`objects:`);
+					yamlLines.push(`  framework:`);
+					
+					const fw = yamlContent.objects?.framework;
+					if (fw) {
+						yamlLines.push(`    urn: ${fw.urn}`);
+						yamlLines.push(`    ref_id: ${fw.ref_id}`);
+						yamlLines.push(`    name: ${fw.name}`);
+						if (fw.description) {
+							yamlLines.push(`    description: "${fw.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
+						}
+						yamlLines.push(`    requirement_nodes:`);
+						
+						for (const node of fw.requirement_nodes || []) {
+							yamlLines.push(`    - urn: ${node.urn}`);
+							yamlLines.push(`      assessable: ${node.assessable}`);
+							yamlLines.push(`      depth: ${node.depth}`);
+							if (node.parent_urn) {
+								yamlLines.push(`      parent_urn: ${node.parent_urn}`);
+							}
+							yamlLines.push(`      ref_id: "${node.ref_id}"`);
+							if (node.name) {
+								yamlLines.push(`      name: "${node.name.replace(/"/g, '\\"')}"`);
+							}
+							if (node.description) {
+								yamlLines.push(`      description: "${node.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
+							}
+						}
+					}
+					
+					const yamlString = yamlLines.join('\n');
+					
+					// Create FormData with proper file
+					const formData = new FormData();
+					const filename = `${library.ref_id || 'library'}.yaml`;
+					const file = new Blob([yamlString], { type: 'application/x-yaml' });
+					formData.append('file', file, filename);
 					
 					// Upload to CISO Assistant
 					const endpoint = `${BASE_API_URL}/stored-libraries/upload/`;
-					const filename = `${library.ref_id || library.urn.split(':').pop()}.json`;
 					
 					const uploadResponse = await event.fetch(endpoint, {
 						method: 'POST',
 						headers: {
-							'Content-Disposition': `attachment; filename=${filename}`,
-							'Content-Type': 'application/json'
+							'Content-Disposition': `attachment; filename=${filename}`
 						},
-						body: yamlString
+						body: file
 					});
 					
 					if (uploadResponse.ok) {
 						successCount++;
+						console.log(`Successfully uploaded library: ${library.name}`);
 					} else {
 						const errorData = await uploadResponse.json().catch(() => ({}));
 						// Library might already exist, which is OK
-						if (errorData.error?.includes('already') || errorData.error?.includes('exists')) {
+						if (errorData.error === 'libraryAlreadyLoadedError') {
 							console.log(`Library ${library.name} already exists, skipping`);
+							skipCount++;
 						} else {
 							console.error(`Failed to upload library ${library.name}:`, errorData);
 							errorCount++;
@@ -171,15 +232,15 @@ export const actions: Actions = {
 					type: 'success', 
 					message: `تم جلب ${successCount} مكتبة من مراجي بنجاح` 
 				}, event);
+			} else if (skipCount > 0 && errorCount === 0) {
+				setFlash({ 
+					type: 'info', 
+					message: `جميع المكتبات (${skipCount}) موجودة بالفعل` 
+				}, event);
 			} else if (errorCount > 0) {
 				setFlash({ 
 					type: 'error', 
 					message: `فشل في جلب المكتبات. الأخطاء: ${errorCount}` 
-				}, event);
-			} else {
-				setFlash({ 
-					type: 'info', 
-					message: 'جميع المكتبات موجودة بالفعل' 
 				}, event);
 			}
 			
