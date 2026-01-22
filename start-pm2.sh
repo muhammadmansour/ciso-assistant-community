@@ -90,6 +90,7 @@ module.exports = {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://ciso.wathbahs.com/api',
         ORIGIN: 'https://ciso.wathbahs.com',
+        PUBLIC_DEFAULT_LANGUAGE: 'ar',
         NODE_ENV: 'production'
       },
       watch: false,
