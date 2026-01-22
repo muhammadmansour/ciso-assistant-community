@@ -13,7 +13,8 @@ import { z } from 'zod';
 import type { PageServerLoad } from './$types';
 
 export const load = (async ({ fetch }) => {
-	const storedLibrariesEndpoint = `${BASE_API_URL}/stored-libraries/`;
+	// Sort by created_at descending so newest libraries appear first
+	const storedLibrariesEndpoint = `${BASE_API_URL}/stored-libraries/?ordering=-created_at`;
 	const storedLibrariesResponse = await fetch(storedLibrariesEndpoint);
 	const storedLibraries = await storedLibrariesResponse.json();
 

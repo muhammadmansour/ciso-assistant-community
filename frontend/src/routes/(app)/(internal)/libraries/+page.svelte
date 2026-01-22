@@ -234,10 +234,10 @@
 					>
 						{#if isFetchingMuraji}
 							<i class="fa-solid fa-spinner fa-spin"></i>
-							<span>جاري الجلب...</span>
+							<span>جاري المزامنة...</span>
 						{:else}
 							<i class="fa-solid fa-cloud-arrow-down"></i>
-							<span>جلب من مراجي</span>
+							<span>مزامنة مع مراجع</span>
 						{/if}
 					</button>
 				</form>
