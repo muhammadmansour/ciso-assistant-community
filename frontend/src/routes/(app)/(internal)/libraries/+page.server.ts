@@ -101,35 +101,28 @@ export const actions: Actions = {
 			
 			if (!murajiResponse.ok) {
 				console.error('Failed to fetch from Muraji API:', murajiResponse.status);
-				setFlash({ type: 'error', message: 'فشل في جلب المكتبات من مراجي' }, event);
+				setFlash({ type: 'error', message: 'فشل في جلب المكتبات من مراجع' }, event);
 				return fail(500);
 			}
 			
 			const murajiData = await murajiResponse.json();
 			
 			if (!murajiData.success || !murajiData.data || murajiData.data.length === 0) {
-				setFlash({ type: 'warning', message: 'لا توجد مكتبات متاحة في مراجي' }, event);
+				setFlash({ type: 'warning', message: 'لا توجد مكتبات متاحة في مراجع' }, event);
 				return;
 			}
 			
-			// First, get existing libraries to check for duplicates
-			const existingLibsResponse = await event.fetch(`${BASE_API_URL}/stored-libraries/`);
-			const existingLibs = await existingLibsResponse.json();
-			const existingUrns = new Set(existingLibs.results?.map((lib: any) => lib.urn) || []);
-			
 			let successCount = 0;
-			let skipCount = 0;
+			let updateCount = 0;
 			let errorCount = 0;
 			
 			// Process each library from Muraji
 			for (const library of murajiData.data) {
 				try {
-					// Check if library already exists
-					if (existingUrns.has(library.urn)) {
-						console.log(`Library ${library.name} (${library.urn}) already exists, skipping`);
-						skipCount++;
-						continue;
-					}
+					// First, try to delete existing library with same URN (to allow update)
+					const deleteEndpoint = `${BASE_API_URL}/stored-libraries/${encodeURIComponent(library.urn)}/`;
+					const deleteResponse = await event.fetch(deleteEndpoint, { method: 'DELETE' });
+					const wasExisting = deleteResponse.ok;
 					
 					// Convert Muraji format to CISO Assistant YAML format
 					const yamlContent = {
@@ -188,7 +181,9 @@ export const actions: Actions = {
 							if (node.parent_urn) {
 								yamlLines.push(`      parent_urn: ${node.parent_urn}`);
 							}
-							yamlLines.push(`      ref_id: "${node.ref_id}"`);
+							if (node.ref_id) {
+								yamlLines.push(`      ref_id: "${node.ref_id}"`);
+							}
 							if (node.name) {
 								yamlLines.push(`      name: "${node.name.replace(/"/g, '\\"')}"`);
 							}
@@ -203,9 +198,9 @@ export const actions: Actions = {
 					const file = new Blob([yamlString], { type: 'application/x-yaml' });
 					
 					// Upload to CISO Assistant
-					const endpoint = `${BASE_API_URL}/stored-libraries/upload/`;
+					const uploadEndpoint = `${BASE_API_URL}/stored-libraries/upload/`;
 					
-					const uploadResponse = await event.fetch(endpoint, {
+					const uploadResponse = await event.fetch(uploadEndpoint, {
 						method: 'POST',
 						headers: {
 							'Content-Disposition': `attachment; filename=${filename}`
@@ -214,23 +209,17 @@ export const actions: Actions = {
 					});
 					
 					if (uploadResponse.ok) {
-						const responseData = await uploadResponse.json().catch(() => null);
-						if (responseData && responseData.id) {
-							successCount++;
-							console.log(`Successfully uploaded library: ${library.name}`);
+						if (wasExisting) {
+							updateCount++;
+							console.log(`Updated library: ${library.name}`);
 						} else {
-							// Upload returned OK but no library created (duplicate hash)
-							skipCount++;
-							console.log(`Library ${library.name} has same content as existing, skipping`);
+							successCount++;
+							console.log(`Added new library: ${library.name}`);
 						}
 					} else {
 						const errorData = await uploadResponse.json().catch(() => ({}));
-						if (errorData.error === 'libraryAlreadyLoadedError') {
-							skipCount++;
-						} else {
-							console.error(`Failed to upload library ${library.name}:`, errorData);
-							errorCount++;
-						}
+						console.error(`Failed to upload library ${library.name}:`, errorData);
+						errorCount++;
 					}
 				} catch (libError) {
 					console.error(`Error processing library ${library.name}:`, libError);
@@ -239,21 +228,26 @@ export const actions: Actions = {
 			}
 			
 			// Show appropriate message
-			const totalFromMuraji = murajiData.data.length;
-			if (successCount > 0) {
-				setFlash({ 
-					type: 'success', 
-					message: `تم مزامنة ${successCount} مكتبة جديدة من مراجع` 
-				}, event);
-			} else if (skipCount === totalFromMuraji) {
-				setFlash({ 
-					type: 'info', 
-					message: `جميع المكتبات (${skipCount}) موجودة بالفعل في النظام` 
-				}, event);
+			const totalProcessed = successCount + updateCount;
+			if (totalProcessed > 0) {
+				let message = `تم مزامنة ${totalProcessed} مكتبة من مراجع`;
+				if (updateCount > 0 && successCount > 0) {
+					message = `تم مزامنة ${totalProcessed} مكتبة (${successCount} جديدة، ${updateCount} محدثة)`;
+				} else if (updateCount > 0) {
+					message = `تم تحديث ${updateCount} مكتبة من مراجع`;
+				} else {
+					message = `تم إضافة ${successCount} مكتبة جديدة من مراجع`;
+				}
+				setFlash({ type: 'success', message }, event);
 			} else if (errorCount > 0) {
 				setFlash({ 
 					type: 'error', 
-					message: `فشل في المزامنة. نجح: ${successCount}، موجود: ${skipCount}، أخطاء: ${errorCount}` 
+					message: `فشل في المزامنة. الأخطاء: ${errorCount}` 
+				}, event);
+			} else {
+				setFlash({ 
+					type: 'info', 
+					message: 'لا توجد مكتبات للمزامنة' 
 				}, event);
 			}
 			
