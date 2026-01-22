@@ -136,7 +136,12 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 	const currentLang = event.locals.user?.preferences?.lang || DEFAULT_LANGUAGE;
 	if (request.url.startsWith(BASE_API_URL)) {
-		request.headers.set('Content-Type', 'application/json');
+		// Only set Content-Type to JSON if this is not a file upload
+		// File uploads are indicated by Content-Disposition header
+		const isFileUpload = request.headers.has('Content-Disposition');
+		if (!isFileUpload) {
+			request.headers.set('Content-Type', 'application/json');
+		}
 		request.headers.set('Accept-Language', currentLang);
 
 		const token = event.cookies.get('token');

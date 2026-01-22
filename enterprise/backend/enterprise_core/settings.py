@@ -128,6 +128,7 @@ LOCAL_STORAGE_DIRECTORY = os.environ.get(
     "LOCAL_STORAGE_DIRECTORY", BASE_DIR / "db/attachments"
 )
 ATTACHMENT_MAX_SIZE_MB = os.environ.get("ATTACHMENT_MAX_SIZE_MB", 25)
+ATTACHMENT_MAX_NAME_LENGTH = int(os.environ.get("ATTACHMENT_MAX_NAME_LENGTH", 256))
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
 
@@ -165,6 +166,17 @@ if USE_S3:
 else:
     MEDIA_ROOT = LOCAL_STORAGE_DIRECTORY
     MEDIA_URL = ""
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {
+                "location": LOCAL_STORAGE_DIRECTORY,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 PAGINATE_BY = int(os.environ.get("PAGINATE_BY", default=5000))
 

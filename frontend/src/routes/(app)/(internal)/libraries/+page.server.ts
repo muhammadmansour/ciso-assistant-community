@@ -90,5 +90,103 @@ export const actions: Actions = {
 	},
 	delete: async (event) => {
 		return defaultDeleteFormAction({ event, urlModel: 'stored-libraries' });
+	},
+	fetchMuraji: async (event) => {
+		const MURAJI_API_URL = 'https://muraji-api.wathbahs.com/api/libraries';
+		
+		try {
+			// Fetch libraries from Muraji API
+			const murajiResponse = await fetch(MURAJI_API_URL);
+			
+			if (!murajiResponse.ok) {
+				console.error('Failed to fetch from Muraji API:', murajiResponse.status);
+				setFlash({ type: 'error', message: 'فشل في جلب المكتبات من مراجي' }, event);
+				return fail(500);
+			}
+			
+			const murajiData = await murajiResponse.json();
+			
+			if (!murajiData.success || !murajiData.data || murajiData.data.length === 0) {
+				setFlash({ type: 'warning', message: 'لا توجد مكتبات متاحة في مراجي' }, event);
+				return;
+			}
+			
+			let successCount = 0;
+			let errorCount = 0;
+			
+			// Process each library from Muraji
+			for (const library of murajiData.data) {
+				try {
+					// Convert the library to YAML format for upload
+					const yamlContent = {
+						urn: library.urn,
+						locale: library.locale || 'en',
+						ref_id: library.ref_id,
+						name: library.name,
+						description: library.description,
+						copyright: library.copyright,
+						version: library.version,
+						provider: library.provider,
+						packager: library.packager,
+						objects: library.content // The framework/requirements data
+					};
+					
+					// Create a blob with YAML content
+					const yamlString = JSON.stringify(yamlContent);
+					const blob = new Blob([yamlString], { type: 'application/json' });
+					
+					// Upload to CISO Assistant
+					const endpoint = `${BASE_API_URL}/stored-libraries/upload/`;
+					const filename = `${library.ref_id || library.urn.split(':').pop()}.json`;
+					
+					const uploadResponse = await event.fetch(endpoint, {
+						method: 'POST',
+						headers: {
+							'Content-Disposition': `attachment; filename=${filename}`,
+							'Content-Type': 'application/json'
+						},
+						body: yamlString
+					});
+					
+					if (uploadResponse.ok) {
+						successCount++;
+					} else {
+						const errorData = await uploadResponse.json().catch(() => ({}));
+						// Library might already exist, which is OK
+						if (errorData.error?.includes('already') || errorData.error?.includes('exists')) {
+							console.log(`Library ${library.name} already exists, skipping`);
+						} else {
+							console.error(`Failed to upload library ${library.name}:`, errorData);
+							errorCount++;
+						}
+					}
+				} catch (libError) {
+					console.error(`Error processing library ${library.name}:`, libError);
+					errorCount++;
+				}
+			}
+			
+			if (successCount > 0) {
+				setFlash({ 
+					type: 'success', 
+					message: `تم جلب ${successCount} مكتبة من مراجي بنجاح` 
+				}, event);
+			} else if (errorCount > 0) {
+				setFlash({ 
+					type: 'error', 
+					message: `فشل في جلب المكتبات. الأخطاء: ${errorCount}` 
+				}, event);
+			} else {
+				setFlash({ 
+					type: 'info', 
+					message: 'جميع المكتبات موجودة بالفعل' 
+				}, event);
+			}
+			
+		} catch (error) {
+			console.error('Error fetching from Muraji:', error);
+			setFlash({ type: 'error', message: 'خطأ في الاتصال بمراجي API' }, event);
+			return fail(500);
+		}
 	}
 };

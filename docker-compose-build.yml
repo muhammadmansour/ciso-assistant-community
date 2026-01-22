@@ -12,6 +12,8 @@ services:
       - CISO_ASSISTANT_URL=https://ciso.wathbahs.com
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
+      - ATTACHMENT_MAX_SIZE_MB=100
+      - ATTACHMENT_MAX_NAME_LENGTH=512
     volumes:
       - ./db:/code/db
     healthcheck:
@@ -35,6 +37,8 @@ services:
       - CISO_ASSISTANT_URL=https://ciso.wathbahs.com
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
+      - ATTACHMENT_MAX_SIZE_MB=100
+      - ATTACHMENT_MAX_NAME_LENGTH=512
     volumes:
       - ./db:/code/db
     entrypoint:

@@ -121,6 +121,18 @@ export async function defaultWriteFormAction({
 		Object.entries(form.data).filter(([key]) => model.fileFields?.includes(key) ?? false)
 	) as Record<string, File>;
 
+	// For evidence creation, require a file attachment
+	if (action === 'create' && urlModel === 'evidences') {
+		const hasValidFile = Object.values(fileFields).some(
+			(file) => file && file.size > 0
+		);
+		if (!hasValidFile) {
+			setFlash({ type: 'error', message: safeTranslate('attachmentRequired') }, event);
+			setError(form, 'attachment', safeTranslate('attachmentRequired'));
+			return message(form, { status: 400 });
+		}
+	}
+
 	Object.keys(fileFields).forEach((key) => {
 		form.data[key] = undefined;
 	});
@@ -136,10 +148,15 @@ export async function defaultWriteFormAction({
 
 	const writtenObject = await res.json();
 
+	// Handle file uploads
 	if (fileFields) {
-		for (const [, file] of Object.entries(fileFields)) {
+		let fileUploadSuccess = true;
+		let fileUploadError: Response | null = null;
+
+		for (const [fieldName, file] of Object.entries(fileFields)) {
 			if (!file) continue;
 			if (file.size <= 0) continue;
+			
 			const fileUploadEndpoint = `${BASE_API_URL}/${urlModel}/${writtenObject.id}/upload/`;
 			const fileUploadRequestInitOptions: RequestInit = {
 				headers: {
@@ -149,8 +166,22 @@ export async function defaultWriteFormAction({
 				body: file
 			};
 			const fileUploadRes = await event.fetch(fileUploadEndpoint, fileUploadRequestInitOptions);
-			if (!fileUploadRes.ok)
-				return await handleErrorResponse({ event, response: fileUploadRes, form });
+			
+			if (!fileUploadRes.ok) {
+				fileUploadSuccess = false;
+				fileUploadError = fileUploadRes;
+				break;
+			}
+		}
+
+		// If file upload failed, delete the created record and return error
+		if (!fileUploadSuccess && fileUploadError) {
+			// Delete the created record to rollback
+			const deleteEndpoint = `${BASE_API_URL}/${urlModel}/${writtenObject.id}/`;
+			await event.fetch(deleteEndpoint, { method: 'DELETE' });
+			
+			setFlash({ type: 'error', message: safeTranslate('fileUploadFailed') }, event);
+			return await handleErrorResponse({ event, response: fileUploadError, form });
 		}
 	}
 
