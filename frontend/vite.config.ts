@@ -15,6 +15,9 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit()
 	],
+	server: {
+		allowedHosts: ['localhost', 'ciso.wathbahs.com']
+	},
 	test: {
 		include: ['{src}/**/*.{test,spec}.{js,ts}']
 	}
