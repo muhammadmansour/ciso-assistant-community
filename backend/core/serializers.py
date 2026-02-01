@@ -2510,7 +2510,11 @@ class QuickStartSerializer(serializers.Serializer):
         if not validated_data["create_risk_assessment"]:
             return created_objects
 
-        matrix_lib_urn = validated_data["risk_matrix"]
+        matrix_lib_urn = validated_data.get("risk_matrix")
+        if not matrix_lib_urn:
+            raise serializers.ValidationError(
+                {"risk_matrix": "Risk matrix is required when creating a risk assessment"}
+            )
         if not LoadedLibrary.objects.filter(urn=matrix_lib_urn).exists():
             matrix_stored_lib = StoredLibrary.objects.get(urn=matrix_lib_urn)
             try:
