@@ -13,42 +13,43 @@ import { z } from 'zod';
 import type { PageServerLoad } from './$types';
 
 export const load = (async ({ fetch }) => {
-	// Sort by created_at descending so newest libraries appear first
-	const storedLibrariesEndpoint = `${BASE_API_URL}/stored-libraries/?ordering=-created_at`;
-	const storedLibrariesResponse = await fetch(storedLibrariesEndpoint);
-	const storedLibraries = await storedLibrariesResponse.json();
+	const schema = z.object({ id: z.string() });
+	const deleteForm = await superValidate(zod(schema));
+	const uploadForm = await superValidate({}, zod(LibraryUploadSchema), { errors: false });
 
-	const prepareRow = (row: Record<string, any>) => {
-		row.overview = [
-			`Packager: ${row.packager}`,
-			`Version: ${row.version}`,
-			...Object.entries(row.objects_meta).map(([key, value]) => `${key}: ${value}`)
-		];
-		row.allowDeleteLibrary = row.allowDeleteLibrary =
-			row.reference_count && row.reference_count > 0 ? false : true;
-	};
-
-	storedLibraries.results.forEach(prepareRow);
-
-	const makeHeadData = (URLModel) => {
-		return listViewFields[URLModel].body.reduce((obj, key, index) => {
+	const makeHeadData = (URLModel: string) => {
+		return listViewFields[URLModel].body.reduce((obj: Record<string, string>, key: string, index: number) => {
 			obj[key] = listViewFields[URLModel].head[index];
 			return obj;
 		}, {});
 	};
 
-	const storedLibrariesTable = {
-		head: makeHeadData('stored-libraries'),
-		meta: { urlmodel: 'stored-libraries', ...storedLibraries },
-		body: []
-	};
+	// Return libraries as a streaming promise for lazy loading
+	const storedLibrariesPromise = (async () => {
+		const storedLibrariesEndpoint = `${BASE_API_URL}/stored-libraries/?ordering=-created_at`;
+		const storedLibrariesResponse = await fetch(storedLibrariesEndpoint);
+		const storedLibraries = await storedLibrariesResponse.json();
 
-	const schema = z.object({ id: z.string() });
-	const deleteForm = await superValidate(zod(schema));
-	const uploadForm = await superValidate({}, zod(LibraryUploadSchema), { errors: false });
+		const prepareRow = (row: Record<string, any>) => {
+			row.overview = [
+				`Packager: ${row.packager}`,
+				`Version: ${row.version}`,
+				...Object.entries(row.objects_meta).map(([key, value]) => `${key}: ${value}`)
+			];
+			row.allowDeleteLibrary = row.reference_count && row.reference_count > 0 ? false : true;
+		};
+
+		storedLibraries.results.forEach(prepareRow);
+
+		return {
+			head: makeHeadData('stored-libraries'),
+			meta: { urlmodel: 'stored-libraries', ...storedLibraries },
+			body: []
+		};
+	})();
 
 	return {
-		storedLibrariesTable,
+		storedLibrariesTable: storedLibrariesPromise,
 		deleteForm,
 		uploadForm,
 		title: m.libraries()

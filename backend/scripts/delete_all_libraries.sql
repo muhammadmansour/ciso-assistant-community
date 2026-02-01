@@ -8,7 +8,12 @@
 -- Start a transaction for safety
 BEGIN;
 
--- First, delete dependent objects that reference libraries
+-- First, delete mapping-related tables
+DELETE FROM core_requirementmapping;
+DELETE FROM core_requirementmappingset;
+
+-- Delete requirement nodes (they reference frameworks)
+DELETE FROM core_requirementnode;
 
 -- Delete all frameworks (they depend on loaded libraries)
 DELETE FROM core_framework;
@@ -22,28 +27,18 @@ DELETE FROM core_threat;
 -- Delete all risk matrices
 DELETE FROM core_riskmatrix;
 
--- Delete all requirement nodes
-DELETE FROM core_requirementnode;
-
--- Delete mapping nodes if they exist
-DELETE FROM core_requirementmappingset;
-
 -- Delete junction tables for libraries
 DELETE FROM core_storedlibrary_filtering_labels;
 DELETE FROM core_loadedlibrary_dependencies;
 
--- Delete loaded libraries (must be deleted before stored libraries due to is_loaded flag)
+-- Delete loaded libraries
 DELETE FROM core_loadedlibrary;
 
 -- Delete stored libraries
 DELETE FROM core_storedlibrary;
 
 -- Delete orphaned library filtering labels
-DELETE FROM core_libraryfilteringlabel 
-WHERE id NOT IN (
-    SELECT DISTINCT libraryfilteringlabel_id 
-    FROM core_storedlibrary_filtering_labels
-);
+DELETE FROM core_libraryfilteringlabel;
 
 -- Commit the transaction
 COMMIT;
@@ -59,4 +54,6 @@ SELECT 'Reference Controls remaining:', COUNT(*) FROM core_referencecontrol
 UNION ALL
 SELECT 'Threats remaining:', COUNT(*) FROM core_threat
 UNION ALL
-SELECT 'Risk Matrices remaining:', COUNT(*) FROM core_riskmatrix;
+SELECT 'Risk Matrices remaining:', COUNT(*) FROM core_riskmatrix
+UNION ALL
+SELECT 'Requirement Nodes remaining:', COUNT(*) FROM core_requirementnode;

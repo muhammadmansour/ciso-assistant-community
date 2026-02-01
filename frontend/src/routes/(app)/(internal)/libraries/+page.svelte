@@ -15,6 +15,7 @@
 
 	let { data } = $props();
 	let isFetchingMuraji = $state(false);
+	let isLoading = $state(true);
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -112,12 +113,42 @@
 	let quickFilterSelected: Record<string, boolean> = $state({});
 </script>
 
-<div class="card bg-white py-2 shadow-sm">
-	<ModelTable
-		source={data.storedLibrariesTable}
-		URLModel="stored-libraries"
-		deleteForm={data.deleteForm}
-		onFilterChange={(filters) => {
+<div class="card bg-white py-2 shadow-sm min-h-[400px]">
+	{#await data.storedLibrariesTable}
+		<!-- Loading State with Circular Progress -->
+		<div class="flex flex-col items-center justify-center py-20 gap-4">
+			<div class="relative">
+				<!-- Circular Progress Spinner -->
+				<svg class="w-16 h-16 animate-spin" viewBox="0 0 50 50">
+					<circle
+						class="stroke-gray-200"
+						cx="25"
+						cy="25"
+						r="20"
+						fill="none"
+						stroke-width="4"
+					></circle>
+					<circle
+						class="stroke-indigo-600"
+						cx="25"
+						cy="25"
+						r="20"
+						fill="none"
+						stroke-width="4"
+						stroke-linecap="round"
+						stroke-dasharray="31.4 94.2"
+					></circle>
+				</svg>
+			</div>
+			<p class="text-gray-600 font-medium">{m.loading ? m.loading() : 'Loading libraries...'}</p>
+			<p class="text-gray-400 text-sm">جاري تحميل المكتبات...</p>
+		</div>
+	{:then storedLibrariesTable}
+		<ModelTable
+			source={storedLibrariesTable}
+			URLModel="stored-libraries"
+			deleteForm={data.deleteForm}
+			onFilterChange={(filters) => {
 			// Reset all quickFilterSelected states
 			Object.keys(quickFilterSelected).forEach((key) => (quickFilterSelected[key] = false));
 
@@ -255,5 +286,22 @@
 				</span>
 			</div>
 		{/snippet}
-	</ModelTable>
+		</ModelTable>
+	{:catch error}
+		<!-- Error State -->
+		<div class="flex flex-col items-center justify-center py-20 gap-4">
+			<div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+				<i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
+			</div>
+			<p class="text-red-600 font-medium">Failed to load libraries</p>
+			<p class="text-gray-500 text-sm">{error?.message || 'An unexpected error occurred'}</p>
+			<button
+				class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+				onclick={() => invalidateAll()}
+			>
+				<i class="fa-solid fa-refresh mr-2"></i>
+				Retry
+			</button>
+		</div>
+	{/await}
 </div>
