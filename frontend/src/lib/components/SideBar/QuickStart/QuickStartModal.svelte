@@ -61,11 +61,10 @@
 		taintedMessage: m.taintedFormMessage(),
 		validationMethod: 'auto',
 		onUpdated: async ({ form }) => {
-			if (form.message?.redirect) {
+			if (form.valid && form.message?.redirect) {
+				// Close modal first, then redirect
+				modalStore.close();
 				goto(getSecureRedirect(form.message.redirect));
-			}
-			if (form.valid) {
-				parent.onConfirm();
 			}
 		}
 	});
