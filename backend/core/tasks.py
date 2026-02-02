@@ -378,6 +378,7 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     from .email_utils import render_email_template
 
     context = {
+        "control_id": str(control.id),
         "control_name": control.name,
         "control_description": control.description or "No description provided",
         "control_ref_id": control.ref_id or "N/A",
