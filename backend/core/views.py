@@ -7646,9 +7646,13 @@ class EvidenceViewSet(BaseModelViewSet):
 
     @action(detail=False, name="Get all evidences owners")
     def owner(self, request):
+        # Get users who are owners of evidences through the Actor model
+        user_ids = Actor.objects.filter(
+            evidences__isnull=False, user__isnull=False
+        ).values_list("user_id", flat=True).distinct()
         return Response(
             UserReadSerializer(
-                User.objects.filter(evidences__isnull=False).distinct(),
+                User.objects.filter(id__in=user_ids),
                 many=True,
             ).data
         )
