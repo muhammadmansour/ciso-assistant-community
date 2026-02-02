@@ -367,7 +367,7 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via Muraji API"""
     import requests
     
-    MURAJI_API_URL = "http://muraji-api.wathbahs.com/api/mail/send"
+    MURAJI_API_URL = "https://muraji-api.wathbahs.com/api/mail/send"
     
     try:
         payload = {
@@ -376,7 +376,7 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
             "body": body
         }
         
-        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+        response = requests.post(MURAJI_API_URL, json=payload, timeout=30, allow_redirects=True)
         
         if response.ok:
             logger.info(f"Muraji email sent successfully to {to_email}")
