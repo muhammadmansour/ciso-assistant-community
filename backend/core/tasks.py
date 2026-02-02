@@ -371,12 +371,12 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     
     try:
         payload = {
-            "to": to_email,
+            "recipient_list": [to_email],
             "subject": subject,
             "body": body
         }
         
-        response = requests.post(MURAJI_API_URL, json=payload, timeout=30, allow_redirects=True)
+        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
         
         if response.ok:
             logger.info(f"Muraji email sent successfully to {to_email}")
