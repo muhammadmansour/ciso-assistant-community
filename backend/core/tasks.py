@@ -389,10 +389,12 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
-@task()
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
-    """Send notification when AppliedControl is assigned to users"""
+    """Send notification when AppliedControl is assigned to users via Muraji API"""
+    logger.info(f"send_applied_control_assignment_notification called with control_id={control_id}, emails={assigned_user_emails}")
+    
     if not assigned_user_emails:
+        logger.warning("No emails provided for applied control assignment notification")
         return
 
     try:
@@ -417,11 +419,13 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     }
 
     for email in assigned_user_emails:
-        if email and check_email_configuration(email, [control]):
-            rendered = render_email_template("applied_control_assignment", context)
-            if rendered:
-                # Use Muraji API instead of Django send_mail
-                send_muraji_email(email, rendered["subject"], rendered["body"])
+        logger.info(f"Processing email notification for: {email}")
+        rendered = render_email_template("applied_control_assignment", context)
+        if rendered:
+            logger.info(f"Sending Muraji email to {email}")
+            # Use Muraji API instead of Django send_mail
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
 
 
 @task()

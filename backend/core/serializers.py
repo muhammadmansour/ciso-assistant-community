@@ -867,10 +867,13 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
             applied_control.findings.set(findings)
 
         # Send notification to newly assigned owners
+        logger.info(f"AppliedControl created: {applied_control.id}, owner_data: {owner_data}")
         if owner_data:
-            self._send_assignment_notifications(
-                applied_control, [user.id for user in owner_data]
-            )
+            owner_ids = [user.id for user in owner_data]
+            logger.info(f"Sending notifications to owner_ids: {owner_ids}")
+            self._send_assignment_notifications(applied_control, owner_ids)
+        else:
+            logger.info("No owners assigned, skipping notification")
 
         return applied_control
 
