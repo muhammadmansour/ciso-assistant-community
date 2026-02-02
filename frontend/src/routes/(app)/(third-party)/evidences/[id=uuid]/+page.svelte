@@ -75,7 +75,9 @@
 	// Load stored analysis from backend
 	async function loadStoredAnalysis() {
 		try {
-			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`);
+			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`, {
+				credentials: 'include'
+			});
 			if (res.ok) {
 				const stored = await res.json();
 				if (stored.ai_analysis) {
@@ -95,7 +97,8 @@
 			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ analysis })
+				body: JSON.stringify({ analysis }),
+				credentials: 'include'
 			});
 			if (res.ok) {
 				const result = await res.json();
