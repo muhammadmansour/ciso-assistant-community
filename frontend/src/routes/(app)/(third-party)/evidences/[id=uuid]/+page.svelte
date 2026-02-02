@@ -63,49 +63,36 @@
 	}
 
 	let attachment: Attachment | undefined = $state(undefined);
-	let analysisResult: EntityExtractionResult | null = $state(null);
+	let analysisResult: EntityExtractionResult | null = $state(data.aiAnalysis || null);
 	let analysisLoading = $state(false);
 	let analysisError: string | null = $state(null);
 	let analysisSaving = $state(false);
-	let lastAnalyzedAt: string | null = $state(null);
+	let lastAnalyzedAt: string | null = $state(data.aiAnalysisUpdatedAt || null);
 	let activeTab = $state('preview');
 
 	const modalStore: ModalStore = getModalStore();
 
-	// Load stored analysis from backend
-	async function loadStoredAnalysis() {
-		try {
-			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`, {
-				credentials: 'include'
-			});
-			if (res.ok) {
-				const stored = await res.json();
-				if (stored.ai_analysis) {
-					analysisResult = stored.ai_analysis;
-					lastAnalyzedAt = stored.ai_analysis_updated_at;
-				}
-			}
-		} catch (err) {
-			console.warn('Failed to load stored analysis:', err);
-		}
-	}
-
-	// Save analysis to backend
+	// Save analysis to backend via form action
 	async function saveAnalysis(analysis: EntityExtractionResult) {
 		analysisSaving = true;
 		try {
-			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`, {
+			const formData = new FormData();
+			formData.append('analysis', JSON.stringify(analysis));
+			
+			const res = await fetch(`?/saveAiAnalysis`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ analysis }),
-				credentials: 'include'
+				body: formData
 			});
+			
 			if (res.ok) {
 				const result = await res.json();
-				lastAnalyzedAt = result.ai_analysis_updated_at;
+				// Parse the response data from SvelteKit action format
+				if (result.data) {
+					lastAnalyzedAt = result.data.aiAnalysisUpdatedAt;
+				}
 				console.log('Analysis saved to database');
 			} else {
-				console.warn('Failed to save analysis:', await res.text());
+				console.warn('Failed to save analysis');
 			}
 		} catch (err) {
 			console.warn('Failed to save analysis:', err);
@@ -178,9 +165,6 @@
 			};
 		};
 		attachment = data.data.attachment ? await fetchAttachment() : undefined;
-
-		// Load stored AI analysis if available
-		await loadStoredAnalysis();
 	});
 
 	const user = page.data.user;
