@@ -860,16 +860,22 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
         validated_data.pop("remote_object_id", None)
         validated_data.pop("integration_config", None)
 
-        owner_data = validated_data.get("owner", [])
-        applied_control = super().create(validated_data)
+        # Pop M2M fields before super().create() - DRF handles them after object creation
+        owner_data = validated_data.pop("owner", [])
         findings = validated_data.pop("findings", [])
+        
+        applied_control = super().create(validated_data)
+        
+        # Set M2M relationships manually
+        if owner_data:
+            applied_control.owner.set(owner_data)
         if findings:
             applied_control.findings.set(findings)
 
         # Send notification to newly assigned owners
         logger.info(f"AppliedControl created: {applied_control.id}, owner_data: {owner_data}")
         if owner_data:
-            owner_ids = [user.id for user in owner_data]
+            owner_ids = [actor.id for actor in owner_data]
             logger.info(f"Sending notifications to owner_ids: {owner_ids}")
             self._send_assignment_notifications(applied_control, owner_ids)
         else:
