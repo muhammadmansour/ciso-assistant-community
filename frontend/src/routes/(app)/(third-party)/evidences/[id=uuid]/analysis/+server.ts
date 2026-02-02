@@ -1,7 +1,7 @@
 import { BASE_API_URL } from '$lib/utils/constants';
 import type { RequestHandler } from './$types';
 
-const ENTITY_EXTRACTION_API_URL = 'http://muraji-dev.wathbahs.com/api/entity-extraction/extract';
+const ENTITY_EXTRACTION_API_URL = 'https://muraji-dev.wathbahs.com/api/entity-extraction/extract';
 // Maximum file size for AI analysis (in bytes)
 const MAX_FILE_SIZE_FOR_AI = 50 * 1024 * 1024; // 50MB
 
@@ -98,6 +98,23 @@ export const POST: RequestHandler = async (event) => {
 				JSON.stringify({ error: 'Entity extraction failed', details: errorText }),
 				{
 					status: aiResponse.status,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			);
+		}
+
+		// Check content-type to ensure we're getting JSON
+		const responseContentType = aiResponse.headers.get('content-type') || '';
+		if (!responseContentType.includes('application/json')) {
+			const responseText = await aiResponse.text();
+			console.error('Entity Extraction API returned non-JSON response:', responseText.substring(0, 500));
+			return new Response(
+				JSON.stringify({ 
+					error: 'Entity extraction failed', 
+					details: `API returned non-JSON response (${responseContentType})`
+				}),
+				{
+					status: 502,
 					headers: { 'Content-Type': 'application/json' }
 				}
 			);
