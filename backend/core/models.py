@@ -3762,6 +3762,18 @@ class Evidence(
         null=True,
         verbose_name=_("Expiry date"),
     )
+    ai_analysis = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_("AI Analysis"),
+        help_text=_("AI-generated entity extraction and analysis results"),
+    )
+    ai_analysis_updated_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_("AI Analysis Updated At"),
+        help_text=_("When the AI analysis was last performed"),
+    )
     fields_to_check = ["name"]
 
     class Meta:

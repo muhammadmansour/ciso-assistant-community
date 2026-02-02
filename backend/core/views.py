@@ -7694,6 +7694,72 @@ class EvidenceViewSet(BaseModelViewSet):
     def status(self, request):
         return Response(dict(Evidence.Status.choices))
 
+    @action(methods=["post"], detail=True, url_path="ai-analysis")
+    def ai_analysis(self, request, pk):
+        """
+        Save AI entity extraction analysis results for an evidence.
+        """
+        from django.utils import timezone
+
+        (
+            object_ids_view,
+            object_ids_change,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+        
+        if UUID(pk) not in object_ids_change:
+            return Response(
+                {"error": "You don't have permission to update this evidence"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        evidence = self.get_object()
+        analysis_data = request.data.get("analysis")
+        
+        if not analysis_data:
+            return Response(
+                {"error": "analysis data is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        evidence.ai_analysis = analysis_data
+        evidence.ai_analysis_updated_at = timezone.now()
+        evidence.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
+        
+        return Response({
+            "success": True,
+            "ai_analysis": evidence.ai_analysis,
+            "ai_analysis_updated_at": evidence.ai_analysis_updated_at
+        })
+
+    @action(methods=["get"], detail=True, url_path="ai-analysis")
+    def get_ai_analysis(self, request, pk):
+        """
+        Get stored AI analysis results for an evidence.
+        """
+        (
+            object_ids_view,
+            _,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+        
+        if UUID(pk) not in object_ids_view:
+            return Response(
+                {"error": "You don't have permission to view this evidence"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        evidence = self.get_object()
+        
+        return Response({
+            "ai_analysis": evidence.ai_analysis,
+            "ai_analysis_updated_at": evidence.ai_analysis_updated_at
+        })
+
 
 class EvidenceRevisionViewSet(BaseModelViewSet):
     """

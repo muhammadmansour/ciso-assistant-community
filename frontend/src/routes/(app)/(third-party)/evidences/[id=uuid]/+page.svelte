@@ -66,9 +66,50 @@
 	let analysisResult: EntityExtractionResult | null = $state(null);
 	let analysisLoading = $state(false);
 	let analysisError: string | null = $state(null);
+	let analysisSaving = $state(false);
+	let lastAnalyzedAt: string | null = $state(null);
 	let activeTab = $state('preview');
 
 	const modalStore: ModalStore = getModalStore();
+
+	// Load stored analysis from backend
+	async function loadStoredAnalysis() {
+		try {
+			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`);
+			if (res.ok) {
+				const stored = await res.json();
+				if (stored.ai_analysis) {
+					analysisResult = stored.ai_analysis;
+					lastAnalyzedAt = stored.ai_analysis_updated_at;
+				}
+			}
+		} catch (err) {
+			console.warn('Failed to load stored analysis:', err);
+		}
+	}
+
+	// Save analysis to backend
+	async function saveAnalysis(analysis: EntityExtractionResult) {
+		analysisSaving = true;
+		try {
+			const res = await fetch(`/api/evidences/${data.data.id}/ai-analysis/`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ analysis })
+			});
+			if (res.ok) {
+				const result = await res.json();
+				lastAnalyzedAt = result.ai_analysis_updated_at;
+				console.log('Analysis saved to database');
+			} else {
+				console.warn('Failed to save analysis:', await res.text());
+			}
+		} catch (err) {
+			console.warn('Failed to save analysis:', err);
+		} finally {
+			analysisSaving = false;
+		}
+	}
 
 	function modalConfirm(id: string, name: string, action: string): void {
 		const modalComponent: ModalComponent = {
@@ -98,7 +139,6 @@
 	async function runAIAnalysis() {
 		analysisLoading = true;
 		analysisError = null;
-		analysisResult = null;
 
 		try {
 			const res = await fetch(`./${data.data.id}/analysis`, {
@@ -114,6 +154,8 @@
 				}
 			} else {
 				analysisResult = result;
+				// Save to database
+				await saveAnalysis(result);
 			}
 		} catch (err) {
 			analysisError = `Failed to run analysis: ${String(err)}`;
@@ -133,6 +175,9 @@
 			};
 		};
 		attachment = data.data.attachment ? await fetchAttachment() : undefined;
+
+		// Load stored AI analysis if available
+		await loadStoredAnalysis();
 	});
 
 	const user = page.data.user;
@@ -226,25 +271,41 @@
 								<p class="text-sm text-gray-600">
 									Extract entities, relationships, and key findings from the document
 								</p>
-							</div>
-							<button
-								class="btn preset-filled-primary-500"
-								onclick={runAIAnalysis}
-								disabled={analysisLoading}
-							>
-								{#if analysisLoading}
-									<ProgressRing
-										value={null}
-										size="size-5"
-										meterStroke="stroke-white"
-										trackStroke="stroke-primary-300"
-									/>
-									<span class="ml-2">Analyzing...</span>
-								{:else}
-									<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-									Run Analysis
+								{#if lastAnalyzedAt}
+									<p class="text-xs text-gray-500 mt-1">
+										<i class="fa-solid fa-clock mr-1"></i>
+										Last analyzed: {new Date(lastAnalyzedAt).toLocaleString()}
+									</p>
 								{/if}
-							</button>
+							</div>
+							<div class="flex items-center gap-2">
+								{#if analysisSaving}
+									<span class="text-sm text-gray-500">
+										<i class="fa-solid fa-save mr-1"></i>Saving...
+									</span>
+								{/if}
+								<button
+									class="btn preset-filled-primary-500"
+									onclick={runAIAnalysis}
+									disabled={analysisLoading || analysisSaving}
+								>
+									{#if analysisLoading}
+										<ProgressRing
+											value={null}
+											size="size-5"
+											meterStroke="stroke-white"
+											trackStroke="stroke-primary-300"
+										/>
+										<span class="ml-2">Analyzing...</span>
+									{:else if analysisResult}
+										<i class="fa-solid fa-rotate mr-2"></i>
+										Re-run Analysis
+									{:else}
+										<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+										Run Analysis
+									{/if}
+								</button>
+							</div>
 						</div>
 
 						<!-- Error Display -->
@@ -460,6 +521,9 @@
 								<p class="text-lg">No analysis results yet</p>
 								<p class="text-sm">
 									Click "Run Analysis" to extract entities and insights from this document
+								</p>
+								<p class="text-xs text-gray-400">
+									Results will be saved and available next time you view this evidence
 								</p>
 							</div>
 						{/if}
