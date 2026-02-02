@@ -363,6 +363,32 @@ def auditlog_prune():
 # Assignment notification functions
 
 
+def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
+    """Send email via Muraji API"""
+    import requests
+    
+    MURAJI_API_URL = "http://muraji-api.wathbahs.com/api/mail/send"
+    
+    try:
+        payload = {
+            "to": to_email,
+            "subject": subject,
+            "body": body
+        }
+        
+        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+        
+        if response.ok:
+            logger.info(f"Muraji email sent successfully to {to_email}")
+            return True
+        else:
+            logger.error(f"Muraji API error: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to send email via Muraji API: {str(e)}")
+        return False
+
+
 @task()
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
     """Send notification when AppliedControl is assigned to users"""
@@ -394,7 +420,8 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
         if email and check_email_configuration(email, [control]):
             rendered = render_email_template("applied_control_assignment", context)
             if rendered:
-                send_notification_email(rendered["subject"], rendered["body"], email)
+                # Use Muraji API instead of Django send_mail
+                send_muraji_email(email, rendered["subject"], rendered["body"])
 
 
 @task()
