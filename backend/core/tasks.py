@@ -363,34 +363,8 @@ def auditlog_prune():
 # Assignment notification functions
 
 
-def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
-    """Send email via Muraji API"""
-    import requests
-    
-    MURAJI_API_URL = "https://muraji-api.wathbahs.com/api/mail/send"
-    
-    try:
-        payload = {
-            "recipient_list": [to_email],
-            "subject": subject,
-            "body": body
-        }
-        
-        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
-        
-        if response.ok:
-            logger.info(f"Muraji email sent successfully to {to_email}")
-            return True
-        else:
-            logger.error(f"Muraji API error: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        logger.error(f"Failed to send email via Muraji API: {str(e)}")
-        return False
-
-
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
-    """Send notification when AppliedControl is assigned to users via Muraji API"""
+    """Send notification when AppliedControl is assigned to users"""
     logger.info(f"send_applied_control_assignment_notification called with control_id={control_id}, emails={assigned_user_emails}")
     
     if not assigned_user_emails:
@@ -419,13 +393,12 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     }
 
     for email in assigned_user_emails:
-        logger.info(f"Processing email notification for: {email}")
-        rendered = render_email_template("applied_control_assignment", context)
-        if rendered:
-            logger.info(f"Sending Muraji email to {email}")
-            # Use Muraji API instead of Django send_mail
-            success = send_muraji_email(email, rendered["subject"], rendered["body"])
-            logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
+        if email and check_email_configuration(email, [control]):
+            logger.info(f"Processing email notification for: {email}")
+            rendered = render_email_template("applied_control_assignment", context)
+            if rendered:
+                logger.info(f"Sending Django email to {email}")
+                send_notification_email(rendered["subject"], rendered["body"], email)
 
 
 @task()
