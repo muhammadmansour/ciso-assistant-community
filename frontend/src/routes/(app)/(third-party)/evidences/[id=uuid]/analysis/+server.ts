@@ -4,6 +4,8 @@ import type { RequestHandler } from './$types';
 const ENTITY_EXTRACTION_API_URL = 'https://muraji-api.wathbahs.com/api/entity-extraction/extract';
 // Maximum file size for AI analysis (in bytes)
 const MAX_FILE_SIZE_FOR_AI = 50 * 1024 * 1024; // 50MB
+// Timeout for AI analysis (in milliseconds) - AI processing can take time
+const AI_ANALYSIS_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 export const POST: RequestHandler = async (event) => {
 	const evidenceId = event.params.id;
@@ -82,14 +84,31 @@ export const POST: RequestHandler = async (event) => {
 			}
 		];
 
-		// Call the Entity Extraction API
-		const aiResponse = await fetch(ENTITY_EXTRACTION_API_URL, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ files })
-		});
+		// Call the Entity Extraction API with extended timeout
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), AI_ANALYSIS_TIMEOUT);
+
+		let aiResponse: Response;
+		try {
+			aiResponse = await fetch(ENTITY_EXTRACTION_API_URL, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ files }),
+				signal: controller.signal
+			});
+		} catch (fetchError: any) {
+			clearTimeout(timeoutId);
+			if (fetchError.name === 'AbortError') {
+				return new Response(
+					JSON.stringify({ error: 'Entity extraction timed out', details: 'The AI analysis took too long. Try with a smaller file.' }),
+					{ status: 504, headers: { 'Content-Type': 'application/json' } }
+				);
+			}
+			throw fetchError;
+		}
+		clearTimeout(timeoutId);
 
 		if (!aiResponse.ok) {
 			const errorText = await aiResponse.text();
