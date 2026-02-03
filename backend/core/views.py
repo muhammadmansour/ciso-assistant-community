@@ -7644,6 +7644,30 @@ class EvidenceViewSet(BaseModelViewSet):
         "processings",
     ]
 
+    def perform_create(self, serializer):
+        """Create evidence and trigger auto-analysis if attachment is uploaded."""
+        instance = super().perform_create(serializer)
+        # Trigger auto-analysis if evidence has attachment
+        if instance and instance.attachment:
+            from core.tasks import run_evidence_auto_analysis
+            run_evidence_auto_analysis(str(instance.id))
+        return instance
+
+    def perform_update(self, serializer):
+        """Update evidence and trigger auto-analysis if attachment changed."""
+        # Check if attachment is being added/changed
+        old_attachment = None
+        if serializer.instance:
+            old_attachment = serializer.instance.attachment
+        
+        instance = super().perform_update(serializer)
+        
+        # Trigger auto-analysis if attachment was added or changed
+        if instance and instance.attachment and instance.attachment != old_attachment:
+            from core.tasks import run_evidence_auto_analysis
+            run_evidence_auto_analysis(str(instance.id))
+        return instance
+
     @action(detail=False, name="Get all evidences owners")
     def owner(self, request):
         # Get users who are owners of evidences through the Actor model

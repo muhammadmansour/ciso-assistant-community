@@ -363,8 +363,34 @@ def auditlog_prune():
 # Assignment notification functions
 
 
+def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
+    """Send email via Muraji API"""
+    import requests
+    
+    MURAJI_API_URL = "https://muraji-api.wathbahs.com/api/mail/send"
+    
+    try:
+        payload = {
+            "recipient_list": [to_email],
+            "subject": subject,
+            "body": body
+        }
+        
+        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+        
+        if response.ok:
+            logger.info(f"Muraji email sent successfully to {to_email}")
+            return True
+        else:
+            logger.error(f"Muraji API error: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to send email via Muraji API: {str(e)}")
+        return False
+
+
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
-    """Send notification when AppliedControl is assigned to users"""
+    """Send notification when AppliedControl is assigned to users via Muraji API"""
     logger.info(f"send_applied_control_assignment_notification called with control_id={control_id}, emails={assigned_user_emails}")
     
     if not assigned_user_emails:
@@ -393,12 +419,13 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     }
 
     for email in assigned_user_emails:
-        if email and check_email_configuration(email, [control]):
-            logger.info(f"Processing email notification for: {email}")
-            rendered = render_email_template("applied_control_assignment", context)
-            if rendered:
-                logger.info(f"Sending Django email to {email}")
-                send_notification_email(rendered["subject"], rendered["body"], email)
+        logger.info(f"Processing email notification for: {email}")
+        rendered = render_email_template("applied_control_assignment", context)
+        if rendered:
+            logger.info(f"Sending Muraji email to {email}")
+            # Use Muraji API instead of Django send_mail
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
 
 
 @task()
@@ -742,3 +769,166 @@ def mark_expired_evidences():
         logger.info(f"Successfully marked {count} evidences as expired")
     else:
         logger.debug("No expired evidences found to mark")
+
+
+@task()
+def run_evidence_auto_analysis(evidence_id: str):
+    """
+    Run auto AI analysis (entity extraction and audit analysis) on an evidence.
+    Triggered when evidence attachment is uploaded.
+    """
+    import base64
+    import requests
+    from django.utils import timezone
+    
+    ENTITY_EXTRACTION_API_URL = "https://muraji-api.wathbahs.com/api/entity-extraction/extract"
+    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbahs.com/api/audit/analyze"
+    
+    try:
+        evidence = Evidence.objects.get(id=evidence_id)
+        
+        # Check if evidence has an attachment
+        if not evidence.attachment:
+            logger.info(f"Evidence {evidence_id} has no attachment, skipping auto-analysis")
+            return
+        
+        logger.info(f"Starting auto-analysis for evidence: {evidence.name} (ID: {evidence_id})")
+        
+        # Read the attachment file
+        try:
+            file_content = evidence.last_revision.attachment.read()
+            base64_data = base64.b64encode(file_content).decode('utf-8')
+            
+            # Get file info
+            attachment_name = evidence.attachment
+            # Determine MIME type from extension
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(attachment_name)
+            mime_type = mime_type or 'application/octet-stream'
+            
+            logger.info(f"File: {attachment_name}, MIME: {mime_type}, Size: {len(file_content)} bytes")
+        except Exception as e:
+            logger.error(f"Failed to read attachment for evidence {evidence_id}: {e}")
+            return
+        
+        # Prepare file payload
+        file_payload = {
+            "name": attachment_name,
+            "mimeType": mime_type,
+            "encoding": "base64",
+            "data": base64_data
+        }
+        
+        # 1. Run Entity Extraction
+        try:
+            logger.info(f"Running entity extraction for evidence {evidence_id}")
+            entity_response = requests.post(
+                ENTITY_EXTRACTION_API_URL,
+                json={"files": [file_payload]},
+                headers={"Content-Type": "application/json"},
+                timeout=300  # 5 minutes
+            )
+            
+            if entity_response.ok:
+                entity_result = entity_response.json()
+                evidence.ai_analysis = entity_result
+                evidence.ai_analysis_updated_at = timezone.now()
+                evidence.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
+                logger.info(f"Entity extraction completed for evidence {evidence_id}")
+            else:
+                logger.error(f"Entity extraction failed for evidence {evidence_id}: {entity_response.text[:500]}")
+        except Exception as e:
+            logger.error(f"Entity extraction error for evidence {evidence_id}: {e}")
+        
+        # 2. Run Audit Analysis (if linked to requirements)
+        try:
+            # Get questions and typical evidence from linked requirements
+            questions = []
+            typical_evidence = []
+            context_parts = [f"Evidence: {evidence.name}"]
+            
+            if evidence.description:
+                context_parts.append(f"Description: {evidence.description}")
+            
+            for ra in evidence.requirement_assessments.all():
+                req = ra.requirement
+                
+                # Parse questions
+                if req.questions:
+                    if isinstance(req.questions, dict):
+                        for q_key, q_val in req.questions.items():
+                            if isinstance(q_val, dict) and 'text' in q_val:
+                                questions.append(q_val['text'])
+                            elif isinstance(q_val, str):
+                                questions.append(q_val)
+                    elif isinstance(req.questions, list):
+                        questions.extend([q.get('text', q) if isinstance(q, dict) else q for q in req.questions])
+                
+                # Parse typical evidence
+                if req.typical_evidence:
+                    if isinstance(req.typical_evidence, str):
+                        lines = req.typical_evidence.strip().split('\n')
+                        for line in lines:
+                            line = line.strip().lstrip('-').lstrip('•').strip()
+                            if line:
+                                typical_evidence.append(line)
+                    elif isinstance(req.typical_evidence, list):
+                        typical_evidence.extend(req.typical_evidence)
+                
+                # Build context
+                req_parts = []
+                if req.framework:
+                    req_parts.append(f"Framework: {req.framework.name}")
+                    if req.framework.provider:
+                        req_parts.append(f"Provider: {req.framework.provider}")
+                if req.ref_id:
+                    req_parts.append(f"Requirement: {req.ref_id}")
+                if req.description:
+                    req_parts.append(f"Description: {req.description}")
+                if req_parts:
+                    context_parts.append(", ".join(req_parts))
+            
+            # Remove duplicates
+            questions = list(dict.fromkeys(questions))
+            typical_evidence = list(dict.fromkeys(typical_evidence))
+            
+            # Only run audit analysis if we have questions or typical evidence
+            if questions or typical_evidence:
+                logger.info(f"Running audit analysis for evidence {evidence_id} with {len(questions)} questions and {len(typical_evidence)} typical evidence items")
+                
+                audit_request = {
+                    "files": [file_payload],
+                    "questions": questions,
+                    "typicalEvidence": typical_evidence,
+                    "options": {
+                        "context": "\n".join(context_parts)
+                    }
+                }
+                
+                audit_response = requests.post(
+                    AUDIT_ANALYSIS_API_URL,
+                    json=audit_request,
+                    headers={"Content-Type": "application/json"},
+                    timeout=300  # 5 minutes
+                )
+                
+                if audit_response.ok:
+                    audit_result = audit_response.json()
+                    evidence.audit_analysis = audit_result
+                    evidence.audit_analysis_updated_at = timezone.now()
+                    evidence.save(update_fields=["audit_analysis", "audit_analysis_updated_at"])
+                    logger.info(f"Audit analysis completed for evidence {evidence_id}")
+                else:
+                    logger.error(f"Audit analysis failed for evidence {evidence_id}: {audit_response.text[:500]}")
+            else:
+                logger.info(f"Skipping audit analysis for evidence {evidence_id} - no questions or typical evidence linked")
+                
+        except Exception as e:
+            logger.error(f"Audit analysis error for evidence {evidence_id}: {e}")
+        
+        logger.info(f"Auto-analysis completed for evidence {evidence_id}")
+        
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence {evidence_id} not found for auto-analysis")
+    except Exception as e:
+        logger.error(f"Auto-analysis failed for evidence {evidence_id}: {e}")
