@@ -307,23 +307,31 @@
 		const shouldAutoAnalyze = urlParams.get('autoAnalyze') === 'true';
 		
 		if (shouldAutoAnalyze && attachment?.fileExists) {
-			// Switch to Entity Extraction tab and run analysis
-			activeTab = 'entity-extraction';
+			// Remove the autoAnalyze param from URL without reload
+			const newUrl = window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
+			
+			// Run both analyses in parallel
+			const analysisPromises: Promise<void>[] = [];
 			
 			// Run entity extraction if no existing results
 			if (!analysisResult) {
-				await runEntityExtraction();
+				activeTab = 'entity-extraction';
+				analysisPromises.push(runEntityExtraction());
 			}
 			
 			// Run audit analysis if we have questions/typical evidence and no existing results
 			if (!auditResult && (questions.length > 0 || typicalEvidence.length > 0)) {
-				activeTab = 'ai-analysis';
-				await runAuditAnalysis();
+				analysisPromises.push(runAuditAnalysis());
 			}
 			
-			// Remove the autoAnalyze param from URL without reload
-			const newUrl = window.location.pathname;
-			window.history.replaceState({}, '', newUrl);
+			// Wait for all analyses to complete
+			await Promise.all(analysisPromises);
+			
+			// Switch to AI Analysis tab if it ran
+			if (!auditResult && (questions.length > 0 || typicalEvidence.length > 0)) {
+				activeTab = 'ai-analysis';
+			}
 		}
 	});
 
