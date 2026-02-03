@@ -216,12 +216,13 @@ export async function defaultWriteFormAction({
 	const next = getSecureRedirect(event.url.searchParams.get('next'));
 	if (next && doRedirect) redirect(302, next);
 
+	// Always redirect to evidence page after creation to trigger auto-analysis
+	if (action === 'create' && urlModel === 'evidences') {
+		return message(form, { redirect: `/evidences/${writtenObject.id}?autoAnalyze=true` });
+	}
+
 	if (redirectToWrittenObject) {
-		// For evidences, add autoAnalyze param to trigger analysis on page load
-		const redirectUrl = urlModel === 'evidences' 
-			? `/${urlModel}/${writtenObject.id}?autoAnalyze=true`
-			: `/${urlModel}/${writtenObject.id}`;
-		return message(form, { redirect: redirectUrl });
+		return message(form, { redirect: `/${urlModel}/${writtenObject.id}` });
 	}
 	return message(form, { object: writtenObject });
 }
