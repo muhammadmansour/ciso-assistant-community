@@ -787,8 +787,8 @@ def run_evidence_auto_analysis(evidence_id: str):
     try:
         evidence = Evidence.objects.get(id=evidence_id)
         
-        # Check if evidence has an attachment
-        if not evidence.attachment:
+        # Check if evidence has an attachment (via last_revision)
+        if not evidence.last_revision or not evidence.last_revision.attachment:
             logger.info(f"Evidence {evidence_id} has no attachment, skipping auto-analysis")
             return
         
@@ -796,11 +796,12 @@ def run_evidence_auto_analysis(evidence_id: str):
         
         # Read the attachment file
         try:
+            evidence.last_revision.attachment.seek(0)  # Reset file pointer
             file_content = evidence.last_revision.attachment.read()
             base64_data = base64.b64encode(file_content).decode('utf-8')
             
             # Get file info
-            attachment_name = evidence.attachment
+            attachment_name = evidence.filename()
             # Determine MIME type from extension
             import mimetypes
             mime_type, _ = mimetypes.guess_type(attachment_name)

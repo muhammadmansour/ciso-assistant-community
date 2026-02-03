@@ -7879,6 +7879,15 @@ class EvidenceRevisionViewSet(BaseModelViewSet):
     filterset_fields = ["evidence"]
     ordering = ["-version"]
 
+    def perform_create(self, serializer):
+        """Create evidence revision and trigger auto-analysis if attachment is uploaded."""
+        instance = super().perform_create(serializer)
+        # Trigger auto-analysis if revision has attachment
+        if instance and instance.attachment and instance.evidence:
+            from core.tasks import run_evidence_auto_analysis
+            run_evidence_auto_analysis(str(instance.evidence.id))
+        return instance
+
     @action(methods=["get"], detail=True)
     def attachment(self, request, pk):
         (
