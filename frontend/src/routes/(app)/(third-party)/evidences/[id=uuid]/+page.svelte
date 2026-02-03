@@ -301,6 +301,30 @@
 			};
 		};
 		attachment = data.data.attachment ? await fetchAttachment() : undefined;
+		
+		// Check if auto-analysis should run (via URL param from redirect after creation)
+		const urlParams = new URLSearchParams(window.location.search);
+		const shouldAutoAnalyze = urlParams.get('autoAnalyze') === 'true';
+		
+		if (shouldAutoAnalyze && attachment?.fileExists) {
+			// Switch to Entity Extraction tab and run analysis
+			activeTab = 'entity-extraction';
+			
+			// Run entity extraction if no existing results
+			if (!analysisResult) {
+				await runEntityExtraction();
+			}
+			
+			// Run audit analysis if we have questions/typical evidence and no existing results
+			if (!auditResult && (questions.length > 0 || typicalEvidence.length > 0)) {
+				activeTab = 'ai-analysis';
+				await runAuditAnalysis();
+			}
+			
+			// Remove the autoAnalyze param from URL without reload
+			const newUrl = window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
+		}
 	});
 
 	const user = page.data.user;

@@ -261,8 +261,8 @@ export const actions: Actions = {
 		return { form, newControls: [measure.id] };
 	},
 	createEvidence: async (event) => {
-		const result = await nestedWriteFormAction({ event, action: 'create' });
-		return { form: result.form, newEvidence: result.form.message.object.id };
+		// Redirect to evidence page with autoAnalyze to trigger AI analysis
+		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: true });
 	},
 	createSecurityException: async (event) => {
 		const result = await nestedWriteFormAction({ event, action: 'create' });

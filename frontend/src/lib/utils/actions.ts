@@ -199,7 +199,11 @@ export async function defaultWriteFormAction({
 	if (next && doRedirect) redirect(302, next);
 
 	if (redirectToWrittenObject) {
-		return message(form, { redirect: `/${urlModel}/${writtenObject.id}` });
+		// For evidences, add autoAnalyze param to trigger analysis on page load
+		const redirectUrl = urlModel === 'evidences' 
+			? `/${urlModel}/${writtenObject.id}?autoAnalyze=true`
+			: `/${urlModel}/${writtenObject.id}`;
+		return message(form, { redirect: redirectUrl });
 	}
 	return message(form, { object: writtenObject });
 }
