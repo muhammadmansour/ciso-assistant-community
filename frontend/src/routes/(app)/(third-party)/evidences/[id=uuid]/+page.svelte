@@ -483,19 +483,6 @@
 									</div>
 								{/if}
 
-								<!-- Metadata -->
-								{#if analysisResult.metadata || analysisResult.aiModel}
-									<div class="text-xs text-gray-500 text-right">
-										{#if analysisResult.aiModel}
-											<span>Model: {analysisResult.aiModel}</span>
-										{/if}
-										{#if analysisResult.timestamp}
-											<span class="ml-4">
-												Analyzed: {new Date(analysisResult.timestamp).toLocaleString()}
-											</span>
-										{/if}
-									</div>
-								{/if}
 							</div>
 						{/if}
 
