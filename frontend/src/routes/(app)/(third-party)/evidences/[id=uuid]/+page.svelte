@@ -69,45 +69,50 @@
 			score: number;
 			summary: string;
 		};
-		questionAnalysis?: Array<{
+		requirementEvaluation?: {
+			requirementMet: string;
+			evidenceAlignment: string;
+			specificFindings: string;
+		};
+		questionEvaluation?: Array<{
+			questionNumber: number;
 			question: string;
-			answer: string;
+			answered: string;
+			evidenceFound: string;
+			sourceFile: string;
 			confidence: number;
-			evidence: string[];
-		}>;
-		evidenceAnalysis?: Array<{
-			evidenceName: string;
-			relevance: string;
-			coverage: string;
-			quality: string;
-		}>;
-		typicalEvidenceComparison?: Array<{
-			typicalEvidence: string;
-			status: string;
-			foundEvidence: string;
 			notes: string;
 		}>;
+		typicalEvidenceCheck?: Array<{
+			evidenceItem: string;
+			status: string;
+			foundIn: string;
+			details: string;
+		}>;
+		fileAnalysis?: Array<{
+			fileName: string;
+			contentSummary: string;
+			relevantSections: string[];
+			coversQuestions: number[];
+			coversEvidence: number[];
+		}>;
 		gaps?: Array<{
-			area: string;
-			description: string;
+			gap: string;
 			severity: string;
+			impact: string;
 			recommendation: string;
 		}>;
 		strengths?: string[];
-		recommendations?: Array<{
-			priority: string;
-			recommendation: string;
-			impact: string;
-		}>;
-		entities?: Array<{
-			text: string;
-			type: string;
-		}>;
-		relationships?: Array<{
-			entity1: string;
-			relation: string;
-			entity2: string;
-		}>;
+		recommendations?: string[];
+		timestamp?: string;
+		aiModel?: string;
+		metadata?: {
+			timestamp: string;
+			filesProcessed: number;
+			questionsEvaluated: number;
+			typicalEvidenceChecked: number;
+			model: string;
+		};
 		error?: string;
 		details?: string;
 	}
@@ -787,18 +792,66 @@
 									</div>
 								{/if}
 
-								<!-- Question Analysis -->
-								{#if auditResult.questionAnalysis && auditResult.questionAnalysis.length > 0}
+								<!-- Requirement Evaluation -->
+								{#if auditResult.requirementEvaluation}
+									<div class="p-4 bg-white border rounded-lg">
+										<h5 class="font-semibold text-gray-800 mb-3">
+											<i class="fa-solid fa-clipboard-check mr-2"></i>
+											Requirement Evaluation
+										</h5>
+										<div class="space-y-3">
+											<div class="flex items-center gap-2">
+												<span class="font-medium text-gray-700">Status:</span>
+												<span class="px-2 py-0.5 rounded text-sm {
+													auditResult.requirementEvaluation.requirementMet === 'full' ? 'bg-green-100 text-green-800' :
+													auditResult.requirementEvaluation.requirementMet === 'partial' ? 'bg-yellow-100 text-yellow-800' :
+													'bg-red-100 text-red-800'
+												}">
+													{auditResult.requirementEvaluation.requirementMet === 'full' ? 'Fully Met' :
+													 auditResult.requirementEvaluation.requirementMet === 'partial' ? 'Partially Met' : 'Not Met'}
+												</span>
+											</div>
+											<div>
+												<p class="font-medium text-gray-700 mb-1">Evidence Alignment:</p>
+												<p class="text-sm text-gray-600 bg-gray-50 p-2 rounded">{auditResult.requirementEvaluation.evidenceAlignment}</p>
+											</div>
+											<div>
+												<p class="font-medium text-gray-700 mb-1">Specific Findings:</p>
+												<p class="text-sm text-gray-600 bg-gray-50 p-2 rounded">{auditResult.requirementEvaluation.specificFindings}</p>
+											</div>
+										</div>
+									</div>
+								{/if}
+
+								<!-- Question Evaluation -->
+								{#if auditResult.questionEvaluation && auditResult.questionEvaluation.length > 0}
 									<div class="p-4 bg-white border rounded-lg">
 										<h5 class="font-semibold text-gray-800 mb-3">
 											<i class="fa-solid fa-clipboard-question mr-2"></i>
-											Question Analysis
+											Question Evaluation
 										</h5>
 										<div class="space-y-3">
-											{#each auditResult.questionAnalysis as qa}
+											{#each auditResult.questionEvaluation as qa}
 												<div class="p-3 bg-gray-50 rounded-lg">
-													<p class="font-medium text-gray-800">{qa.question}</p>
-													<p class="text-sm text-gray-600 mt-1">{qa.answer}</p>
+													<div class="flex items-start justify-between mb-2">
+														<p class="font-medium text-gray-800">
+															<span class="text-primary-600">Q{qa.questionNumber}:</span> {qa.question}
+														</p>
+														<span class="px-2 py-0.5 rounded text-sm font-medium {
+															qa.answered === 'Yes' ? 'bg-green-100 text-green-800' :
+															qa.answered === 'Partially' ? 'bg-yellow-100 text-yellow-800' :
+															'bg-red-100 text-red-800'
+														}">
+															{qa.answered}
+														</span>
+													</div>
+													<div class="text-sm text-gray-600 space-y-1">
+														<p><span class="font-medium">Evidence:</span> {qa.evidenceFound}</p>
+														<p><span class="font-medium">Source:</span> {qa.sourceFile}</p>
+														{#if qa.notes}
+															<p class="text-gray-500 italic"><i class="fa-solid fa-note-sticky mr-1"></i> {qa.notes}</p>
+														{/if}
+													</div>
 													<div class="flex items-center gap-2 mt-2">
 														<span class="text-xs px-2 py-0.5 rounded {
 															qa.confidence >= 0.8 ? 'bg-green-100 text-green-700' :
@@ -814,18 +867,87 @@
 									</div>
 								{/if}
 
+								<!-- Typical Evidence Check -->
+								{#if auditResult.typicalEvidenceCheck && auditResult.typicalEvidenceCheck.length > 0}
+									<div class="p-4 bg-white border rounded-lg">
+										<h5 class="font-semibold text-gray-800 mb-3">
+											<i class="fa-solid fa-file-circle-check mr-2"></i>
+											Typical Evidence Check
+										</h5>
+										<div class="overflow-x-auto">
+											<table class="w-full text-sm">
+												<thead>
+													<tr class="border-b bg-gray-50">
+														<th class="text-left p-2">Evidence Item</th>
+														<th class="text-left p-2">Status</th>
+														<th class="text-left p-2">Found In</th>
+														<th class="text-left p-2">Details</th>
+													</tr>
+												</thead>
+												<tbody>
+													{#each auditResult.typicalEvidenceCheck as item}
+														<tr class="border-b hover:bg-gray-50">
+															<td class="p-2 font-medium">{item.evidenceItem}</td>
+															<td class="p-2">
+																<span class="px-2 py-0.5 rounded text-xs {
+																	item.status === 'Present' ? 'bg-green-100 text-green-800' :
+																	item.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
+																	'bg-red-100 text-red-800'
+																}">
+																	{item.status}
+																</span>
+															</td>
+															<td class="p-2 text-gray-600">{item.foundIn || '-'}</td>
+															<td class="p-2 text-gray-500 text-xs">{item.details || '-'}</td>
+														</tr>
+													{/each}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								{/if}
+
+								<!-- File Analysis -->
+								{#if auditResult.fileAnalysis && auditResult.fileAnalysis.length > 0}
+									<div class="p-4 bg-white border rounded-lg">
+										<h5 class="font-semibold text-gray-800 mb-3">
+											<i class="fa-solid fa-file-alt mr-2"></i>
+											File Analysis
+										</h5>
+										{#each auditResult.fileAnalysis as file}
+											<div class="p-3 bg-gray-50 rounded-lg">
+												<p class="font-medium text-gray-800 mb-2">
+													<i class="fa-solid fa-file-pdf mr-2 text-red-500"></i>
+													{file.fileName}
+												</p>
+												<p class="text-sm text-gray-600 mb-2">{file.contentSummary}</p>
+												{#if file.relevantSections && file.relevantSections.length > 0}
+													<div class="text-sm">
+														<p class="font-medium text-gray-700 mb-1">Relevant Sections:</p>
+														<ul class="list-disc list-inside text-gray-600 space-y-1">
+															{#each file.relevantSections as section}
+																<li>{section}</li>
+															{/each}
+														</ul>
+													</div>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								{/if}
+
 								<!-- Gaps -->
 								{#if auditResult.gaps && auditResult.gaps.length > 0}
 									<div class="p-4 bg-red-50 border border-red-200 rounded-lg">
 										<h5 class="font-semibold text-red-800 mb-3">
 											<i class="fa-solid fa-triangle-exclamation mr-2"></i>
-											Identified Gaps
+											Identified Gaps ({auditResult.gaps.length})
 										</h5>
 										<div class="space-y-3">
 											{#each auditResult.gaps as gap}
 												<div class="p-3 bg-white rounded-lg border border-red-100">
-													<div class="flex items-start justify-between">
-														<p class="font-medium text-gray-800">{gap.area}</p>
+													<div class="flex items-start justify-between mb-2">
+														<p class="font-medium text-gray-800">{gap.gap}</p>
 														<span class="text-xs px-2 py-0.5 rounded {
 															gap.severity === 'High' ? 'bg-red-200 text-red-800' :
 															gap.severity === 'Medium' ? 'bg-yellow-200 text-yellow-800' :
@@ -834,8 +956,8 @@
 															{gap.severity}
 														</span>
 													</div>
-													<p class="text-sm text-gray-600 mt-1">{gap.description}</p>
-													<p class="text-sm text-blue-600 mt-2">
+													<p class="text-sm text-gray-600 mb-2">{gap.impact}</p>
+													<p class="text-sm text-blue-600 bg-blue-50 p-2 rounded">
 														<i class="fa-solid fa-lightbulb mr-1"></i>
 														{gap.recommendation}
 													</p>
@@ -850,7 +972,7 @@
 									<div class="p-4 bg-green-50 border border-green-200 rounded-lg">
 										<h5 class="font-semibold text-green-800 mb-3">
 											<i class="fa-solid fa-circle-check mr-2"></i>
-											Strengths
+											Strengths ({auditResult.strengths.length})
 										</h5>
 										<ul class="space-y-2">
 											{#each auditResult.strengths as strength}
@@ -868,65 +990,18 @@
 									<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
 										<h5 class="font-semibold text-blue-800 mb-3">
 											<i class="fa-solid fa-list-check mr-2"></i>
-											Recommendations
+											Recommendations ({auditResult.recommendations.length})
 										</h5>
-										<div class="space-y-3">
-											{#each auditResult.recommendations as rec}
-												<div class="flex items-start gap-3 p-3 bg-white rounded-lg">
-													<span class="px-2 py-0.5 rounded text-xs font-medium {
-														rec.priority === 'High' ? 'bg-red-100 text-red-800' :
-														rec.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-														'bg-green-100 text-green-800'
-													}">
-														{rec.priority}
+										<ul class="space-y-2">
+											{#each auditResult.recommendations as rec, i}
+												<li class="flex items-start gap-3 p-2 bg-white rounded">
+													<span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium flex items-center justify-center">
+														{i + 1}
 													</span>
-													<div>
-														<p class="text-gray-800">{rec.recommendation}</p>
-														<p class="text-sm text-gray-500 mt-1">Impact: {rec.impact}</p>
-													</div>
-												</div>
+													<span class="text-gray-700">{rec}</span>
+												</li>
 											{/each}
-										</div>
-									</div>
-								{/if}
-
-								<!-- Typical Evidence Comparison -->
-								{#if auditResult.typicalEvidenceComparison && auditResult.typicalEvidenceComparison.length > 0}
-									<div class="p-4 bg-white border rounded-lg">
-										<h5 class="font-semibold text-gray-800 mb-3">
-											<i class="fa-solid fa-scale-balanced mr-2"></i>
-											Evidence Comparison
-										</h5>
-										<div class="overflow-x-auto">
-											<table class="w-full text-sm">
-												<thead>
-													<tr class="border-b bg-gray-50">
-														<th class="text-left p-2">Expected Evidence</th>
-														<th class="text-left p-2">Status</th>
-														<th class="text-left p-2">Found</th>
-														<th class="text-left p-2">Notes</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each auditResult.typicalEvidenceComparison as comp}
-														<tr class="border-b hover:bg-gray-50">
-															<td class="p-2 font-medium">{comp.typicalEvidence}</td>
-															<td class="p-2">
-																<span class="px-2 py-0.5 rounded text-xs {
-																	comp.status === 'Found' ? 'bg-green-100 text-green-800' :
-																	comp.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
-																	'bg-red-100 text-red-800'
-																}">
-																	{comp.status}
-																</span>
-															</td>
-															<td class="p-2 text-gray-600">{comp.foundEvidence || '-'}</td>
-															<td class="p-2 text-gray-500 text-xs">{comp.notes || '-'}</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										</div>
+										</ul>
 									</div>
 								{/if}
 							</div>
