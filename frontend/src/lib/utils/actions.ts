@@ -69,7 +69,25 @@ export async function handleErrorResponse({
 	response: Response;
 	form: SuperValidated;
 }) {
-	const res: Record<string, string> = await response.json();
+	// Check if response is JSON before parsing
+	const contentType = response.headers.get('content-type') || '';
+	let res: Record<string, string>;
+	
+	if (contentType.includes('application/json')) {
+		try {
+			res = await response.json();
+		} catch (e) {
+			console.error('Failed to parse error response as JSON:', e);
+			setFlash({ type: 'error', message: `Server error (${response.status})` }, event);
+			return message(form, { status: response.status });
+		}
+	} else {
+		// Response is not JSON (likely HTML error page)
+		console.error('Non-JSON error response:', response.status, response.statusText);
+		setFlash({ type: 'error', message: `Server error (${response.status})` }, event);
+		return message(form, { status: response.status });
+	}
+	
 	console.error(res);
 	if (res.label) {
 		res['filtering_labels'] = res.label;
