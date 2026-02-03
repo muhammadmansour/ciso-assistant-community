@@ -314,24 +314,24 @@
 			// Run both analyses in parallel
 			const analysisPromises: Promise<void>[] = [];
 			
-			// Run entity extraction if no existing results
+			// Always run entity extraction if no existing results
 			if (!analysisResult) {
-				activeTab = 'entity-extraction';
 				analysisPromises.push(runEntityExtraction());
 			}
 			
-			// Run audit analysis if we have questions/typical evidence and no existing results
-			if (!auditResult && (questions.length > 0 || typicalEvidence.length > 0)) {
+			// Always run audit analysis if no existing results
+			if (!auditResult) {
 				analysisPromises.push(runAuditAnalysis());
 			}
+			
+			// Set tab to show progress
+			activeTab = 'entity-extraction';
 			
 			// Wait for all analyses to complete
 			await Promise.all(analysisPromises);
 			
-			// Switch to AI Analysis tab if it ran
-			if (!auditResult && (questions.length > 0 || typicalEvidence.length > 0)) {
-				activeTab = 'ai-analysis';
-			}
+			// Switch to AI Analysis tab after completion
+			activeTab = 'ai-analysis';
 		}
 	});
 
