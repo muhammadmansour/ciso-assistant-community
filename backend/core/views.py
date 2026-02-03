@@ -7656,8 +7656,6 @@ class EvidenceViewSet(BaseModelViewSet):
         instance = super().perform_update(serializer)
         # Note: Attachments are uploaded via EvidenceRevision, not directly on Evidence
         # Auto-analysis is triggered from EvidenceRevisionViewSet.perform_create
-            from core.tasks import run_evidence_auto_analysis
-            run_evidence_auto_analysis(str(instance.id))
         return instance
 
     @action(detail=False, name="Get all evidences owners")
