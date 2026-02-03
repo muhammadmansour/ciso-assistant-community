@@ -7647,23 +7647,15 @@ class EvidenceViewSet(BaseModelViewSet):
     def perform_create(self, serializer):
         """Create evidence and trigger auto-analysis if attachment is uploaded."""
         instance = super().perform_create(serializer)
-        # Trigger auto-analysis if evidence has attachment
-        if instance and instance.attachment:
-            from core.tasks import run_evidence_auto_analysis
-            run_evidence_auto_analysis(str(instance.id))
+        # Note: Attachments are uploaded via EvidenceRevision, not directly on Evidence
+        # Auto-analysis is triggered from EvidenceRevisionViewSet.perform_create
         return instance
 
     def perform_update(self, serializer):
-        """Update evidence and trigger auto-analysis if attachment changed."""
-        # Check if attachment is being added/changed
-        old_attachment = None
-        if serializer.instance:
-            old_attachment = serializer.instance.attachment
-        
+        """Update evidence."""
         instance = super().perform_update(serializer)
-        
-        # Trigger auto-analysis if attachment was added or changed
-        if instance and instance.attachment and instance.attachment != old_attachment:
+        # Note: Attachments are uploaded via EvidenceRevision, not directly on Evidence
+        # Auto-analysis is triggered from EvidenceRevisionViewSet.perform_create
             from core.tasks import run_evidence_auto_analysis
             run_evidence_auto_analysis(str(instance.id))
         return instance
