@@ -3774,6 +3774,18 @@ class Evidence(
         verbose_name=_("AI Analysis Updated At"),
         help_text=_("When the AI analysis was last performed"),
     )
+    audit_analysis = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_("Audit Analysis"),
+        help_text=_("AI-generated audit compliance analysis results"),
+    )
+    audit_analysis_updated_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_("Audit Analysis Updated At"),
+        help_text=_("When the audit analysis was last performed"),
+    )
     fields_to_check = ["name"]
 
     class Meta:

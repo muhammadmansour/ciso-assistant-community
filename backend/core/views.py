@@ -7698,7 +7698,7 @@ class EvidenceViewSet(BaseModelViewSet):
     def ai_analysis(self, request, pk):
         """
         Get or save AI entity extraction analysis results for an evidence.
-        GET: Retrieve stored analysis
+        GET: Retrieve stored analysis, questions, and typical evidence from linked requirements
         POST: Save new analysis results
         """
         from django.utils import timezone
@@ -7719,9 +7719,48 @@ class EvidenceViewSet(BaseModelViewSet):
                 )
             
             evidence = self.get_object()
+            
+            # Get questions and typical evidence from linked requirement assessments
+            questions = []
+            typical_evidence = []
+            
+            # Get through requirement_assessments relationship
+            for ra in evidence.requirement_assessments.all():
+                req = ra.requirement
+                # Parse questions from the requirement
+                if req.questions:
+                    if isinstance(req.questions, dict):
+                        for q_key, q_val in req.questions.items():
+                            if isinstance(q_val, dict) and 'text' in q_val:
+                                questions.append(q_val['text'])
+                            elif isinstance(q_val, str):
+                                questions.append(q_val)
+                    elif isinstance(req.questions, list):
+                        questions.extend([q.get('text', q) if isinstance(q, dict) else q for q in req.questions])
+                
+                # Parse typical evidence
+                if req.typical_evidence:
+                    # typical_evidence might be a string with newlines or bullet points
+                    if isinstance(req.typical_evidence, str):
+                        lines = req.typical_evidence.strip().split('\n')
+                        for line in lines:
+                            line = line.strip().lstrip('-').lstrip('•').strip()
+                            if line:
+                                typical_evidence.append(line)
+                    elif isinstance(req.typical_evidence, list):
+                        typical_evidence.extend(req.typical_evidence)
+            
+            # Remove duplicates while preserving order
+            questions = list(dict.fromkeys(questions))
+            typical_evidence = list(dict.fromkeys(typical_evidence))
+            
             return Response({
                 "ai_analysis": evidence.ai_analysis,
-                "ai_analysis_updated_at": evidence.ai_analysis_updated_at
+                "ai_analysis_updated_at": evidence.ai_analysis_updated_at,
+                "audit_analysis": evidence.audit_analysis,
+                "audit_analysis_updated_at": evidence.audit_analysis_updated_at,
+                "questions": questions,
+                "typical_evidence": typical_evidence
             })
         
         elif request.method == "POST":
@@ -7749,6 +7788,46 @@ class EvidenceViewSet(BaseModelViewSet):
                 "ai_analysis": evidence.ai_analysis,
                 "ai_analysis_updated_at": evidence.ai_analysis_updated_at
             })
+
+    @action(methods=["post"], detail=True, url_path="audit-analysis")
+    def audit_analysis(self, request, pk):
+        """
+        Save audit compliance analysis results for an evidence.
+        """
+        from django.utils import timezone
+
+        (
+            _,
+            object_ids_change,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+        
+        if UUID(pk) not in object_ids_change:
+            return Response(
+                {"error": "You don't have permission to update this evidence"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        evidence = self.get_object()
+        analysis_data = request.data.get("analysis")
+        
+        if not analysis_data:
+            return Response(
+                {"error": "analysis data is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        evidence.audit_analysis = analysis_data
+        evidence.audit_analysis_updated_at = timezone.now()
+        evidence.save(update_fields=["audit_analysis", "audit_analysis_updated_at"])
+        
+        return Response({
+            "success": True,
+            "audit_analysis": evidence.audit_analysis,
+            "audit_analysis_updated_at": evidence.audit_analysis_updated_at
+        })
 
 
 class EvidenceRevisionViewSet(BaseModelViewSet):
