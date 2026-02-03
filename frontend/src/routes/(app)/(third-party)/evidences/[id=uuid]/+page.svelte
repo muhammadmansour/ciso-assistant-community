@@ -131,6 +131,9 @@
 	// Questions and typical evidence from linked requirements
 	let questions: string[] = $state(data.questions || []);
 	let typicalEvidence: string[] = $state(data.typicalEvidence || []);
+	let requirementsContext = $state(data.requirementsContext || []);
+	let evidenceName: string = $state(data.evidenceName || '');
+	let evidenceDescription: string = $state(data.evidenceDescription || '');
 	
 	let activeTab = $state('preview');
 
@@ -256,7 +259,10 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					questions,
-					typicalEvidence
+					typicalEvidence,
+					requirementsContext,
+					evidenceName,
+					evidenceDescription
 				})
 			});
 

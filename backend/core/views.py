@@ -7723,10 +7723,23 @@ class EvidenceViewSet(BaseModelViewSet):
             # Get questions and typical evidence from linked requirement assessments
             questions = []
             typical_evidence = []
+            requirements_context = []
             
             # Get through requirement_assessments relationship
             for ra in evidence.requirement_assessments.all():
                 req = ra.requirement
+                
+                # Build requirement context
+                req_context = {
+                    "ref_id": req.ref_id,
+                    "name": req.name or "",
+                    "description": req.description or "",
+                    "provider": req.provider or "",
+                    "framework": req.framework.name if req.framework else "",
+                    "framework_provider": req.framework.provider if req.framework else "",
+                }
+                requirements_context.append(req_context)
+                
                 # Parse questions from the requirement
                 if req.questions:
                     if isinstance(req.questions, dict):
@@ -7760,7 +7773,10 @@ class EvidenceViewSet(BaseModelViewSet):
                 "audit_analysis": evidence.audit_analysis,
                 "audit_analysis_updated_at": evidence.audit_analysis_updated_at,
                 "questions": questions,
-                "typical_evidence": typical_evidence
+                "typical_evidence": typical_evidence,
+                "requirements_context": requirements_context,
+                "evidence_name": evidence.name,
+                "evidence_description": evidence.description or ""
             })
         
         elif request.method == "POST":

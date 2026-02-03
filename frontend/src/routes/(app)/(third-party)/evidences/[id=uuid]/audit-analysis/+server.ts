@@ -8,13 +8,20 @@ export const POST: RequestHandler = async ({ params, request, fetch }) => {
 	const evidenceId = params.id;
 	
 	try {
-		// Get the questions and typical evidence from request body
+		// Get the questions, typical evidence, and context from request body
 		const requestData = await request.json();
-		const { questions = [], typicalEvidence = [] } = requestData;
+		const { 
+			questions = [], 
+			typicalEvidence = [],
+			requirementsContext = [],
+			evidenceName = '',
+			evidenceDescription = ''
+		} = requestData;
 
 		// First, fetch the evidence file from backend
 		console.log('=== Audit Analysis API Request ===');
 		console.log('Evidence ID:', evidenceId);
+		console.log('Evidence Name:', evidenceName);
 		
 		const evidenceRes = await fetch(`${BASE_API_URL}/evidences/${evidenceId}/`);
 		if (!evidenceRes.ok) {
@@ -46,6 +53,38 @@ export const POST: RequestHandler = async ({ params, request, fetch }) => {
 		console.log('File size:', fileBuffer.byteLength, 'bytes');
 		console.log('Questions count:', questions.length);
 		console.log('Typical evidence count:', typicalEvidence.length);
+		console.log('Requirements context count:', requirementsContext.length);
+
+		// Build context string from requirements
+		const contextParts: string[] = [];
+		
+		if (evidenceName) {
+			contextParts.push(`Evidence: ${evidenceName}`);
+		}
+		if (evidenceDescription) {
+			contextParts.push(`Description: ${evidenceDescription}`);
+		}
+		
+		// Add requirements context
+		if (requirementsContext.length > 0) {
+			const reqContextStr = requirementsContext.map((req: {
+				ref_id: string;
+				name: string;
+				description: string;
+				provider: string;
+				framework: string;
+				framework_provider: string;
+			}) => {
+				const parts = [];
+				if (req.framework) parts.push(`Framework: ${req.framework}`);
+				if (req.framework_provider || req.provider) parts.push(`Provider: ${req.framework_provider || req.provider}`);
+				if (req.ref_id) parts.push(`Requirement: ${req.ref_id}`);
+				if (req.name) parts.push(`Name: ${req.name}`);
+				if (req.description) parts.push(`Description: ${req.description}`);
+				return parts.join(', ');
+			}).join('\n');
+			contextParts.push(`\nLinked Requirements:\n${reqContextStr}`);
+		}
 
 		// Prepare the request to Muraji API
 		const auditRequest = {
@@ -60,7 +99,7 @@ export const POST: RequestHandler = async ({ params, request, fetch }) => {
 			questions: questions,
 			typicalEvidence: typicalEvidence,
 			options: {
-				context: 'Compliance audit analysis'
+				context: contextParts.join('\n') || 'Compliance audit analysis'
 			}
 		};
 

@@ -20,6 +20,16 @@ export const load: PageServerLoad = async (event) => {
 	// Load questions and typical evidence from linked requirement assessments
 	let questions: string[] = [];
 	let typicalEvidence: string[] = [];
+	let requirementsContext: Array<{
+		ref_id: string;
+		name: string;
+		description: string;
+		provider: string;
+		framework: string;
+		framework_provider: string;
+	}> = [];
+	let evidenceName = '';
+	let evidenceDescription = '';
 	
 	try {
 		const res = await event.fetch(`${BASE_API_URL}/evidences/${event.params.id}/ai-analysis/`);
@@ -31,6 +41,9 @@ export const load: PageServerLoad = async (event) => {
 			auditAnalysisUpdatedAt = data.audit_analysis_updated_at;
 			questions = data.questions || [];
 			typicalEvidence = data.typical_evidence || [];
+			requirementsContext = data.requirements_context || [];
+			evidenceName = data.evidence_name || '';
+			evidenceDescription = data.evidence_description || '';
 		}
 	} catch (err) {
 		console.warn('Failed to load AI analysis:', err);
@@ -43,7 +56,10 @@ export const load: PageServerLoad = async (event) => {
 		auditAnalysis,
 		auditAnalysisUpdatedAt,
 		questions,
-		typicalEvidence
+		typicalEvidence,
+		requirementsContext,
+		evidenceName,
+		evidenceDescription
 	};
 };
 
