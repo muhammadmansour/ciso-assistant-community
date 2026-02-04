@@ -6075,6 +6075,92 @@ class ComplianceAssessment(Assessment):
             if group.get("ref_id") in self.selected_implementation_groups
         ]
 
+    def sync_requirement_nodes_with_library(self) -> int:
+        """
+        Sync missing requirement nodes from the stored library to the database.
+        Returns the number of nodes created.
+        """
+        from library.helpers import get_referential_translation
+
+        # Get the stored library for this framework
+        library = self.framework.library
+        if not library:
+            return 0
+
+        stored_library = StoredLibrary.objects.filter(urn=library.urn).first()
+        if not stored_library or not stored_library.content:
+            return 0
+
+        # Get framework data from stored library
+        content = stored_library.content
+        framework_data = content.get("framework")
+        if not framework_data and "frameworks" in content:
+            frameworks_list = content.get("frameworks", [])
+            if frameworks_list:
+                framework_data = frameworks_list[0]
+
+        if not framework_data:
+            return 0
+
+        stored_nodes = framework_data.get("requirement_nodes", [])
+        if not stored_nodes:
+            return 0
+
+        # Get existing nodes
+        existing_urns = set(
+            RequirementNode.objects.filter(framework=self.framework)
+            .values_list("urn", flat=True)
+        )
+
+        # Find and create missing nodes
+        created_count = 0
+        created_nodes = []
+
+        for index, node_data in enumerate(stored_nodes):
+            node_urn = node_data.get("urn", "").lower()
+            if node_urn and node_urn not in existing_urns:
+                parent_urn = node_data.get("parent_urn")
+                if parent_urn:
+                    parent_urn = parent_urn.lower()
+
+                node = RequirementNode.objects.create(
+                    folder=Folder.get_root_folder(),
+                    framework=self.framework,
+                    urn=node_urn,
+                    parent_urn=parent_urn,
+                    assessable=node_data.get("assessable", False),
+                    ref_id=node_data.get("ref_id"),
+                    annotation=node_data.get("annotation"),
+                    typical_evidence=node_data.get("typical_evidence"),
+                    provider=self.framework.provider,
+                    order_id=index,
+                    name=node_data.get("name"),
+                    description=node_data.get("description"),
+                    implementation_groups=node_data.get("implementation_groups"),
+                    weight=node_data.get("weight", 1),
+                    locale=self.framework.locale,
+                    default_locale=self.framework.default_locale,
+                    translations=node_data.get("translations", {}),
+                    is_published=True,
+                    questions=node_data.get("questions"),
+                )
+                created_nodes.append(node)
+                created_count += 1
+
+        # Create requirement assessments for the new nodes
+        if created_nodes:
+            for node in created_nodes:
+                RequirementAssessment.objects.create(
+                    compliance_assessment=self,
+                    requirement=node,
+                    folder=self.folder,
+                    answers=transform_questions_to_answers(node.questions)
+                    if node.questions
+                    else {},
+                )
+
+        return created_count
+
     def get_requirement_assessments(self, include_non_assessable: bool):
         """
         Returns sorted assessable requirement assessments based on the selected implementation groups.

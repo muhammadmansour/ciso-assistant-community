@@ -8905,6 +8905,10 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
     def tree(self, request, pk):
         compliance_assessment = self.get_object()
         _framework = compliance_assessment.framework
+
+        # Sync missing requirement nodes from library before building the tree
+        compliance_assessment.sync_requirement_nodes_with_library()
+
         requirement_assessments = list(
             compliance_assessment.get_requirement_assessments(
                 include_non_assessable=True
@@ -8944,6 +8948,10 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             self.request.query_params.get("assessable", "false")
         ).lower() in {"true", "1", "yes"}
         compliance_assessment = self.get_object()
+
+        # Sync missing requirement nodes from library before fetching requirements
+        compliance_assessment.sync_requirement_nodes_with_library()
+
         requirement_assessments_objects = list(
             compliance_assessment.get_requirement_assessments(
                 include_non_assessable=not assessable
