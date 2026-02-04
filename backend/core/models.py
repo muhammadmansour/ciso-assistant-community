@@ -6075,21 +6075,23 @@ class ComplianceAssessment(Assessment):
             if group.get("ref_id") in self.selected_implementation_groups
         ]
 
-    def sync_requirement_nodes_with_library(self) -> int:
+    def sync_requirement_nodes_with_library(self) -> tuple[int, int]:
         """
-        Sync missing requirement nodes from the stored library to the database.
-        Returns the number of nodes created.
+        Sync requirement nodes from the stored library to the database.
+        - Creates missing nodes
+        - Updates assessable field for existing nodes
+        Returns tuple of (nodes_created, nodes_updated).
         """
         from library.helpers import get_referential_translation
 
         # Get the stored library for this framework
         library = self.framework.library
         if not library:
-            return 0
+            return (0, 0)
 
         stored_library = StoredLibrary.objects.filter(urn=library.urn).first()
         if not stored_library or not stored_library.content:
-            return 0
+            return (0, 0)
 
         # Get framework data from stored library
         content = stored_library.content
@@ -6100,25 +6102,39 @@ class ComplianceAssessment(Assessment):
                 framework_data = frameworks_list[0]
 
         if not framework_data:
-            return 0
+            return (0, 0)
 
         stored_nodes = framework_data.get("requirement_nodes", [])
         if not stored_nodes:
-            return 0
+            return (0, 0)
 
-        # Get existing nodes
-        existing_urns = set(
-            RequirementNode.objects.filter(framework=self.framework)
-            .values_list("urn", flat=True)
-        )
+        # Get existing nodes as a dict for quick lookup
+        existing_nodes = {
+            node.urn: node
+            for node in RequirementNode.objects.filter(framework=self.framework)
+        }
 
-        # Find and create missing nodes
+        # Find missing nodes and update existing ones
         created_count = 0
+        updated_count = 0
         created_nodes = []
 
         for index, node_data in enumerate(stored_nodes):
             node_urn = node_data.get("urn", "").lower()
-            if node_urn and node_urn not in existing_urns:
+            if not node_urn:
+                continue
+
+            library_assessable = node_data.get("assessable", False)
+
+            if node_urn in existing_nodes:
+                # Update existing node if assessable field differs
+                existing_node = existing_nodes[node_urn]
+                if existing_node.assessable != library_assessable:
+                    existing_node.assessable = library_assessable
+                    existing_node.save(update_fields=["assessable"])
+                    updated_count += 1
+            else:
+                # Create missing node
                 parent_urn = node_data.get("parent_urn")
                 if parent_urn:
                     parent_urn = parent_urn.lower()
@@ -6128,7 +6144,7 @@ class ComplianceAssessment(Assessment):
                     framework=self.framework,
                     urn=node_urn,
                     parent_urn=parent_urn,
-                    assessable=node_data.get("assessable", False),
+                    assessable=library_assessable,
                     ref_id=node_data.get("ref_id"),
                     annotation=node_data.get("annotation"),
                     typical_evidence=node_data.get("typical_evidence"),
@@ -6159,7 +6175,7 @@ class ComplianceAssessment(Assessment):
                     else {},
                 )
 
-        return created_count
+        return (created_count, updated_count)
 
     def get_requirement_assessments(self, include_non_assessable: bool):
         """
