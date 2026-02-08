@@ -147,8 +147,8 @@
 		{#snippet content()}
 			<!-- Evidences Tab Content -->
 			{#if activeTab === 'evidences'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'evidences')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'evidences')}
 					{#if reverseForeignKey && data.foreignKeys?.evidences}
 						<ModelTable
 							source={{
@@ -170,8 +170,8 @@
 
 			<!-- Tasks Tab Content -->
 			{#if activeTab === 'tasks'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'task-nodes')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'task-nodes')}
 					{#if reverseForeignKey && data.foreignKeys?.['task-nodes']}
 						<ModelTable
 							source={{
@@ -193,8 +193,8 @@
 
 			<!-- Requirement Assessments Tab Content -->
 			{#if activeTab === 'requirements'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'requirement-assessments')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'requirement-assessments')}
 					{#if reverseForeignKey && data.foreignKeys?.['requirement-assessments']}
 						<ModelTable
 							source={{
@@ -216,8 +216,8 @@
 
 			<!-- Risk Scenarios Tab Content -->
 			{#if activeTab === 'risks'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'risk-scenarios')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'risk-scenarios')}
 					{#if reverseForeignKey && data.foreignKeys?.['risk-scenarios']}
 						<ModelTable
 							source={{
@@ -239,8 +239,8 @@
 
 			<!-- Findings Tab Content -->
 			{#if activeTab === 'findings'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'findings')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'findings')}
 					{#if reverseForeignKey && data.foreignKeys?.findings}
 						<ModelTable
 							source={{
@@ -262,8 +262,8 @@
 
 			<!-- Assets Tab Content -->
 			{#if activeTab === 'assets'}
+				{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'assets')}
 				<div class="p-4">
-					{@const reverseForeignKey = data.model.reverseForeignKeyFields?.find(f => f.urlModel === 'assets')}
 					{#if reverseForeignKey && data.foreignKeys?.assets}
 						<ModelTable
 							source={{
