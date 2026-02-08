@@ -4058,45 +4058,122 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
         )
 
-    @action(detail=True, methods=["get"], url_path="ai-analysis")
-    def ai_analysis(self, request, pk=None):
-        """Get AI analysis results stored in cache from Muraji API"""
-        from django.core.cache import cache
-        
-        applied_control = self.get_object()
-        cache_key = f"ai_analysis_{applied_control.id}"
-        cached = cache.get(cache_key)
-        
-        return Response({
-            'ai_analysis': cached.get('result') if cached else None,
-            'ai_analysis_updated_at': cached.get('updated_at') if cached else None,
-            'evidence_count': applied_control.evidences.count(),
-        })
-    
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
-        """Trigger AI analysis using Muraji API"""
-        from core.tasks import run_applied_control_analysis
-        
+        """Call Muraji API directly for AI analysis and return result"""
+        import requests as http_requests
+        import os
+
         applied_control = self.get_object()
-        
-        # Check if there are any evidences
+
         evidence_count = applied_control.evidences.count()
         if evidence_count == 0:
             return Response(
-                {
-                    'message': 'No evidences found for this applied control. Please upload evidence files first.'
-                },
+                {'message': 'No evidences found. Please upload evidence files first.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Queue analysis task via Huey
-        run_applied_control_analysis(str(applied_control.id))
-        
-        return Response({
-            'message': f'AI analysis started for applied control with {evidence_count} evidence(s)',
-            'evidenceCount': evidence_count
-        }, status=status.HTTP_200_OK)
+
+        # Gather evidence data
+        evidence_data = []
+        gemini_file_ids = []
+        for evidence in applied_control.evidences.all():
+            evidence_data.append({
+                'name': evidence.name,
+                'description': evidence.description or '',
+            })
+            for revision in evidence.revisions.all():
+                try:
+                    if hasattr(revision, 'file_search'):
+                        fs = revision.file_search
+                        if fs and fs.upload_status == 'completed':
+                            gemini_file_ids.append({
+                                'gemini_file_id': fs.gemini_file_id,
+                                'gemini_store_id': fs.gemini_store_id,
+                                'evidence_name': evidence.name,
+                            })
+                except Exception:
+                    pass
+
+        # Gather requirements, questions, typical evidence
+        questions = []
+        typical_evidence = []
+        requirements_context = []
+        for ra in applied_control.requirement_assessments.select_related(
+            'requirement', 'requirement__framework'
+        ).all():
+            req = ra.requirement
+            requirements_context.append({
+                'ref_id': req.ref_id,
+                'name': req.name,
+                'description': req.description or '',
+                'framework': req.framework.name if req.framework else '',
+                'provider': req.framework.provider if req.framework else ''
+            })
+            if req.questions:
+                for q_key, q_data in req.questions.items():
+                    if isinstance(q_data, dict) and 'text' in q_data:
+                        questions.append(q_data['text'])
+            if req.typical_evidence:
+                typical_evidence.extend(req.typical_evidence)
+
+        request_body = {
+            'applied_control': {
+                'id': str(applied_control.id),
+                'ref_id': applied_control.ref_id,
+                'name': applied_control.name,
+                'description': applied_control.description or '',
+                'status': applied_control.status,
+                'category': applied_control.category,
+                'csf_function': applied_control.csf_function
+            },
+            'evidences': evidence_data,
+            'gemini_file_search': {
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids
+            } if gemini_file_ids else None,
+            'requirements': requirements_context,
+            'questions': list(set(questions)),
+            'typical_evidence': list(set(typical_evidence)),
+            'analysis_config': {
+                'include_entity_extraction': True,
+                'include_compliance_check': True,
+                'include_gap_analysis': True,
+                'include_recommendations': True
+            }
+        }
+
+        muraji_url = os.environ.get(
+            'MURAJI_ANALYSIS_API_URL',
+            'https://muraji-api.wathbahs.com/api/applied-control/analyze'
+        )
+
+        try:
+            resp = http_requests.post(
+                muraji_url,
+                json=request_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=300
+            )
+            if not resp.ok:
+                return Response(
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+            return Response({
+                'ai_analysis': resp.json(),
+                'ai_analysis_updated_at': timezone.now().isoformat(),
+            })
+        except http_requests.Timeout:
+            return Response(
+                {'message': 'Muraji API timed out'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except Exception as e:
+            return Response(
+                {'message': f'Failed to call Muraji API: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def perform_create(self, serializer):
         create_remote_object = serializer.validated_data.pop(

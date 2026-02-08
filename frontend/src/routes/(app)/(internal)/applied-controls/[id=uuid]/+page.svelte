@@ -3,8 +3,6 @@
 	import { Tabs, ProgressRing } from '@skeletonlabs/skeleton-svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
 	import { m } from '$paraglide/messages';
-	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -15,74 +13,48 @@
 	
 	let activeTab = $state('details');
 	let isAnalyzing = $state(false);
-	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+	let aiAnalysisResult: any = $state(null);
 
-	// Watch for analysis results arriving via data reload
-	$effect(() => {
-		if (isAnalyzing && data.aiAnalysis?.ai_analysis) {
-			stopPolling();
-		}
-	});
-
-	function startPolling() {
+	async function runAnalysis() {
+		isAnalyzing = true;
 		activeTab = 'ai-report';
-		
-		// Poll every 3 seconds by re-running the server load function
-		pollingInterval = setInterval(async () => {
-			await invalidateAll();
-		}, 3000);
-	}
-
-	function stopPolling() {
-		isAnalyzing = false;
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-			pollingInterval = null;
+		try {
+			const res = await fetch(`/api/applied-controls/${data.data.id}/run-ai-analysis/`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' }
+			});
+			if (res.ok) {
+				aiAnalysisResult = await res.json();
+			} else {
+				const err = await res.json().catch(() => ({}));
+				aiAnalysisResult = { error: err.message || `Muraji API error (${res.status})` };
+			}
+		} catch (e: any) {
+			aiAnalysisResult = { error: e.message || 'Failed to reach server' };
+		} finally {
+			isAnalyzing = false;
 		}
 	}
-
-	// Clean up on component destroy
-	$effect(() => {
-		return () => {
-			if (pollingInterval) {
-				clearInterval(pollingInterval);
-			}
-		};
-	});
 </script>
 
 <DetailView {data}>
 	{#snippet actions()}
 		<!-- Start AI Analysis Button -->
-		<form 
-			method="POST" 
-			action="?/runAiAnalysis"
-			use:enhance={() => {
-				isAnalyzing = true;
-				return async ({ result }) => {
-					if (result.type === 'success' || result.type === 'redirect') {
-						startPolling();
-					} else {
-						isAnalyzing = false;
-					}
-				};
-			}}
+		<button
+			type="button"
+			onclick={runAnalysis}
+			class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+			disabled={isAnalyzing}
+			title="Start AI Analysis on Associated Evidences"
 		>
-			<button
-				type="submit"
-				class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-				disabled={isAnalyzing}
-				title="Start AI Analysis on Associated Evidences"
-			>
-				{#if isAnalyzing}
-					<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-					<span>Analyzing...</span>
-				{:else}
-					<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-					<span>Start AI Analysis</span>
-				{/if}
-			</button>
-		</form>
+			{#if isAnalyzing}
+				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+				<span>Analyzing...</span>
+			{:else}
+				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+				<span>Start AI Analysis</span>
+			{/if}
+		</button>
 	{/snippet}
 </DetailView>
 
@@ -331,23 +303,33 @@
 							<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Muraji API...</h3>
 							<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
 						</div>
-					{:else if data.aiAnalysis?.ai_analysis}
+					{:else if aiAnalysisResult?.error}
+						<!-- Error state -->
+						<div class="text-center py-12">
+							<div class="inline-block p-6 rounded-full bg-red-100 mb-4">
+								<i class="fa-solid fa-circle-exclamation text-4xl text-red-600"></i>
+							</div>
+							<h3 class="text-xl font-semibold text-gray-800 mb-2">Analysis Failed</h3>
+							<p class="text-red-600 mb-4">{aiAnalysisResult.error}</p>
+							<p class="text-gray-500 text-sm">Click "Start AI Analysis" to try again.</p>
+						</div>
+					{:else if aiAnalysisResult?.ai_analysis}
 						<!-- Analysis Results -->
 						<div class="mb-4 flex items-center justify-between">
 							<h3 class="text-lg font-semibold text-gray-800">
 								<i class="fa-solid fa-brain text-purple-600 mr-2"></i>
 								AI Analysis Report
 							</h3>
-							{#if data.aiAnalysis.ai_analysis_updated_at}
+							{#if aiAnalysisResult.ai_analysis_updated_at}
 								<span class="text-sm text-gray-500">
-									Last updated: {new Date(data.aiAnalysis.ai_analysis_updated_at).toLocaleString()}
+									Last updated: {new Date(aiAnalysisResult.ai_analysis_updated_at).toLocaleString()}
 								</span>
 							{/if}
 						</div>
 
 						<!-- Render analysis sections dynamically -->
-						{#if typeof data.aiAnalysis.ai_analysis === 'object'}
-							{#each Object.entries(data.aiAnalysis.ai_analysis) as [sectionKey, sectionValue]}
+						{#if typeof aiAnalysisResult.ai_analysis === 'object'}
+							{#each Object.entries(aiAnalysisResult.ai_analysis) as [sectionKey, sectionValue]}
 								<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 									<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 										<h4 class="font-semibold text-gray-700 capitalize">
@@ -405,7 +387,7 @@
 						{:else}
 							<!-- Raw text result -->
 							<div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-								<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(data.aiAnalysis.ai_analysis, null, 2)}</pre>
+								<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(aiAnalysisResult.ai_analysis, null, 2)}</pre>
 							</div>
 						{/if}
 					{:else}
@@ -418,7 +400,7 @@
 							<p class="text-gray-600 mb-6">
 								Click the "Start AI Analysis" button above to analyze all associated evidence files.
 							</p>
-							{#if data.aiAnalysis?.evidence_count === 0}
+							{#if aiAnalysisResult?.evidence_count === 0}
 								<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto">
 									<p class="text-sm text-yellow-800">
 										<i class="fa-solid fa-triangle-exclamation mr-2"></i>
@@ -429,7 +411,7 @@
 								<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
 									<p class="text-sm text-blue-800">
 										<i class="fa-solid fa-info-circle mr-2"></i>
-										{data.aiAnalysis?.evidence_count || 0} evidence(s) will be analyzed along with requirement questions and typical evidence.
+										{aiAnalysisResult?.evidence_count || 0} evidence(s) will be analyzed along with requirement questions and typical evidence.
 									</p>
 								</div>
 							{/if}

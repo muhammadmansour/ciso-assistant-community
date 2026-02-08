@@ -34,23 +34,9 @@ export const load: PageServerLoad = async (event) => {
 		}
 	);
 
-	// Fetch AI analysis data
-	let aiAnalysis = null;
-	try {
-		const aiResponse = await event.fetch(
-			`${BASE_API_URL}/applied-controls/${event.params.id}/ai-analysis/`
-		);
-		if (aiResponse.ok) {
-			aiAnalysis = await aiResponse.json();
-		}
-	} catch (e) {
-		// AI analysis endpoint may not be available
-	}
-
 	return {
 		...data,
-		duplicateForm: appliedControlDuplicateForm,
-		aiAnalysis
+		duplicateForm: appliedControlDuplicateForm
 	};
 };
 
@@ -83,26 +69,5 @@ export const actions: Actions = {
 
 		setFlash({ type: 'success', message: 'Applied control duplicated successfully' }, event);
 		return { form };
-	},
-	runAiAnalysis: async (event) => {
-		const appliedControlId = event.params.id;
-		
-		try {
-			const response = await event.fetch(
-				`${BASE_API_URL}/applied-controls/${appliedControlId}/run-ai-analysis/`,
-				{ method: 'POST' }
-			);
-
-			if (!response.ok) {
-				const error = await response.json();
-				return fail(400, { analysisError: error.message || 'Failed to start AI analysis' });
-			}
-
-			return { analysisStarted: true };
-			
-		} catch (err) {
-			console.error('AI analysis error:', err);
-			return fail(500, { analysisError: 'Failed to start AI analysis' });
-		}
 	}
 };
