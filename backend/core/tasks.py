@@ -933,3 +933,7 @@ def run_evidence_auto_analysis(evidence_id: str):
         logger.error(f"Evidence {evidence_id} not found for auto-analysis")
     except Exception as e:
         logger.error(f"Auto-analysis failed for evidence {evidence_id}: {e}")
+
+
+# Import additional task modules so Huey registers them
+from core.tasks_applied_control_analysis import run_applied_control_analysis  # noqa: F401, E402

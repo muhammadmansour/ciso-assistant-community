@@ -502,6 +502,14 @@ if MAIL_DEBUG:
 ## Huey settings
 HUEY_FILE_PATH = os.environ.get("HUEY_FILE_PATH", BASE_DIR / "db" / "huey.db")
 
+# File-based cache so web server and Huey worker can share data
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.environ.get("CACHE_FILE_PATH", BASE_DIR / "db" / "django_cache"),
+    }
+}
+
 HUEY = {
     "huey_class": "huey.SqliteHuey",
     "name": "ciso_assistant",
