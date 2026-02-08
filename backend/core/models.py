@@ -8124,7 +8124,7 @@ auditlog.register(
 )
 auditlog.register(
     EvidenceRevision,
-    exclude_fields=common_exclude,
+    exclude_fields=common_exclude + ["file_search"],
 )
 auditlog.register(
     OrganisationIssue,
