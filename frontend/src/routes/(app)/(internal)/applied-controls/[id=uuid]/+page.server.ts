@@ -69,5 +69,20 @@ export const actions: Actions = {
 
 		setFlash({ type: 'success', message: 'Applied control duplicated successfully' }, event);
 		return { form };
+	},
+	runAiAnalysis: async (event) => {
+		// Call backend which calls Muraji API directly, wait for result
+		const response = await event.fetch(
+			`${BASE_API_URL}/applied-controls/${event.params.id}/run-ai-analysis/`,
+			{ method: 'POST' }
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			return fail(response.status, { aiError: err.message || err.detail || `Error ${response.status}` });
+		}
+
+		const result = await response.json();
+		return { aiAnalysis: result };
 	}
 };

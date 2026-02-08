@@ -3,6 +3,7 @@
 	import { Tabs, ProgressRing } from '@skeletonlabs/skeleton-svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
 	import { m } from '$paraglide/messages';
+	import { enhance } from '$app/forms';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -14,47 +15,45 @@
 	let activeTab = $state('details');
 	let isAnalyzing = $state(false);
 	let aiAnalysisResult: any = $state(null);
-
-	async function runAnalysis() {
-		isAnalyzing = true;
-		activeTab = 'ai-report';
-		try {
-			const res = await fetch(`/api/applied-controls/${data.data.id}/run-ai-analysis/`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
-			});
-			if (res.ok) {
-				aiAnalysisResult = await res.json();
-			} else {
-				const err = await res.json().catch(() => ({}));
-				aiAnalysisResult = { error: err.message || `Muraji API error (${res.status})` };
-			}
-		} catch (e: any) {
-			aiAnalysisResult = { error: e.message || 'Failed to reach server' };
-		} finally {
-			isAnalyzing = false;
-		}
-	}
 </script>
 
 <DetailView {data}>
 	{#snippet actions()}
 		<!-- Start AI Analysis Button -->
-		<button
-			type="button"
-			onclick={runAnalysis}
-			class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-			disabled={isAnalyzing}
-			title="Start AI Analysis on Associated Evidences"
+		<form
+			method="POST"
+			action="?/runAiAnalysis"
+			use:enhance={() => {
+				isAnalyzing = true;
+				activeTab = 'ai-report';
+				aiAnalysisResult = null;
+				return async ({ result }) => {
+					isAnalyzing = false;
+					if (result.type === 'success' && result.data?.aiAnalysis) {
+						aiAnalysisResult = result.data.aiAnalysis;
+					} else if (result.type === 'failure' && result.data?.aiError) {
+						aiAnalysisResult = { error: result.data.aiError };
+					} else {
+						aiAnalysisResult = { error: 'Unexpected response from server' };
+					}
+				};
+			}}
 		>
-			{#if isAnalyzing}
-				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-				<span>Analyzing...</span>
-			{:else}
-				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-				<span>Start AI Analysis</span>
-			{/if}
-		</button>
+			<button
+				type="submit"
+				class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+				disabled={isAnalyzing}
+				title="Start AI Analysis on Associated Evidences"
+			>
+				{#if isAnalyzing}
+					<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+					<span>Analyzing...</span>
+				{:else}
+					<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+					<span>Start AI Analysis</span>
+				{/if}
+			</button>
+		</form>
 	{/snippet}
 </DetailView>
 
