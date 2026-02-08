@@ -4400,19 +4400,6 @@ class AppliedControl(
         related_name="applied_controls",
     )
 
-    ai_analysis = models.JSONField(
-        blank=True,
-        null=True,
-        help_text=_("AI-generated analysis results from Muraji API"),
-        verbose_name=_("AI Analysis"),
-    )
-    ai_analysis_updated_at = models.DateTimeField(
-        blank=True,
-        null=True,
-        help_text=_("When the AI analysis was last performed"),
-        verbose_name=_("AI Analysis Updated At"),
-    )
-
     fields_to_check = ["name"]
 
     class Meta:

@@ -4060,12 +4060,16 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="ai-analysis")
     def ai_analysis(self, request, pk=None):
-        """Get AI analysis results stored from Muraji API"""
+        """Get AI analysis results stored in cache from Muraji API"""
+        from django.core.cache import cache
+        
         applied_control = self.get_object()
+        cache_key = f"ai_analysis_{applied_control.id}"
+        cached = cache.get(cache_key)
         
         return Response({
-            'ai_analysis': applied_control.ai_analysis,
-            'ai_analysis_updated_at': applied_control.ai_analysis_updated_at,
+            'ai_analysis': cached.get('result') if cached else None,
+            'ai_analysis_updated_at': cached.get('updated_at') if cached else None,
             'evidence_count': applied_control.evidences.count(),
         })
     

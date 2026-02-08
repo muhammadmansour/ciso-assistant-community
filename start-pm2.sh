@@ -37,19 +37,20 @@ if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
 fi
 
-# Create PM2 ecosystem config
+# Create PM2 ecosystem config - PRODUCTION MODE
 cat > "$SCRIPT_DIR/ecosystem.config.js" << 'EOF'
 module.exports = {
   apps: [
     {
+      // BACKEND - Using Gunicorn (production server, not runserver!)
       name: 'ciso-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run python manage.py runserver 0.0.0.0:8000',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ./logs/gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,ciso.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,ciso.wathbahs.com,backend',
         CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
@@ -57,7 +58,7 @@ module.exports = {
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '2G',
       error_file: './logs/backend-error.log',
       out_file: './logs/backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
@@ -81,17 +82,20 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
+      // FRONTEND - Using production build (not dev mode!)
       name: 'ciso-frontend',
       cwd: './frontend',
-      script: 'pnpm',
-      args: 'run dev --host 0.0.0.0 --port 3000',
+      script: 'node',
+      args: 'build/index.js',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://ciso.wathbahs.com/api',
         ORIGIN: 'https://ciso.wathbahs.com',
         PUBLIC_DEFAULT_LANGUAGE: 'ar',
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PORT: '3000',
+        HOST: '0.0.0.0'
       },
       watch: false,
       max_memory_restart: '1G',
@@ -118,17 +122,56 @@ run_migrations() {
     cd "$SCRIPT_DIR"
 }
 
+# Function to ensure gunicorn is installed
+ensure_gunicorn() {
+    echo -e "${GREEN}Ensuring Gunicorn is installed...${NC}"
+    cd "$BACKEND_DIR"
+    if ! poetry run python -c "import gunicorn" 2>/dev/null; then
+        echo -e "${YELLOW}Installing Gunicorn...${NC}"
+        poetry add gunicorn
+    fi
+    cd "$SCRIPT_DIR"
+}
+
+# Function to build frontend for production
+build_frontend() {
+    echo -e "${GREEN}Building frontend for production...${NC}"
+    cd "$FRONTEND_DIR"
+    
+    # Check if build exists and is recent (less than 1 day old)
+    if [ -d "build" ] && [ -f "build/index.js" ]; then
+        BUILD_AGE=$(( ($(date +%s) - $(stat -c %Y build/index.js 2>/dev/null || echo 0)) / 86400 ))
+        if [ "$BUILD_AGE" -lt 1 ]; then
+            echo -e "${YELLOW}Frontend build exists and is recent. Skipping rebuild.${NC}"
+            echo -e "${YELLOW}Use './start-pm2.sh rebuild' to force rebuild.${NC}"
+            cd "$SCRIPT_DIR"
+            return
+        fi
+    fi
+    
+    echo -e "${YELLOW}Running pnpm build (this may take a minute)...${NC}"
+    pnpm run build
+    cd "$SCRIPT_DIR"
+}
+
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services...${NC}"
+        echo -e "${GREEN}Starting all services (PRODUCTION MODE)...${NC}"
+        ensure_gunicorn
         run_migrations
+        build_frontend
         cd "$SCRIPT_DIR"
         pm2 start ecosystem.config.js
         pm2 save
         echo ""
-        echo -e "${GREEN}All services started!${NC}"
-        echo "Access at: https://${DOMAIN}"
+        echo -e "${GREEN}========================================${NC}"
+        echo -e "${GREEN}  All services started in PRODUCTION!  ${NC}"
+        echo -e "${GREEN}========================================${NC}"
+        echo ""
+        echo -e "  Backend:  Gunicorn (4 workers)"
+        echo -e "  Frontend: Production build"
+        echo -e "  Access:   https://${DOMAIN}"
         echo ""
         pm2 status
         ;;
@@ -141,6 +184,16 @@ case "${1:-start}" in
         echo -e "${YELLOW}Restarting all services...${NC}"
         run_migrations
         pm2 restart all
+        pm2 status
+        ;;
+    rebuild)
+        echo -e "${YELLOW}Rebuilding frontend...${NC}"
+        cd "$FRONTEND_DIR"
+        rm -rf build
+        pnpm run build
+        cd "$SCRIPT_DIR"
+        echo -e "${GREEN}Frontend rebuilt. Restarting...${NC}"
+        pm2 restart ciso-frontend
         pm2 status
         ;;
     status)
@@ -164,12 +217,13 @@ case "${1:-start}" in
         echo "PM2 will now auto-start on system boot"
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
+        echo "Usage: $0 {start|stop|restart|rebuild|status|logs|delete|startup}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start all services"
+        echo "  start   - Start all services (production mode)"
         echo "  stop    - Stop all services"
         echo "  restart - Restart all services"
+        echo "  rebuild - Rebuild frontend and restart"
         echo "  status  - Show service status"
         echo "  logs    - Show logs (use 'logs backend', 'logs frontend', 'logs huey')"
         echo "  delete  - Remove all PM2 processes"
