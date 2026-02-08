@@ -2,6 +2,7 @@ import json
 import os
 import re
 import hashlib
+import uuid
 from datetime import date, datetime
 from pathlib import Path
 from typing import Self, Union, List, Optional, Literal
