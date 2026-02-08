@@ -4176,7 +4176,16 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
             if not resp.ok:
                 return Response(
-                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text},
+                    {
+                        'message': f'Muraji API error: {resp.status_code}',
+                        'detail': resp.text[:2000],
+                        'request_body_preview': {
+                            'has_gemini_file_search': request_body.get('gemini_file_search') is not None,
+                            'questions_count': len(request_body.get('questions', [])),
+                            'typical_evidence_count': len(request_body.get('typical_evidence', [])),
+                            'requirements_count': len(request_body.get('requirements', [])),
+                        }
+                    },
                     status=status.HTTP_502_BAD_GATEWAY
                 )
             return Response({

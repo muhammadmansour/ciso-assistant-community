@@ -79,7 +79,10 @@ export const actions: Actions = {
 
 		if (!response.ok) {
 			const err = await response.json().catch(() => ({}));
-			return fail(response.status, { aiError: err.message || err.detail || `Error ${response.status}` });
+			const errorMsg = err.message || `Error ${response.status}`;
+			const detail = err.detail || '';
+			const preview = err.request_body_preview ? JSON.stringify(err.request_body_preview) : '';
+			return fail(response.status, { aiError: `${errorMsg}\n${detail}\n${preview}` });
 		}
 
 		const result = await response.json();
