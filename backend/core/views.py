@@ -4058,7 +4058,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
         )
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], url_path="ai-analysis")
     def ai_analysis(self, request, pk=None):
         """Get AI analysis results from Muraji API (stored in database)"""
         applied_control = self.get_object()
@@ -4075,34 +4075,29 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             'message': 'Click "Start AI Analysis" to analyze this control'
         })
     
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
-        """Trigger AI analysis using Muraji API with Gemini File Search"""
+        """Trigger AI analysis using Muraji API"""
         from core.tasks_applied_control_analysis import run_applied_control_analysis
         
         applied_control = self.get_object()
         
-        # Check if there are evidences with Gemini File Search uploads
-        from core.models import FileSearchTable
-        file_search_count = FileSearchTable.objects.filter(
-            evidence_revision__evidence__applied_controls=applied_control,
-            upload_status=FileSearchTable.UploadStatus.COMPLETED
-        ).count()
-        
-        if file_search_count == 0:
+        # Check if there are any evidences
+        evidence_count = applied_control.evidences.count()
+        if evidence_count == 0:
             return Response(
                 {
-                    'message': 'No completed Gemini File Search uploads found for this applied control. Please upload evidence files first.'
+                    'message': 'No evidences found for this applied control. Please upload evidence files first.'
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Queue analysis task
+        # Queue analysis task via Huey
         run_applied_control_analysis(str(applied_control.id))
         
         return Response({
-            'message': f'AI analysis started for applied control with {file_search_count} file(s)',
-            'fileCount': file_search_count
+            'message': f'AI analysis started for applied control with {evidence_count} evidence(s)',
+            'evidenceCount': evidence_count
         }, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):

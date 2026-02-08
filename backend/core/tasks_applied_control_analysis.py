@@ -1,5 +1,5 @@
 """
-Applied Control AI Analysis using Muraji API + Gemini File Search
+Applied Control AI Analysis using Muraji API
 """
 
 import structlog
@@ -8,7 +8,7 @@ from django.utils import timezone
 import requests
 import os
 
-from core.models import AppliedControl, FileSearchTable
+from core.models import AppliedControl
 
 logger = structlog.get_logger(__name__)
 
@@ -21,8 +21,8 @@ MURAJI_ANALYSIS_API_URL = os.getenv(
 @task()
 def run_applied_control_analysis(applied_control_id: str):
     """
-    Run AI analysis for an Applied Control using Muraji API
-    Sends Gemini File Search IDs, questions, and typical evidence
+    Run AI analysis for an Applied Control using Muraji API.
+    Sends evidence info, requirements, questions, and typical evidence.
     
     Args:
         applied_control_id: UUID of the AppliedControl
@@ -36,31 +36,33 @@ def run_applied_control_analysis(applied_control_id: str):
             applied_control_name=applied_control.name
         )
         
-        # Gather Gemini File Search IDs from associated evidences
-        file_search_ids = []
+        # Gather evidence info from associated evidences
+        evidence_data = []
+        gemini_file_ids = []
         evidences = applied_control.evidences.all()
         
         for evidence in evidences:
+            ev_info = {
+                'name': evidence.name,
+                'description': evidence.description or '',
+            }
+            
+            # Try to get Gemini File Search IDs if available
             for revision in evidence.revisions.all():
                 try:
                     if hasattr(revision, 'file_search'):
                         fs = revision.file_search
-                        if fs.upload_status == FileSearchTable.UploadStatus.COMPLETED:
-                            file_search_ids.append({
+                        if fs and fs.upload_status == 'completed':
+                            gemini_file_ids.append({
                                 'gemini_file_id': fs.gemini_file_id,
                                 'gemini_store_id': fs.gemini_store_id,
                                 'evidence_name': evidence.name,
-                                'evidence_description': evidence.description or ''
                             })
-                except FileSearchTable.DoesNotExist:
-                    continue
-        
-        if not file_search_ids:
-            logger.warning(
-                "No Gemini File Search IDs found for Applied Control",
-                applied_control_id=applied_control_id
-            )
-            return
+                except Exception:
+                    # FileSearchTable may not exist yet - skip gracefully
+                    pass
+            
+            evidence_data.append(ev_info)
         
         # Gather questions and typical evidence from requirement assessments
         questions = []
@@ -103,14 +105,15 @@ def run_applied_control_analysis(applied_control_id: str):
                 'category': applied_control.category,
                 'csf_function': applied_control.csf_function
             },
+            'evidences': evidence_data,
             'gemini_file_search': {
-                'file_ids': [fs['gemini_file_id'] for fs in file_search_ids],
-                'store_id': file_search_ids[0]['gemini_store_id'] if file_search_ids else '',
-                'evidences': file_search_ids
-            },
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids
+            } if gemini_file_ids else None,
             'requirements': requirements_context,
-            'questions': list(set(questions)),  # Remove duplicates
-            'typical_evidence': list(set(typical_evidence)),  # Remove duplicates
+            'questions': list(set(questions)),
+            'typical_evidence': list(set(typical_evidence)),
             'analysis_config': {
                 'include_entity_extraction': True,
                 'include_compliance_check': True,
@@ -122,7 +125,9 @@ def run_applied_control_analysis(applied_control_id: str):
         logger.info(
             "Sending analysis request to Muraji API",
             applied_control_id=applied_control_id,
-            file_count=len(file_search_ids),
+            muraji_url=MURAJI_ANALYSIS_API_URL,
+            evidence_count=len(evidence_data),
+            gemini_file_count=len(gemini_file_ids),
             question_count=len(questions),
             requirement_count=len(requirements_context)
         )
@@ -146,19 +151,16 @@ def run_applied_control_analysis(applied_control_id: str):
         
         result = response.json()
         
-        # Store the analysis result
-        # You can extend AppliedControl model to have an ai_analysis field
-        # For now, we'll log it
-        logger.success(
+        logger.info(
             "Applied Control AI analysis completed",
             applied_control_id=applied_control_id,
-            analysis_result=result
+            result_keys=list(result.keys()) if isinstance(result, dict) else None
         )
         
-        # TODO: Store result in AppliedControl.ai_analysis field
+        # TODO: Store result in AppliedControl model once ai_analysis field is added
         # applied_control.ai_analysis = result
         # applied_control.ai_analysis_updated_at = timezone.now()
-        # applied_control.save()
+        # applied_control.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
         
         return result
         
