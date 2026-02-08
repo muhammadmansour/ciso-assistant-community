@@ -4174,6 +4174,11 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 headers={'Content-Type': 'application/json'},
                 timeout=300
             )
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Muraji API response status: {resp.status_code}")
+            logger.info(f"Muraji API response body: {resp.text[:3000]}")
+            logger.info(f"Request body sent: questions={len(questions)}, typical_evidence={len(typical_evidence)}, requirements={len(requirements_context)}, gemini_files={len(gemini_file_ids)}")
             if not resp.ok:
                 return Response(
                     {
@@ -4181,9 +4186,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                         'detail': resp.text[:2000],
                         'request_body_preview': {
                             'has_gemini_file_search': request_body.get('gemini_file_search') is not None,
-                            'questions_count': len(request_body.get('questions', [])),
-                            'typical_evidence_count': len(request_body.get('typical_evidence', [])),
-                            'requirements_count': len(request_body.get('requirements', [])),
+                            'questions_count': len(questions),
+                            'typical_evidence_count': len(typical_evidence),
+                            'requirements_count': len(requirements_context),
                         }
                     },
                     status=status.HTTP_502_BAD_GATEWAY
