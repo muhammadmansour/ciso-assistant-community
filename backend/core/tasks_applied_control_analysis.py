@@ -157,10 +157,10 @@ def run_applied_control_analysis(applied_control_id: str):
             result_keys=list(result.keys()) if isinstance(result, dict) else None
         )
         
-        # TODO: Store result in AppliedControl model once ai_analysis field is added
-        # applied_control.ai_analysis = result
-        # applied_control.ai_analysis_updated_at = timezone.now()
-        # applied_control.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
+        # Store result in AppliedControl model
+        applied_control.ai_analysis = result
+        applied_control.ai_analysis_updated_at = timezone.now()
+        applied_control.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
         
         return result
         

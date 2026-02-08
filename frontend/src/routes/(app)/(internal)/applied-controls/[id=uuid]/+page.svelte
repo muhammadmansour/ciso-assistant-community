@@ -15,6 +15,40 @@
 	
 	let activeTab = $state('details');
 	let isAnalyzing = $state(false);
+	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+	// Watch for analysis results arriving via data reload
+	$effect(() => {
+		if (isAnalyzing && data.aiAnalysis?.ai_analysis) {
+			stopPolling();
+		}
+	});
+
+	function startPolling() {
+		activeTab = 'ai-report';
+		
+		// Poll every 3 seconds by re-running the server load function
+		pollingInterval = setInterval(async () => {
+			await invalidateAll();
+		}, 3000);
+	}
+
+	function stopPolling() {
+		isAnalyzing = false;
+		if (pollingInterval) {
+			clearInterval(pollingInterval);
+			pollingInterval = null;
+		}
+	}
+
+	// Clean up on component destroy
+	$effect(() => {
+		return () => {
+			if (pollingInterval) {
+				clearInterval(pollingInterval);
+			}
+		};
+	});
 </script>
 
 <DetailView {data}>
@@ -25,10 +59,12 @@
 			action="?/runAiAnalysis"
 			use:enhance={() => {
 				isAnalyzing = true;
-				return async ({ result, update }) => {
-					isAnalyzing = false;
-					await update();
-					await invalidateAll();
+				return async ({ result }) => {
+					if (result.type === 'success' || result.type === 'redirect') {
+						startPolling();
+					} else {
+						isAnalyzing = false;
+					}
 				};
 			}}
 		>
@@ -286,21 +322,119 @@
 			<!-- AI Report Tab Content -->
 			{#if activeTab === 'ai-report'}
 				<div class="p-6">
-					<div class="text-center py-12">
-						<div class="inline-block p-6 rounded-full bg-purple-100 mb-4">
-							<i class="fa-solid fa-brain text-4xl text-purple-600"></i>
+					{#if isAnalyzing}
+						<!-- Loading state while polling -->
+						<div class="text-center py-16">
+							<div class="inline-block mb-6">
+								<i class="fa-solid fa-spinner fa-spin text-5xl text-purple-500"></i>
+							</div>
+							<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Muraji API...</h3>
+							<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
 						</div>
-						<h3 class="text-xl font-semibold text-gray-800 mb-2">AI Analysis via Muraji API</h3>
-						<p class="text-gray-600 mb-6">
-							Click the "Start AI Analysis" button above to analyze all associated evidence files using Gemini File Search.
-						</p>
-						<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
-							<p class="text-sm text-blue-800">
-								<i class="fa-solid fa-info-circle mr-2"></i>
-								The analysis will use Gemini File Search IDs along with requirement questions and typical evidence to provide comprehensive compliance insights.
+					{:else if data.aiAnalysis?.ai_analysis}
+						<!-- Analysis Results -->
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="text-lg font-semibold text-gray-800">
+								<i class="fa-solid fa-brain text-purple-600 mr-2"></i>
+								AI Analysis Report
+							</h3>
+							{#if data.aiAnalysis.ai_analysis_updated_at}
+								<span class="text-sm text-gray-500">
+									Last updated: {new Date(data.aiAnalysis.ai_analysis_updated_at).toLocaleString()}
+								</span>
+							{/if}
+						</div>
+
+						<!-- Render analysis sections dynamically -->
+						{#if typeof data.aiAnalysis.ai_analysis === 'object'}
+							{#each Object.entries(data.aiAnalysis.ai_analysis) as [sectionKey, sectionValue]}
+								<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+									<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+										<h4 class="font-semibold text-gray-700 capitalize">
+											{sectionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
+										</h4>
+									</div>
+									<div class="p-4">
+										{#if typeof sectionValue === 'string'}
+											<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
+										{:else if Array.isArray(sectionValue)}
+											{#if sectionValue.length === 0}
+												<p class="text-gray-400 italic">No items</p>
+											{:else}
+												<ul class="space-y-2">
+													{#each sectionValue as item}
+														{#if typeof item === 'string'}
+															<li class="flex items-start gap-2">
+																<i class="fa-solid fa-circle-check text-green-500 mt-1 text-sm"></i>
+																<span class="text-gray-700">{item}</span>
+															</li>
+														{:else if typeof item === 'object' && item !== null}
+															<li class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+																{#each Object.entries(item) as [k, v]}
+																	<div class="mb-1">
+																		<span class="font-medium text-gray-600 capitalize">{k.replace(/_/g, ' ')}:</span>
+																		<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																	</div>
+																{/each}
+															</li>
+														{:else}
+															<li class="text-gray-700">{JSON.stringify(item)}</li>
+														{/if}
+													{/each}
+												</ul>
+											{/if}
+										{:else if typeof sectionValue === 'object' && sectionValue !== null}
+											<div class="space-y-2">
+												{#each Object.entries(sectionValue) as [k, v]}
+													<div class="flex items-start gap-2">
+														<span class="font-medium text-gray-600 capitalize min-w-[140px]">{k.replace(/_/g, ' ')}:</span>
+														{#if typeof v === 'string'}
+															<span class="text-gray-700">{v}</span>
+														{:else}
+															<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(v, null, 2)}</pre>
+														{/if}
+													</div>
+												{/each}
+											</div>
+										{:else}
+											<p class="text-gray-700">{JSON.stringify(sectionValue)}</p>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						{:else}
+							<!-- Raw text result -->
+							<div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+								<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(data.aiAnalysis.ai_analysis, null, 2)}</pre>
+							</div>
+						{/if}
+					{:else}
+						<!-- No analysis yet - show placeholder -->
+						<div class="text-center py-12">
+							<div class="inline-block p-6 rounded-full bg-purple-100 mb-4">
+								<i class="fa-solid fa-brain text-4xl text-purple-600"></i>
+							</div>
+							<h3 class="text-xl font-semibold text-gray-800 mb-2">AI Analysis via Muraji API</h3>
+							<p class="text-gray-600 mb-6">
+								Click the "Start AI Analysis" button above to analyze all associated evidence files.
 							</p>
+							{#if data.aiAnalysis?.evidence_count === 0}
+								<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto">
+									<p class="text-sm text-yellow-800">
+										<i class="fa-solid fa-triangle-exclamation mr-2"></i>
+										No evidences are associated with this control. Please add evidences first.
+									</p>
+								</div>
+							{:else}
+								<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+									<p class="text-sm text-blue-800">
+										<i class="fa-solid fa-info-circle mr-2"></i>
+										{data.aiAnalysis?.evidence_count || 0} evidence(s) will be analyzed along with requirement questions and typical evidence.
+									</p>
+								</div>
+							{/if}
 						</div>
-					</div>
+					{/if}
 				</div>
 			{/if}
 		{/snippet}

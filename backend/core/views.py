@@ -4060,19 +4060,13 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="ai-analysis")
     def ai_analysis(self, request, pk=None):
-        """Get AI analysis results from Muraji API (stored in database)"""
+        """Get AI analysis results stored from Muraji API"""
         applied_control = self.get_object()
         
-        # TODO: Add ai_analysis field to AppliedControl model to store Muraji results
-        # For now, return placeholder indicating analysis needs to be run
         return Response({
-            'totalEvidences': applied_control.evidences.count(),
-            'totalEntities': 0,
-            'entities': [],
-            'complianceFindings': [],
-            'lastUpdated': None,
-            'keyFindings': [],
-            'message': 'Click "Start AI Analysis" to analyze this control'
+            'ai_analysis': applied_control.ai_analysis,
+            'ai_analysis_updated_at': applied_control.ai_analysis_updated_at,
+            'evidence_count': applied_control.evidences.count(),
         })
     
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
