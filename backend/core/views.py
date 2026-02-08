@@ -4168,17 +4168,17 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         )
 
         try:
+            print(f"[MURAJI DEBUG] Calling {muraji_url}")
+            print(f"[MURAJI DEBUG] Request keys: {list(request_body.keys())}")
             resp = http_requests.post(
                 muraji_url,
                 json=request_body,
                 headers={'Content-Type': 'application/json'},
                 timeout=300
             )
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f"Muraji API response status: {resp.status_code}")
-            logger.info(f"Muraji API response body: {resp.text[:3000]}")
-            logger.info(f"Request body sent: questions={len(questions)}, typical_evidence={len(typical_evidence)}, requirements={len(requirements_context)}, gemini_files={len(gemini_file_ids)}")
+            print(f"[MURAJI DEBUG] Response status: {resp.status_code}")
+            print(f"[MURAJI DEBUG] Response body: {resp.text[:3000]}")
+            print(f"[MURAJI DEBUG] Sent: questions={len(questions)}, typical_evidence={len(typical_evidence)}, requirements={len(requirements_context)}, gemini_files={len(gemini_file_ids)}")
             if not resp.ok:
                 return Response(
                     {
