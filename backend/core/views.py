@@ -4168,29 +4168,15 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         )
 
         try:
-            print(f"[MURAJI DEBUG] Calling {muraji_url}")
-            print(f"[MURAJI DEBUG] Request keys: {list(request_body.keys())}")
             resp = http_requests.post(
                 muraji_url,
                 json=request_body,
                 headers={'Content-Type': 'application/json'},
                 timeout=300
             )
-            print(f"[MURAJI DEBUG] Response status: {resp.status_code}")
-            print(f"[MURAJI DEBUG] Response body: {resp.text[:3000]}")
-            print(f"[MURAJI DEBUG] Sent: questions={len(questions)}, typical_evidence={len(typical_evidence)}, requirements={len(requirements_context)}, gemini_files={len(gemini_file_ids)}")
             if not resp.ok:
                 return Response(
-                    {
-                        'message': f'Muraji API error: {resp.status_code}',
-                        'detail': resp.text[:2000],
-                        'request_body_preview': {
-                            'has_gemini_file_search': request_body.get('gemini_file_search') is not None,
-                            'questions_count': len(questions),
-                            'typical_evidence_count': len(typical_evidence),
-                            'requirements_count': len(requirements_context),
-                        }
-                    },
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
                     status=status.HTTP_502_BAD_GATEWAY
                 )
             return Response({
