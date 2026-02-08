@@ -4060,7 +4060,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
-        """Call Muraji API directly for AI analysis and return result"""
+        """Call Muraji /api/audit/analyze directly and return result"""
         import requests as http_requests
         import os
 
@@ -4073,14 +4073,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Gather evidence data
-        evidence_data = []
+        # Gather Gemini File Search IDs from evidences
         gemini_file_ids = []
         for evidence in applied_control.evidences.all():
-            evidence_data.append({
-                'name': evidence.name,
-                'description': evidence.description or '',
-            })
             for revision in evidence.revisions.all():
                 try:
                     if hasattr(revision, 'file_search'):
@@ -4090,6 +4085,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                                 'gemini_file_id': fs.gemini_file_id,
                                 'gemini_store_id': fs.gemini_store_id,
                                 'evidence_name': evidence.name,
+                                'evidence_description': evidence.description or ''
                             })
                 except Exception:
                     pass
@@ -4098,10 +4094,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         questions = []
         typical_evidence = []
         requirements_context = []
+
         for ra in applied_control.requirement_assessments.select_related(
             'requirement', 'requirement__framework'
         ).all():
             req = ra.requirement
+
             requirements_context.append({
                 'ref_id': req.ref_id,
                 'name': req.name,
@@ -4109,13 +4107,35 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'framework': req.framework.name if req.framework else '',
                 'provider': req.framework.provider if req.framework else ''
             })
-            if req.questions:
-                for q_key, q_data in req.questions.items():
-                    if isinstance(q_data, dict) and 'text' in q_data:
-                        questions.append(q_data['text'])
-            if req.typical_evidence:
-                typical_evidence.extend(req.typical_evidence)
 
+            # Parse questions
+            if req.questions:
+                if isinstance(req.questions, dict):
+                    for q_key, q_val in req.questions.items():
+                        if isinstance(q_val, dict) and 'text' in q_val:
+                            questions.append(q_val['text'])
+                        elif isinstance(q_val, str):
+                            questions.append(q_val)
+                elif isinstance(req.questions, list):
+                    questions.extend(
+                        [q.get('text', q) if isinstance(q, dict) else q for q in req.questions]
+                    )
+
+            # Parse typical evidence
+            if req.typical_evidence:
+                if isinstance(req.typical_evidence, str):
+                    for line in req.typical_evidence.strip().split('\n'):
+                        line = line.strip().lstrip('-').lstrip('•').strip()
+                        if line:
+                            typical_evidence.append(line)
+                elif isinstance(req.typical_evidence, list):
+                    typical_evidence.extend(req.typical_evidence)
+
+        # Remove duplicates preserving order
+        questions = list(dict.fromkeys(questions))
+        typical_evidence = list(dict.fromkeys(typical_evidence))
+
+        # Build request body matching Muraji /api/audit/analyze format
         request_body = {
             'applied_control': {
                 'id': str(applied_control.id),
@@ -4126,15 +4146,14 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'category': applied_control.category,
                 'csf_function': applied_control.csf_function
             },
-            'evidences': evidence_data,
             'gemini_file_search': {
                 'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
                 'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
                 'evidences': gemini_file_ids
             } if gemini_file_ids else None,
             'requirements': requirements_context,
-            'questions': list(set(questions)),
-            'typical_evidence': list(set(typical_evidence)),
+            'questions': questions,
+            'typical_evidence': typical_evidence,
             'analysis_config': {
                 'include_entity_extraction': True,
                 'include_compliance_check': True,
