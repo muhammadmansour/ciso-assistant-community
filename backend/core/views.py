@@ -4076,10 +4076,13 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         # Gather Gemini File Search IDs from evidences
         gemini_file_ids = []
         for evidence in applied_control.evidences.all():
+            print(f"[AI-ANALYSIS] Evidence: {evidence.name}, revisions: {evidence.revisions.count()}")
             for revision in evidence.revisions.all():
+                print(f"[AI-ANALYSIS]   Revision {revision.id}, has attachment: {bool(revision.attachment)}")
                 try:
                     if hasattr(revision, 'file_search'):
                         fs = revision.file_search
+                        print(f"[AI-ANALYSIS]   FileSearch found: status={fs.upload_status}, gemini_file_id={fs.gemini_file_id}")
                         if fs and fs.upload_status == 'completed':
                             gemini_file_ids.append({
                                 'gemini_file_id': fs.gemini_file_id,
@@ -4087,8 +4090,11 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                                 'evidence_name': evidence.name,
                                 'evidence_description': evidence.description or ''
                             })
-                except Exception:
-                    pass
+                    else:
+                        print(f"[AI-ANALYSIS]   No file_search relation on revision")
+                except Exception as e:
+                    print(f"[AI-ANALYSIS]   Error accessing file_search: {type(e).__name__}: {e}")
+        print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
 
         # Gather requirements, questions, typical evidence
         questions = []
@@ -8094,8 +8100,13 @@ class UploadAttachmentView(APIView):
                 revision.save()
                 
                 # Trigger Gemini File Search upload in background
-                from core.tasks_gemini import upload_evidence_to_gemini
-                upload_evidence_to_gemini(str(revision.id))
+                print(f"[UPLOAD] Triggering Gemini upload for revision {revision.id}")
+                try:
+                    from core.tasks_gemini import upload_evidence_to_gemini
+                    result = upload_evidence_to_gemini(str(revision.id))
+                    print(f"[UPLOAD] Gemini task queued: {result}")
+                except Exception as e:
+                    print(f"[UPLOAD] Failed to queue Gemini task: {type(e).__name__}: {e}")
 
         return Response(status=status.HTTP_200_OK)
 
