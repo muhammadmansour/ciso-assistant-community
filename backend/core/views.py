@@ -4076,7 +4076,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
         """Trigger AI analysis using Muraji API"""
-        from core.tasks_applied_control_analysis import run_applied_control_analysis
+        from core.tasks import run_applied_control_analysis
         
         applied_control = self.get_object()
         
