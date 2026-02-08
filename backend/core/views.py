@@ -4060,44 +4060,24 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     @action(detail=True, methods=["get"])
     def ai_analysis(self, request, pk=None):
-        """Get AI analysis summary for all evidences linked to this applied control"""
+        """Get AI analysis results from Muraji API (stored in database)"""
         applied_control = self.get_object()
-        evidences = applied_control.evidences.all()
         
-        total_evidences = evidences.count()
-        all_entities = []
-        all_findings = []
-        total_entities = 0
-        last_updated = None
-        
-        for evidence in evidences:
-            # Collect entity extraction results
-            if evidence.ai_analysis and evidence.ai_analysis.get('success'):
-                entities = evidence.ai_analysis.get('entities', [])
-                all_entities.extend(entities)
-                total_entities += len(entities)
-                
-                if evidence.ai_analysis_updated_at:
-                    if not last_updated or evidence.ai_analysis_updated_at > last_updated:
-                        last_updated = evidence.ai_analysis_updated_at
-            
-            # Collect audit analysis results
-            if evidence.audit_analysis and evidence.audit_analysis.get('success'):
-                findings = evidence.audit_analysis.get('findings', [])
-                all_findings.extend(findings)
-        
+        # TODO: Add ai_analysis field to AppliedControl model to store Muraji results
+        # For now, return placeholder indicating analysis needs to be run
         return Response({
-            'totalEvidences': total_evidences,
-            'totalEntities': total_entities,
-            'entities': all_entities[:50],  # Limit to first 50 for UI
-            'complianceFindings': all_findings[:20],  # Limit to first 20
-            'lastUpdated': last_updated.isoformat() if last_updated else None,
-            'keyFindings': [f.get('summary', '') for f in all_findings if f.get('summary')][:10]
+            'totalEvidences': applied_control.evidences.count(),
+            'totalEntities': 0,
+            'entities': [],
+            'complianceFindings': [],
+            'lastUpdated': None,
+            'keyFindings': [],
+            'message': 'Click "Start AI Analysis" to analyze this control'
         })
     
     @action(detail=True, methods=["post"])
     def run_ai_analysis(self, request, pk=None):
-        """Trigger AI analysis for all evidences linked to this applied control"""
+        """Trigger AI analysis using Muraji API with Gemini File Search"""
         from core.tasks_applied_control_analysis import run_applied_control_analysis
         
         applied_control = self.get_object()
