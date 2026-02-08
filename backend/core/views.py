@@ -4145,7 +4145,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/applied-control/analyze'
+            'https://muraji-api.wathbahs.com/api/audit/analyze'
         )
 
         try:
