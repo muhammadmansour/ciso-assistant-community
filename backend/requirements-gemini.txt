@@ -1,0 +1,4 @@
+# Gemini File Search Integration
+# Install with: pip install -r requirements-gemini.txt
+
+google-genai>=0.3.0

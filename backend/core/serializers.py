@@ -1675,10 +1675,26 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
     folder = FieldsRelatedField()
     str = serializers.CharField(source="__str__")
     task_node = FieldsRelatedField()
+    file_search = serializers.SerializerMethodField()
 
     class Meta:
         model = EvidenceRevision
         fields = "__all__"
+    
+    def get_file_search(self, obj):
+        """Get Gemini File Search data if available"""
+        try:
+            if hasattr(obj, 'file_search'):
+                fs = obj.file_search
+                return {
+                    'gemini_file_id': fs.gemini_file_id,
+                    'gemini_store_id': fs.gemini_store_id,
+                    'upload_status': fs.upload_status,
+                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None
+                }
+        except:
+            pass
+        return None
 
 
 class EvidenceRevisionWriteSerializer(BaseModelSerializer):

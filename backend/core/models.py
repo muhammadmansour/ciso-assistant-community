@@ -3847,6 +3847,69 @@ class Evidence(
         return hashlib.sha256(self.last_revision.attachment.read()).hexdigest()
 
 
+class FileSearchTable(models.Model):
+    """Stores Gemini File Search IDs for uploaded evidence files"""
+    
+    class UploadStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        UPLOADING = "uploading", "Uploading"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated at"))
+    
+    evidence_revision = models.OneToOneField(
+        "EvidenceRevision",
+        on_delete=models.CASCADE,
+        related_name="file_search",
+        verbose_name=_("Evidence Revision")
+    )
+    
+    # Gemini File Search IDs
+    gemini_file_id = models.CharField(
+        max_length=255,
+        verbose_name=_("Gemini File ID"),
+        help_text=_("The file ID returned by Gemini File Search")
+    )
+    gemini_store_id = models.CharField(
+        max_length=255,
+        verbose_name=_("Gemini File Search Store ID"),
+        help_text=_("The File Search Store this file belongs to")
+    )
+    operation_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_("Gemini Operation ID"),
+        help_text=_("The operation ID for tracking upload status")
+    )
+    
+    upload_status = models.CharField(
+        max_length=20,
+        choices=UploadStatus.choices,
+        default=UploadStatus.PENDING,
+        verbose_name=_("Upload Status")
+    )
+    error_message = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Error Message")
+    )
+    
+    class Meta:
+        verbose_name = _("File Search Entry")
+        verbose_name_plural = _("File Search Entries")
+        indexes = [
+            models.Index(fields=['gemini_file_id']),
+            models.Index(fields=['upload_status']),
+        ]
+    
+    def __str__(self):
+        return f"FileSearch for {self.evidence_revision.evidence.name} - {self.upload_status}"
+
+
 class EvidenceRevision(AbstractBaseModel, FolderMixin):
     evidence = models.ForeignKey(
         Evidence, on_delete=models.CASCADE, related_name="revisions"

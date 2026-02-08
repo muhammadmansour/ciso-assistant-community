@@ -218,6 +218,7 @@
 	"link": "Link",
 	"createdAt": "Created at",
 	"updatedAt": "Updated at",
+	"geminiFileId": "Gemini File ID",
 	"acceptedAt": "Accepted at",
 	"rejectedAt": "Rejected at",
 	"revokedAt": "Revoked at",

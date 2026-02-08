@@ -216,9 +216,9 @@ export async function defaultWriteFormAction({
 	const next = getSecureRedirect(event.url.searchParams.get('next'));
 	if (next && doRedirect) redirect(302, next);
 
-	// Always redirect to evidence page after creation to trigger auto-analysis
+	// Auto-analysis disabled - redirect without autoAnalyze flag
 	if (action === 'create' && urlModel === 'evidences') {
-		return message(form, { redirect: `/evidences/${writtenObject.id}?autoAnalyze=true` });
+		return message(form, { redirect: `/evidences/${writtenObject.id}` });
 	}
 
 	if (redirectToWrittenObject) {

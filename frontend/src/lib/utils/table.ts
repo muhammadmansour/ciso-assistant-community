@@ -1614,8 +1614,8 @@ export const listViewFields = {
 		}
 	},
 	'evidence-revisions': {
-		head: ['version', 'evidence', 'file', 'size', 'updatedAt'],
-		body: ['version', 'evidence', 'attachment', 'size', 'updated_at'],
+		head: ['version', 'evidence', 'file', 'size', 'updatedAt', 'geminiFileId'],
+		body: ['version', 'evidence', 'attachment', 'size', 'updated_at', 'file_search'],
 		filters: {
 			filtering_labels: LABELS_FILTER
 		}

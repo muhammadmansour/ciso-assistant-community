@@ -157,6 +157,7 @@
 	"link": "الرابط",
 	"createdAt": "تم الإنشاء في",
 	"updatedAt": "تم التحديث في",
+	"geminiFileId": "معرّف ملف Gemini",
 	"acceptedAt": "تم القبول في",
 	"rejectedAt": "تم الرفض في",
 	"revokedAt": "تم الإلغاء في",

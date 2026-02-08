@@ -4058,6 +4058,73 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
         )
 
+    @action(detail=True, methods=["get"])
+    def ai_analysis(self, request, pk=None):
+        """Get AI analysis summary for all evidences linked to this applied control"""
+        applied_control = self.get_object()
+        evidences = applied_control.evidences.all()
+        
+        total_evidences = evidences.count()
+        all_entities = []
+        all_findings = []
+        total_entities = 0
+        last_updated = None
+        
+        for evidence in evidences:
+            # Collect entity extraction results
+            if evidence.ai_analysis and evidence.ai_analysis.get('success'):
+                entities = evidence.ai_analysis.get('entities', [])
+                all_entities.extend(entities)
+                total_entities += len(entities)
+                
+                if evidence.ai_analysis_updated_at:
+                    if not last_updated or evidence.ai_analysis_updated_at > last_updated:
+                        last_updated = evidence.ai_analysis_updated_at
+            
+            # Collect audit analysis results
+            if evidence.audit_analysis and evidence.audit_analysis.get('success'):
+                findings = evidence.audit_analysis.get('findings', [])
+                all_findings.extend(findings)
+        
+        return Response({
+            'totalEvidences': total_evidences,
+            'totalEntities': total_entities,
+            'entities': all_entities[:50],  # Limit to first 50 for UI
+            'complianceFindings': all_findings[:20],  # Limit to first 20
+            'lastUpdated': last_updated.isoformat() if last_updated else None,
+            'keyFindings': [f.get('summary', '') for f in all_findings if f.get('summary')][:10]
+        })
+    
+    @action(detail=True, methods=["post"])
+    def run_ai_analysis(self, request, pk=None):
+        """Trigger AI analysis for all evidences linked to this applied control"""
+        from core.tasks_applied_control_analysis import run_applied_control_analysis
+        
+        applied_control = self.get_object()
+        
+        # Check if there are evidences with Gemini File Search uploads
+        from core.models import FileSearchTable
+        file_search_count = FileSearchTable.objects.filter(
+            evidence_revision__evidence__applied_controls=applied_control,
+            upload_status=FileSearchTable.UploadStatus.COMPLETED
+        ).count()
+        
+        if file_search_count == 0:
+            return Response(
+                {
+                    'message': 'No completed Gemini File Search uploads found for this applied control. Please upload evidence files first.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Queue analysis task
+        run_applied_control_analysis(str(applied_control.id))
+        
+        return Response({
+            'message': f'AI analysis started for applied control with {file_search_count} file(s)',
+            'fileCount': file_search_count
+        }, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         create_remote_object = serializer.validated_data.pop(
             "create_remote_object", False
@@ -7872,10 +7939,10 @@ class EvidenceRevisionViewSet(BaseModelViewSet):
     def perform_create(self, serializer):
         """Create evidence revision and trigger auto-analysis if attachment is uploaded."""
         instance = super().perform_create(serializer)
-        # Trigger auto-analysis if revision has attachment
-        if instance and instance.attachment and instance.evidence:
-            from core.tasks import run_evidence_auto_analysis
-            run_evidence_auto_analysis(str(instance.evidence.id))
+        # Auto-analysis disabled - can be triggered manually from UI
+        # if instance and instance.attachment and instance.evidence:
+        #     from core.tasks import run_evidence_auto_analysis
+        #     run_evidence_auto_analysis(str(instance.evidence.id))
         return instance
 
     @action(methods=["get"], detail=True)
@@ -7956,6 +8023,10 @@ class UploadAttachmentView(APIView):
                     revision.attachment.delete()
                 revision.attachment = attachment
                 revision.save()
+                
+                # Trigger Gemini File Search upload in background
+                from core.tasks_gemini import upload_evidence_to_gemini
+                upload_evidence_to_gemini(str(revision.id))
 
         return Response(status=status.HTTP_200_OK)
 
