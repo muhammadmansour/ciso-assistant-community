@@ -286,99 +286,21 @@
 			<!-- AI Report Tab Content -->
 			{#if activeTab === 'ai-report'}
 				<div class="p-6">
-					{#if data.aiAnalysisData}
-						<div class="space-y-6">
-							<!-- Summary Card -->
-							<div class="card p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-l-4 border-purple-500">
-								<h3 class="text-lg font-bold text-purple-900 mb-2">
-									<i class="fa-solid fa-chart-simple mr-2"></i>
-									AI Analysis Summary
-								</h3>
-								<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-									<div>
-										<p class="text-gray-600">Total Evidences Analyzed</p>
-										<p class="text-2xl font-bold text-purple-700">
-											{data.aiAnalysisData.totalEvidences || 0}
-										</p>
-									</div>
-									<div>
-										<p class="text-gray-600">Entities Extracted</p>
-										<p class="text-2xl font-bold text-indigo-700">
-											{data.aiAnalysisData.totalEntities || 0}
-										</p>
-									</div>
-									<div>
-										<p class="text-gray-600">Last Updated</p>
-										<p class="text-sm font-medium text-gray-800">
-											{data.aiAnalysisData.lastUpdated || 'Never'}
-										</p>
-									</div>
-								</div>
-							</div>
-
-							<!-- Entities Section -->
-							{#if data.aiAnalysisData.entities && data.aiAnalysisData.entities.length > 0}
-								<div class="card p-4">
-									<h4 class="text-md font-semibold mb-3">
-										<i class="fa-solid fa-tags mr-2"></i>
-										Extracted Entities
-									</h4>
-									<div class="flex flex-wrap gap-2">
-										{#each data.aiAnalysisData.entities as entity}
-											<span class="badge preset-tonal-primary px-3 py-1">
-												{entity.text}
-												<span class="text-xs opacity-70">({entity.type})</span>
-											</span>
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-							<!-- Compliance Findings -->
-							{#if data.aiAnalysisData.complianceFindings && data.aiAnalysisData.complianceFindings.length > 0}
-								<div class="card p-4">
-									<h4 class="text-md font-semibold mb-3">
-										<i class="fa-solid fa-clipboard-check mr-2"></i>
-										Compliance Findings
-									</h4>
-									<div class="space-y-3">
-										{#each data.aiAnalysisData.complianceFindings as finding}
-											<div class="p-3 border-l-4 {finding.status === 'compliant' ? 'border-green-500 bg-green-50' : 'border-orange-500 bg-orange-50'}">
-												<p class="font-medium">{finding.requirement}</p>
-												<p class="text-sm text-gray-600 mt-1">{finding.description}</p>
-											</div>
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-							<!-- Key Findings -->
-							{#if data.aiAnalysisData.keyFindings && data.aiAnalysisData.keyFindings.length > 0}
-								<div class="card p-4">
-									<h4 class="text-md font-semibold mb-3">
-										<i class="fa-solid fa-lightbulb mr-2"></i>
-										Key Findings
-									</h4>
-									<ul class="list-disc list-inside space-y-2">
-										{#each data.aiAnalysisData.keyFindings as finding}
-											<li class="text-gray-700">{finding}</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
+					<div class="text-center py-12">
+						<div class="inline-block p-6 rounded-full bg-purple-100 mb-4">
+							<i class="fa-solid fa-brain text-4xl text-purple-600"></i>
 						</div>
-					{:else}
-						<!-- No Analysis Yet State -->
-						<div class="text-center py-12">
-							<div class="inline-block p-6 rounded-full bg-purple-100 mb-4">
-								<i class="fa-solid fa-brain text-4xl text-purple-600"></i>
-							</div>
-							<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analysis Yet</h3>
-							<p class="text-gray-600 mb-6">
-								Click the "Start AI Analysis" button above to analyze associated evidence files.
+						<h3 class="text-xl font-semibold text-gray-800 mb-2">AI Analysis via Muraji API</h3>
+						<p class="text-gray-600 mb-6">
+							Click the "Start AI Analysis" button above to analyze all associated evidence files using Gemini File Search.
+						</p>
+						<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+							<p class="text-sm text-blue-800">
+								<i class="fa-solid fa-info-circle mr-2"></i>
+								The analysis will use Gemini File Search IDs along with requirement questions and typical evidence to provide comprehensive compliance insights.
 							</p>
 						</div>
-					{/if}
+					</div>
 				</div>
 			{/if}
 		{/snippet}

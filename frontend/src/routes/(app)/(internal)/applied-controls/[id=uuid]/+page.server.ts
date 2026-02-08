@@ -18,17 +18,6 @@ export const load: PageServerLoad = async (event) => {
 		id: event.params.id
 	});
 
-	// Load AI analysis data for associated evidences
-	let aiAnalysisData = null;
-	try {
-		const res = await event.fetch(`${BASE_API_URL}/applied-controls/${event.params.id}/ai-analysis/`);
-		if (res.ok) {
-			aiAnalysisData = await res.json();
-		}
-	} catch (err) {
-		console.warn('Failed to load AI analysis:', err);
-	}
-
 	// Duplicate form for applied control
 	const appliedControlSchema = modelSchema('applied-controls');
 	const appliedControl = data.data;
@@ -47,8 +36,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		...data,
-		duplicateForm: appliedControlDuplicateForm,
-		aiAnalysisData
+		duplicateForm: appliedControlDuplicateForm
 	};
 };
 
