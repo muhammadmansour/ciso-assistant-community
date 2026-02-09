@@ -4064,6 +4064,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         import requests as http_requests
         import os
         from core.models import FileSearchTable
+        from core.gemini_file_search import get_gemini_client
 
         applied_control = self.get_object()
         print(f"[AI-ANALYSIS] ====== START ======")
@@ -4079,45 +4080,76 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
 
         # Gather Gemini File Search IDs from evidences
+        # If files are missing valid IDs, upload them on-the-fly
         gemini_file_ids = []
-        for evidence in applied_control.evidences.all():
-            rev_count = evidence.revisions.count()
-            print(f"[AI-ANALYSIS] Evidence: id={evidence.id}, name={evidence.name}, revisions_count={rev_count}")
-            for revision in evidence.revisions.all():
-                has_att = bool(revision.attachment)
-                print(f"[AI-ANALYSIS]   Revision {revision.id}, has_attachment={has_att}")
-                
-                # Also check via direct DB query
-                fs_entries = FileSearchTable.objects.filter(evidence_revision=revision)
-                print(f"[AI-ANALYSIS]   FileSearchTable entries via DB query: {fs_entries.count()}")
-                for fs_entry in fs_entries:
-                    print(f"[AI-ANALYSIS]   DB entry: status={fs_entry.upload_status}, gemini_file_id={fs_entry.gemini_file_id[:80]}, gemini_store_id={fs_entry.gemini_store_id}")
-                
-                try:
-                    if hasattr(revision, 'file_search'):
-                        fs = revision.file_search
-                        print(f"[AI-ANALYSIS]   FileSearch via relation: status={fs.upload_status}, gemini_file_id={fs.gemini_file_id[:80]}")
-                        if fs and fs.upload_status == 'completed' and fs.gemini_file_id:
-                            # Only use valid Gemini file IDs (must start with 'files/')
-                            if fs.gemini_file_id.startswith('files/'):
-                                gemini_file_ids.append({
-                                    'gemini_file_id': fs.gemini_file_id,
-                                    'gemini_store_id': fs.gemini_store_id,
-                                    'evidence_name': evidence.name,
-                                    'evidence_description': evidence.description or ''
-                                })
-                                print(f"[AI-ANALYSIS]   >>> ADDED valid file ID to gemini_file_ids")
-                            else:
-                                print(f"[AI-ANALYSIS]   SKIPPED: invalid gemini_file_id (not files/...): {fs.gemini_file_id[:60]}")
-                        else:
-                            print(f"[AI-ANALYSIS]   NOT added: status='{fs.upload_status}', file_id='{fs.gemini_file_id[:40] if fs.gemini_file_id else 'EMPTY'}'")
+        gemini_client = None  # Lazy init only if needed
 
-                    else:
-                        print(f"[AI-ANALYSIS]   No file_search relation on revision (hasattr=False)")
+        for evidence in applied_control.evidences.all():
+            for revision in evidence.revisions.all():
+                if not revision.attachment:
+                    continue
+
+                # Check for existing valid Gemini file ID
+                has_valid_id = False
+                try:
+                    fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                        gemini_file_ids.append({
+                            'gemini_file_id': fs_entry.gemini_file_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
+                            'evidence_name': evidence.name,
+                            'evidence_description': evidence.description or ''
+                        })
+                        has_valid_id = True
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': using existing file ID {fs_entry.gemini_file_id}")
                 except Exception as e:
-                    print(f"[AI-ANALYSIS]   Error accessing file_search: {type(e).__name__}: {e}")
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+
+                # Upload on-the-fly if no valid ID exists
+                if not has_valid_id:
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no valid Gemini file ID, uploading now...")
+                    try:
+                        if gemini_client is None:
+                            gemini_client = get_gemini_client()
+                        if gemini_client is None:
+                            print(f"[AI-ANALYSIS] Gemini client not configured, skipping file upload")
+                            continue
+
+                        file_path = revision.attachment.path
+                        display_name = f"{evidence.name} - {evidence.filename()}"
+                        
+                        result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+                        
+                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
+                            # Save to FileSearchTable
+                            fs_entry, _ = FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'gemini_file_id': result['gemini_file_id'],
+                                    'gemini_store_id': result.get('gemini_store_id', ''),
+                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                    'error_message': None,
+                                }
+                            )
+                            gemini_file_ids.append({
+                                'gemini_file_id': result['gemini_file_id'],
+                                'gemini_store_id': result.get('gemini_store_id', ''),
+                                'evidence_name': evidence.name,
+                                'evidence_description': evidence.description or ''
+                            })
+                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': uploaded successfully -> {result['gemini_file_id']}")
+                        else:
+                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
+                    except Exception as e:
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+
         print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
-        print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'][:60] for f in gemini_file_ids]}")
+        print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'] for f in gemini_file_ids]}")
 
         # Gather requirements, questions, typical evidence
         questions = []
