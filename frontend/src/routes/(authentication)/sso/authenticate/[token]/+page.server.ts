@@ -4,7 +4,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch, locals, params, cookies }) => {
 	if (locals.user) {
-		redirect(302, '/analytics');
+		redirect(302, '/my-assignments');
 	}
 
 	cookies.set('token', params.token, {
@@ -33,5 +33,5 @@ export const load: PageServerLoad = async ({ fetch, locals, params, cookies }) =
 		secure: true
 	});
 
-	redirect(302, '/analytics');
+	redirect(302, '/my-assignments');
 };

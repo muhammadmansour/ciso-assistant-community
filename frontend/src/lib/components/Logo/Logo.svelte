@@ -9,4 +9,4 @@
 	let { height = 200, width = 200 }: Props = $props();
 </script>
 
-<img class="c" {height} {width} src={ciso} alt="CISO Wathbah" data-testid="logo-image" />
+<img class="c" {height} {width} src={ciso} alt="Wathbah GRC" data-testid="logo-image" />
