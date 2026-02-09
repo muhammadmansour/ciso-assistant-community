@@ -18,8 +18,7 @@ defineCustomServerStrategy('custom-userPreference', {
 
 defineCustomServerStrategy('custom-fallback', {
 	getLocale: () => {
-		// Default to Arabic for CISO Wathbah
-		return 'ar';
+		return DEFAULT_LANGUAGE;
 	}
 });
 

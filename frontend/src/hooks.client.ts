@@ -14,8 +14,7 @@ defineCustomClientStrategy('custom-userPreference', {
 
 defineCustomClientStrategy('custom-fallback', {
 	getLocale: () => {
-		// Default to Arabic for CISO Wathbah
-		return 'ar';
+		return DEFAULT_LANGUAGE;
 	},
 	setLocale: async () => {}
 });
