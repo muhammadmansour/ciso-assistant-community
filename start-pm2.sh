@@ -85,8 +85,8 @@ module.exports = {
       // FRONTEND - Running in dev mode
       name: 'ciso-frontend',
       cwd: './frontend',
-      script: 'npx',
-      args: 'vite dev --host 0.0.0.0 --port 3000',
+      script: 'pnpm',
+      args: 'run dev -- --host 0.0.0.0 --port 3000',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
