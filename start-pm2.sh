@@ -133,34 +133,12 @@ ensure_gunicorn() {
     cd "$SCRIPT_DIR"
 }
 
-# Function to build frontend for production
-build_frontend() {
-    echo -e "${GREEN}Building frontend for production...${NC}"
-    cd "$FRONTEND_DIR"
-    
-    # Check if build exists and is recent (less than 1 day old)
-    if [ -d "build" ] && [ -f "build/index.js" ]; then
-        BUILD_AGE=$(( ($(date +%s) - $(stat -c %Y build/index.js 2>/dev/null || echo 0)) / 86400 ))
-        if [ "$BUILD_AGE" -lt 1 ]; then
-            echo -e "${YELLOW}Frontend build exists and is recent. Skipping rebuild.${NC}"
-            echo -e "${YELLOW}Use './start-pm2.sh rebuild' to force rebuild.${NC}"
-            cd "$SCRIPT_DIR"
-            return
-        fi
-    fi
-    
-    echo -e "${YELLOW}Running pnpm build (this may take a minute)...${NC}"
-    pnpm run build
-    cd "$SCRIPT_DIR"
-}
-
 # Main commands
 case "${1:-start}" in
     start)
         echo -e "${GREEN}Starting all services (PRODUCTION MODE)...${NC}"
         ensure_gunicorn
         run_migrations
-        build_frontend
         cd "$SCRIPT_DIR"
         pm2 start ecosystem.config.js
         pm2 save
@@ -186,16 +164,6 @@ case "${1:-start}" in
         pm2 restart all
         pm2 status
         ;;
-    rebuild)
-        echo -e "${YELLOW}Rebuilding frontend...${NC}"
-        cd "$FRONTEND_DIR"
-        rm -rf build
-        pnpm run build
-        cd "$SCRIPT_DIR"
-        echo -e "${GREEN}Frontend rebuilt. Restarting...${NC}"
-        pm2 restart ciso-frontend
-        pm2 status
-        ;;
     status)
         pm2 status
         ;;
@@ -217,13 +185,12 @@ case "${1:-start}" in
         echo "PM2 will now auto-start on system boot"
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|rebuild|status|logs|delete|startup}"
+        echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
         echo "Commands:"
         echo "  start   - Start all services (production mode)"
         echo "  stop    - Stop all services"
         echo "  restart - Restart all services"
-        echo "  rebuild - Rebuild frontend and restart"
         echo "  status  - Show service status"
         echo "  logs    - Show logs (use 'logs backend', 'logs frontend', 'logs huey')"
         echo "  delete  - Remove all PM2 processes"
