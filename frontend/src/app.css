@@ -42,9 +42,6 @@ html[lang="ar"] * {
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
 */
 @layer base {
 	*,
@@ -57,17 +54,16 @@ html[lang="ar"] * {
 }
 
 @utility btn-mini-primary {
-	@apply text-gray-50 bg-violet-600 hover:bg-violet-500;
+	@apply text-gray-50 bg-blue-600 hover:bg-blue-500;
 }
 @utility btn-mini-secondary {
-	@apply text-gray-50 bg-pink-500 hover:bg-pink-400;
+	@apply text-gray-50 bg-indigo-500 hover:bg-indigo-400;
 }
 @utility btn-mini-tertiary {
 	@apply text-gray-50 bg-sky-500 hover:bg-sky-400;
 }
 
 @layer utilities {
-	/* (all other styles here...) */
 	html,
 	body {
 		@apply h-auto overflow-auto;
@@ -105,4 +101,71 @@ html[lang="ar"] * {
 }
 .hide-scrollbar::-webkit-scrollbar {
 	display: none;
+}
+
+/* ===== WathbaGRC New UI Styles ===== */
+
+/* Card styles matching the Figma design */
+.wgrc-card {
+	@apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+}
+
+/* Status badge styles */
+.wgrc-badge {
+	@apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+.wgrc-badge-active {
+	@apply bg-green-100 text-green-700;
+}
+.wgrc-badge-pending {
+	@apply bg-yellow-100 text-yellow-700;
+}
+.wgrc-badge-approved {
+	@apply bg-green-50 text-green-600;
+}
+.wgrc-badge-not-started {
+	@apply bg-gray-100 text-gray-600;
+}
+.wgrc-badge-in-progress {
+	@apply bg-blue-100 text-blue-700;
+}
+.wgrc-badge-done {
+	@apply bg-green-100 text-green-700;
+}
+.wgrc-badge-needs-review {
+	@apply bg-red-100 text-red-600;
+}
+
+/* Table styles matching the Figma design */
+.wgrc-table {
+	@apply w-full text-sm;
+}
+.wgrc-table thead th {
+	@apply text-xs font-semibold text-gray-500 uppercase tracking-wider py-3 px-4 text-left border-b border-gray-100;
+}
+.wgrc-table tbody td {
+	@apply py-3 px-4 text-gray-700 border-b border-gray-50;
+}
+.wgrc-table tbody tr:hover {
+	@apply bg-gray-50/50;
+}
+
+/* Status stat cards */
+.wgrc-stat-card {
+	@apply bg-white rounded-xl border border-gray-100 p-4 flex flex-col items-center justify-center gap-1 shadow-sm;
+}
+.wgrc-stat-number {
+	@apply text-3xl font-bold;
+}
+.wgrc-stat-label {
+	@apply text-xs text-gray-500 font-medium;
+}
+
+/* Sidebar accordion override for dark theme */
+.sidebar [data-accordion] button[data-accordion-control] {
+	background: transparent !important;
+	padding: 8px 4px !important;
+}
+.sidebar [data-accordion] [data-accordion-panel] {
+	padding: 0 !important;
 }

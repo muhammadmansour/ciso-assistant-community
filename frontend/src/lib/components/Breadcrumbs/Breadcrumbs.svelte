@@ -19,7 +19,6 @@
 	}
 
 	function getPageTitle(): string {
-		// Check each source in priority order
 		const title =
 			page.data.title ??
 			page.data.str ??
@@ -48,24 +47,37 @@
 	});
 </script>
 
-<ol class="flex items-center gap-4 h-6 overflow-hidden whitespace-nowrap">
+<ol class="flex items-center gap-2 h-6 overflow-hidden whitespace-nowrap">
+	<!-- Home icon -->
+	<li>
+		<a
+			href="/my-assignments"
+			class="text-gray-400 hover:text-blue-600 transition-colors"
+			title="Home"
+		>
+			<i class="fa-solid fa-house text-sm"></i>
+		</a>
+	</li>
 	{#each $breadcrumbs as c, i}
+		<li class="text-gray-300 text-xs" aria-hidden="true">/</li>
 		{#if i == $breadcrumbs.length - 1}
-			<span
-				class="max-w-[64ch] overflow-hidden whitespace-nowrap text-ellipsis text-sm text-gray-500 font-semibold antialiased"
-				data-testid="crumb-item"
-				title={safeTranslate(c.label)}
-			>
-				{#if c.icon}
-					<i class={c.icon}></i>
-				{/if}
-				{safeTranslate(c.label)}
-			</span>
+			<li>
+				<span
+					class="max-w-[64ch] overflow-hidden whitespace-nowrap text-ellipsis text-sm text-gray-500 font-medium"
+					data-testid="crumb-item"
+					title={safeTranslate(c.label)}
+				>
+					{#if c.icon}
+						<i class={c.icon}></i>
+					{/if}
+					{safeTranslate(c.label)}
+				</span>
+			</li>
 		{:else}
 			<li>
 				{#if c.href}
 					<a
-						class="max-w-[64ch] block overflow-hidden whitespace-nowrap text-ellipsis text-sm font-semibold antialiased hover:text-primary-500"
+						class="max-w-[64ch] block overflow-hidden whitespace-nowrap text-ellipsis text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
 						data-testid="crumb-item"
 						href={c.href}
 						title={safeTranslate(c.label)}
@@ -78,7 +90,7 @@
 					</a>
 				{:else}
 					<span
-						class="max-w-[64ch] overflow-hidden whitespace-nowrap text-ellipsis text-sm text-gray-500 font-semibold antialiased"
+						class="max-w-[64ch] overflow-hidden whitespace-nowrap text-ellipsis text-sm text-gray-500 font-medium"
 						data-testid="crumb-item"
 						title={safeTranslate(c.label)}
 					>
@@ -89,7 +101,6 @@
 					</span>
 				{/if}
 			</li>
-			<li class="crumb-separator" aria-hidden="true">›</li>
 		{/if}
 	{/each}
 </ol>

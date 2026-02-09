@@ -115,7 +115,7 @@
 </script>
 
 {#if data?.table}
-	<div class="shadow-lg">
+	<div class="wgrc-card">
 		{#key URLModel}
 			<ModelTable
 				source={data.table}

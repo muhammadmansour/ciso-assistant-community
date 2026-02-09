@@ -938,7 +938,7 @@ def run_evidence_auto_analysis(evidence_id: str):
 
 # Register Gemini upload tasks so Huey can discover them
 try:
-    from core.tasks_gemini import upload_evidence_to_gemini, check_gemini_upload_status  # noqa: F401, E402
+    from core.tasks_gemini import upload_evidence_to_gemini  # noqa: F401, E402
 except ImportError:
     pass  # google-genai not installed
 

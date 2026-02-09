@@ -4094,12 +4094,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
                     if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
-                        gemini_file_ids.append({
+                            gemini_file_ids.append({
                             'gemini_file_id': fs_entry.gemini_file_id,
                             'gemini_store_id': fs_entry.gemini_store_id,
-                            'evidence_name': evidence.name,
-                            'evidence_description': evidence.description or ''
-                        })
+                                'evidence_name': evidence.name,
+                                'evidence_description': evidence.description or ''
+                            })
                         has_valid_id = True
                         print(f"[AI-ANALYSIS] Evidence '{evidence.name}': using existing file ID {fs_entry.gemini_file_id}")
                 except Exception as e:
@@ -4143,9 +4143,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                                 'evidence_description': evidence.description or ''
                             })
                             print(f"[AI-ANALYSIS] Evidence '{evidence.name}': uploaded successfully -> {result['gemini_file_id']}")
-                        else:
+                    else:
                             print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
-                    except Exception as e:
+                except Exception as e:
                         print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
 
         print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
@@ -8326,9 +8326,9 @@ class UploadAttachmentView(APIView):
                                 gemini_store_id=result.get('gemini_store_id', ''),
                                 upload_status=FileSearchTable.UploadStatus.COMPLETED,
                             )
-                            logger.info(
+                    logger.info(
                                 "Gemini file uploaded successfully",
-                                revision_id=str(revision.id),
+                        revision_id=str(revision.id),
                                 gemini_file_id=result['gemini_file_id'],
                             )
                         else:
@@ -8343,7 +8343,7 @@ class UploadAttachmentView(APIView):
                                 "Gemini file upload did not succeed",
                                 revision_id=str(revision.id),
                                 result=str(result),
-                            )
+                    )
                     else:
                         logger.info("Gemini not configured, skipping upload")
                 except Exception as e:

@@ -4,7 +4,6 @@
 	// Most of your app wide CSS should be put in this file
 	import '../../app.css';
 
-	import { AppBar } from '@skeletonlabs/skeleton-svelte';
 	import { safeTranslate } from '$lib/utils/i18n';
 
 	import SideBar from '$lib/components/SideBar/SideBar.svelte';
@@ -57,18 +56,16 @@
 	const displayTitle = $derived($page.data?.title || $pageTitle);
 
 	// Auto-detect model from URL for list pages
-	// Match pattern: /model-name or /model-name/ (but not /model-name/uuid or /model-name/something)
 	const urlModel = $derived(() => {
 		const path = $page.url.pathname;
 		const match = path.match(/^\/([a-z-]+)\/?$/);
 		return match ? match[1] : null;
 	});
 
-	// Generate description key from URL model: "risk-matrices" → "riskMatricesDescription"
+	// Generate description key from URL model
 	const urlDescriptionKey = $derived(() => {
 		const model = urlModel();
 		if (!model) return null;
-
 		const camelCase = model
 			.split('-')
 			.map((word, index) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
@@ -76,31 +73,21 @@
 		return `${camelCase}Description`;
 	});
 
-	// Determine if we're on a list page vs detail page
-	// List page: URL matches /model-name pattern (e.g., /risk-assessments)
-	// Detail page: has an object title from loadDetail (e.g., /risk-assessments/uuid)
 	const matchesListUrl = $derived(!!urlModel());
 	const hasObjectTitle = $derived(!!$page.data?.title);
 
-	// For list pages: show description subtitle
-	// For detail pages: show model name subtitle
 	const displayModelName = $derived(
 		hasObjectTitle ? $page.data?.modelVerboseName || $modelName : ''
 	);
 
 	const displayModelDescription = $derived(
 		(() => {
-			// Only show description on list pages (not on detail pages with object titles)
 			if (hasObjectTitle) return '';
 			if (!matchesListUrl && !$page.data?.modelDescriptionKey) return '';
-
-			// List pages: get description from i18n
 			const descKey = $page.data?.modelDescriptionKey || urlDescriptionKey();
 			if (descKey && m[descKey]) {
 				return m[descKey]();
 			}
-
-			// Fallback to manual store
 			return $modelDescription;
 		})()
 	);
@@ -109,7 +96,6 @@
 	$effect(() => {
 		if (browser) {
 			setGlobalModalStore(modalStore);
-			// Set the warning preference from settings (default to true if not set)
 			const showWarning = data?.settings?.show_warning_external_links ?? true;
 			setShowWarningExternalLinks(showWarning);
 			interceptExternalLinks();
@@ -126,14 +112,6 @@
 					const data = await res.json();
 					const number = data.count ?? 0;
 					if (number <= 0) return;
-					// clientSideToast.set({
-					// 	message: m.waitingRiskAcceptances({
-					// 		number: number,
-					// 		s: number > 1 ? 's' : '',
-					// 		itPlural: number > 1 ? 'i' : 'e'
-					// 	}),
-					// 	type: 'info'
-					// });
 				});
 			}
 		}
@@ -147,62 +125,74 @@
 		let modal: ModalSettings = {
 			type: 'component',
 			component: modalComponent,
-			// Data
 			title: m.quickStart()
 		};
 		modalStore.trigger(modal);
 	}
-	// $inspect(data);
+
+	let searchQuery = $state('');
 </script>
 
 <!-- App Shell -->
-<div class="overflow-x-hidden">
+<div class="overflow-x-hidden min-h-screen bg-[#f0f2f5]">
 	<SideBar bind:open={sidebarOpen} {sideBarVisibleItems} />
-	<AppBar
-		base="relative transition-all duration-300 {classesSidebarOpen(sidebarOpen)}"
-		background="bg-white"
-		padding="pb-2 px-4"
+	
+	<!-- Top Header Bar -->
+	<header
+		class="sticky top-0 z-10 bg-white shadow-sm transition-all duration-300 {classesSidebarOpen(sidebarOpen)}"
 	>
-		{#snippet headline()}
-			<div
-				class="text-2xl font-bold pb-1 bg-linear-to-r from-pink-500 to-violet-600 bg-clip-text text-transparent"
-				id="page-title"
-			>
-				{safeTranslate(displayTitle)}
+		<div class="flex items-center justify-between px-6 py-3">
+			<!-- Search Bar -->
+			<div class="relative flex-1 max-w-xl">
+				<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+				<input
+					type="text"
+					placeholder="Search..."
+					bind:value={searchQuery}
+					class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
+				/>
 			</div>
+
+			<!-- Right Side Actions -->
+			<div class="flex items-center gap-3 ml-4">
+				{#if data?.user?.is_admin}
+					<button
+						onclick={modalQuickStart}
+						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+					>
+						<i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+						Demo Mode
+					</button>
+				{/if}
+			</div>
+		</div>
+	</header>
+
+	<!-- Breadcrumbs + Page Title -->
+	<div class="transition-all duration-300 {classesSidebarOpen(sidebarOpen)} px-6 pt-4">
+		<Breadcrumbs />
+		<div class="mt-2 mb-4">
+			<h1 class="text-2xl font-bold text-gray-900" id="page-title">
+				{safeTranslate(displayTitle)}
+			</h1>
 			{#if displayModelName}
-				<div class="text-sm text-slate-500 font-medium">
+				<p class="text-sm text-gray-500 mt-0.5">
 					{safeTranslate(displayModelName)}
-				</div>
+				</p>
 			{/if}
 			{#if displayModelDescription}
-				<div class="text-xs text-slate-400 italic">
+				<p class="text-xs text-gray-400 mt-0.5 italic">
 					{safeTranslate(displayModelDescription)}
-				</div>
+				</p>
 			{/if}
-			{#if data?.user?.is_admin}
-				<button
-					onclick={modalQuickStart}
-					class="absolute top-7 right-9 p-2 rounded-full bg-violet-500 text-white text-xs shadow-lg
-        ring-2 ring-violet-400 ring-offset-2 transition-all duration-300 hover:bg-violet-600
-        hover:ring-violet-300 hover:ring-offset-violet-100 hover:shadow-violet-500/50
-        focus:outline-hidden focus:ring-violet-500"
-				>
-					{m.quickStart()}
-				</button>
-			{/if}
-			<hr class="w-screen my-1" />
-			<Breadcrumbs />
-		{/snippet}
-	</AppBar>
+		</div>
+	</div>
+
 	<!-- Router Slot -->
 	<CommandPalette />
 	<main
-		class="min-h-screen p-8 bg-linear-to-br from-violet-100 to-slate-200 transition-all duration-300 {classesSidebarOpen(
-			sidebarOpen
-		)}"
+		class="px-6 pb-8 transition-all duration-300 {classesSidebarOpen(sidebarOpen)}"
 	>
 		{@render children?.()}
 	</main>
-	<!-- ---- / ---- -->
 </div>

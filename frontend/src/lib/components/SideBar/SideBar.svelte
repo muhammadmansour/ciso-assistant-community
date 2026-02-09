@@ -289,11 +289,11 @@
 
 <div data-testid="sidebar" class="sidebar">
 	<aside
-		class="flex w-64 shadow transition-all duration-300 fixed h-screen overflow-visible top-0 ltr:left-0 rtl:right-0 z-20 {classesSidebarOpen(
+		class="flex w-64 shadow-xl transition-all duration-300 fixed h-screen overflow-visible top-0 ltr:left-0 rtl:right-0 z-20 {classesSidebarOpen(
 			open
 		)}"
 	>
-		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-gray-50 py-4 px-3">
+		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[#1e2a4a] py-4 px-3">
 			<SideBarHeader />
 			<SideBarNavigation {sideBarVisibleItems} />
 			<SideBarFooter on:triggerGT={triggerVisit} on:loadDemoDomain={loadDemoDomain} />
