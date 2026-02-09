@@ -237,16 +237,14 @@
 		}
 	});
 
-	let isLoading = $state(false);
 	let previousFormErrors = $derived('');
-	const { form: formData, errors } = _form;
+	const { form: formData, errors, submitting } = _form;
 
 	errors.subscribe((newErrors) => {
 		const errorCount = Object.values(newErrors).reduce((acc, error) => (acc += error ? 1 : 0), 0);
 		const stringifiedErrors = JSON.stringify([Date.now(), newErrors]);
 
 		if (errorCount && stringifiedErrors !== previousFormErrors) {
-			isLoading = false;
 			previousFormErrors = stringifiedErrors;
 		}
 	});
@@ -872,28 +870,15 @@
 						createModalCache.deleteCache(model.urlModel);
 					}}>{m.cancel()}</button
 				>
-				<button
-					class="btn preset-filled-primary-500 font-semibold w-full {isLoading
-						? 'cursor-wait'
-						: ''}"
-					data-testid="save-button"
-					type="submit"
-					onclick={(e) => {
-						if (URLModel !== 'folders-import') return;
-						if (isLoading) {
-							e.preventDefault();
-							e.stopPropagation();
-							return;
-						}
-
-						const schema = modelSchema(URLModel);
-						const result = schema.safeParse($formData);
-						if (!result.success) return;
-
-						isLoading = true;
-					}}
-					>{#if isLoading}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
-				>
+			<button
+				class="btn preset-filled-primary-500 font-semibold w-full {$submitting
+					? 'cursor-wait opacity-75'
+					: ''}"
+				data-testid="save-button"
+				type="submit"
+				disabled={$submitting}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+			>
 			{:else}
 				{#if cancelButton}
 					<button
@@ -903,11 +888,15 @@
 						onclick={cancel}>{m.cancel()}</button
 					>
 				{/if}
-				<button
-					class="btn preset-filled-primary-500 font-semibold w-full"
-					data-testid="save-button"
-					type="submit">{m.save()}</button
-				>
+			<button
+				class="btn preset-filled-primary-500 font-semibold w-full {$submitting
+					? 'cursor-wait opacity-75'
+					: ''}"
+				data-testid="save-button"
+				type="submit"
+				disabled={$submitting}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+			>
 			{/if}
 		</div>
 	{/snippet}

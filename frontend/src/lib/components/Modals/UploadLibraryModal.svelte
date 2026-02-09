@@ -41,21 +41,27 @@
 					parent.onClose();
 				}}
 			>
-				{#snippet children({ form })}
-					<FileInput
-						{form}
-						helpText={m.libraryFileInYaml()}
-						field="file"
-						label={m.addYourLibrary()}
-						resetSignal={fileResetSignal}
-						allowedExtensions={['yaml', 'yml']}
-					/>
-					<button
-						class="btn preset-filled-primary-500 font-semibold w-full"
-						data-testid="save-button"
-						type="submit">{m.add()}</button
-					>
-				{/snippet}
+			{#snippet children({ form, delayed })}
+				<FileInput
+					{form}
+					helpText={m.libraryFileInYaml()}
+					field="file"
+					label={m.addYourLibrary()}
+					resetSignal={fileResetSignal}
+					allowedExtensions={['yaml', 'yml']}
+				/>
+				<button
+					class="btn preset-filled-primary-500 font-semibold w-full {delayed
+						? 'cursor-wait opacity-75'
+						: ''}"
+					data-testid="save-button"
+					type="submit"
+					disabled={delayed}
+					>{#if delayed}{m.loading()}
+						<span class="inline-block animate-spin ml-1">⏳</span>
+					{:else}{m.add()}{/if}</button
+				>
+			{/snippet}
 			</SuperForm>
 		{:catch err}
 			<h1>{m.errorOccurredWhileLoadingLibrary()}: {err}</h1>
