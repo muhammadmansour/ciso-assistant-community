@@ -15,6 +15,7 @@
 
 	let { data } = $props();
 	let isFetchingMuraji = $state(false);
+	let isDeletingAll = $state(false);
 	let isLoading = $state(true);
 
 	const modalStore: ModalStore = getModalStore();
@@ -244,6 +245,40 @@
 		{/snippet}
 		{#snippet addButton()}
 			<div class="flex gap-2">
+				<!-- Delete All Libraries Button -->
+				<form
+					method="POST"
+					action="?/deleteAll"
+					use:enhance={() => {
+						isDeletingAll = true;
+						return async ({ result, update }) => {
+							isDeletingAll = false;
+							await update();
+							await invalidateAll();
+						};
+					}}
+				>
+					<button
+						type="submit"
+						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-red-500 to-red-600 text-white font-medium text-sm shadow-sm hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						disabled={isDeletingAll}
+						title="Delete all libraries"
+						onclick={(e) => {
+							if (!confirm('Are you sure you want to delete ALL libraries and frameworks? This action cannot be undone.')) {
+								e.preventDefault();
+							}
+						}}
+					>
+						{#if isDeletingAll}
+							<i class="fa-solid fa-spinner fa-spin"></i>
+							<span>جاري الحذف...</span>
+						{:else}
+							<i class="fa-solid fa-trash-can"></i>
+							<span>حذف الكل</span>
+						{/if}
+					</button>
+				</form>
+
 				<!-- Fetch from Muraji Button -->
 				<form
 					method="POST"

@@ -93,6 +93,18 @@ export const actions: Actions = {
 	delete: async (event) => {
 		return defaultDeleteFormAction({ event, urlModel: 'stored-libraries' });
 	},
+	deleteAll: async (event) => {
+		const endpoint = `${BASE_API_URL}/stored-libraries/delete-all/`;
+		const response = await event.fetch(endpoint, { method: 'DELETE' });
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			setFlash({ type: 'error', message: errorData.message || 'Failed to delete all libraries' }, event);
+			return fail(500);
+		}
+		const result = await response.json().catch(() => ({}));
+		setFlash({ type: 'success', message: result.message || 'All libraries deleted successfully' }, event);
+		return { status: 200 };
+	},
 	fetchMuraji: async (event) => {
 		const MURAJI_API_URL = 'https://muraji-api.wathbahs.com/api/libraries';
 		
@@ -125,7 +137,7 @@ export const actions: Actions = {
 					const deleteResponse = await event.fetch(deleteEndpoint, { method: 'DELETE' });
 					const wasExisting = deleteResponse.ok;
 					
-					// Convert Muraji format to CISO Assistant YAML format
+					// Convert Muraji format to Wathbah GRC YAML format
 					const yamlContent = {
 						urn: library.urn,
 						locale: library.locale || 'en',
@@ -198,7 +210,7 @@ export const actions: Actions = {
 					const filename = `${library.ref_id || 'library'}.yaml`;
 					const file = new Blob([yamlString], { type: 'application/x-yaml' });
 					
-					// Upload to CISO Assistant
+					// Upload to Wathbah GRC
 					const uploadEndpoint = `${BASE_API_URL}/stored-libraries/upload/`;
 					
 					const uploadResponse = await event.fetch(uploadEndpoint, {

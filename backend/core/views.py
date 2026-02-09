@@ -7616,6 +7616,27 @@ class FrameworkViewSet(BaseModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["delete"], url_path="delete-all")
+    def delete_all(self, request):
+        """Delete all frameworks and their loaded libraries"""
+        from core.models import LoadedLibrary, StoredLibrary
+        
+        fw_count = Framework.objects.count()
+        loaded_count = LoadedLibrary.objects.count()
+        
+        # Delete frameworks first, then loaded libraries
+        Framework.objects.all().delete()
+        LoadedLibrary.objects.all().delete()
+        
+        # Mark stored libraries as not loaded
+        StoredLibrary.objects.filter(is_loaded=True).update(is_loaded=False)
+        
+        return Response({
+            'message': f'Deleted {fw_count} frameworks and {loaded_count} loaded libraries.',
+            'frameworks_deleted': fw_count,
+            'loaded_libraries_deleted': loaded_count,
+        }, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["get"])
     def tree(self, request, pk):
         _framework = Framework.objects.get(id=pk)

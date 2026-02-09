@@ -148,6 +148,24 @@ class StoredLibraryViewSet(BaseModelViewSet):
             return StoredLibrarySerializer
         return StoredLibraryDetailedSerializer
 
+    @action(detail=False, methods=["delete"], url_path="delete-all")
+    def delete_all(self, request):
+        """Delete all stored libraries, loaded libraries, and frameworks"""
+        fw_count = Framework.objects.count()
+        loaded_count = LoadedLibrary.objects.count()
+        stored_count = StoredLibrary.objects.count()
+
+        Framework.objects.all().delete()
+        LoadedLibrary.objects.all().delete()
+        StoredLibrary.objects.all().delete()
+
+        return Response({
+            'message': f'Deleted {stored_count} stored libraries, {loaded_count} loaded libraries, and {fw_count} frameworks.',
+            'stored_libraries_deleted': stored_count,
+            'loaded_libraries_deleted': loaded_count,
+            'frameworks_deleted': fw_count,
+        })
+
     def retrieve(self, request, *args, pk, **kwargs):
         if "view_storedlibrary" not in request.user.permissions:
             return Response(status=HTTP_403_FORBIDDEN)
