@@ -105,7 +105,7 @@ class GeminiFileSearchClient:
             raise ValueError("Gemini File Search client is not initialized")
         
         try:
-            operation = self.client.operations.get(name=operation_id)
+            operation = self.client.operations.get(operation=operation_id)
             
             if operation.done:
                 # Extract file ID from the completed operation
