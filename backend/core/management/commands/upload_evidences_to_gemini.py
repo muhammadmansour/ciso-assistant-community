@@ -130,26 +130,18 @@ class Command(BaseCommand):
                 file_search.error_message = None
                 file_search.save()
 
-                # Upload to Gemini
-                result = client.upload_file_to_search_store(
+                # Upload to Gemini and wait for completion
+                self.stdout.write(f"           Uploading and waiting for completion...")
+                final_status = client.upload_file_and_wait(
                     file_path=file_path,
                     display_name=display_name,
-                )
-
-                file_search.operation_id = result["operation_id"]
-                file_search.gemini_store_id = result["gemini_store_id"]
-                file_search.save()
-
-                # Wait for upload to complete (synchronous for management command)
-                self.stdout.write(f"           Waiting for upload to complete...")
-                final_status = client.wait_for_operation(
-                    operation_id=result["operation_id"],
                     max_wait_seconds=120,
                     poll_interval=3,
                 )
 
                 if final_status["status"] == "completed":
                     file_search.gemini_file_id = final_status.get("gemini_file_id", "")
+                    file_search.gemini_store_id = final_status.get("gemini_store_id", "")
                     file_search.upload_status = FileSearchTable.UploadStatus.COMPLETED
                     file_search.save()
                     uploaded += 1

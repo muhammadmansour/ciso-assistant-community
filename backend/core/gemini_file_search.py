@@ -43,14 +43,15 @@ class GeminiFileSearchClient:
         display_name: str
     ) -> Dict[str, Any]:
         """
-        Upload a file directly to Gemini File Search store
+        Upload a file directly to Gemini File Search store.
+        Returns immediately with the operation info (non-blocking).
         
         Args:
             file_path: Path to the file to upload
             display_name: Display name for the file (used in citations)
         
         Returns:
-            Dict containing operation_id, gemini_store_id, and status
+            Dict containing operation_id, gemini_store_id, status, and the raw operation object
         """
         if not self.client:
             raise ValueError("Gemini File Search client is not initialized")
@@ -79,6 +80,7 @@ class GeminiFileSearchClient:
             
             return {
                 'operation_id': operation.name,
+                'operation_object': operation,  # Keep the raw operation object for polling
                 'gemini_store_id': self.store_name,
                 'status': 'uploading'
             }
@@ -91,12 +93,143 @@ class GeminiFileSearchClient:
             )
             raise
     
-    def check_operation_status(self, operation_id: str) -> Dict[str, Any]:
+    def upload_file_and_wait(
+        self,
+        file_path: str,
+        display_name: str,
+        max_wait_seconds: int = 120,
+        poll_interval: int = 3
+    ) -> Dict[str, Any]:
         """
-        Check the status of an upload operation
+        Upload a file and wait for the operation to complete (synchronous/blocking).
         
         Args:
-            operation_id: The operation ID to check
+            file_path: Path to the file to upload
+            display_name: Display name for the file
+            max_wait_seconds: Maximum time to wait for completion
+            poll_interval: Time between status checks
+        
+        Returns:
+            Dict with status, gemini_file_id, gemini_store_id
+        """
+        result = self.upload_file_to_search_store(file_path, display_name)
+        operation = result['operation_object']
+        operation_name = result['operation_id']
+        
+        logger.info(
+            "Waiting for upload operation to complete",
+            operation_name=operation_name,
+            max_wait_seconds=max_wait_seconds
+        )
+        
+        elapsed = 0
+        while elapsed < max_wait_seconds:
+            try:
+                # Poll the operation using the operation object directly
+                updated = self.client.operations.get(operation=operation)
+                
+                logger.info(
+                    "Poll result",
+                    operation_name=operation_name,
+                    result_type=type(updated).__name__,
+                    done=getattr(updated, 'done', 'N/A'),
+                    elapsed=elapsed
+                )
+                
+                # If the SDK returns a string, it's the completed file ID
+                if isinstance(updated, str):
+                    return {
+                        'status': 'completed',
+                        'gemini_file_id': updated,
+                        'gemini_store_id': self.store_name,
+                    }
+                
+                done = getattr(updated, 'done', None)
+                
+                if done:
+                    # Extract file ID from the completed operation
+                    file_id = self._extract_file_id(updated)
+                    return {
+                        'status': 'completed',
+                        'gemini_file_id': file_id,
+                        'gemini_store_id': self.store_name,
+                    }
+                
+                # If no 'done' attribute at all, the object might be the result itself
+                if done is None:
+                    file_id = self._extract_file_id(updated)
+                    if file_id:
+                        return {
+                            'status': 'completed',
+                            'gemini_file_id': file_id,
+                            'gemini_store_id': self.store_name,
+                        }
+                        
+            except Exception as e:
+                logger.warning(
+                    "Error polling operation, will retry",
+                    operation_name=operation_name,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    elapsed=elapsed
+                )
+            
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+        
+        return {
+            'status': 'timeout',
+            'error': f'Operation did not complete within {max_wait_seconds} seconds'
+        }
+    
+    def _extract_file_id(self, obj) -> str:
+        """Extract a file ID from various possible response types."""
+        if obj is None:
+            return ''
+        if isinstance(obj, str):
+            return obj
+        
+        # Try common attributes
+        for attr in ('name', 'file_id', 'id'):
+            val = getattr(obj, attr, None)
+            if val and isinstance(val, str):
+                return val
+        
+        # Try response/result sub-objects
+        for attr in ('response', 'result'):
+            sub = getattr(obj, attr, None)
+            if sub is not None:
+                if isinstance(sub, str):
+                    return sub
+                if isinstance(sub, dict):
+                    return sub.get('name', '') or sub.get('file_id', '') or sub.get('id', '')
+                for sub_attr in ('name', 'file_id', 'id'):
+                    val = getattr(sub, sub_attr, None)
+                    if val and isinstance(val, str):
+                        return val
+        
+        # Try metadata
+        metadata = getattr(obj, 'metadata', None)
+        if metadata:
+            if isinstance(metadata, str):
+                return metadata
+            if isinstance(metadata, dict):
+                return metadata.get('file_id', '') or metadata.get('name', '')
+            val = getattr(metadata, 'file_id', None)
+            if val and isinstance(val, str):
+                return val
+        
+        # Last resort
+        return str(obj)
+
+    def check_operation_status(self, operation_id: str) -> Dict[str, Any]:
+        """
+        Check the status of an upload operation by string ID.
+        NOTE: Some SDK versions require the operation object, not a string.
+        Prefer upload_file_and_wait() for reliable polling.
+        
+        Args:
+            operation_id: The operation ID string to check
         
         Returns:
             Dict with status and file_id (if completed)
@@ -105,109 +238,58 @@ class GeminiFileSearchClient:
             raise ValueError("Gemini File Search client is not initialized")
         
         try:
-            operation = self.client.operations.get(operation=operation_id)
+            # Try passing as positional arg first, then keyword variations
+            operation = None
+            errors = []
             
-            # Log the raw operation for debugging
-            logger.info(
-                "Operation status check raw result",
-                operation_id=operation_id,
-                operation_type=type(operation).__name__,
-                operation_repr=repr(operation)[:500]
-            )
+            for call_style in ['positional', 'operation_kw', 'name_kw']:
+                try:
+                    if call_style == 'positional':
+                        operation = self.client.operations.get(operation_id)
+                    elif call_style == 'operation_kw':
+                        operation = self.client.operations.get(operation=operation_id)
+                    elif call_style == 'name_kw':
+                        operation = self.client.operations.get(name=operation_id)
+                    break  # Success
+                except TypeError as te:
+                    errors.append(f"{call_style}: {te}")
+                    continue
             
-            # Handle case where operation is returned as a string
+            if operation is None:
+                return {
+                    'status': 'failed',
+                    'error': f'All call styles failed: {"; ".join(errors)}'
+                }
+            
             if isinstance(operation, str):
-                # The operation itself is the result (file ID or name)
-                logger.info(
-                    "Operation returned as string (likely completed)",
-                    operation_id=operation_id,
-                    result=operation
-                )
                 return {
                     'status': 'completed',
                     'gemini_file_id': operation,
                     'done': True
                 }
             
-            # Check if operation has a 'done' attribute
             done = getattr(operation, 'done', None)
-            if done is None:
-                # No 'done' attribute — try to extract file ID directly
-                # The SDK may return the completed result directly
-                file_id = ''
-                if hasattr(operation, 'name'):
-                    file_id = operation.name
-                elif hasattr(operation, 'file_id'):
-                    file_id = operation.file_id
-                else:
-                    file_id = str(operation)
-                
-                return {
-                    'status': 'completed',
-                    'gemini_file_id': file_id,
-                    'done': True
-                }
-            
             if done:
-                # Extract file ID from the completed operation
-                file_id = ''
-                
-                # Try 'response' attribute first
-                response = getattr(operation, 'response', None)
-                if response is not None:
-                    if isinstance(response, str):
-                        file_id = response
-                    elif isinstance(response, dict):
-                        file_id = response.get('name', '') or response.get('file_id', '')
-                    elif hasattr(response, 'name'):
-                        file_id = response.name
-                    else:
-                        file_id = str(response)
-                
-                # Fallback: check 'result' attribute
-                if not file_id:
-                    result = getattr(operation, 'result', None)
-                    if result is not None:
-                        if isinstance(result, str):
-                            file_id = result
-                        elif isinstance(result, dict):
-                            file_id = result.get('name', '') or result.get('file_id', '')
-                        elif hasattr(result, 'name'):
-                            file_id = result.name
-                        else:
-                            file_id = str(result)
-                
-                # Fallback: check metadata
-                if not file_id:
-                    metadata = getattr(operation, 'metadata', None)
-                    if metadata:
-                        if isinstance(metadata, str):
-                            file_id = metadata
-                        elif isinstance(metadata, dict):
-                            file_id = metadata.get('file_id', '') or metadata.get('name', '')
-                        elif hasattr(metadata, 'file_id'):
-                            file_id = metadata.file_id
-                
-                # Last resort: use the operation name/id itself
-                if not file_id:
-                    file_id = getattr(operation, 'name', str(operation))
-                
-                logger.info(
-                    "Operation completed",
-                    operation_id=operation_id,
-                    file_id=file_id
-                )
-                
+                file_id = self._extract_file_id(operation)
                 return {
                     'status': 'completed',
                     'gemini_file_id': file_id,
                     'done': True
                 }
-            else:
+            elif done is False:
                 return {
                     'status': 'uploading',
                     'done': False
                 }
+            else:
+                # No 'done' attribute — probably the completed result itself
+                file_id = self._extract_file_id(operation)
+                return {
+                    'status': 'completed',
+                    'gemini_file_id': file_id,
+                    'done': True
+                }
+                
         except Exception as e:
             logger.error(
                 "Failed to check operation status",
@@ -226,21 +308,14 @@ class GeminiFileSearchClient:
         poll_interval: int = 5
     ) -> Dict[str, Any]:
         """
-        Wait for an operation to complete
-        
-        Args:
-            operation_id: The operation ID to wait for
-            max_wait_seconds: Maximum time to wait (default 5 minutes)
-            poll_interval: Time between status checks (default 5 seconds)
-        
-        Returns:
-            Final operation status dict
+        Wait for an operation to complete by polling with string ID.
+        NOTE: Prefer upload_file_and_wait() which uses the operation object directly.
         """
         elapsed = 0
         while elapsed < max_wait_seconds:
             result = self.check_operation_status(operation_id)
             
-            if result.get('done') or result.get('status') == 'failed':
+            if result.get('done') or result.get('status') in ('failed', 'completed'):
                 return result
             
             time.sleep(poll_interval)
