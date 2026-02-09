@@ -86,7 +86,7 @@ module.exports = {
       name: 'ciso-frontend',
       cwd: './frontend',
       script: 'pnpm',
-      args: 'run dev -- --host 0.0.0.0 --port 3000',
+      args: 'run dev',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',

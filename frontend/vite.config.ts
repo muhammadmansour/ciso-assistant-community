@@ -16,6 +16,8 @@ export default defineConfig({
 		sveltekit()
 	],
 	server: {
+		host: '0.0.0.0',
+		port: 3000,
 		allowedHosts: ['localhost', 'ciso.wathbahs.com'],
 		hmr: false
 	},
