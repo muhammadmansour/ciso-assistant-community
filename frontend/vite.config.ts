@@ -16,7 +16,13 @@ export default defineConfig({
 		sveltekit()
 	],
 	server: {
-		allowedHosts: ['localhost', 'ciso.wathbahs.com']
+		allowedHosts: ['localhost', 'ciso.wathbahs.com'],
+		hmr: {
+			// HMR through Caddy reverse proxy
+			clientPort: 443,
+			protocol: 'wss',
+			host: 'ciso.wathbahs.com'
+		}
 	},
 	test: {
 		include: ['{src}/**/*.{test,spec}.{js,ts}']

@@ -24,7 +24,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,backend',
-        CISO_ASSISTANT_URL: 'http://localhost:5173',
+        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -48,7 +48,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS: 'localhost,127.0.0.1',
-        CISO_ASSISTANT_URL: 'http://localhost:5173',
+        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
         // Gemini File Search - must match backend config
         GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
         GEMINI_FILE_SEARCH_STORE_NAME: process.env.GEMINI_FILE_SEARCH_STORE_NAME || '',
@@ -64,7 +64,7 @@ module.exports = {
       name: 'ciso-frontend',
       cwd: path.join(projectRoot, 'frontend'),
       script: pnpmCjs,
-      args: 'run dev --host 0.0.0.0',
+      args: 'run dev --host 0.0.0.0 --port 3000',
       interpreter: 'node',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://localhost:8000/api',
