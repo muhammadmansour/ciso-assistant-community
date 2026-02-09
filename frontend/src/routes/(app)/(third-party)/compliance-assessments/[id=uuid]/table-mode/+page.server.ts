@@ -131,8 +131,7 @@ export const actions: Actions = {
 		return { status: res.status, body: await res.json() };
 	},
 	createEvidence: async (event) => {
-		// Redirect to evidence page with autoAnalyze to trigger AI analysis
-		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: true });
+		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: false });
 	},
 	createAppliedControl: async (event) => {
 		return nestedWriteFormAction({ event, action: 'create' });

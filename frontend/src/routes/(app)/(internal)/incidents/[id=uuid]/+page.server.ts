@@ -98,7 +98,6 @@ export const actions: Actions = {
 		return nestedDeleteFormAction({ event });
 	},
 	createEvidence: async (event) => {
-		// Redirect to evidence page with autoAnalyze to trigger AI analysis
-		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: true });
+		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: false });
 	}
 };

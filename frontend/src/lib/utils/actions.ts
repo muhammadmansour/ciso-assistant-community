@@ -216,11 +216,6 @@ export async function defaultWriteFormAction({
 	const next = getSecureRedirect(event.url.searchParams.get('next'));
 	if (next && doRedirect) redirect(302, next);
 
-	// Auto-analysis disabled - redirect without autoAnalyze flag
-	if (action === 'create' && urlModel === 'evidences') {
-		return message(form, { redirect: `/evidences/${writtenObject.id}` });
-	}
-
 	if (redirectToWrittenObject) {
 		return message(form, { redirect: `/${urlModel}/${writtenObject.id}` });
 	}
