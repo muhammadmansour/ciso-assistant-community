@@ -21,6 +21,9 @@ class GeminiFileSearchClient:
     """Client for interacting with Gemini File Search API"""
     
     def __init__(self):
+        self.client = None
+        self.store_name = None
+        
         if not GEMINI_ENABLED:
             logger.warning("Gemini File Search is not configured. Set GEMINI_API_KEY and GEMINI_FILE_SEARCH_STORE_NAME")
             return
@@ -29,6 +32,7 @@ class GeminiFileSearchClient:
             from google import genai
             self.client = genai.Client(api_key=GEMINI_API_KEY)
             self.store_name = GEMINI_FILE_SEARCH_STORE_NAME
+            logger.info("Gemini File Search client initialized", store_name=self.store_name)
         except ImportError:
             logger.error("google-genai package not installed. Install with: pip install google-genai")
             raise
@@ -46,10 +50,10 @@ class GeminiFileSearchClient:
             display_name: Display name for the file (used in citations)
         
         Returns:
-            Dict containing gemini_file_id, operation_id, and store_id
+            Dict containing operation_id, gemini_store_id, and status
         """
-        if not GEMINI_ENABLED:
-            raise ValueError("Gemini File Search is not configured")
+        if not self.client:
+            raise ValueError("Gemini File Search client is not initialized")
         
         try:
             logger.info(
@@ -97,16 +101,41 @@ class GeminiFileSearchClient:
         Returns:
             Dict with status and file_id (if completed)
         """
-        if not GEMINI_ENABLED:
-            raise ValueError("Gemini File Search is not configured")
+        if not self.client:
+            raise ValueError("Gemini File Search client is not initialized")
         
         try:
-            operation = self.client.operations.get(operation_id)
+            operation = self.client.operations.get(name=operation_id)
             
             if operation.done:
-                # Extract file ID from operation metadata
-                # The file_id is typically in operation.response or operation.metadata
-                file_id = getattr(operation, 'response', {}).get('name', '')
+                # Extract file ID from the completed operation
+                # The response may be a protobuf object or dict depending on SDK version
+                file_id = ''
+                response = getattr(operation, 'response', None)
+                if response is not None:
+                    # Handle both dict and protobuf-like objects
+                    if isinstance(response, dict):
+                        file_id = response.get('name', '')
+                    elif hasattr(response, 'name'):
+                        file_id = response.name
+                    else:
+                        # Try to convert to string as fallback
+                        file_id = str(response)
+                
+                # Also check metadata for the file ID
+                if not file_id:
+                    metadata = getattr(operation, 'metadata', None)
+                    if metadata:
+                        if isinstance(metadata, dict):
+                            file_id = metadata.get('file_id', '') or metadata.get('name', '')
+                        elif hasattr(metadata, 'file_id'):
+                            file_id = metadata.file_id
+                
+                logger.info(
+                    "Operation completed",
+                    operation_id=operation_id,
+                    file_id=file_id
+                )
                 
                 return {
                     'status': 'completed',
@@ -148,10 +177,10 @@ class GeminiFileSearchClient:
         """
         elapsed = 0
         while elapsed < max_wait_seconds:
-            status = self.check_operation_status(operation_id)
+            result = self.check_operation_status(operation_id)
             
-            if status.get('done'):
-                return status
+            if result.get('done') or result.get('status') == 'failed':
+                return result
             
             time.sleep(poll_interval)
             elapsed += poll_interval

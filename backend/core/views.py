@@ -8100,13 +8100,20 @@ class UploadAttachmentView(APIView):
                 revision.save()
                 
                 # Trigger Gemini File Search upload in background
-                print(f"[UPLOAD] Triggering Gemini upload for revision {revision.id}")
                 try:
                     from core.tasks_gemini import upload_evidence_to_gemini
-                    result = upload_evidence_to_gemini(str(revision.id))
-                    print(f"[UPLOAD] Gemini task queued: {result}")
+                    upload_evidence_to_gemini(str(revision.id))
+                    logger.info(
+                        "Gemini File Search upload task queued",
+                        revision_id=str(revision.id),
+                        evidence_id=str(evidence.id)
+                    )
                 except Exception as e:
-                    print(f"[UPLOAD] Failed to queue Gemini task: {type(e).__name__}: {e}")
+                    logger.warning(
+                        "Failed to queue Gemini File Search upload task",
+                        revision_id=str(revision.id),
+                        error=str(e)
+                    )
 
         return Response(status=status.HTTP_200_OK)
 
