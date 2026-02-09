@@ -17,12 +17,7 @@ export default defineConfig({
 	],
 	server: {
 		allowedHosts: ['localhost', 'ciso.wathbahs.com'],
-		hmr: {
-			// HMR through Caddy reverse proxy
-			clientPort: 443,
-			protocol: 'wss',
-			host: 'ciso.wathbahs.com'
-		}
+		hmr: false
 	},
 	test: {
 		include: ['{src}/**/*.{test,spec}.{js,ts}']
