@@ -82,18 +82,17 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - Using production build (not dev mode!)
+      // FRONTEND - Running in dev mode
       name: 'ciso-frontend',
       cwd: './frontend',
-      script: 'node',
-      args: 'build/index.js',
+      script: 'npx',
+      args: 'vite dev --host 0.0.0.0 --port 3000',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://ciso.wathbahs.com/api',
         ORIGIN: 'https://ciso.wathbahs.com',
         PUBLIC_DEFAULT_LANGUAGE: 'ar',
-        NODE_ENV: 'production',
         PORT: '3000',
         HOST: '0.0.0.0'
       },
@@ -148,7 +147,7 @@ case "${1:-start}" in
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn (4 workers)"
-        echo -e "  Frontend: Production build"
+        echo -e "  Frontend: Dev mode (Vite)"
         echo -e "  Access:   https://${DOMAIN}"
         echo ""
         pm2 status
