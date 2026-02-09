@@ -1,5 +1,8 @@
-import { env } from '$env/dynamic/public';
+import { env as _env } from '$env/dynamic/public';
 import { m } from '$paraglide/messages';
+
+// Defensive fallback if $env/dynamic/public fails to load on client
+const env = _env ?? {};
 
 export const BASE_API_URL = `${
 	Object.hasOwn(env, 'PUBLIC_BACKEND_API_URL')
