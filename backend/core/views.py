@@ -4063,11 +4063,16 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         """Call Muraji /api/audit/analyze directly and return result"""
         import requests as http_requests
         import os
+        from core.models import FileSearchTable
 
         applied_control = self.get_object()
+        print(f"[AI-ANALYSIS] ====== START ======")
+        print(f"[AI-ANALYSIS] Applied Control: id={applied_control.id}, name={applied_control.name}")
 
         evidence_count = applied_control.evidences.count()
+        print(f"[AI-ANALYSIS] Total evidences linked to this applied control: {evidence_count}")
         if evidence_count == 0:
+            print(f"[AI-ANALYSIS] ERROR: No evidences found!")
             return Response(
                 {'message': 'No evidences found. Please upload evidence files first.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -4076,13 +4081,22 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         # Gather Gemini File Search IDs from evidences
         gemini_file_ids = []
         for evidence in applied_control.evidences.all():
-            print(f"[AI-ANALYSIS] Evidence: {evidence.name}, revisions: {evidence.revisions.count()}")
+            rev_count = evidence.revisions.count()
+            print(f"[AI-ANALYSIS] Evidence: id={evidence.id}, name={evidence.name}, revisions_count={rev_count}")
             for revision in evidence.revisions.all():
-                print(f"[AI-ANALYSIS]   Revision {revision.id}, has attachment: {bool(revision.attachment)}")
+                has_att = bool(revision.attachment)
+                print(f"[AI-ANALYSIS]   Revision {revision.id}, has_attachment={has_att}")
+                
+                # Also check via direct DB query
+                fs_entries = FileSearchTable.objects.filter(evidence_revision=revision)
+                print(f"[AI-ANALYSIS]   FileSearchTable entries via DB query: {fs_entries.count()}")
+                for fs_entry in fs_entries:
+                    print(f"[AI-ANALYSIS]   DB entry: status={fs_entry.upload_status}, gemini_file_id={fs_entry.gemini_file_id[:80]}, gemini_store_id={fs_entry.gemini_store_id}")
+                
                 try:
                     if hasattr(revision, 'file_search'):
                         fs = revision.file_search
-                        print(f"[AI-ANALYSIS]   FileSearch found: status={fs.upload_status}, gemini_file_id={fs.gemini_file_id}")
+                        print(f"[AI-ANALYSIS]   FileSearch via relation: status={fs.upload_status}, gemini_file_id={fs.gemini_file_id[:80]}")
                         if fs and fs.upload_status == 'completed':
                             gemini_file_ids.append({
                                 'gemini_file_id': fs.gemini_file_id,
@@ -4090,11 +4104,15 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                                 'evidence_name': evidence.name,
                                 'evidence_description': evidence.description or ''
                             })
+                            print(f"[AI-ANALYSIS]   >>> ADDED to gemini_file_ids")
+                        else:
+                            print(f"[AI-ANALYSIS]   NOT added: status is '{fs.upload_status}', not 'completed'")
                     else:
-                        print(f"[AI-ANALYSIS]   No file_search relation on revision")
+                        print(f"[AI-ANALYSIS]   No file_search relation on revision (hasattr=False)")
                 except Exception as e:
                     print(f"[AI-ANALYSIS]   Error accessing file_search: {type(e).__name__}: {e}")
         print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
+        print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'][:60] for f in gemini_file_ids]}")
 
         # Gather requirements, questions, typical evidence
         questions = []
