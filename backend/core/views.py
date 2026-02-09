@@ -8278,18 +8278,54 @@ class UploadAttachmentView(APIView):
                 revision.attachment = attachment
                 revision.save()
                 
-                # Trigger Gemini File Search upload in background
+                # Upload to Gemini synchronously (don't rely on Huey worker)
                 try:
-                    from core.tasks_gemini import upload_evidence_to_gemini
-                    upload_evidence_to_gemini(str(revision.id))
-                    logger.info(
-                        "Gemini File Search upload task queued",
-                        revision_id=str(revision.id),
-                        evidence_id=str(evidence.id)
-                    )
+                    from core.gemini_file_search import get_gemini_client
+                    from core.models import FileSearchTable
+                    
+                    gemini_client = get_gemini_client()
+                    if gemini_client:
+                        file_path = revision.attachment.path
+                        display_name = f"{evidence.name} - {evidence.filename()}"
+                        
+                        result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+                        
+                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
+                            FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'gemini_file_id': result['gemini_file_id'],
+                                    'gemini_store_id': result.get('gemini_store_id', ''),
+                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                    'error_message': None,
+                                }
+                            )
+                            logger.info(
+                                "Gemini file upload completed",
+                                revision_id=str(revision.id),
+                                gemini_file_id=result['gemini_file_id'],
+                            )
+                        else:
+                            FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'upload_status': FileSearchTable.UploadStatus.FAILED,
+                                    'error_message': result.get('error', 'Upload did not return valid file ID'),
+                                }
+                            )
+                            logger.warning(
+                                "Gemini file upload failed",
+                                revision_id=str(revision.id),
+                                result=str(result),
+                            )
                 except Exception as e:
                     logger.warning(
-                        "Failed to queue Gemini File Search upload task",
+                        "Gemini file upload error (non-blocking)",
                         revision_id=str(revision.id),
                         error=str(e)
                     )
