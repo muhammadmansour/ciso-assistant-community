@@ -114,7 +114,7 @@
 	let quickFilterSelected: Record<string, boolean> = $state({});
 </script>
 
-<div class="card bg-white py-2 shadow-sm min-h-[400px]">
+<div class="wgrc-card min-h-[400px]">
 	{#await data.storedLibrariesTable}
 		<!-- Loading State with Circular Progress -->
 		<div class="flex flex-col items-center justify-center py-20 gap-4">
