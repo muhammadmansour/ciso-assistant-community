@@ -5,18 +5,18 @@
 
 <div
 	id="hellothere"
-	class="flex flex-col justify-center items-center lg:w-3/5 text-gray-900 px-4 lg:px-0"
+	class="flex flex-col justify-center items-center text-white"
 >
 	<Typewriter mode="loopOnce" cursor={false} interval={50}>
 		<div class="text-2xl unstyled text-center pb-4">
-			<span class="text-2xl text-center">{m.helloThere()} </span>
-			<span> {m.thisIsCisoAssistant()} </span>
+			<span class="text-2xl text-center text-white/90">{m.helloThere()} </span>
+			<span class="text-white"> {m.thisIsCisoAssistant()} </span>
 		</div>
 	</Typewriter>
 	<Typewriter mode="cascade" cursor={false} interval={45} delay={5000}>
-		<div class="text-2xl unstyled text-center">
+		<div class="text-xl unstyled text-center text-white/70">
 			<span> {m.yourStreamlined()} </span>
-			<span class="font-black"> {m.oneStopShop()} </span>
+			<span class="font-bold text-white"> {m.oneStopShop()} </span>
 			<span> {m.forComplianceRiskManagement()} </span>
 		</div>
 	</Typewriter>

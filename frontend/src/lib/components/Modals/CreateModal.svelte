@@ -7,8 +7,8 @@
 	let closeModal = true;
 
 	// Base Classes
-	const cBase = 'card bg-surface-50 p-4 w-fit max-w-4xl shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold whitespace-pre-line';
+	const cBase = 'card bg-white p-6 w-fit max-w-4xl shadow-2xl space-y-4 rounded-2xl border border-gray-100';
+	const cHeader = 'text-xl font-bold text-gray-900 whitespace-pre-line';
 
 	import ModelForm from '$lib/components/Forms/ModelForm.svelte';
 	import type { SuperValidated } from 'sveltekit-superforms';

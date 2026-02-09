@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import Logo from '$lib/components/Logo/Logo.svelte';
 	import Greetings from './Greetings.svelte';
 	import FormCard from './FormCard.svelte';
 
@@ -12,20 +11,38 @@
 	let { data, form }: Props = $props();
 </script>
 
-<div class="lg:relative h-screen bg-slate-200">
-	<div class="lg:absolute top-5 lg:left-5 flex justify-center">
-		<div class="flex justify-center flex-row max-w-48 space-x-4 pb-3">
-			<Logo />
+<div class="min-h-screen flex">
+	<!-- Left panel - Branding -->
+	<div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1e2a4a] via-[#243156] to-[#1a2340] flex-col justify-center items-center relative overflow-hidden">
+		<!-- Decorative circles -->
+		<div class="absolute top-20 left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
+		<div class="absolute bottom-20 right-20 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl"></div>
+		
+		<div class="relative z-10 text-center px-12">
+			<!-- Logo -->
+			<div class="mb-8 flex items-center justify-center gap-3">
+				<div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+					<span class="text-[#1e2a4a] text-2xl font-black">W</span>
+				</div>
+				<span class="text-white text-3xl font-bold tracking-tight">WathbaGRC</span>
+			</div>
+			
+			<Greetings />
 		</div>
 	</div>
-	<div
-		class="lg:absolute lg:top-1/2 lg:left-1/2 w-full transform lg:-translate-x-1/2 lg:-translate-y-1/2"
-	>
-		<div class="flex flex-col lg:flex-row w-full lg:pr-8 space-y-4 lg:space-y-0 lg:space-x-4">
-			<Greetings />
-			<div class="flex justify-center lg:pr-5 items-center w-full lg:w-2/5">
-				<FormCard {data} {form} />
+	
+	<!-- Right panel - Login form -->
+	<div class="flex-1 flex items-center justify-center bg-[#f0f2f5] p-8">
+		<div class="w-full max-w-md">
+			<!-- Mobile logo -->
+			<div class="lg:hidden flex items-center justify-center gap-3 mb-8">
+				<div class="w-10 h-10 bg-[#1e2a4a] rounded-xl flex items-center justify-center">
+					<span class="text-white text-xl font-black">W</span>
+				</div>
+				<span class="text-[#1e2a4a] text-2xl font-bold tracking-tight">WathbaGRC</span>
 			</div>
+			
+			<FormCard {data} {form} />
 		</div>
 	</div>
 </div>

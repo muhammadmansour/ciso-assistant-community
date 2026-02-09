@@ -859,10 +859,10 @@
 				{...rest}
 			/>
 		{/if}
-		<div class="flex flex-row justify-between space-x-4">
+		<div class="flex flex-row justify-between space-x-4 mt-2">
 			{#if closeModal}
 				<button
-					class="btn bg-gray-400 text-white font-semibold w-full"
+					class="btn bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold w-full rounded-lg transition-colors"
 					data-testid="cancel-button"
 					type="button"
 					onclick={(event) => {
@@ -871,7 +871,7 @@
 					}}>{m.cancel()}</button
 				>
 			<button
-				class="btn preset-filled-primary-500 font-semibold w-full {$submitting
+				class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"
@@ -882,14 +882,14 @@
 			{:else}
 				{#if cancelButton}
 					<button
-						class="btn bg-gray-400 text-white font-semibold w-full"
+						class="btn bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold w-full rounded-lg transition-colors"
 						data-testid="cancel-button"
 						type="button"
 						onclick={cancel}>{m.cancel()}</button
 					>
 				{/if}
 			<button
-				class="btn preset-filled-primary-500 font-semibold w-full {$submitting
+				class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"

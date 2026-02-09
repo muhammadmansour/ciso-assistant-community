@@ -407,7 +407,7 @@
 	{/if}
 
 	<!-- Main content area - modified to use conditional flex layout -->
-	<div class="card shadow-lg bg-white p-4">
+	<div class="wgrc-card">
 		{#each data.data?.sync_mappings as syncMapping}
 			<div class="mb-4 p-4 bg-secondary-50 border-l-4 border-secondary-400">
 				<h3 class="font-semibold text-secondary-800 mb-2">
@@ -429,7 +429,7 @@
 		<div class={hasWidgets ? 'flex flex-row flex-wrap gap-4' : 'w-full'}>
 			<!-- Left side - Details (conditional width) -->
 			<div
-				class="flow-root rounded-lg border border-gray-100 py-3 shadow-xs {hasWidgets
+				class="flow-root rounded-lg border border-gray-100 py-3 {hasWidgets
 					? 'flex-1 min-w-[300px]'
 					: 'w-full'}"
 			>
@@ -739,14 +739,14 @@
 					</Tooltip>
 				{/if}
 
-				<Anchor
-					breadcrumbAction="push"
-					href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
-					label={m.edit()}
-					class="btn preset-filled-primary-500 h-fit"
-					><i class="fa-solid fa-pen-to-square mr-2" data-testid="edit-button"
-					></i>{m.edit()}</Anchor
-				>
+			<Anchor
+				breadcrumbAction="push"
+				href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
+				label={m.edit()}
+				class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm h-fit"
+				><i class="fa-solid fa-pen-to-square mr-2" data-testid="edit-button"
+				></i>{m.edit()}</Anchor
+			>
 
 				{#if data.urlModel === 'applied-controls'}
 					<button
@@ -765,7 +765,7 @@
 </div>
 
 {#if relatedModels.length > 0 && displayModelTable}
-	<div class="card shadow-lg mt-8 bg-white">
+	<div class="wgrc-card mt-6">
 		<Tabs
 			value={group}
 			onValueChange={(e) => (group = e.value)}
@@ -819,15 +819,15 @@
 									fields={fieldsToUse}
 									defaultFilters={field.defaultFilters || {}}
 								>
-									{#snippet addButton()}
-										<button
-											class="btn preset-filled-primary-500 self-end my-auto"
-											data-testid="add-button"
-											onclick={(_) => modalCreateForm(model)}
-											><i class="fa-solid fa-plus mr-2 lowercase"></i>{safeTranslate(
-												'add-' + model.info.localName
-											)}</button
-										>
+								{#snippet addButton()}
+									<button
+										class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm self-end my-auto"
+										data-testid="add-button"
+										onclick={(_) => modalCreateForm(model)}
+										><i class="fa-solid fa-plus mr-2 lowercase"></i>{safeTranslate(
+											'add-' + model.info.localName
+										)}</button
+									>
 									{/snippet}
 								</ModelTable>
 							{/if}

@@ -49,23 +49,25 @@
 	});
 </script>
 
-<div class="flex flex-col w-7/8 lg:w-3/4 p-10 rounded-lg shadow-lg bg-white bg-opacity-[.90]">
-	<div data-testid="login" class="flex flex-col w-full items-center space-y-4">
-		<div class="bg-primary-300 px-6 py-5 rounded-full text-3xl">
-			<i class="fa-solid fa-right-to-bracket"></i>
+<div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+	<div data-testid="login" class="flex flex-col w-full items-center space-y-5">
+		<!-- Icon -->
+		<div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+			<i class="fa-solid fa-right-to-bracket text-white text-2xl"></i>
 		</div>
-		<h3
-			class="font-bold leading-tight tracking-tight md:text-2xl bg-linear-to-r from-pink-500 to-violet-600 bg-clip-text text-transparent"
-		>
-			{m.logIntoYourAccount()}
-		</h3>
-		<p class="text-center text-gray-600 text-sm">
-			{m.youNeedToLogIn()}
-		</p>
+		
+		<div class="text-center">
+			<h3 class="text-2xl font-bold text-gray-900">
+				{m.logIntoYourAccount()}
+			</h3>
+			<p class="text-gray-500 text-sm mt-1">
+				{m.youNeedToLogIn()}
+			</p>
+		</div>
+		
 		<div class="w-full">
-			<!-- SuperForm with dataType 'form' -->
 			<SuperForm
-				class="flex flex-col space-y-3"
+				class="flex flex-col space-y-4"
 				data={data?.form}
 				dataType="form"
 				validators={zod(loginSchema)}
@@ -77,30 +79,28 @@
 					<div class="flex flex-row justify-end">
 						<a
 							href="/password-reset"
-							class="flex items-center space-x-2 text-primary-800 hover:text-primary-600"
+							class="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
 							data-testid="forgot-password-btn"
 						>
-							<p class="">{m.forgtPassword()}?</p>
+							{m.forgtPassword()}?
 						</a>
 					</div>
-					<p class="">
-						<button
-							class="btn preset-filled-primary-500 font-semibold w-full"
-							data-testid="login-btn"
-							type="submit">{m.login()}</button
-						>
-					</p>
+					<button
+						class="btn w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-3 rounded-lg shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+						data-testid="login-btn"
+						type="submit">{m.login()}</button
+					>
 				{/snippet}
 			</SuperForm>
 		</div>
 		{#if data.SSOInfo.is_enabled}
-			<div class="flex items-center justify-center w-full space-x-2">
-				<hr class="w-64 items-center bg-gray-200 border-0" />
-				<span class="flex items-center text-gray-600 text-sm">{m.or()}</span>
-				<hr class="w-64 items-center bg-gray-200 border-0" />
+			<div class="flex items-center justify-center w-full space-x-3">
+				<hr class="flex-1 bg-gray-200 border-0 h-px" />
+				<span class="text-gray-400 text-sm">{m.or()}</span>
+				<hr class="flex-1 bg-gray-200 border-0 h-px" />
 			</div>
 			<button
-				class="btn bg-linear-to-l from-violet-800 to-violet-400 text-white font-semibold w-1/2"
+				class="btn w-full bg-[#1e2a4a] hover:bg-[#243156] text-white font-semibold py-3 rounded-lg transition-all duration-200"
 				onclick={() =>
 					redirectToProvider(data.SSOInfo.sp_entity_id, data.SSOInfo.callback_url, 'login')}
 				>{m.loginSSO()}</button

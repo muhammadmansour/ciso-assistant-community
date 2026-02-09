@@ -51,7 +51,7 @@
 					allowedExtensions={['yaml', 'yml']}
 				/>
 				<button
-					class="btn preset-filled-primary-500 font-semibold w-full {delayed
+					class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 font-semibold w-full rounded-lg shadow-sm transition-all {delayed
 						? 'cursor-wait opacity-75'
 						: ''}"
 					data-testid="save-button"

@@ -118,11 +118,11 @@
 		numberRowsPerPage = $tableStates[page.url.pathname]?.rowsPerPage ?? 10,
 		orderBy = undefined,
 		element = 'table',
-		text = 'text-xs',
+		text = 'text-sm',
 		backgroundColor = 'bg-white',
-		color = '',
+		color = 'text-gray-700',
 		regionHead = '',
-		regionHeadCell = 'uppercase bg-white text-gray-700',
+		regionHeadCell = 'text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50/50',
 		regionBody = 'bg-white',
 		regionCell = 'max-w-[65ch] max-h-[8em] overflow-hidden hover:overflow-y-auto',
 		regionFoot = '',
@@ -560,15 +560,15 @@
 	let openState = $state(false);
 </script>
 
-<div class="table-wrap {classesBase}">
-	<header class="flex justify-between items-center space-x-8 p-2">
+<div class="table-wrap {classesBase} rounded-lg overflow-hidden">
+	<header class="flex justify-between items-center space-x-8 p-3 border-b border-gray-100">
 		{#if !hideFilters}
 			<Popover
 				open={openState}
 				onOpenChange={(e) => (openState = e.open)}
 				positioning={{ placement: 'bottom-start' }}
-				triggerBase="btn preset-filled-primary-500 self-end relative"
-				contentBase="card p-2 bg-white max-w-lg shadow-lg space-y-2 border border-surface-200"
+				triggerBase="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm rounded-lg self-end relative"
+				contentBase="card p-3 bg-white max-w-lg shadow-xl space-y-2 border border-gray-200 rounded-xl"
 				zIndex="1000"
 				autoFocus={false}
 				onPointerDownOutside={() => (openState = false)}
@@ -671,7 +671,7 @@
 		<ContextMenu.Root>
 			<ContextMenu.Trigger>
 				{#snippet child({ props })}
-					<tbody {...props} class="w-full border-b border-b-surface-100-900 {regionBody}">
+					<tbody {...props} class="w-full divide-y divide-gray-100 {regionBody}">
 						{#each $rows as row, rowIndex}
 							{@const meta = row?.meta ?? row}
 							<tr
@@ -679,7 +679,7 @@
 								onkeydown={(e) => onRowKeydown(e, rowIndex)}
 								oncontextmenu={() => (contextMenuOpenRow = row)}
 								aria-rowindex={rowIndex + 1}
-								class="hover:preset-tonal-primary even:bg-surface-50 cursor-pointer"
+								class="hover:bg-blue-50/50 even:bg-gray-50/30 cursor-pointer transition-colors duration-150"
 							>
 								{#each Object.entries(row) as [key, value]}
 									{#if key !== 'meta'}
@@ -954,7 +954,7 @@
 		{/if}
 	</table>
 
-	<footer class="flex justify-between items-center space-x-8 p-2">
+	<footer class="flex justify-between items-center space-x-8 p-3 border-t border-gray-100 bg-gray-50/30">
 		{#if rowCount && pagination}
 			<RowCount {handler} />
 		{/if}

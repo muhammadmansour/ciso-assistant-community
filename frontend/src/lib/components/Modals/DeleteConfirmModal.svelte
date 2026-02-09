@@ -8,8 +8,8 @@
 
 	const modalStore: ModalStore = getModalStore();
 
-	const cBase = 'card bg-white p-6 w-modal space-y-6';
-	const cHeader = 'text-xl font-medium text-gray-900';
+	const cBase = 'card bg-white p-6 w-modal space-y-6 rounded-2xl border border-gray-100 shadow-2xl';
+	const cHeader = 'text-xl font-bold text-gray-900';
 	const cForm = 'space-y-4';
 
 	interface Props {
@@ -176,7 +176,7 @@
 			<footer class="flex gap-3 justify-end pt-4 border-t border-gray-200">
 				<button
 					type="button"
-					class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+					class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
 					data-testid="delete-cancel-button"
 					onclick={parent.onClose}
 				>
@@ -185,7 +185,7 @@
 				<input type="hidden" name="urlmodel" value={URLModel} />
 				<input type="hidden" name="id" value={id} />
 				<button
-					class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+					class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg shadow-sm transition-all"
 					data-testid="delete-confirm-button"
 					type="submit"
 					onclick={parent.onClose}

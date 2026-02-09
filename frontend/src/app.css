@@ -103,7 +103,18 @@ html[lang="ar"] * {
 	display: none;
 }
 
-/* ===== WathbaGRC New UI Styles ===== */
+/* ===== WathbaGRC Design System ===== */
+
+/* Custom brand colors */
+:root {
+	--wgrc-navy: #1e2a4a;
+	--wgrc-navy-light: #243156;
+	--wgrc-navy-dark: #1a2340;
+	--wgrc-blue: #3b82f6;
+	--wgrc-blue-dark: #2563eb;
+	--wgrc-bg: #f0f2f5;
+	--wgrc-card-border: #f3f4f6;
+}
 
 /* Card styles matching the Figma design */
 .wgrc-card {
@@ -161,6 +172,43 @@ html[lang="ar"] * {
 	@apply text-xs text-gray-500 font-medium;
 }
 
+/* Button styles */
+.wgrc-btn-primary {
+	@apply bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg shadow-sm;
+	transition: all 0.2s ease;
+}
+.wgrc-btn-primary:hover {
+	@apply from-blue-700 to-blue-800;
+}
+
+.wgrc-btn-secondary {
+	@apply bg-white border border-gray-200 text-gray-700 font-medium rounded-lg shadow-sm;
+	transition: all 0.2s ease;
+}
+.wgrc-btn-secondary:hover {
+	@apply bg-gray-50 border-gray-300;
+}
+
+.wgrc-btn-danger {
+	@apply bg-gradient-to-r from-red-500 to-red-600 text-white font-medium rounded-lg shadow-sm;
+	transition: all 0.2s ease;
+}
+.wgrc-btn-danger:hover {
+	@apply from-red-600 to-red-700;
+}
+
+/* Improved form input styles */
+.wgrc-input {
+	@apply w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700;
+	@apply focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 focus:bg-white;
+	transition: all 0.2s ease;
+}
+
+/* Modal styles */
+.wgrc-modal {
+	@apply bg-white rounded-2xl shadow-2xl border border-gray-100;
+}
+
 /* Sidebar accordion override for dark theme */
 .sidebar [data-accordion] button[data-accordion-control] {
 	background: transparent !important;
@@ -168,4 +216,9 @@ html[lang="ar"] * {
 }
 .sidebar [data-accordion] [data-accordion-panel] {
 	padding: 0 !important;
+}
+
+/* Smooth page transitions */
+.wgrc-transition {
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
