@@ -34,9 +34,23 @@ export const load: PageServerLoad = async (event) => {
 		}
 	);
 
+	// Load past AI analyses (safe — won't break page if it fails)
+	let aiAnalyses: any[] = [];
+	try {
+		const analysesResponse = await event.fetch(
+			`${BASE_API_URL}/applied-controls/${event.params.id}/ai-analyses/`
+		);
+		if (analysesResponse.ok) {
+			aiAnalyses = await analysesResponse.json();
+		}
+	} catch (e) {
+		console.error('Failed to load AI analyses:', e);
+	}
+
 	return {
 		...data,
-		duplicateForm: appliedControlDuplicateForm
+		duplicateForm: appliedControlDuplicateForm,
+		aiAnalyses
 	};
 };
 

@@ -4287,6 +4287,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'gemini_files_count': a.gemini_files_count,
                 'requirements_count': a.requirements_count,
                 'error_message': a.error_message,
+                'result': a.result,
             })
         
         return Response(results)

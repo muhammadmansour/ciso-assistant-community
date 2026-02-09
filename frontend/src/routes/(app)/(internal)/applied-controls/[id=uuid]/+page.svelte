@@ -1,9 +1,8 @@
 <script lang="ts">
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { m } from '$paraglide/messages';
 	import { enhance } from '$app/forms';
-	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -12,58 +11,16 @@
 
 	let { data }: Props = $props();
 	
-	let activeTab = $state('ai-report');
 	let isAnalyzing = $state(false);
 	let aiAnalysisResult: any = $state(null);
-	
-	// AI analyses list (loaded client-side)
-	let aiAnalyses: any[] = $state([]);
-	let aiAnalysesLoading = $state(true);
 
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
-	let isLoadingAnalysis = $state(false);
 
-	async function loadAiAnalyses() {
-		aiAnalysesLoading = true;
-		try {
-			const response = await fetch(
-				`/api/applied-controls/${data.data.id}/ai-analyses/`
-			);
-			if (response.ok) {
-				aiAnalyses = await response.json();
-			}
-		} catch (e) {
-			console.error('Failed to load AI analyses:', e);
-		} finally {
-			aiAnalysesLoading = false;
-		}
-	}
-
-	onMount(() => {
-		loadAiAnalyses();
-	});
-
-	async function openAnalysisDetail(analysisId: string) {
-		isLoadingAnalysis = true;
+	function openAnalysisDetail(analysis: any) {
+		selectedAnalysis = analysis;
 		showAnalysisModal = true;
-		selectedAnalysis = null;
-		
-		try {
-			const response = await fetch(
-				`/api/applied-controls/${data.data.id}/ai-analyses/${analysisId}/`
-			);
-			if (response.ok) {
-				selectedAnalysis = await response.json();
-			} else {
-				selectedAnalysis = { error: `Failed to load analysis: ${response.status}` };
-			}
-		} catch (e) {
-			selectedAnalysis = { error: `Failed to load analysis: ${e}` };
-		} finally {
-			isLoadingAnalysis = false;
-		}
 	}
 
 	function closeModal() {
@@ -103,20 +60,18 @@
 			action="?/runAiAnalysis"
 			use:enhance={() => {
 				isAnalyzing = true;
-				activeTab = 'ai-report';
 				aiAnalysisResult = null;
 				return async ({ result }) => {
 					isAnalyzing = false;
 					if (result.type === 'success' && result.data?.aiAnalysis) {
 						aiAnalysisResult = result.data.aiAnalysis;
-						// Refresh the AI analyses list
-						loadAiAnalyses();
 					} else if (result.type === 'failure' && result.data?.aiError) {
 						aiAnalysisResult = { error: result.data.aiError };
-						loadAiAnalyses();
 					} else {
 						aiAnalysisResult = { error: 'Unexpected response from server' };
 					}
+					// Refresh the page data (reloads aiAnalyses from server)
+					await invalidateAll();
 				};
 			}}
 		>
@@ -168,16 +123,11 @@
 				AI Analysis History
 			</h3>
 			<span class="text-sm text-gray-500">
-				{aiAnalyses.length} analysis(es)
+				{data.aiAnalyses?.length || 0} analysis(es)
 			</span>
 		</div>
 
-		{#if aiAnalysesLoading}
-			<div class="text-center py-8">
-				<i class="fa-solid fa-spinner fa-spin text-2xl text-gray-400 mb-2"></i>
-				<p class="text-gray-500 text-sm">Loading analyses...</p>
-			</div>
-		{:else if aiAnalyses.length > 0}
+		{#if data.aiAnalyses?.length > 0}
 			<div class="overflow-x-auto border border-gray-200 rounded-lg">
 				<table class="w-full text-sm">
 					<thead class="bg-gray-50 border-b border-gray-200">
@@ -193,7 +143,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
-						{#each aiAnalyses as analysis}
+						{#each data.aiAnalyses as analysis}
 							<tr class="hover:bg-gray-50 transition-colors">
 								<td class="px-4 py-3 text-gray-700">
 									{formatDate(analysis.created_at)}
@@ -239,7 +189,7 @@
 								<td class="px-4 py-3 text-center">
 									<button
 										class="btn btn-sm preset-tonal-primary"
-										onclick={() => openAnalysisDetail(analysis.id)}
+										onclick={() => openAnalysisDetail(analysis)}
 										title="View full analysis"
 									>
 										<i class="fa-solid fa-eye mr-1"></i>
@@ -311,19 +261,7 @@
 			
 			<!-- Modal Body -->
 			<div class="overflow-y-auto flex-1 p-6">
-				{#if isLoadingAnalysis}
-					<div class="text-center py-16">
-						<i class="fa-solid fa-spinner fa-spin text-4xl text-purple-500 mb-4"></i>
-						<p class="text-gray-500">Loading analysis...</p>
-					</div>
-				{:else if selectedAnalysis?.error}
-					<div class="text-center py-12">
-						<div class="inline-block p-4 bg-red-100 rounded-full mb-4">
-							<i class="fa-solid fa-circle-exclamation text-3xl text-red-600"></i>
-						</div>
-						<p class="text-red-600">{selectedAnalysis.error}</p>
-					</div>
-				{:else if selectedAnalysis?.result}
+				{#if selectedAnalysis?.result}
 					<!-- Summary Bar -->
 					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 						<div class="bg-gray-50 rounded-lg p-4 text-center">
