@@ -3848,6 +3848,79 @@ class Evidence(
         return hashlib.sha256(self.last_revision.attachment.read()).hexdigest()
 
 
+class AiAnalysisResult(models.Model):
+    """Stores AI analysis results for applied controls"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
+    
+    applied_control = models.ForeignKey(
+        "AppliedControl",
+        on_delete=models.CASCADE,
+        related_name="ai_analyses",
+        verbose_name=_("Applied Control")
+    )
+    
+    result = models.JSONField(
+        verbose_name=_("Analysis Result"),
+        help_text=_("The full JSON result from the AI analysis")
+    )
+    
+    status = models.CharField(
+        max_length=50,
+        default="completed",
+        verbose_name=_("Status"),
+    )
+    
+    score = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Compliance Score"),
+        help_text=_("Overall compliance score (0-100)")
+    )
+    
+    compliance_status = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name=_("Compliance Status"),
+    )
+    
+    model_used = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name=_("AI Model Used"),
+    )
+    
+    gemini_files_count = models.IntegerField(
+        default=0,
+        verbose_name=_("Gemini Files Used"),
+    )
+    
+    requirements_count = models.IntegerField(
+        default=0,
+        verbose_name=_("Requirements Evaluated"),
+    )
+    
+    error_message = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Error Message")
+    )
+    
+    class Meta:
+        verbose_name = _("AI Analysis Result")
+        verbose_name_plural = _("AI Analysis Results")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['applied_control', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"AI Analysis for {self.applied_control.name} at {self.created_at}"
+
+
 class FileSearchTable(models.Model):
     """Stores Gemini File Search IDs for uploaded evidence files"""
     

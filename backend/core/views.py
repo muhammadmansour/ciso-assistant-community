@@ -4191,6 +4191,8 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             'https://muraji-api.wathbahs.com/api/audit/analyze'
         )
 
+        from core.models import AiAnalysisResult
+
         try:
             resp = http_requests.post(
                 muraji_url,
@@ -4199,24 +4201,125 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 timeout=300
             )
             if not resp.ok:
+                # Save failed analysis
+                AiAnalysisResult.objects.create(
+                    applied_control=applied_control,
+                    result={'error': resp.text[:2000]},
+                    status='failed',
+                    error_message=f'Muraji API error: {resp.status_code}',
+                    gemini_files_count=len(gemini_file_ids),
+                    requirements_count=len(requirements_context),
+                )
                 return Response(
                     {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
                     status=status.HTTP_502_BAD_GATEWAY
                 )
+            
+            analysis_data = resp.json()
+            
+            # Extract score and status from the analysis result
+            overall = analysis_data.get('overallAssessment', {})
+            score = overall.get('score', None)
+            compliance_status = overall.get('status', '')
+            
+            # Save to database
+            analysis_record = AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result=analysis_data,
+                status='completed',
+                score=score,
+                compliance_status=compliance_status,
+                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
+            
             return Response({
-                'ai_analysis': resp.json(),
-                'ai_analysis_updated_at': timezone.now().isoformat(),
+                'ai_analysis': analysis_data,
+                'ai_analysis_id': str(analysis_record.id),
+                'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
             })
         except http_requests.Timeout:
+            AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result={'error': 'Muraji API timed out'},
+                status='failed',
+                error_message='Muraji API timed out',
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
             return Response(
                 {'message': 'Muraji API timed out'},
                 status=status.HTTP_504_GATEWAY_TIMEOUT
             )
         except Exception as e:
+            AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result={'error': str(e)},
+                status='failed',
+                error_message=str(e),
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
             return Response(
                 {'message': f'Failed to call Muraji API: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses")
+    def list_ai_analyses(self, request, pk=None):
+        """List all AI analysis results for this applied control"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        analyses = AiAnalysisResult.objects.filter(
+            applied_control=applied_control
+        ).order_by('-created_at')
+        
+        results = []
+        for a in analyses:
+            results.append({
+                'id': str(a.id),
+                'created_at': a.created_at.isoformat(),
+                'status': a.status,
+                'score': a.score,
+                'compliance_status': a.compliance_status,
+                'model_used': a.model_used,
+                'gemini_files_count': a.gemini_files_count,
+                'requirements_count': a.requirements_count,
+                'error_message': a.error_message,
+            })
+        
+        return Response(results)
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)")
+    def get_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Get a specific AI analysis result with full details"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                applied_control=applied_control
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'id': str(analysis.id),
+            'created_at': analysis.created_at.isoformat(),
+            'status': analysis.status,
+            'score': analysis.score,
+            'compliance_status': analysis.compliance_status,
+            'model_used': analysis.model_used,
+            'gemini_files_count': analysis.gemini_files_count,
+            'requirements_count': analysis.requirements_count,
+            'error_message': analysis.error_message,
+            'result': analysis.result,
+        })
 
     def perform_create(self, serializer):
         create_remote_object = serializer.validated_data.pop(
