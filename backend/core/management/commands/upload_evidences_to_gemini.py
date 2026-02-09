@@ -78,12 +78,24 @@ class Command(BaseCommand):
                 existing = FileSearchTable.objects.filter(evidence_revision=revision).first()
                 if existing and not force:
                     if existing.upload_status == FileSearchTable.UploadStatus.COMPLETED:
-                        already_done += 1
-                        self.stdout.write(
-                            f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                            f"already uploaded (gemini_file_id: {existing.gemini_file_id[:60]})"
-                        )
-                        continue
+                        # Check if the file ID is actually valid (must start with 'files/')
+                        if existing.gemini_file_id and existing.gemini_file_id.startswith('files/'):
+                            already_done += 1
+                            self.stdout.write(
+                                f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"already uploaded (gemini_file_id: {existing.gemini_file_id[:60]})"
+                            )
+                            continue
+                        else:
+                            # Invalid file ID (old operation path) - needs re-upload
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"  [FIX] {evidence_name} (rev {rev_id[:8]}...) — "
+                                    f"invalid gemini_file_id: {existing.gemini_file_id[:60]}. Re-uploading..."
+                                )
+                            )
+                            # Delete the old entry so we can re-upload
+                            existing.delete()
                     elif existing.upload_status == FileSearchTable.UploadStatus.UPLOADING:
                         skipped += 1
                         self.stdout.write(
@@ -91,6 +103,14 @@ class Command(BaseCommand):
                             f"upload in progress"
                         )
                         continue
+                    elif existing.upload_status == FileSearchTable.UploadStatus.FAILED:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  [RETRY] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"previous upload failed: {existing.error_message}. Retrying..."
+                            )
+                        )
+                        existing.delete()
             except Exception:
                 pass
 

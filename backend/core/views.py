@@ -4097,16 +4097,21 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                     if hasattr(revision, 'file_search'):
                         fs = revision.file_search
                         print(f"[AI-ANALYSIS]   FileSearch via relation: status={fs.upload_status}, gemini_file_id={fs.gemini_file_id[:80]}")
-                        if fs and fs.upload_status == 'completed':
-                            gemini_file_ids.append({
-                                'gemini_file_id': fs.gemini_file_id,
-                                'gemini_store_id': fs.gemini_store_id,
-                                'evidence_name': evidence.name,
-                                'evidence_description': evidence.description or ''
-                            })
-                            print(f"[AI-ANALYSIS]   >>> ADDED to gemini_file_ids")
+                        if fs and fs.upload_status == 'completed' and fs.gemini_file_id:
+                            # Only use valid Gemini file IDs (must start with 'files/')
+                            if fs.gemini_file_id.startswith('files/'):
+                                gemini_file_ids.append({
+                                    'gemini_file_id': fs.gemini_file_id,
+                                    'gemini_store_id': fs.gemini_store_id,
+                                    'evidence_name': evidence.name,
+                                    'evidence_description': evidence.description or ''
+                                })
+                                print(f"[AI-ANALYSIS]   >>> ADDED valid file ID to gemini_file_ids")
+                            else:
+                                print(f"[AI-ANALYSIS]   SKIPPED: invalid gemini_file_id (not files/...): {fs.gemini_file_id[:60]}")
                         else:
-                            print(f"[AI-ANALYSIS]   NOT added: status is '{fs.upload_status}', not 'completed'")
+                            print(f"[AI-ANALYSIS]   NOT added: status='{fs.upload_status}', file_id='{fs.gemini_file_id[:40] if fs.gemini_file_id else 'EMPTY'}'")
+
                     else:
                         print(f"[AI-ANALYSIS]   No file_search relation on revision (hasattr=False)")
                 except Exception as e:

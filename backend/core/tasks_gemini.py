@@ -41,13 +41,22 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             }
         )
         
+        # Check if already uploaded with a VALID Gemini file ID (must start with 'files/')
         if not created and file_search.upload_status == FileSearchTable.UploadStatus.COMPLETED:
-            logger.info(
-                "File already uploaded to Gemini",
-                revision_id=evidence_revision_id,
-                gemini_file_id=file_search.gemini_file_id
-            )
-            return
+            if file_search.gemini_file_id and file_search.gemini_file_id.startswith('files/'):
+                logger.info(
+                    "File already uploaded to Gemini with valid ID",
+                    revision_id=evidence_revision_id,
+                    gemini_file_id=file_search.gemini_file_id
+                )
+                return
+            else:
+                # Old invalid ID (operation path) - need to re-upload
+                logger.warning(
+                    "File has invalid gemini_file_id (not files/...), re-uploading",
+                    revision_id=evidence_revision_id,
+                    old_gemini_file_id=file_search.gemini_file_id[:80] if file_search.gemini_file_id else ''
+                )
         
         # Get Gemini client
         client = get_gemini_client()
