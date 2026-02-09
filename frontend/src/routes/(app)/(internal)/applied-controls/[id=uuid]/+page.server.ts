@@ -84,6 +84,24 @@ export const actions: Actions = {
 		setFlash({ type: 'success', message: 'Applied control duplicated successfully' }, event);
 		return { form };
 	},
+	deleteAiAnalysis: async (event) => {
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId');
+		if (!analysisId) {
+			return fail(400, { error: 'Missing analysis ID' });
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/applied-controls/${event.params.id}/ai-analyses/${analysisId}/delete/`,
+			{ method: 'DELETE' }
+		);
+
+		if (!response.ok) {
+			return fail(response.status, { error: 'Failed to delete analysis' });
+		}
+
+		return { deleted: true };
+	},
 	runAiAnalysis: async (event) => {
 		// Call backend which calls Muraji API directly, wait for result
 		const response = await event.fetch(

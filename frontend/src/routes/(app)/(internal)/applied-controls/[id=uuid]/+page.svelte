@@ -13,6 +13,7 @@
 	
 	let isAnalyzing = $state(false);
 	let aiAnalysisResult: any = $state(null);
+	let deletingAnalysisId: string | null = $state(null);
 
 	// Modal state
 	let showAnalysisModal = $state(false);
@@ -138,8 +139,7 @@
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Score</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Model</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Action</th>
+							<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
@@ -183,18 +183,47 @@
 								<td class="px-4 py-3 text-center text-gray-600">
 									{analysis.requirements_count}
 								</td>
-								<td class="px-4 py-3 text-gray-600">
-									{analysis.model_used || '—'}
-								</td>
 								<td class="px-4 py-3 text-center">
-									<button
-										class="btn btn-sm preset-tonal-primary"
-										onclick={() => openAnalysisDetail(analysis)}
-										title="View full analysis"
-									>
-										<i class="fa-solid fa-eye mr-1"></i>
-										View
-									</button>
+									<div class="flex items-center justify-center gap-1">
+										<button
+											class="btn btn-sm preset-tonal-primary"
+											onclick={() => openAnalysisDetail(analysis)}
+											title="View full analysis"
+										>
+											<i class="fa-solid fa-eye mr-1"></i>
+											View
+										</button>
+										<form
+											method="POST"
+											action="?/deleteAiAnalysis"
+											use:enhance={() => {
+												if (!confirm('Are you sure you want to delete this analysis?')) {
+													return ({ cancel }) => cancel();
+												}
+												deletingAnalysisId = analysis.id;
+												return async ({ result }) => {
+													deletingAnalysisId = null;
+													if (result.type === 'success') {
+														await invalidateAll();
+													}
+												};
+											}}
+										>
+											<input type="hidden" name="analysisId" value={analysis.id} />
+											<button
+												type="submit"
+												class="btn btn-sm preset-tonal-error"
+												title="Delete analysis"
+												disabled={deletingAnalysisId === analysis.id}
+											>
+												{#if deletingAnalysisId === analysis.id}
+													<i class="fa-solid fa-spinner fa-spin"></i>
+												{:else}
+													<i class="fa-solid fa-trash"></i>
+												{/if}
+											</button>
+										</form>
+									</div>
 								</td>
 							</tr>
 						{/each}

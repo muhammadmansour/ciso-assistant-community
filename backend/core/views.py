@@ -4327,6 +4327,26 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             'result': analysis.result,
         })
 
+    @action(detail=True, methods=["delete"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)/delete")
+    def delete_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Delete a specific AI analysis result"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                applied_control=applied_control
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        analysis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
         create_remote_object = serializer.validated_data.pop(
             "create_remote_object", False
