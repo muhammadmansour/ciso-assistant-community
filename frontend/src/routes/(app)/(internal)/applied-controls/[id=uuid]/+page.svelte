@@ -173,8 +173,6 @@
 					<thead class="bg-gray-50 border-b border-gray-200">
 						<tr>
 							<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Compliance</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Score</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
@@ -186,25 +184,6 @@
 							<tr class="hover:bg-gray-50 transition-colors">
 								<td class="px-4 py-3 text-gray-700">
 									{formatDate(analysis.created_at)}
-								</td>
-								<td class="px-4 py-3">
-									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
-										{#if analysis.status === 'completed'}
-											<i class="fa-solid fa-circle-check mr-1"></i>
-										{:else}
-											<i class="fa-solid fa-circle-xmark mr-1"></i>
-										{/if}
-										{analysis.status}
-									</span>
-								</td>
-								<td class="px-4 py-3">
-									{#if analysis.compliance_status}
-										<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.compliance_status)}">
-											{analysis.compliance_status}
-										</span>
-									{:else}
-										<span class="text-gray-400">—</span>
-									{/if}
 								</td>
 								<td class="px-4 py-3 text-center">
 									{#if analysis.score !== null && analysis.score !== undefined}
