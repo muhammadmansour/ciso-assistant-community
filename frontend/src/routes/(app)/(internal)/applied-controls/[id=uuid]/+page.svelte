@@ -373,6 +373,134 @@
 								<div class="p-4">
 									{#if typeof sectionValue === 'string'}
 										<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
+
+									<!-- questionEvaluation: table layout -->
+									{:else if sectionKey.toLowerCase() === 'questionevaluation' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No questions evaluated</p>
+										{:else}
+											<div class="space-y-4">
+												{#each sectionValue as item, idx}
+													<div class="border border-gray-200 rounded-lg overflow-hidden">
+														<div class="bg-indigo-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+															<span class="font-semibold text-indigo-800 text-sm">
+																<i class="fa-solid fa-circle-question mr-1"></i>
+																Q{item.questionNumber || idx + 1}
+															</span>
+															{#if item.confidence !== undefined && item.confidence !== null}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {item.confidence >= 0.8 ? 'bg-green-100 text-green-700' : item.confidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	Confidence: {Math.round(item.confidence * 100)}%
+																</span>
+															{/if}
+														</div>
+														<div class="p-4 space-y-3">
+															{#if item.question}
+																<p class="text-gray-800 font-medium">{item.question}</p>
+															{/if}
+															<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+																{#if item.answered !== undefined}
+																	<div class="flex items-start gap-2">
+																		<span class="font-medium text-gray-500 min-w-[90px]">Answered:</span>
+																		<span class="text-gray-800">{item.answered}</span>
+																	</div>
+																{/if}
+																{#if item.evidenceFound}
+																	<div class="flex items-start gap-2">
+																		<span class="font-medium text-gray-500 min-w-[90px]">Evidence:</span>
+																		<span class="text-gray-800">{item.evidenceFound}</span>
+																	</div>
+																{/if}
+																{#if item.sourceFile}
+																	<div class="flex items-start gap-2">
+																		<span class="font-medium text-gray-500 min-w-[90px]">Source File:</span>
+																		<span class="text-gray-800">{item.sourceFile}</span>
+																	</div>
+																{/if}
+															</div>
+															{#if item.notes}
+																<div class="bg-gray-50 rounded-md p-3 text-sm">
+																	<span class="font-medium text-gray-500">Notes: </span>
+																	<span class="text-gray-700">{item.notes}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- typicalEvidenceCheck: structured cards -->
+									{:else if sectionKey.toLowerCase() === 'typicalevidencecheck' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No evidence items checked</p>
+										{:else}
+											<div class="space-y-3">
+												{#each sectionValue as item, idx}
+													<div class="border border-gray-200 rounded-lg overflow-hidden">
+														<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {item.status?.toLowerCase() === 'found' || item.status?.toLowerCase() === 'موجود' ? 'bg-green-50' : item.status?.toLowerCase() === 'partial' || item.status?.toLowerCase() === 'جزئي' ? 'bg-yellow-50' : 'bg-red-50'}">
+															<span class="font-semibold text-sm text-gray-800">
+																<i class="fa-solid fa-file-lines mr-1"></i>
+																E{idx + 1}
+															</span>
+															{#if item.status}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {item.status?.toLowerCase() === 'found' || item.status?.toLowerCase() === 'موجود' ? 'bg-green-100 text-green-700' : item.status?.toLowerCase() === 'partial' || item.status?.toLowerCase() === 'جزئي' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	{item.status}
+																</span>
+															{/if}
+														</div>
+														<div class="p-4 space-y-2 text-sm">
+															{#if item.evidenceItem}
+																<p class="text-gray-800 font-medium">{item.evidenceItem}</p>
+															{/if}
+															{#if item.foundIn}
+																<div class="flex items-start gap-2">
+																	<span class="font-medium text-gray-500 min-w-[80px]">Found In:</span>
+																	<span class="text-gray-800">{item.foundIn}</span>
+																</div>
+															{/if}
+															{#if item.details}
+																<div class="bg-gray-50 rounded-md p-3">
+																	<span class="font-medium text-gray-500">Details: </span>
+																	<span class="text-gray-700">{item.details}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- gaps: structured cards -->
+									{:else if sectionKey.toLowerCase() === 'gaps' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No gaps identified</p>
+										{:else}
+											<div class="space-y-3">
+												{#each sectionValue as item, idx}
+													<div class="border border-orange-200 rounded-lg overflow-hidden">
+														<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
+															<span class="font-semibold text-orange-800 text-sm">
+																<i class="fa-solid fa-triangle-exclamation mr-1"></i>
+																Gap {idx + 1}
+															</span>
+														</div>
+														<div class="p-4 space-y-2 text-sm">
+															{#if item.gap}
+																<p class="text-gray-800 font-medium">{item.gap}</p>
+															{/if}
+															{#if item.recommendation}
+																<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
+																	<span class="font-medium text-blue-700"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
+																	<span class="text-blue-800">{item.recommendation}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- Generic array rendering (fallback) -->
 									{:else if Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
 											<p class="text-gray-400 italic">No items</p>
@@ -399,6 +527,7 @@
 												{/each}
 											</ul>
 										{/if}
+
 									{:else if typeof sectionValue === 'object' && sectionValue !== null}
 										<div class="space-y-2">
 											{#each Object.entries(sectionValue) as [k, v]}
