@@ -15,9 +15,19 @@
 	let aiAnalysisResult: any = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
 
-	// Only render complex sections (objects/arrays) from the API response.
-	// Simple scalars (ref_id, name, status, etc.) are shown in the summary bar.
-	const isSection = (value: any) => typeof value === 'object' && value !== null;
+	// Metadata/infrastructure keys to always exclude from the report sections
+	const metadataKeys = new Set([
+		'metadata', 'ref_id', 'name', 'description', 'status', 'category',
+		'csf_function', 'timestamp', 'model', 'applied_control_id',
+		'applied_control_ref', 'analysis_config', 'analysisconfig',
+		'gemini_files_used', 'geminifilesused', 'questions_evaluated',
+		'questionsevaluated', 'requirements_evaluated', 'requirementsevaluated',
+		'typical_evidence_checked', 'typicalevidencechecked',
+		'inline_files_processed', 'inlinefilesprocessed',
+	]);
+	// Show sections that are objects/arrays AND not metadata
+	const isReportSection = (key: string, value: any) =>
+		typeof value === 'object' && value !== null && !metadataKeys.has(key.toLowerCase());
 
 	// Modal state
 	let showAnalysisModal = $state(false);
@@ -328,9 +338,9 @@
 						</div>
 					{/if}
 
-				<!-- Render all complex sections (objects/arrays) from the API response -->
+				<!-- Render all report sections (objects/arrays, excluding metadata) -->
 				{#if typeof selectedAnalysis.result === 'object'}
-					{#each Object.entries(selectedAnalysis.result).filter(([_, val]) => isSection(val)) as [sectionKey, sectionValue]}
+					{#each Object.entries(selectedAnalysis.result).filter(([key, val]) => isReportSection(key, val)) as [sectionKey, sectionValue]}
 						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 								<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 									<h4 class="font-semibold text-gray-700 capitalize">
