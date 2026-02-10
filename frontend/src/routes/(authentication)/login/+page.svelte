@@ -18,7 +18,7 @@
 		<div class="hidden lg:block w-full">
 			<Greetings />
 		</div>
-		<div class="w-full">
+		<div class="flex justify-center w-full">
 			<FormCard {data} {form} />
 		</div>
 	</div>
