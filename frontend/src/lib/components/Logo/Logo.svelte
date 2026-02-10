@@ -1,12 +1,12 @@
 <script lang="ts">
-	import ciso from '$lib/assets/ciso.svg';
+	import logo from '$lib/assets/wathba_logo.svg';
 
 	interface Props {
 		height?: number;
 		width?: number;
 	}
 
-	let { height = 280, width = 350 }: Props = $props();
+	let { height = 120, width = 280 }: Props = $props();
 </script>
 
-<img class="c" {height} {width} src={ciso} alt="Wathbah GRC" data-testid="logo-image" />
+<img class="c" {height} {width} src={logo} alt="Wathbah AI Solutions" data-testid="logo-image" />

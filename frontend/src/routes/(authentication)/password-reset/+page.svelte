@@ -15,14 +15,10 @@
 	let { data }: Props = $props();
 </script>
 
-<div class="flex mx-auto justify-center items-center h-screen w-screen bg-slate-200">
-	<div class="absolute top-5 left-5">
-		<div class="flex flex-row w-full space-x-4 pb-3">
-			<Logo />
-		</div>
-	</div>
-	<div class="flex items-center justify-center p-10 space-x-4 w-full">
-		<div class="lg:w-1/4 p-6 shadow-lg rounded-lg bg-white">
+<div class="flex flex-col items-center justify-center min-h-screen bg-slate-200 px-4">
+	<div class="flex flex-col items-center w-full max-w-md space-y-6">
+		<Logo />
+		<div class="w-full p-6 shadow-lg rounded-lg bg-white">
 			<div id="password_reset" class="flex flex-col items-center space-y-4">
 				<div class="bg-primary-300 px-6 py-5 rounded-full text-3xl">
 					<i class="fa-solid fa-lock"></i>
