@@ -102,44 +102,46 @@
 	}
 </script>
 
-<!-- Start AI Analysis Button -->
-<div class="flex justify-end mb-4 mt-4 px-2">
-	<form
-		method="POST"
-		action="?/runAiAnalysis"
-		use:enhance={() => {
-			isAnalyzing = true;
-			aiAnalysisResult = null;
-			return async ({ result }) => {
-				isAnalyzing = false;
-				if (result.type === 'success' && result.data?.aiAnalysis) {
-					aiAnalysisResult = result.data.aiAnalysis;
-				} else if (result.type === 'failure' && result.data?.aiError) {
-					aiAnalysisResult = { error: result.data.aiError };
-				} else {
-					aiAnalysisResult = { error: 'Unexpected response from server' };
-				}
-				// Refresh the page data (reloads aiAnalyses from server)
-				await invalidateAll();
-			};
-		}}
-	>
-		<button
-			type="submit"
-			class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-			disabled={isAnalyzing}
-			title="Start AI Analysis on Associated Evidences"
+<DetailView {data} exclude={['folder', 'reference_control', 'category', 'csf_function', 'priority', 'effort', 'impact', 'cost', 'status', 'created_at', 'updated_at', 'name', 'description', 'ref_id', 'annotation', 'eta', 'expiry_date', 'link', 'lod']}>
+	{#snippet actions()}
+		<!-- Start AI Analysis Button -->
+		<form
+			method="POST"
+			action="?/runAiAnalysis"
+			use:enhance={() => {
+				isAnalyzing = true;
+				aiAnalysisResult = null;
+				return async ({ result }) => {
+					isAnalyzing = false;
+					if (result.type === 'success' && result.data?.aiAnalysis) {
+						aiAnalysisResult = result.data.aiAnalysis;
+					} else if (result.type === 'failure' && result.data?.aiError) {
+						aiAnalysisResult = { error: result.data.aiError };
+					} else {
+						aiAnalysisResult = { error: 'Unexpected response from server' };
+					}
+					// Refresh the page data (reloads aiAnalyses from server)
+					await invalidateAll();
+				};
+			}}
 		>
-			{#if isAnalyzing}
-				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-				<span>Analyzing...</span>
-			{:else}
-				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-				<span>Start AI Analysis</span>
-			{/if}
-		</button>
-	</form>
-</div>
+			<button
+				type="submit"
+				class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+				disabled={isAnalyzing}
+				title="Start AI Analysis on Associated Evidences"
+			>
+				{#if isAnalyzing}
+					<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+					<span>Analyzing...</span>
+				{:else}
+					<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+					<span>Start AI Analysis</span>
+				{/if}
+			</button>
+		</form>
+	{/snippet}
+</DetailView>
 
 <!-- AI Report Section -->
 <div class="card mt-8 bg-white shadow-lg">
