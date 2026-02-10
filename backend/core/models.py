@@ -342,11 +342,13 @@ class StoredLibrary(LibraryMixin):
             urn=urn, locale=locale, version=version
         ).first()
         if same_version_lib:
-            # update hash following cosmetic change (e.g. when we added publication date)
-            logger.info("update hash", urn=urn)
+            # update hash and content following library content change
+            logger.info("update hash and content", urn=urn)
+            library_objects = library_data["objects"]
             same_version_lib.hash_checksum = hash_checksum
-            same_version_lib.save()
-            return None
+            same_version_lib.content = library_objects
+            same_version_lib.save(update_fields=["hash_checksum", "content"])
+            return same_version_lib
 
         if StoredLibrary.objects.filter(urn=urn, locale=locale, version__gte=version):
             return None  # We do not accept to store outdated libraries
