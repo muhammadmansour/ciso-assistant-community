@@ -15,6 +15,14 @@
 	let aiAnalysisResult: any = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
 
+	// Only these sections should be displayed in the AI report modal
+	const visibleSections = new Set([
+		'overallassessment',
+		'questionevaluation',
+		'typicalevidencecheck',
+		'gaps',
+	]);
+
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
@@ -103,7 +111,7 @@
 				<div class="inline-block mb-6">
 					<i class="fa-solid fa-spinner fa-spin text-5xl text-purple-500"></i>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Muraji API...</h3>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
 				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
 			</div>
 		{:else if aiAnalysisResult?.error}
@@ -324,10 +332,10 @@
 						</div>
 					{/if}
 
-					<!-- Render analysis sections -->
-					{#if typeof selectedAnalysis.result === 'object'}
-						{#each Object.entries(selectedAnalysis.result) as [sectionKey, sectionValue]}
-							<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+				<!-- Render only expected analysis sections -->
+				{#if typeof selectedAnalysis.result === 'object'}
+					{#each Object.entries(selectedAnalysis.result).filter(([key]) => visibleSections.has(key.toLowerCase())) as [sectionKey, sectionValue]}
+						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 								<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 									<h4 class="font-semibold text-gray-700 capitalize">
 										{sectionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
