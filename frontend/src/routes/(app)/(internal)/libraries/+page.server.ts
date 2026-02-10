@@ -137,78 +137,31 @@ export const actions: Actions = {
 					const deleteResponse = await event.fetch(deleteEndpoint, { method: 'DELETE' });
 					const wasExisting = deleteResponse.ok;
 					
-					// Convert Muraji format to Wathbah GRC YAML format
-					const yamlContent = {
+					// Convert Muraji format to CISO Assistant format
+					// We use JSON (valid YAML subset) to preserve all nested fields
+					// like questions, typical_evidence, annotation, etc.
+					const libraryData: Record<string, any> = {
 						urn: library.urn,
 						locale: library.locale || 'en',
 						ref_id: library.ref_id,
 						name: library.name,
-						description: library.description,
-						copyright: library.copyright,
+						description: library.description || undefined,
+						copyright: library.copyright || undefined,
 						version: library.version,
-						provider: library.provider,
-						packager: library.packager,
-						publication_date: library.publication_date ? library.publication_date.split('T')[0] : null,
+						provider: library.provider || undefined,
+						packager: library.packager || undefined,
+						publication_date: library.publication_date ? library.publication_date.split('T')[0] : undefined,
 						objects: library.content
 					};
-					
-					// Convert to YAML string format
-					const yamlLines: string[] = [];
-					yamlLines.push(`urn: ${yamlContent.urn}`);
-					yamlLines.push(`locale: ${yamlContent.locale}`);
-					yamlLines.push(`ref_id: ${yamlContent.ref_id}`);
-					yamlLines.push(`name: ${yamlContent.name}`);
-					if (yamlContent.description) {
-						yamlLines.push(`description: "${yamlContent.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
-					}
-					if (yamlContent.copyright) {
-						yamlLines.push(`copyright: "${yamlContent.copyright}"`);
-					}
-					yamlLines.push(`version: ${yamlContent.version}`);
-					if (yamlContent.publication_date) {
-						yamlLines.push(`publication_date: ${yamlContent.publication_date}`);
-					}
-					if (yamlContent.provider) {
-						yamlLines.push(`provider: ${yamlContent.provider}`);
-					}
-					if (yamlContent.packager) {
-						yamlLines.push(`packager: ${yamlContent.packager}`);
-					}
-					yamlLines.push(`objects:`);
-					yamlLines.push(`  framework:`);
-					
-					const fw = yamlContent.objects?.framework;
-					if (fw) {
-						yamlLines.push(`    urn: ${fw.urn}`);
-						yamlLines.push(`    ref_id: ${fw.ref_id}`);
-						yamlLines.push(`    name: ${fw.name}`);
-						if (fw.description) {
-							yamlLines.push(`    description: "${fw.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
-						}
-						yamlLines.push(`    requirement_nodes:`);
-						
-						for (const node of fw.requirement_nodes || []) {
-							yamlLines.push(`    - urn: ${node.urn}`);
-							yamlLines.push(`      assessable: ${node.assessable}`);
-							yamlLines.push(`      depth: ${node.depth}`);
-							if (node.parent_urn) {
-								yamlLines.push(`      parent_urn: ${node.parent_urn}`);
-							}
-							if (node.ref_id) {
-								yamlLines.push(`      ref_id: "${node.ref_id}"`);
-							}
-							if (node.name) {
-								yamlLines.push(`      name: "${node.name.replace(/"/g, '\\"')}"`);
-							}
-							if (node.description) {
-								yamlLines.push(`      description: "${node.description.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`);
-							}
-						}
-					}
-					
-					const yamlString = yamlLines.join('\n');
+
+					// Remove undefined keys for cleaner output
+					Object.keys(libraryData).forEach(key => {
+						if (libraryData[key] === undefined) delete libraryData[key];
+					});
+
+					const jsonString = JSON.stringify(libraryData, null, 2);
 					const filename = `${library.ref_id || 'library'}.yaml`;
-					const file = new Blob([yamlString], { type: 'application/x-yaml' });
+					const file = new Blob([jsonString], { type: 'application/x-yaml' });
 					
 					// Upload to Wathbah GRC
 					const uploadEndpoint = `${BASE_API_URL}/stored-libraries/upload/`;
