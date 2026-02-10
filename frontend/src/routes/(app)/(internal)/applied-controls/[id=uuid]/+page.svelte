@@ -29,6 +29,16 @@
 	const isReportSection = (key: string, value: any) =>
 		typeof value === 'object' && value !== null && !metadataKeys.has(key.toLowerCase());
 
+	// Case-insensitive field getter — handles camelCase, PascalCase, snake_case keys
+	function getField(obj: Record<string, any>, field: string): any {
+		if (obj == null) return undefined;
+		const lower = field.toLowerCase();
+		for (const key of Object.keys(obj)) {
+			if (key.toLowerCase() === lower) return obj[key];
+		}
+		return undefined;
+	}
+
 	// Preferred display order for report sections (unlisted keys appear at the end)
 	const sectionOrder = [
 		'overallassessment',
@@ -374,53 +384,60 @@
 									{#if typeof sectionValue === 'string'}
 										<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
 
-									<!-- questionEvaluation: table layout -->
+									<!-- questionEvaluation: card layout -->
 									{:else if sectionKey.toLowerCase() === 'questionevaluation' && Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
 											<p class="text-gray-400 italic">No questions evaluated</p>
 										{:else}
 											<div class="space-y-4">
 												{#each sectionValue as item, idx}
+													{@const qNum = getField(item, 'questionNumber') || idx + 1}
+													{@const qText = getField(item, 'question')}
+													{@const qAnswered = getField(item, 'answered')}
+													{@const qEvidence = getField(item, 'evidenceFound')}
+													{@const qSource = getField(item, 'sourceFile')}
+													{@const qConfidence = getField(item, 'confidence')}
+													{@const qNotes = getField(item, 'notes')}
 													<div class="border border-gray-200 rounded-lg overflow-hidden">
 														<div class="bg-indigo-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
 															<span class="font-semibold text-indigo-800 text-sm">
 																<i class="fa-solid fa-circle-question mr-1"></i>
-																Q{item.questionNumber || idx + 1}
+																Q{qNum}
 															</span>
-															{#if item.confidence !== undefined && item.confidence !== null}
-																<span class="text-xs font-medium px-2 py-0.5 rounded-full {item.confidence >= 0.8 ? 'bg-green-100 text-green-700' : item.confidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
-																	Confidence: {Math.round(item.confidence * 100)}%
+															{#if qConfidence !== undefined && qConfidence !== null}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {qConfidence >= 0.8 ? 'bg-green-100 text-green-700' : qConfidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	Confidence: {Math.round(Number(qConfidence) * 100)}%
 																</span>
 															{/if}
 														</div>
 														<div class="p-4 space-y-3">
-															{#if item.question}
-																<p class="text-gray-800 font-medium">{item.question}</p>
+															{#if qText}
+																<p class="text-gray-800 font-medium">{qText}</p>
 															{/if}
 															<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-																{#if item.answered !== undefined}
+																{#if qAnswered !== undefined && qAnswered !== null}
 																	<div class="flex items-start gap-2">
-																		<span class="font-medium text-gray-500 min-w-[90px]">Answered:</span>
-																		<span class="text-gray-800">{item.answered}</span>
+																		<span class="font-medium text-gray-500 shrink-0">Answered:</span>
+																		<span class="text-gray-800">{qAnswered}</span>
 																	</div>
 																{/if}
-																{#if item.evidenceFound}
-																	<div class="flex items-start gap-2">
-																		<span class="font-medium text-gray-500 min-w-[90px]">Evidence:</span>
-																		<span class="text-gray-800">{item.evidenceFound}</span>
+																{#if qEvidence}
+																	<div class="flex items-start gap-2 col-span-full">
+																		<span class="font-medium text-gray-500 shrink-0">Evidence:</span>
+																		<span class="text-gray-800">{qEvidence}</span>
 																	</div>
 																{/if}
-																{#if item.sourceFile}
+																{#if qSource}
 																	<div class="flex items-start gap-2">
-																		<span class="font-medium text-gray-500 min-w-[90px]">Source File:</span>
-																		<span class="text-gray-800">{item.sourceFile}</span>
+																		<span class="font-medium text-gray-500 shrink-0">Source File:</span>
+																		<span class="text-gray-800">{qSource}</span>
 																	</div>
 																{/if}
 															</div>
-															{#if item.notes}
+															{#if qNotes}
 																<div class="bg-gray-50 rounded-md p-3 text-sm">
 																	<span class="font-medium text-gray-500">Notes: </span>
-																	<span class="text-gray-700">{item.notes}</span>
+																	<span class="text-gray-700">{qNotes}</span>
 																</div>
 															{/if}
 														</div>
@@ -436,32 +453,39 @@
 										{:else}
 											<div class="space-y-3">
 												{#each sectionValue as item, idx}
+													{@const eItem = getField(item, 'evidenceItem')}
+													{@const eStatus = getField(item, 'status')}
+													{@const eFoundIn = getField(item, 'foundIn')}
+													{@const eDetails = getField(item, 'details')}
+													{@const statusLower = (eStatus || '').toLowerCase()}
+													{@const isFound = statusLower === 'found' || statusLower === 'موجود'}
+													{@const isPartial = statusLower === 'partial' || statusLower === 'جزئي' || statusLower.includes('partial') || statusLower.includes('جزئ')}
 													<div class="border border-gray-200 rounded-lg overflow-hidden">
-														<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {item.status?.toLowerCase() === 'found' || item.status?.toLowerCase() === 'موجود' ? 'bg-green-50' : item.status?.toLowerCase() === 'partial' || item.status?.toLowerCase() === 'جزئي' ? 'bg-yellow-50' : 'bg-red-50'}">
+														<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {isFound ? 'bg-green-50' : isPartial ? 'bg-yellow-50' : 'bg-red-50'}">
 															<span class="font-semibold text-sm text-gray-800">
 																<i class="fa-solid fa-file-lines mr-1"></i>
 																E{idx + 1}
 															</span>
-															{#if item.status}
-																<span class="text-xs font-medium px-2 py-0.5 rounded-full {item.status?.toLowerCase() === 'found' || item.status?.toLowerCase() === 'موجود' ? 'bg-green-100 text-green-700' : item.status?.toLowerCase() === 'partial' || item.status?.toLowerCase() === 'جزئي' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
-																	{item.status}
+															{#if eStatus}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {isFound ? 'bg-green-100 text-green-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	{eStatus}
 																</span>
 															{/if}
 														</div>
 														<div class="p-4 space-y-2 text-sm">
-															{#if item.evidenceItem}
-																<p class="text-gray-800 font-medium">{item.evidenceItem}</p>
+															{#if eItem}
+																<p class="text-gray-800 font-medium">{eItem}</p>
 															{/if}
-															{#if item.foundIn}
+															{#if eFoundIn}
 																<div class="flex items-start gap-2">
-																	<span class="font-medium text-gray-500 min-w-[80px]">Found In:</span>
-																	<span class="text-gray-800">{item.foundIn}</span>
+																	<span class="font-medium text-gray-500 shrink-0">Found In:</span>
+																	<span class="text-gray-800">{eFoundIn}</span>
 																</div>
 															{/if}
-															{#if item.details}
+															{#if eDetails}
 																<div class="bg-gray-50 rounded-md p-3">
 																	<span class="font-medium text-gray-500">Details: </span>
-																	<span class="text-gray-700">{item.details}</span>
+																	<span class="text-gray-700">{eDetails}</span>
 																</div>
 															{/if}
 														</div>
@@ -477,6 +501,8 @@
 										{:else}
 											<div class="space-y-3">
 												{#each sectionValue as item, idx}
+													{@const gGap = getField(item, 'gap')}
+													{@const gRec = getField(item, 'recommendation')}
 													<div class="border border-orange-200 rounded-lg overflow-hidden">
 														<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
 															<span class="font-semibold text-orange-800 text-sm">
@@ -485,13 +511,13 @@
 															</span>
 														</div>
 														<div class="p-4 space-y-2 text-sm">
-															{#if item.gap}
-																<p class="text-gray-800 font-medium">{item.gap}</p>
+															{#if gGap}
+																<p class="text-gray-800 font-medium">{gGap}</p>
 															{/if}
-															{#if item.recommendation}
+															{#if gRec}
 																<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
 																	<span class="font-medium text-blue-700"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
-																	<span class="text-blue-800">{item.recommendation}</span>
+																	<span class="text-blue-800">{gRec}</span>
 																</div>
 															{/if}
 														</div>
