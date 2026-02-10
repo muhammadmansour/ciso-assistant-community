@@ -15,13 +15,9 @@
 	let aiAnalysisResult: any = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
 
-	// Only these sections should be displayed in the AI report modal
-	const visibleSections = new Set([
-		'overallassessment',
-		'questionevaluation',
-		'typicalevidencecheck',
-		'gaps',
-	]);
+	// Only render complex sections (objects/arrays) from the API response.
+	// Simple scalars (ref_id, name, status, etc.) are shown in the summary bar.
+	const isSection = (value: any) => typeof value === 'object' && value !== null;
 
 	// Modal state
 	let showAnalysisModal = $state(false);
@@ -332,9 +328,9 @@
 						</div>
 					{/if}
 
-				<!-- Render only expected analysis sections -->
+				<!-- Render all complex sections (objects/arrays) from the API response -->
 				{#if typeof selectedAnalysis.result === 'object'}
-					{#each Object.entries(selectedAnalysis.result).filter(([key]) => visibleSections.has(key.toLowerCase())) as [sectionKey, sectionValue]}
+					{#each Object.entries(selectedAnalysis.result).filter(([_, val]) => isSection(val)) as [sectionKey, sectionValue]}
 						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 								<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 									<h4 class="font-semibold text-gray-700 capitalize">
