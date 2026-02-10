@@ -32,6 +32,11 @@
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
+	let isModalExpanded = $state(false);
+
+	function toggleExpand() {
+		isModalExpanded = !isModalExpanded;
+	}
 
 	function openAnalysisDetail(analysis: any) {
 		selectedAnalysis = analysis;
@@ -41,6 +46,7 @@
 	function closeModal() {
 		showAnalysisModal = false;
 		selectedAnalysis = null;
+		isModalExpanded = false;
 	}
 
 	function getStatusColor(status: string): string {
@@ -280,7 +286,17 @@
 		></div>
 		
 		<!-- Modal Content -->
-		<div class="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+		<div
+			class="relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300 font-['Cairo',sans-serif]"
+			class:rounded-xl={!isModalExpanded}
+			class:w-full={isModalExpanded}
+			class:h-full={isModalExpanded}
+			class:max-w-4xl={!isModalExpanded}
+			class:max-h-[90vh]={!isModalExpanded}
+			class:inset-0={isModalExpanded}
+			class:absolute={isModalExpanded}
+			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : ''}
+		>
 			<!-- Modal Header -->
 			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
 				<div class="flex items-center gap-3">
@@ -294,12 +310,21 @@
 						{/if}
 					</div>
 				</div>
-				<button
-					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-					onclick={closeModal}
-				>
-					<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={toggleExpand}
+						title={isModalExpanded ? 'Restore size' : 'Expand to fullscreen'}
+					>
+						<i class="fa-solid {isModalExpanded ? 'fa-compress' : 'fa-expand'} text-gray-500 text-lg"></i>
+					</button>
+					<button
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={closeModal}
+					>
+						<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
+					</button>
+				</div>
 			</div>
 			
 			<!-- Modal Body -->
