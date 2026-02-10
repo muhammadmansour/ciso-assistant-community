@@ -4116,7 +4116,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                             continue
 
                         file_path = revision.attachment.path
-                        display_name = f"{evidence.name} - {evidence.filename()}"
+                        from urllib.parse import unquote
+                        decoded_filename = unquote(evidence.filename() or '')
+                        display_name = f"{evidence.name} - {decoded_filename}"
                         
                         result = gemini_client.upload_file(
                             file_path=file_path,
