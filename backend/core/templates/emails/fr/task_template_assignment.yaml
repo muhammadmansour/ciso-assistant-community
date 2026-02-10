@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Vous avez été affecté à '${task_name}'"
+subject: "Wathbah GRC: Vous avez été affecté à '${task_name}'"
 body: |
   Bonjour,
 
@@ -11,7 +11,7 @@ body: |
   - Récurrente : ${is_recurrent}
   - Domaine : ${folder_name}
 
-  Connectez-vous à votre portail CISO Assistant pour consulter et gérer cette tâche :
+  Connectez-vous à votre portail Wathbah GRC pour consulter et gérer cette tâche :
   ${ciso_assistant_url}
 
   Merci.

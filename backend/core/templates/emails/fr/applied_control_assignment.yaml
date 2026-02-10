@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Vous avez été affecté à '${control_name}'"
+subject: "Wathbah GRC: Vous avez été affecté à '${control_name}'"
 body: |
   Bonjour,
 
@@ -12,7 +12,7 @@ body: |
   - ETA : ${control_eta}
   - Domaine : ${folder_name}
 
-  Connectez-vous à votre portail CISO Assistant pour actualiser et gérer cette mesure :
+  Connectez-vous à votre portail Wathbah GRC pour actualiser et gérer cette mesure :
   ${ciso_assistant_url}
 
   Merci.

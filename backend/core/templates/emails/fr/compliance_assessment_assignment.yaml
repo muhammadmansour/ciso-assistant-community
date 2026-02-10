@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Vous avez été affecté à '${assessment_name}'"
+subject: "Wathbah GRC: Vous avez été affecté à '${assessment_name}'"
 body: |
   Bonjour,
 
@@ -12,7 +12,7 @@ body: |
   - Date d'échéance : ${assessment_due_date}
   - Domaine : ${folder_name}
 
-  Connectez-vous à votre portail CISO Assistant pour consulter et gérer cet audit :
+  Connectez-vous à votre portail Wathbah GRC pour consulter et gérer cet audit :
   ${ciso_assistant_url}
 
   Merci.
