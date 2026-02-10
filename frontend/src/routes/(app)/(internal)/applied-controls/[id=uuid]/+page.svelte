@@ -29,6 +29,25 @@
 	const isReportSection = (key: string, value: any) =>
 		typeof value === 'object' && value !== null && !metadataKeys.has(key.toLowerCase());
 
+	// Preferred display order for report sections (unlisted keys appear at the end)
+	const sectionOrder = [
+		'overallassessment',
+		'questionevaluation',
+		'typicalevidencecheck',
+		'gaps',
+	];
+	function getOrderedSections(result: Record<string, any>): [string, any][] {
+		const entries = Object.entries(result).filter(([key, val]) => isReportSection(key, val));
+		return entries.sort((a, b) => {
+			const idxA = sectionOrder.indexOf(a[0].toLowerCase());
+			const idxB = sectionOrder.indexOf(b[0].toLowerCase());
+			// Known sections come first in defined order, unknown sections go to the end
+			const orderA = idxA === -1 ? sectionOrder.length : idxA;
+			const orderB = idxB === -1 ? sectionOrder.length : idxB;
+			return orderA - orderB;
+		});
+	}
+
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
@@ -363,9 +382,9 @@
 						</div>
 					{/if}
 
-				<!-- Render all report sections (objects/arrays, excluding metadata) -->
+				<!-- Render all report sections in defined order -->
 				{#if typeof selectedAnalysis.result === 'object'}
-					{#each Object.entries(selectedAnalysis.result).filter(([key, val]) => isReportSection(key, val)) as [sectionKey, sectionValue]}
+					{#each getOrderedSections(selectedAnalysis.result) as [sectionKey, sectionValue]}
 						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 								<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 									<h4 class="font-semibold text-gray-700 capitalize">
