@@ -6,7 +6,7 @@
 		width?: number;
 	}
 
-	let { height = 200, width = 200 }: Props = $props();
+	let { height = 280, width = 350 }: Props = $props();
 </script>
 
 <img class="c" {height} {width} src={ciso} alt="Wathbah GRC" data-testid="logo-image" />
