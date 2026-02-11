@@ -104,7 +104,7 @@
 		critical: 'bg-red-500 text-white border-red-600 hover:bg-red-600',
 		high: 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600',
 		medium: 'bg-yellow-500 text-white border-yellow-600 hover:bg-yellow-600',
-		low: 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600',
+		low: 'bg-[#1e2a4a] text-white border-[#243156] hover:bg-[#243156]',
 		info: 'bg-gray-500 text-white border-gray-600 hover:bg-gray-600',
 		undefined: 'bg-slate-500 text-white border-slate-600 hover:bg-slate-600'
 	};
@@ -123,7 +123,7 @@
 	const statusColors: Record<string, string> = {
 		potential: 'bg-yellow-500 text-white border-yellow-600 hover:bg-yellow-600',
 		exploitable: 'bg-red-500 text-white border-red-600 hover:bg-red-600',
-		mitigated: 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600',
+		mitigated: 'bg-[#1e2a4a] text-white border-[#243156] hover:bg-[#243156]',
 		fixed: 'bg-green-500 text-white border-green-600 hover:bg-green-600',
 		not_exploitable: 'bg-teal-500 text-white border-teal-600 hover:bg-teal-600',
 		unaffected: 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600',
@@ -155,7 +155,7 @@
 				<div class="flex gap-2">
 					<button
 						onclick={selectAllSeverities}
-						class="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm"
+						class="text-xs px-3 py-1.5 bg-[#1e2a4a] text-white rounded-lg hover:bg-[#243156] transition-colors font-medium shadow-sm"
 					>
 						{m.selectAll()}
 					</button>
@@ -199,7 +199,7 @@
 				<div class="flex gap-2">
 					<button
 						onclick={selectAllStatuses}
-						class="text-xs px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-sm"
+						class="text-xs px-3 py-1.5 bg-[#1e2a4a] text-white rounded-lg hover:bg-[#243156] transition-colors font-medium shadow-sm"
 					>
 						{m.selectAll()}
 					</button>

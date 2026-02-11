@@ -567,7 +567,7 @@
 				open={openState}
 				onOpenChange={(e) => (openState = e.open)}
 				positioning={{ placement: 'bottom-start' }}
-				triggerBase="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm rounded-lg self-end relative"
+				triggerBase="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm rounded-lg self-end relative"
 				contentBase="card p-3 bg-white max-w-lg shadow-xl space-y-2 border border-gray-200 rounded-xl"
 				zIndex="1000"
 				autoFocus={false}

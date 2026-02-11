@@ -216,7 +216,7 @@
 										{#if canEditObject(perimeter)}
 											<Anchor
 												href="/compliance-assessments/{assessment.id}/edit?next=/recap"
-												class="btn bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm px-4 py-2"
+												class="btn bg-[#1e2a4a] text-white hover:bg-[#243156] rounded-lg text-sm px-4 py-2"
 											>
 												<i class="fa-solid fa-edit mr-2"></i>
 												{m.edit()}

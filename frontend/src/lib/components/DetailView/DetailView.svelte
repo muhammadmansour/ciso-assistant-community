@@ -743,7 +743,7 @@
 				breadcrumbAction="push"
 				href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
 				label={m.edit()}
-				class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm h-fit"
+				class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
 				><i class="fa-solid fa-pen-to-square mr-2" data-testid="edit-button"
 				></i>{m.edit()}</Anchor
 			>
@@ -821,7 +821,7 @@
 								>
 								{#snippet addButton()}
 									<button
-										class="btn bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-sm self-end my-auto"
+										class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm self-end my-auto"
 										data-testid="add-button"
 										onclick={(_) => modalCreateForm(model)}
 										><i class="fa-solid fa-plus mr-2 lowercase"></i>{safeTranslate(

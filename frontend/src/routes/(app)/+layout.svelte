@@ -158,7 +158,7 @@
 				{#if data?.user?.is_admin}
 					<button
 						onclick={modalQuickStart}
-						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-medium rounded-lg shadow-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white text-sm font-medium rounded-lg shadow-sm hover:from-[#243156] hover:to-[#2a3a66] transition-all duration-200"
 					>
 						<i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
 						Demo Mode

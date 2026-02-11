@@ -54,7 +54,7 @@ html[lang="ar"] * {
 }
 
 @utility btn-mini-primary {
-	@apply text-gray-50 bg-blue-600 hover:bg-blue-500;
+	@apply text-gray-50 bg-[#1e2a4a] hover:bg-[#243156];
 }
 @utility btn-mini-secondary {
 	@apply text-gray-50 bg-indigo-500 hover:bg-indigo-400;
@@ -174,11 +174,11 @@ html[lang="ar"] * {
 
 /* Button styles */
 .wgrc-btn-primary {
-	@apply bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg shadow-sm;
+	@apply bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white font-medium rounded-lg shadow-sm;
 	transition: all 0.2s ease;
 }
 .wgrc-btn-primary:hover {
-	@apply from-blue-700 to-blue-800;
+	@apply from-[#243156] to-[#2a3a66];
 }
 
 .wgrc-btn-secondary {

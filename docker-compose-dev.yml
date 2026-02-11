@@ -1,0 +1,116 @@
+##################################################################
+# DEV-ONLY compose — optimized for fast restarts
+#
+# Usage:
+#   docker compose -f docker-compose-dev.yml up -d
+#
+# First run  : ~normal speed (libraries are stored once)
+# Subsequent : much faster  (libraries skipped, dev server used)
+#
+# To force library reload:
+#   rm db/.libraries_loaded && docker compose -f docker-compose-dev.yml restart backend
+##################################################################
+services:
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_HOSTS=backend,localhost
+      - CISO_ASSISTANT_URL=https://localhost:8443
+      - DJANGO_DEBUG=True
+      - AUTH_TOKEN_TTL=7200
+      - ATTACHMENT_MAX_SIZE_MB=100
+      - ATTACHMENT_MAX_NAME_LENGTH=512
+      - SKIP_STORE_LIBRARIES=true
+      - POSTGRES_NAME=wathbah_grc
+      - POSTGRES_USER=wathbah_grc
+      - POSTGRES_PASSWORD=wathbah_grc
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USE_TLS=True
+      - EMAIL_HOST_USER=mansourmuhammad37@gmail.com
+      - EMAIL_HOST_PASSWORD=changeme
+      - DEFAULT_FROM_EMAIL=mansourmuhammad37@gmail.com
+    volumes:
+      - ./db:/code/db
+      - ./backend:/code
+    entrypoint: ["poetry", "run", "bash", "startup-dev.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://backend:8000/api/health/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  huey:
+    container_name: huey
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - ALLOWED_HOSTS=backend,localhost
+      - CISO_ASSISTANT_URL=https://localhost:8443
+      - DJANGO_DEBUG=False
+      - AUTH_TOKEN_TTL=7200
+      - SKIP_STORE_LIBRARIES=true
+      - POSTGRES_NAME=wathbah_grc
+      - POSTGRES_USER=wathbah_grc
+      - POSTGRES_PASSWORD=wathbah_grc
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+    volumes:
+      - ./db:/code/db
+      - ./backend:/code
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        poetry run python manage.py run_huey -w 1 --scheduler-interval 120
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PUBLIC_BACKEND_API_URL=http://backend:8000/api
+      - PUBLIC_BACKEND_API_EXPOSED_URL=https://localhost:8443/api
+      - PROTOCOL_HEADER=x-forwarded-proto
+      - HOST_HEADER=x-forwarded-host
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    container_name: caddy
+    image: caddy:2.10.0
+    environment:
+      - CISO_ASSISTANT_URL=https://localhost:8443
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - 8443:8443
+    volumes:
+      - ./caddy_data:/data
+    command: |
+      sh -c 'echo $$CISO_ASSISTANT_URL "{
+      reverse_proxy /api/* backend:8000
+      reverse_proxy /* frontend:3000
+      tls internal
+      }" > Caddyfile && caddy run'
