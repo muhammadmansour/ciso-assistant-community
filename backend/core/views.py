@@ -4094,12 +4094,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
                     if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
-                            gemini_file_ids.append({
+                        gemini_file_ids.append({
                             'gemini_file_id': fs_entry.gemini_file_id,
                             'gemini_store_id': fs_entry.gemini_store_id,
-                                'evidence_name': evidence.name,
-                                'evidence_description': evidence.description or ''
-                            })
+                            'evidence_name': evidence.name,
+                            'evidence_description': evidence.description or ''
+                        })
                         has_valid_id = True
                         print(f"[AI-ANALYSIS] Evidence '{evidence.name}': using existing file ID {fs_entry.gemini_file_id}")
                 except Exception as e:
