@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-DOMAIN="ciso.wathbahs.com"
+DOMAIN="grc.wathbahs.com"
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
 
@@ -50,8 +50,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,ciso.wathbahs.com,backend',
-        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,backend',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -71,8 +71,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,ciso.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
@@ -90,8 +90,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://ciso.wathbahs.com/api',
-        ORIGIN: 'https://ciso.wathbahs.com',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc.wathbahs.com/api',
+        ORIGIN: 'https://grc.wathbahs.com',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         PORT: '3000',
         HOST: '0.0.0.0'
@@ -106,8 +106,9 @@ module.exports = {
 };
 EOF
 
-# Create logs directory
+# Create logs directories
 mkdir -p "$SCRIPT_DIR/logs"
+mkdir -p "$BACKEND_DIR/logs"
 
 # Function to run migrations
 run_migrations() {
@@ -115,8 +116,8 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,ciso.wathbahs.com"
-    export CISO_ASSISTANT_URL="https://ciso.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,grc.wathbahs.com"
+    export CISO_ASSISTANT_URL="https://grc.wathbahs.com"
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
