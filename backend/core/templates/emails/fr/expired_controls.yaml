@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Vous avez ${control_count} mesure(s) expirée(s)"
+subject: "Wathbah GRC: Vous avez ${control_count} mesure(s) expirée(s)"
 body: |
   Bonjour,
 
@@ -7,7 +7,7 @@ body: |
   ${control_list}
 
   Ce rappel s'arrêtera une fois que la mesure sera marqué comme active ou que vous mettiez à jour l'ETA.
-  Connectez-vous à votre portail CISO Assistant et consultez la section 'mes affectations' pour accéder directement à vos mesures.
+  Connectez-vous à votre portail Wathbah GRC et consultez la section 'mes affectations' pour accéder directement à vos mesures.
 
   ${ciso_assistant_url}
 

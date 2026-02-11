@@ -1,4 +1,4 @@
-subject: "CISO Assistant: You have been assigned to '${control_name}'"
+subject: "Wathbah GRC: You have been assigned to '${control_name}'"
 body: |
   Hello,
 

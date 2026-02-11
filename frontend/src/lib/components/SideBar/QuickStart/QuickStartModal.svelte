@@ -97,49 +97,58 @@
 			action={formAction}
 			{...rest}
 		>
-			{#snippet children({ form, data, initialData })}
-				<AutocompleteSelect
-					{form}
-					field="framework"
-					label={m.framework()}
-					optionsEndpoint="stored-libraries"
-					optionsDetailedUrlParameters={[['object_type', 'framework']]}
-					optionsValueField="urn"
-				/>
-				<TextField {form} field="audit_name" label={m.auditName()} />
-				<Checkbox {form} field="create_risk_assessment" label={m.createRiskAssessment()} />
-				<TextField
-					{form}
-					field="risk_assessment_name"
-					label={m.riskAssessmentName()}
-					disabled={!data.create_risk_assessment}
-				/>
-				<AutocompleteSelect
-					{form}
-					field="risk_matrix"
-					label={m.riskMatrix()}
-					optionsEndpoint="stored-libraries"
-					optionsDetailedUrlParameters={[['object_type', 'risk_matrix']]}
-					optionsValueField="urn"
-					disabled={!data.create_risk_assessment}
-				/>
-				<div class="flex flex-row justify-between space-x-4">
-					<button
-						class="btn bg-gray-400 text-white font-semibold w-full"
-						data-testid="cancel-button"
-						type="button"
-						onclick={(event) => {
-							parent.onClose(event);
-						}}>{m.cancel()}</button
-					>
+		{#snippet children({ form, data, initialData, delayed })}
+			<AutocompleteSelect
+				{form}
+				field="framework"
+				label={m.framework()}
+				optionsEndpoint="stored-libraries"
+				optionsDetailedUrlParameters={[['object_type', 'framework']]}
+				optionsValueField="urn"
+			/>
+			<TextField {form} field="audit_name" label={m.auditName()} />
+			<Checkbox {form} field="create_risk_assessment" label={m.createRiskAssessment()} />
+			<TextField
+				{form}
+				field="risk_assessment_name"
+				label={m.riskAssessmentName()}
+				disabled={!data.create_risk_assessment}
+			/>
+			<AutocompleteSelect
+				{form}
+				field="risk_matrix"
+				label={m.riskMatrix()}
+				optionsEndpoint="stored-libraries"
+				optionsDetailedUrlParameters={[['object_type', 'risk_matrix']]}
+				optionsValueField="urn"
+				disabled={!data.create_risk_assessment}
+			/>
+			<div class="flex flex-row justify-between space-x-4">
+				<button
+					class="btn bg-gray-400 text-white font-semibold w-full"
+					data-testid="cancel-button"
+					type="button"
+					disabled={delayed}
+					onclick={(event) => {
+						parent.onClose(event);
+					}}>{m.cancel()}</button
+				>
 
-					<button
-						class="btn preset-filled-primary-500 font-semibold w-full"
-						data-testid="save-button"
-						type="submit">{m.save()}</button
-					>
-				</div>
-			{/snippet}
+				<button
+					class="btn preset-filled-primary-500 font-semibold w-full"
+					data-testid="save-button"
+					type="submit"
+					disabled={delayed}
+				>
+					{#if delayed}
+						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						{m.save()}...
+					{:else}
+						{m.save()}
+					{/if}
+				</button>
+			</div>
+		{/snippet}
 		</SuperForm>
 	</div>
 {/if}

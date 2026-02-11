@@ -342,11 +342,13 @@ class StoredLibrary(LibraryMixin):
             urn=urn, locale=locale, version=version
         ).first()
         if same_version_lib:
-            # update hash following cosmetic change (e.g. when we added publication date)
-            logger.info("update hash", urn=urn)
+            # update hash and content following library content change
+            logger.info("update hash and content", urn=urn)
+            library_objects = library_data["objects"]
             same_version_lib.hash_checksum = hash_checksum
-            same_version_lib.save()
-            return None
+            same_version_lib.content = library_objects
+            same_version_lib.save(update_fields=["hash_checksum", "content"])
+            return same_version_lib
 
         if StoredLibrary.objects.filter(urn=urn, locale=locale, version__gte=version):
             return None  # We do not accept to store outdated libraries
@@ -6264,11 +6266,36 @@ class ComplianceAssessment(Assessment):
             library_assessable = node_data.get("assessable", False)
 
             if node_urn in existing_nodes:
-                # Update existing node if assessable field differs
+                # Update existing node with library data
                 existing_node = existing_nodes[node_urn]
+                update_fields = []
+
                 if existing_node.assessable != library_assessable:
                     existing_node.assessable = library_assessable
-                    existing_node.save(update_fields=["assessable"])
+                    update_fields.append("assessable")
+
+                library_questions = node_data.get("questions")
+                if existing_node.questions != library_questions:
+                    existing_node.questions = library_questions
+                    update_fields.append("questions")
+
+                library_typical_evidence = node_data.get("typical_evidence")
+                if existing_node.typical_evidence != library_typical_evidence:
+                    existing_node.typical_evidence = library_typical_evidence
+                    update_fields.append("typical_evidence")
+
+                library_description = node_data.get("description")
+                if existing_node.description != library_description:
+                    existing_node.description = library_description
+                    update_fields.append("description")
+
+                library_annotation = node_data.get("annotation")
+                if existing_node.annotation != library_annotation:
+                    existing_node.annotation = library_annotation
+                    update_fields.append("annotation")
+
+                if update_fields:
+                    existing_node.save(update_fields=update_fields)
                     updated_count += 1
             else:
                 # Create missing node

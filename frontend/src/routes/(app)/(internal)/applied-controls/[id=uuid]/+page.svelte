@@ -15,9 +15,57 @@
 	let aiAnalysisResult: any = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
 
+	// Metadata/infrastructure keys to always exclude from the report sections
+	const metadataKeys = new Set([
+		'metadata', 'ref_id', 'name', 'description', 'status', 'category',
+		'csf_function', 'timestamp', 'model', 'applied_control_id',
+		'applied_control_ref', 'analysis_config', 'analysisconfig',
+		'gemini_files_used', 'geminifilesused', 'questions_evaluated',
+		'questionsevaluated', 'requirements_evaluated', 'requirementsevaluated',
+		'typical_evidence_checked', 'typicalevidencechecked',
+		'inline_files_processed', 'inlinefilesprocessed',
+	]);
+	// Show sections that are objects/arrays AND not metadata
+	const isReportSection = (key: string, value: any) =>
+		typeof value === 'object' && value !== null && !metadataKeys.has(key.toLowerCase());
+
+	// Case-insensitive field getter — handles camelCase, PascalCase, snake_case keys
+	function getField(obj: Record<string, any>, field: string): any {
+		if (obj == null) return undefined;
+		const lower = field.toLowerCase();
+		for (const key of Object.keys(obj)) {
+			if (key.toLowerCase() === lower) return obj[key];
+		}
+		return undefined;
+	}
+
+	// Preferred display order for report sections (unlisted keys appear at the end)
+	const sectionOrder = [
+		'overallassessment',
+		'questionevaluation',
+		'typicalevidencecheck',
+		'gaps',
+	];
+	function getOrderedSections(result: Record<string, any>): [string, any][] {
+		const entries = Object.entries(result).filter(([key, val]) => isReportSection(key, val));
+		return entries.sort((a, b) => {
+			const idxA = sectionOrder.indexOf(a[0].toLowerCase());
+			const idxB = sectionOrder.indexOf(b[0].toLowerCase());
+			// Known sections come first in defined order, unknown sections go to the end
+			const orderA = idxA === -1 ? sectionOrder.length : idxA;
+			const orderB = idxB === -1 ? sectionOrder.length : idxB;
+			return orderA - orderB;
+		});
+	}
+
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
+	let isModalExpanded = $state(false);
+
+	function toggleExpand() {
+		isModalExpanded = !isModalExpanded;
+	}
 
 	function openAnalysisDetail(analysis: any) {
 		selectedAnalysis = analysis;
@@ -27,6 +75,7 @@
 	function closeModal() {
 		showAnalysisModal = false;
 		selectedAnalysis = null;
+		isModalExpanded = false;
 	}
 
 	function getStatusColor(status: string): string {
@@ -53,7 +102,7 @@
 	}
 </script>
 
-<DetailView {data}>
+<DetailView {data} exclude={['folder', 'reference_control', 'category', 'csf_function', 'priority', 'effort', 'control_impact', 'annual_cost_display', 'status', 'created_at', 'updated_at', 'name', 'description', 'ref_id', 'annotation', 'eta', 'expiry_date', 'link', 'owner', 'progress_field', 'observation', 'security_exceptions', 'filtering_labels', 'sync_mappings']}>
 	{#snippet actions()}
 		<!-- Start AI Analysis Button -->
 		<form
@@ -103,7 +152,7 @@
 				<div class="inline-block mb-6">
 					<i class="fa-solid fa-spinner fa-spin text-5xl text-purple-500"></i>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Muraji API...</h3>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
 				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
 			</div>
 		{:else if aiAnalysisResult?.error}
@@ -135,8 +184,6 @@
 						<tr>
 							<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
 							<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Compliance</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Score</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
 							<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
@@ -157,25 +204,6 @@
 										{/if}
 										{analysis.status}
 									</span>
-								</td>
-								<td class="px-4 py-3">
-									{#if analysis.compliance_status}
-										<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.compliance_status)}">
-											{analysis.compliance_status}
-										</span>
-									{:else}
-										<span class="text-gray-400">—</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3 text-center">
-									{#if analysis.score !== null && analysis.score !== undefined}
-										<span class="font-bold text-lg {getScoreColor(analysis.score)}">
-											{analysis.score}
-										</span>
-										<span class="text-gray-400 text-xs">/100</span>
-									{:else}
-										<span class="text-gray-400">—</span>
-									{/if}
 								</td>
 								<td class="px-4 py-3 text-center text-gray-600">
 									{analysis.gemini_files_count}
@@ -266,7 +294,17 @@
 		></div>
 		
 		<!-- Modal Content -->
-		<div class="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+		<div
+			class="relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300 font-['Cairo',sans-serif]"
+			class:rounded-xl={!isModalExpanded}
+			class:w-full={isModalExpanded}
+			class:h-full={isModalExpanded}
+			class:max-w-4xl={!isModalExpanded}
+			class:max-h-[90vh]={!isModalExpanded}
+			class:inset-0={isModalExpanded}
+			class:absolute={isModalExpanded}
+			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : ''}
+		>
 			<!-- Modal Header -->
 			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
 				<div class="flex items-center gap-3">
@@ -280,12 +318,21 @@
 						{/if}
 					</div>
 				</div>
-				<button
-					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-					onclick={closeModal}
-				>
-					<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={toggleExpand}
+						title={isModalExpanded ? 'Restore size' : 'Expand to fullscreen'}
+					>
+						<i class="fa-solid {isModalExpanded ? 'fa-compress' : 'fa-expand'} text-gray-500 text-lg"></i>
+					</button>
+					<button
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={closeModal}
+					>
+						<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
+					</button>
+				</div>
 			</div>
 			
 			<!-- Modal Body -->
@@ -324,10 +371,10 @@
 						</div>
 					{/if}
 
-					<!-- Render analysis sections -->
-					{#if typeof selectedAnalysis.result === 'object'}
-						{#each Object.entries(selectedAnalysis.result) as [sectionKey, sectionValue]}
-							<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+				<!-- Render all report sections in defined order -->
+				{#if typeof selectedAnalysis.result === 'object'}
+					{#each getOrderedSections(selectedAnalysis.result) as [sectionKey, sectionValue]}
+						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 								<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 									<h4 class="font-semibold text-gray-700 capitalize">
 										{sectionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
@@ -336,6 +383,150 @@
 								<div class="p-4">
 									{#if typeof sectionValue === 'string'}
 										<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
+
+									<!-- questionEvaluation: card layout -->
+									{:else if sectionKey.toLowerCase() === 'questionevaluation' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No questions evaluated</p>
+										{:else}
+											<div class="space-y-4">
+												{#each sectionValue as item, idx}
+													{@const qNum = getField(item, 'questionNumber') || idx + 1}
+													{@const qText = getField(item, 'question')}
+													{@const qAnswered = getField(item, 'answered')}
+													{@const qEvidence = getField(item, 'evidenceFound')}
+													{@const qSource = getField(item, 'sourceFile')}
+													{@const qConfidence = getField(item, 'confidence')}
+													{@const qNotes = getField(item, 'notes')}
+													<div class="border border-gray-200 rounded-lg overflow-hidden">
+														<div class="bg-indigo-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+															<span class="font-semibold text-indigo-800 text-sm">
+																<i class="fa-solid fa-circle-question mr-1"></i>
+																Q{qNum}
+															</span>
+															{#if qConfidence !== undefined && qConfidence !== null}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {qConfidence >= 0.8 ? 'bg-green-100 text-green-700' : qConfidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	Confidence: {Math.round(Number(qConfidence) * 100)}%
+																</span>
+															{/if}
+														</div>
+														<div class="p-4 space-y-3">
+															{#if qText}
+																<p class="text-gray-800 font-medium">{qText}</p>
+															{/if}
+															<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+																{#if qAnswered !== undefined && qAnswered !== null}
+																	<div class="flex items-start gap-2">
+																		<span class="font-medium text-gray-500 shrink-0">Answered:</span>
+																		<span class="text-gray-800">{qAnswered}</span>
+																	</div>
+																{/if}
+																{#if qEvidence}
+																	<div class="flex items-start gap-2 col-span-full">
+																		<span class="font-medium text-gray-500 shrink-0">Evidence:</span>
+																		<span class="text-gray-800">{qEvidence}</span>
+																	</div>
+																{/if}
+																{#if qSource}
+																	<div class="flex items-start gap-2">
+																		<span class="font-medium text-gray-500 shrink-0">Source File:</span>
+																		<span class="text-gray-800">{qSource}</span>
+																	</div>
+																{/if}
+															</div>
+															{#if qNotes}
+																<div class="bg-gray-50 rounded-md p-3 text-sm">
+																	<span class="font-medium text-gray-500">Notes: </span>
+																	<span class="text-gray-700">{qNotes}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- typicalEvidenceCheck: structured cards -->
+									{:else if sectionKey.toLowerCase() === 'typicalevidencecheck' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No evidence items checked</p>
+										{:else}
+											<div class="space-y-3">
+												{#each sectionValue as item, idx}
+													{@const eItem = getField(item, 'evidenceItem')}
+													{@const eStatus = getField(item, 'status')}
+													{@const eFoundIn = getField(item, 'foundIn')}
+													{@const eDetails = getField(item, 'details')}
+													{@const statusLower = (eStatus || '').toLowerCase()}
+													{@const isFound = statusLower === 'found' || statusLower === 'موجود'}
+													{@const isPartial = statusLower === 'partial' || statusLower === 'جزئي' || statusLower.includes('partial') || statusLower.includes('جزئ')}
+													<div class="border border-gray-200 rounded-lg overflow-hidden">
+														<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {isFound ? 'bg-green-50' : isPartial ? 'bg-yellow-50' : 'bg-red-50'}">
+															<span class="font-semibold text-sm text-gray-800">
+																<i class="fa-solid fa-file-lines mr-1"></i>
+																E{idx + 1}
+															</span>
+															{#if eStatus}
+																<span class="text-xs font-medium px-2 py-0.5 rounded-full {isFound ? 'bg-green-100 text-green-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																	{eStatus}
+																</span>
+															{/if}
+														</div>
+														<div class="p-4 space-y-2 text-sm">
+															{#if eItem}
+																<p class="text-gray-800 font-medium">{eItem}</p>
+															{/if}
+															{#if eFoundIn}
+																<div class="flex items-start gap-2">
+																	<span class="font-medium text-gray-500 shrink-0">Found In:</span>
+																	<span class="text-gray-800">{eFoundIn}</span>
+																</div>
+															{/if}
+															{#if eDetails}
+																<div class="bg-gray-50 rounded-md p-3">
+																	<span class="font-medium text-gray-500">Details: </span>
+																	<span class="text-gray-700">{eDetails}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- gaps: structured cards -->
+									{:else if sectionKey.toLowerCase() === 'gaps' && Array.isArray(sectionValue)}
+										{#if sectionValue.length === 0}
+											<p class="text-gray-400 italic">No gaps identified</p>
+										{:else}
+											<div class="space-y-3">
+												{#each sectionValue as item, idx}
+													{@const gGap = getField(item, 'gap')}
+													{@const gRec = getField(item, 'recommendation')}
+													<div class="border border-orange-200 rounded-lg overflow-hidden">
+														<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
+															<span class="font-semibold text-orange-800 text-sm">
+																<i class="fa-solid fa-triangle-exclamation mr-1"></i>
+																Gap {idx + 1}
+															</span>
+														</div>
+														<div class="p-4 space-y-2 text-sm">
+															{#if gGap}
+																<p class="text-gray-800 font-medium">{gGap}</p>
+															{/if}
+															{#if gRec}
+																<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
+																	<span class="font-medium text-blue-700"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
+																	<span class="text-blue-800">{gRec}</span>
+																</div>
+															{/if}
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+
+									<!-- Generic array rendering (fallback) -->
 									{:else if Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
 											<p class="text-gray-400 italic">No items</p>
@@ -362,6 +553,7 @@
 												{/each}
 											</ul>
 										{/if}
+
 									{:else if typeof sectionValue === 'object' && sectionValue !== null}
 										<div class="space-y-2">
 											{#each Object.entries(sectionValue) as [k, v]}

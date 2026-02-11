@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 340">
   <defs>
     <style>
       .wathbah-dark { fill: #0B1F3A; }
@@ -8,20 +8,30 @@
     </style>
   </defs>
   
-  <!-- Stylized W mark -->
-  <g transform="translate(52, 20)">
-    <!-- W letter form -->
-    <polygon class="wathbah-dark" points="0,10 25,130 50,50 75,130 95,10 80,10 65,105 50,50 50,45 35,105 15,10"/>
-    <!-- Blue ascending accent stroke -->
-    <polygon class="wathbah-blue" points="75,130 95,10 108,10 100,0 80,10 65,105"/>
+  <!-- Large stylized W mark -->
+  <g transform="translate(68, 10)">
+    <!-- Left leg of W -->
+    <path class="wathbah-dark" d="M 0,8 L 18,8 L 60,148 L 62,148 Z" />
+    <!-- Middle V shape -->
+    <path class="wathbah-dark" d="M 42,148 L 80,28 L 82,28 L 120,148 Z" />
+    <!-- Right leg base -->
+    <path class="wathbah-dark" d="M 100,148 L 138,8 L 152,8 L 114,148 Z" />
+    <!-- Blue ascending accent stroke (extends upward from right) -->
+    <path class="wathbah-blue" d="M 138,8 L 152,8 L 175,-40 L 164,-40 Z" />
   </g>
-  
-  <!-- WATHBAH text -->
-  <text x="200" y="195" text-anchor="middle" class="wathbah-dark" font-family="'Segoe UI', 'Inter', Arial, sans-serif" font-weight="800" font-size="62" letter-spacing="8">WATHBAH</text>
+
+  <!-- WATHBAH text - large bold -->
+  <text x="250" y="218" text-anchor="middle" class="wathbah-dark" 
+    font-family="'Inter', 'Segoe UI', Arial, sans-serif" 
+    font-weight="900" font-size="78" letter-spacing="12">WATHBAH</text>
   
   <!-- Arabic subtitle -->
-  <text x="200" y="245" text-anchor="middle" class="wathbah-subtitle" font-size="26" font-weight="600" direction="rtl">وثبـة لحلول الذكاء الاصطناعي</text>
+  <text x="250" y="272" text-anchor="middle" class="wathbah-subtitle" 
+    font-size="28" font-weight="700" direction="rtl"
+    font-family="'Cairo', 'Noto Sans Arabic', 'Segoe UI', sans-serif">وثبـة لحلول الذكاء الاصطناعي</text>
   
   <!-- English subtitle -->
-  <text x="200" y="280" text-anchor="middle" class="wathbah-subtitle" font-size="22" font-weight="400" letter-spacing="2">Wathbah AI Solutions</text>
+  <text x="250" y="310" text-anchor="middle" class="wathbah-subtitle" 
+    font-size="24" font-weight="400" letter-spacing="3"
+    font-family="'Inter', 'Segoe UI', Arial, sans-serif">Wathbah AI Solutions</text>
 </svg>
