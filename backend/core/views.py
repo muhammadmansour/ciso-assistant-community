@@ -8326,9 +8326,9 @@ class UploadAttachmentView(APIView):
                                 gemini_store_id=result.get('gemini_store_id', ''),
                                 upload_status=FileSearchTable.UploadStatus.COMPLETED,
                             )
-                    logger.info(
+                            logger.info(
                                 "Gemini file uploaded successfully",
-                        revision_id=str(revision.id),
+                                revision_id=str(revision.id),
                                 gemini_file_id=result['gemini_file_id'],
                             )
                         else:
@@ -8343,7 +8343,7 @@ class UploadAttachmentView(APIView):
                                 "Gemini file upload did not succeed",
                                 revision_id=str(revision.id),
                                 result=str(result),
-                    )
+                            )
                     else:
                         logger.info("Gemini not configured, skipping upload")
                 except Exception as e:
