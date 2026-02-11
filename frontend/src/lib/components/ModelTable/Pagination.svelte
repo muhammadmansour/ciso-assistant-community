@@ -101,18 +101,18 @@
 	}
 	button:not(.active):hover {
 		background: #f3f4f6;
-		color: #3b82f6;
+		color: #1e2a4a;
 	}
 	button.ellipse:hover {
 		background: white;
 		cursor: default;
 	}
 	button.active {
-		background: #3b82f6;
+		background: #1e2a4a;
 		color: white;
 		font-weight: 600;
 		cursor: default;
-		border-color: #3b82f6;
+		border-color: #1e2a4a;
 	}
 	button.disabled {
 		opacity: 0.5;
