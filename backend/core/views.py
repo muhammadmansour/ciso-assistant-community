@@ -4143,9 +4143,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                                 'evidence_description': evidence.description or ''
                             })
                             print(f"[AI-ANALYSIS] Evidence '{evidence.name}': uploaded successfully -> {result['gemini_file_id']}")
-                    else:
+                        else:
                             print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
-                except Exception as e:
+                    except Exception as e:
                         print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
 
         print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
