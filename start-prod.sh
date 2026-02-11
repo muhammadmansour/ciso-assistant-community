@@ -72,7 +72,7 @@ start_backend() {
     # Install dependencies if needed
     if [ ! -d ".venv" ]; then
         echo -e "${YELLOW}Installing backend dependencies...${NC}"
-        $POETRY_CMD install --no-dev
+        $POETRY_CMD install --without dev
     fi
     
     # Run migrations first
