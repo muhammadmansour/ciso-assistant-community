@@ -117,6 +117,7 @@ run_migrations() {
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,ciso.wathbahs.com"
     export CISO_ASSISTANT_URL="https://ciso.wathbahs.com"
+    poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
 }
