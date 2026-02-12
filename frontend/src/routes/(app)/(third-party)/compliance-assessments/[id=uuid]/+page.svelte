@@ -637,8 +637,8 @@
 						open={exportPopupOpen}
 						onOpenChange={(e) => (exportPopupOpen = e.open)}
 						positioning={{ placement: 'bottom' }}
-						triggerBase="btn preset-filled-primary-500 w-full"
-						contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-lg space-y-1"
+					triggerBase="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] w-full"
+					contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-lg space-y-1"
 						zIndex="1000"
 					>
 						{#snippet trigger()}
@@ -698,8 +698,8 @@
 						<Anchor
 							breadcrumbAction="push"
 							href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
-							class="btn preset-filled-primary-500 h-fit"
-							data-testid="edit-button"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
+						data-testid="edit-button"
 							><i class="fa-solid fa-pen-to-square mr-2"></i> {m.edit()}</Anchor
 						>
 					{/if}
@@ -707,16 +707,16 @@
 				{#if !page.data.user.is_third_party}
 					<Anchor
 						href={`${page.url.pathname}/action-plan`}
-						class="btn preset-filled-primary-500 h-fit"
-						breadcrumbAction="push"
-						data-testid="action-plan-button"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
+					breadcrumbAction="push"
+					data-testid="action-plan-button"
 						><i class="fa-solid fa-heart-pulse mr-2"></i>{m.actionPlan()}</Anchor
 					>
 					<Anchor
 						href={`${page.url.pathname}/evidences-list`}
-						class="btn preset-filled-secondary-500 h-fit"
-						breadcrumbAction="push"
-						><i class="fa-solid fa-file-lines mr-2"></i>{m.evidences()}</Anchor
+					class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] shadow-sm h-fit"
+					breadcrumbAction="push"
+					><i class="fa-solid fa-file-lines mr-2"></i>{m.evidences()}</Anchor
 					>
 				{/if}
 				<span class="pt-4 text-sm">{m.powerUps()}</span>
@@ -842,7 +842,7 @@
 		<div class="flex flex-row items-center font-semibold justify-between">
 			<div>
 				<span class="h4">{m.associatedRequirements()}</span>
-				<span class="badge bg-violet-400 text-white ml-1 rounded-xl">
+				<span class="badge bg-[#0A1628] text-white ml-1 rounded-xl">
 					{#if treeViewNodes}
 						{assessableNodesCount(treeViewNodes)}
 					{/if}
@@ -852,7 +852,7 @@
 				open={filterPopupOpen}
 				onOpenChange={(e) => (filterPopupOpen = e.open)}
 				positioning={{ placement: 'bottom-start' }}
-				triggerBase="btn preset-filled-primary-500 w-fit"
+				triggerBase="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] w-fit"
 				contentBase="card p-2 bg-white w-fit shadow-lg space-y-2 border border-surface-200 z-10"
 				zIndex="1000"
 				autoFocus={false}

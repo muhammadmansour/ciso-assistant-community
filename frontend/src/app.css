@@ -209,34 +209,48 @@ html[lang="ar"] * {
 	@apply bg-white rounded-2xl shadow-2xl border border-gray-100;
 }
 
-/* Override Skeleton preset-filled buttons to match sidebar navy */
+/* Override ALL Skeleton preset-filled buttons to match navy */
+[class*="preset-filled-primary"],
+[class*="preset-filled-secondary"],
 .preset-filled-primary-500,
 .preset-filled-secondary-500 {
 	background-color: #0A1628 !important;
+	background-image: linear-gradient(to right, #0A1628, #1a2740) !important;
 	color: white !important;
 }
+[class*="preset-filled-primary"]:hover,
+[class*="preset-filled-secondary"]:hover,
 .preset-filled-primary-500:hover,
 .preset-filled-secondary-500:hover {
 	background-color: #1a2740 !important;
+	background-image: linear-gradient(to right, #1a2740, #2a3a66) !important;
 }
 
+[class*="preset-filled-tertiary"],
 .preset-filled-tertiary-500 {
 	background-color: #1a2740 !important;
+	background-image: linear-gradient(to right, #1a2740, #2a3a66) !important;
 	color: white !important;
 }
+[class*="preset-filled-tertiary"]:hover,
 .preset-filled-tertiary-500:hover {
 	background-color: #2a3a66 !important;
+	background-image: linear-gradient(to right, #2a3a66, #3a4a76) !important;
 }
 
 /* Override Skeleton preset-tonal to match sidebar navy */
+[class*="preset-tonal-primary"],
+[class*="preset-tonal-secondary"],
 .preset-tonal-primary,
 .preset-tonal-secondary {
-	background-color: rgba(30, 42, 74, 0.1) !important;
+	background-color: rgba(10, 22, 40, 0.1) !important;
 	color: #0A1628 !important;
 }
+[class*="preset-tonal-primary"]:hover,
+[class*="preset-tonal-secondary"]:hover,
 .preset-tonal-primary:hover,
 .preset-tonal-secondary:hover {
-	background-color: rgba(30, 42, 74, 0.2) !important;
+	background-color: rgba(10, 22, 40, 0.2) !important;
 }
 
 /* Sidebar accordion override for dark theme */
