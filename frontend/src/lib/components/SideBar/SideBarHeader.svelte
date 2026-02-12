@@ -3,8 +3,8 @@
 
 <header>
 	<a href="/my-assignments" class="flex items-center gap-3 border-b border-white/10 pb-4 mb-2 px-1">
-		<div class="w-9 h-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
-			<span class="text-lg font-bold text-[#0A1628]">W</span>
+		<div class="w-9 h-9 rounded-lg bg-[#0077CC] flex items-center justify-center flex-shrink-0">
+			<span class="text-lg font-bold text-white">W</span>
 		</div>
 		<span class="text-lg font-bold text-white tracking-tight">
 			WathbaGRC
