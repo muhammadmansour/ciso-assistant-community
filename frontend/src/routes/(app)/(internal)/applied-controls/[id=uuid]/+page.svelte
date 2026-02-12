@@ -127,7 +127,7 @@
 		>
 			<button
 				type="submit"
-				class="btn bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+				class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
 				disabled={isAnalyzing}
 				title="Start AI Analysis on Associated Evidences"
 			>
@@ -150,7 +150,7 @@
 			<!-- Loading state while analyzing -->
 			<div class="text-center py-16">
 				<div class="inline-block mb-6">
-					<i class="fa-solid fa-spinner fa-spin text-5xl text-purple-500"></i>
+					<i class="fa-solid fa-spinner fa-spin text-5xl text-[#1e2a4a]"></i>
 				</div>
 				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
 				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
@@ -169,7 +169,7 @@
 		<!-- Past Analyses Table -->
 		<div class="mb-4 flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-800">
-				<i class="fa-solid fa-brain text-purple-600 mr-2"></i>
+				<i class="fa-solid fa-brain text-[#1e2a4a] mr-2"></i>
 				AI Analysis History
 			</h3>
 			<span class="text-sm text-gray-500">
@@ -261,8 +261,8 @@
 		{:else}
 			<!-- No analyses yet -->
 			<div class="text-center py-12">
-				<div class="inline-block p-6 rounded-full bg-purple-100 mb-4">
-					<i class="fa-solid fa-brain text-4xl text-purple-600"></i>
+				<div class="inline-block p-6 rounded-full bg-[#1e2a4a]/10 mb-4">
+					<i class="fa-solid fa-brain text-4xl text-[#1e2a4a]"></i>
 				</div>
 				<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
 				<p class="text-gray-600 mb-6">
@@ -306,10 +306,10 @@
 			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : ''}
 		>
 			<!-- Modal Header -->
-			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#1e2a4a]/5 to-white">
 				<div class="flex items-center gap-3">
-					<div class="p-2 bg-purple-100 rounded-lg">
-						<i class="fa-solid fa-brain text-purple-600 text-lg"></i>
+					<div class="p-2 bg-[#1e2a4a]/10 rounded-lg">
+						<i class="fa-solid fa-brain text-[#1e2a4a] text-lg"></i>
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>

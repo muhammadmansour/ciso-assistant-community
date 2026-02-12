@@ -71,7 +71,7 @@
 			<Anchor
 				breadcrumbAction="push"
 				href={`/applied-controls/flash-mode?findings_assessments=${page.params.id}&backUrl=${encodeURIComponent(page.url.pathname)}&backLabel=${encodeURIComponent(m.actionPlan())}`}
-				class="btn text-gray-100 bg-linear-to-r from-indigo-500 to-violet-500 h-fit"
+				class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
 				><i class="fa-solid fa-bolt mr-2"></i> {m.flashMode()}</Anchor
 			>
 		</div>

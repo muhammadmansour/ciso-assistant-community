@@ -54,57 +54,56 @@
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-book-open',
-			selectedClass: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-200',
-			hoverClass: 'hover:border-blue-400 hover:bg-blue-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.frameworks()
 		},
 		reference_controls: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-shield-halved',
-			selectedClass:
-				'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-200',
-			hoverClass: 'hover:border-emerald-400 hover:bg-emerald-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.referenceControls()
 		},
 		risk_matrices: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-table-cells',
-			selectedClass: 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-amber-200',
-			hoverClass: 'hover:border-amber-400 hover:bg-amber-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.riskMatrices()
 		},
 		threats: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-triangle-exclamation',
-			selectedClass: 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-red-200',
-			hoverClass: 'hover:border-red-400 hover:bg-red-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.threats()
 		},
 		metric_definitions: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-chart-line',
-			selectedClass: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-purple-200',
-			hoverClass: 'hover:border-purple-400 hover:bg-purple-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.metricDefinitions()
 		},
 		requirement_mapping_sets: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-diagram-project',
-			selectedClass: 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-pink-200',
-			hoverClass: 'hover:border-pink-400 hover:bg-pink-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.requirementMappingSets()
 		},
 		is_update: {
 			type: 'boolean',
 			field: 'is_update',
 			icon: 'fa-arrows-rotate',
-			selectedClass: 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-pink-200',
-			hoverClass: 'hover:border-pink-400 hover:bg-pink-50',
+			selectedClass: 'bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white shadow-md',
+			hoverClass: 'hover:border-[#1e2a4a]/40 hover:bg-[#1e2a4a]/5',
 			label: m.updateAvailable()
 		}
 	};
@@ -294,7 +293,7 @@
 				>
 					<button
 						type="submit"
-						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-teal-500 to-teal-600 text-white font-medium text-sm shadow-sm hover:from-teal-600 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white font-medium text-sm shadow-sm hover:from-[#243156] hover:to-[#2a3a66] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 						disabled={isFetchingMuraji}
 						title="Fetch from Muraji"
 					>

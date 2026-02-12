@@ -209,6 +209,24 @@ html[lang="ar"] * {
 	@apply bg-white rounded-2xl shadow-2xl border border-gray-100;
 }
 
+/* Override Skeleton preset-filled-primary to match sidebar navy */
+.preset-filled-primary-500 {
+	background-color: #1e2a4a !important;
+	color: white !important;
+}
+.preset-filled-primary-500:hover {
+	background-color: #243156 !important;
+}
+
+/* Override Skeleton preset-tonal-primary to match sidebar navy */
+.preset-tonal-primary {
+	background-color: rgba(30, 42, 74, 0.1) !important;
+	color: #1e2a4a !important;
+}
+.preset-tonal-primary:hover {
+	background-color: rgba(30, 42, 74, 0.2) !important;
+}
+
 /* Sidebar accordion override for dark theme */
 .sidebar [data-accordion] button[data-accordion-control] {
 	background: transparent !important;
