@@ -8,10 +8,6 @@ export const load = (async ({ fetch, parent }) => {
 	const { user } = await parent();
 	const userId = user.actor_id;
 
-	const endpoint = `${BASE_API_URL}/folders/my_assignments/`;
-	const res = await fetch(endpoint);
-	const data = await res.json();
-
 	// Fetch applied controls assigned to the user as a proper table source
 	let controlsTable: any = { head: {}, body: [], meta: { count: 0, results: [] } };
 	try {
@@ -39,5 +35,5 @@ export const load = (async ({ fetch, parent }) => {
 		console.error('Error fetching applied controls:', error);
 	}
 
-	return { data, controlsTable, user, title: m.myAssignments() };
+	return { controlsTable, user, title: m.myAssignments() };
 }) satisfies PageServerLoad;

@@ -97,32 +97,35 @@ export const handle: Handle = async ({ event, resolve }) =>
 			redirect(302, '/login');
 		}
 
-		const user = await validateUserSession(event);
-		if (user) {
-			event.locals.user = user;
-			const generalSettings = await fetch(`${BASE_API_URL}/settings/general/object/`, {
-				credentials: 'include',
-				headers: {
-					'content-type': 'application/json',
-					Authorization: `Token ${event.cookies.get('token')}`
-				}
-			});
-			event.locals.settings = await generalSettings.json();
+	const user = await validateUserSession(event);
+	if (user) {
+		event.locals.user = user;
+		const token = event.cookies.get('token');
+		const headers = {
+			'content-type': 'application/json',
+			Authorization: `Token ${token}`
+		};
 
-			const featureFlagSettings = await fetch(`${BASE_API_URL}/settings/feature-flags/`, {
+		// Fetch settings and feature flags in parallel
+		const [generalSettings, featureFlagSettings] = await Promise.all([
+			fetch(`${BASE_API_URL}/settings/general/object/`, {
 				credentials: 'include',
-				headers: {
-					'content-type': 'application/json',
-					Authorization: `Token ${event.cookies.get('token')}`
-				}
-			});
-			try {
-				event.locals.featureflags = await featureFlagSettings.json();
-			} catch (e) {
-				console.error('Error fetching feature flags', e);
-				event.locals.featureflags = {};
-			}
+				headers
+			}),
+			fetch(`${BASE_API_URL}/settings/feature-flags/`, {
+				credentials: 'include',
+				headers
+			})
+		]);
+
+		event.locals.settings = await generalSettings.json();
+		try {
+			event.locals.featureflags = await featureFlagSettings.json();
+		} catch (e) {
+			console.error('Error fetching feature flags', e);
+			event.locals.featureflags = {};
 		}
+	}
 
 		return await resolve(event, {
 			transformPageChunk: ({ html }) => {
