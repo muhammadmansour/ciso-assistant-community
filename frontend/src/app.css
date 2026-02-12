@@ -209,21 +209,33 @@ html[lang="ar"] * {
 	@apply bg-white rounded-2xl shadow-2xl border border-gray-100;
 }
 
-/* Override Skeleton preset-filled-primary to match sidebar navy */
-.preset-filled-primary-500 {
+/* Override Skeleton preset-filled buttons to match sidebar navy */
+.preset-filled-primary-500,
+.preset-filled-secondary-500 {
 	background-color: #1e2a4a !important;
 	color: white !important;
 }
-.preset-filled-primary-500:hover {
+.preset-filled-primary-500:hover,
+.preset-filled-secondary-500:hover {
 	background-color: #243156 !important;
 }
 
-/* Override Skeleton preset-tonal-primary to match sidebar navy */
-.preset-tonal-primary {
+.preset-filled-tertiary-500 {
+	background-color: #243156 !important;
+	color: white !important;
+}
+.preset-filled-tertiary-500:hover {
+	background-color: #2a3a66 !important;
+}
+
+/* Override Skeleton preset-tonal to match sidebar navy */
+.preset-tonal-primary,
+.preset-tonal-secondary {
 	background-color: rgba(30, 42, 74, 0.1) !important;
 	color: #1e2a4a !important;
 }
-.preset-tonal-primary:hover {
+.preset-tonal-primary:hover,
+.preset-tonal-secondary:hover {
 	background-color: rgba(30, 42, 74, 0.2) !important;
 }
 
