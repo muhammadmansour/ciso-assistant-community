@@ -89,6 +89,7 @@
 		overrideFilters?: { [key: string]: any[] };
 		defaultFilters?: { [key: string]: any[] };
 		hideFilters?: boolean;
+		initialSearchValue?: string;
 		tableFilters?: Record<string, ListViewFilterConfig>;
 		folderId?: string;
 		forcePreventDelete?: boolean;
@@ -142,6 +143,7 @@
 		overrideFilters = {},
 		defaultFilters = {},
 		hideFilters = $bindable(false),
+		initialSearchValue = '',
 		tableFilters = URLModel &&
 		listViewFields[URLModel] &&
 		Object.hasOwn(listViewFields[URLModel], 'filters')
@@ -611,7 +613,7 @@
 			</Popover>
 		{/if}
 		{#if search}
-			<Search {handler} />
+			<Search {handler} initialValue={initialSearchValue} />
 		{/if}
 		{#if pagination && rowsPerPage}
 			<RowsPerPage {handler} />

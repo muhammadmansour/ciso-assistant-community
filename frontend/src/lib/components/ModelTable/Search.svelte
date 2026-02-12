@@ -3,11 +3,12 @@
 	import { m } from '$paraglide/messages';
 	interface Props {
 		handler: DataHandler;
+		initialValue?: string;
 	}
 
-	let { handler }: Props = $props();
+	let { handler, initialValue = '' }: Props = $props();
 
-	let value = $state('');
+	let value = $state(initialValue);
 	let timeout: any;
 
 	const search = () => {
@@ -17,6 +18,11 @@
 			handler.invalidate();
 		}, 400);
 	};
+
+	// If initialValue is provided, trigger search on mount
+	if (initialValue) {
+		handler.search(initialValue);
+	}
 </script>
 
 <div class="relative max-w-sm">
