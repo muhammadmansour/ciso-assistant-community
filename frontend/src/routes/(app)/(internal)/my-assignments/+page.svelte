@@ -1,9 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { m } from '$paraglide/messages';
-	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
-	import ActivityTracker from '$lib/components/DataViz/ActivityTracker.svelte';
-	import { listViewFields } from '$lib/utils/table';
+	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 
 	interface Props {
 		data: PageData;
@@ -11,420 +9,232 @@
 
 	let { data }: Props = $props();
 
-	const appliedControlFilters = listViewFields['applied-controls'].filters;
-	const APPLIED_CONTROL_FILTERS = {
-		status: appliedControlFilters.status,
-		priority: appliedControlFilters.priority,
-		folder: appliedControlFilters.folder
-	};
+	const appliedControls = data.appliedControls || [];
 
-	// Toggle for showing/hiding empty sections
-	let showEmptySections = $state(false);
+	// Status color mapping
+	function getStatusColor(status: string): string {
+		switch (status?.toLowerCase()) {
+			case 'done':
+			case 'active':
+				return '#22c55e'; // green
+			case 'in_progress':
+			case 'in progress':
+				return '#3b82f6'; // blue
+			case 'on_hold':
+			case 'on hold':
+			case 'needs_review':
+			case 'needs review':
+				return '#f97316'; // orange
+			case 'not_started':
+			case 'not started':
+			case 'new':
+				return '#9ca3af'; // gray
+			default:
+				return '#9ca3af';
+		}
+	}
 
-	const counts = data.counts || {};
+	function getStatusLabel(status: string): string {
+		switch (status?.toLowerCase()) {
+			case 'done':
+			case 'active':
+				return 'Done';
+			case 'in_progress':
+			case 'in progress':
+				return 'In Progress';
+			case 'on_hold':
+			case 'on hold':
+				return 'On Hold';
+			case 'needs_review':
+			case 'needs review':
+				return 'Needs Review';
+			case 'not_started':
+			case 'not started':
+			case 'new':
+				return 'Not Started';
+			default:
+				return status || 'Unknown';
+		}
+	}
 
-	// Calculate totals for the status cards
-	const totalControls = $derived(counts.appliedControls || 0);
+	function getPriorityLabel(priority: string | number): string {
+		switch (String(priority)?.toLowerCase()) {
+			case '1':
+			case 'very_high':
+				return 'Very High';
+			case '2':
+			case 'high':
+				return 'High';
+			case '3':
+			case 'medium':
+				return 'Medium';
+			case '4':
+			case 'low':
+				return 'Low';
+			default:
+				return '';
+		}
+	}
+
+	function getPriorityColor(priority: string | number): string {
+		switch (String(priority)?.toLowerCase()) {
+			case '1':
+			case 'very_high':
+				return 'bg-red-500';
+			case '2':
+			case 'high':
+				return 'bg-red-400';
+			case '3':
+			case 'medium':
+				return 'bg-orange-400';
+			case '4':
+			case 'low':
+				return 'bg-blue-400';
+			default:
+				return 'bg-gray-400';
+		}
+	}
+
+	function formatDate(dateStr: string): string {
+		if (!dateStr) return '';
+		try {
+			const date = new Date(dateStr);
+			return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+		} catch {
+			return dateStr;
+		}
+	}
 </script>
 
 <div class="space-y-6">
-	<!-- Welcome Banner -->
-	<div class="wgrc-card bg-blue-50/50 border-blue-100">
-		<div class="flex items-start gap-3">
-			<div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-				<i class="fa-solid fa-circle-info text-blue-600 text-sm"></i>
-			</div>
-			<div>
-				<h3 class="font-semibold text-gray-900 text-sm">Welcome to your compliance assignments</h3>
-				<p class="text-sm text-blue-700/80 mt-0.5">
-					Review your assigned controls, upload evidence, and update status to help complete your compliance assessment.
-				</p>
-			</div>
+	<!-- Quick Actions -->
+	<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+		<h2 class="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<!-- View Assessments -->
+			<Anchor
+				href="/compliance-assessments"
+				breadcrumbAction="push"
+				class="unstyled flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group cursor-pointer"
+			>
+				<div class="w-10 h-10 rounded-lg bg-[#0A1628]/10 flex items-center justify-center flex-shrink-0">
+					<i class="fa-solid fa-file-lines text-[#0A1628] text-lg"></i>
+				</div>
+				<div class="flex-1 min-w-0">
+					<p class="font-semibold text-gray-900 text-sm">View Assessments</p>
+					<p class="text-xs text-gray-500">Browse all compliance assessments</p>
+				</div>
+				<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
+			</Anchor>
+
+			<!-- Manage Evidence -->
+			<Anchor
+				href="/evidences"
+				breadcrumbAction="push"
+				class="unstyled flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group cursor-pointer"
+			>
+				<div class="w-10 h-10 rounded-lg bg-[#0A1628]/10 flex items-center justify-center flex-shrink-0">
+					<i class="fa-solid fa-cloud-arrow-up text-[#0A1628] text-lg"></i>
+				</div>
+				<div class="flex-1 min-w-0">
+					<p class="font-semibold text-gray-900 text-sm">Manage Evidence</p>
+					<p class="text-xs text-gray-500">View uploaded documents</p>
+				</div>
+				<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
+			</Anchor>
+
+			<!-- Data Requests -->
+			<Anchor
+				href="/right-requests"
+				breadcrumbAction="push"
+				class="unstyled flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group cursor-pointer"
+			>
+				<div class="w-10 h-10 rounded-lg bg-[#0A1628]/10 flex items-center justify-center flex-shrink-0">
+					<i class="fa-solid fa-shield-halved text-[#0A1628] text-lg"></i>
+				</div>
+				<div class="flex-1 min-w-0">
+					<p class="font-semibold text-gray-900 text-sm">Data Requests</p>
+					<p class="text-xs text-gray-500">See all compliance requests</p>
+				</div>
+				<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
+			</Anchor>
 		</div>
 	</div>
 
-	<!-- Compliance Progress Card -->
-	<div class="wgrc-card">
-		<h3 class="text-lg font-bold text-gray-900 mb-1">Compliance Progress</h3>
-		<div class="flex items-center justify-between mb-3">
-			<span class="text-sm text-gray-500">Controls Completed</span>
-			<span class="text-sm font-semibold text-blue-600">0 of {totalControls} (0%)</span>
-		</div>
-		<div class="w-full bg-gray-100 rounded-full h-2">
-			<div class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+	<!-- All Tasks -->
+	<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+		<div class="mb-4">
+			<h2 class="text-xl font-bold text-gray-900">All Tasks</h2>
+			<p class="text-sm text-gray-500">Complete these tasks by uploading the required evidence</p>
 		</div>
 
-		<!-- Status Cards Row -->
-		<div class="grid grid-cols-4 gap-4 mt-6">
-			<div class="wgrc-stat-card">
-				<span class="wgrc-stat-number text-gray-700">
-					{counts.appliedControls || 0}
-				</span>
-				<span class="wgrc-stat-label">Not Started</span>
+		{#if appliedControls.length === 0}
+			<div class="text-center py-12">
+				<div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+					<i class="fa-solid fa-clipboard-check text-gray-400 text-2xl"></i>
+				</div>
+				<p class="text-gray-500 font-medium">No tasks assigned yet</p>
+				<p class="text-gray-400 text-sm mt-1">Tasks will appear here when assigned to you</p>
 			</div>
-			<div class="wgrc-stat-card">
-				<span class="wgrc-stat-number text-blue-600">
-					{counts.complianceAssessments || 0}
-				</span>
-				<span class="wgrc-stat-label">In Progress</span>
-			</div>
-			<div class="wgrc-stat-card">
-				<span class="wgrc-stat-number text-red-500">0</span>
-				<span class="wgrc-stat-label">Done</span>
-			</div>
-			<div class="wgrc-stat-card">
-				<span class="wgrc-stat-number text-orange-500">0</span>
-				<span class="wgrc-stat-label">Needs Review</span>
-			</div>
-		</div>
-	</div>
+		{:else}
+			<div class="divide-y divide-gray-100">
+				{#each appliedControls as control}
+					<div class="flex items-center justify-between py-4 hover:bg-gray-50/50 -mx-2 px-2 rounded-lg transition-colors">
+						<!-- Left: Status dot + Info -->
+						<div class="flex items-start gap-3 flex-1 min-w-0">
+							<div class="mt-2 flex-shrink-0">
+								<div
+									class="w-2.5 h-2.5 rounded-full"
+									style="background-color: {getStatusColor(control.status)}"
+								></div>
+							</div>
+							<div class="min-w-0">
+								<div class="flex items-center gap-2 mb-0.5">
+									<span class="text-xs text-gray-400 font-mono">{control.ref_id || '—'}</span>
+									{#if control.priority}
+										<span class="text-xs font-medium text-red-500 {getPriorityColor(control.priority)} text-white px-1.5 py-0.5 rounded text-[10px]">
+											{getPriorityLabel(control.priority)}
+										</span>
+									{/if}
+								</div>
+								<Anchor
+									href="/applied-controls/{control.id}"
+									breadcrumbAction="push"
+									class="unstyled text-sm font-medium text-gray-900 hover:text-[#0077CC] transition-colors"
+								>
+									{control.name}
+								</Anchor>
+								<div class="flex items-center gap-3 mt-1">
+									<span class="flex items-center gap-1 text-xs">
+										<span
+											class="w-1.5 h-1.5 rounded-full inline-block"
+											style="background-color: {getStatusColor(control.status)}"
+										></span>
+										<span style="color: {getStatusColor(control.status)}">{getStatusLabel(control.status)}</span>
+									</span>
+									{#if control.eta}
+										<span class="flex items-center gap-1 text-xs text-gray-400">
+											<i class="fa-regular fa-clock text-[10px]"></i>
+											Due {formatDate(control.eta)}
+										</span>
+									{/if}
+								</div>
+							</div>
+						</div>
 
-	<!-- Applied Controls Section -->
-	<div class="wgrc-card">
-		<div class="flex items-center justify-between mb-1">
-			<div>
-				<h3 class="text-lg font-bold text-gray-900">Applied controls</h3>
-				<p class="text-sm text-gray-400">Your compliance tasks</p>
-			</div>
-			<div class="flex items-center gap-3">
-				<span class="text-sm text-blue-600 font-medium">{counts.appliedControls || 0} controls</span>
-				<button
-					type="button"
-					class="btn btn-sm text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
-					onclick={() => (showEmptySections = !showEmptySections)}
-				>
-					<i class="fa-solid {showEmptySections ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>
-					{showEmptySections ? m.hideEmptySections() : m.showEmptySections()}
-				</button>
-			</div>
-		</div>
-
-		<ModelTable
-			source={{
-				head: {
-					ref_id: 'ref_id',
-					name: 'name',
-					status: 'status',
-					priority: 'priority',
-					eta: 'eta',
-					folder: 'folder'
-				},
-				body: [],
-				filters: APPLIED_CONTROL_FILTERS
-			}}
-			URLModel="applied-controls"
-			baseEndpoint="/applied-controls?owner={data.user.actor_id}"
-		/>
-	</div>
-
-	<!-- Additional Sections (Grid) -->
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-		{#if showEmptySections || counts.tasks > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-note-sticky text-indigo-500"></i>
-					<h3 class="font-bold text-gray-900">{m.tasks()}</h3>
-					{#if counts.tasks > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.tasks}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							name: 'name',
-							status: 'status',
-							is_recurrent: 'is_recurrent',
-							next_occurrence: 'next_occurrence'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="task-templates"
-					baseEndpoint="/task-templates?assigned_to={data.user.id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.complianceAssessments > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-certificate text-blue-500"></i>
-					<h3 class="font-bold text-gray-900">{m.complianceAssessments()}</h3>
-					{#if counts.complianceAssessments > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.complianceAssessments}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							name: 'name',
-							status: 'status',
-							eta: 'eta',
-							progress: 'progress',
-							perimeter: 'perimeter'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="compliance-assessments"
-					baseEndpoint="/compliance-assessments?authors={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.riskAssessments > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-magnifying-glass-chart text-blue-500"></i>
-					<h3 class="font-bold text-gray-900">{m.riskAssessments()}</h3>
-					{#if counts.riskAssessments > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.riskAssessments}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							name: 'name',
-							status: 'status',
-							eta: 'eta',
-							perimeter: 'perimeter'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="risk-assessments"
-					baseEndpoint="/risk-assessments?authors={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.riskScenarios > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-clone text-indigo-500"></i>
-					<h3 class="font-bold text-gray-900">{m.riskScenarios()}</h3>
-					{#if counts.riskScenarios > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.riskScenarios}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							current_level: 'current_level',
-							residual_level: 'residual_level',
-							risk_assessment: 'risk_assessment'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="risk-scenarios"
-					baseEndpoint="/risk-scenarios?owner={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.incidents > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-bug text-red-500"></i>
-					<h3 class="font-bold text-gray-900">{m.incidents()}</h3>
-					{#if counts.incidents > 0}
-						<span class="wgrc-badge wgrc-badge-needs-review">{counts.incidents}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							status: 'status',
-							severity: 'severity',
-							folder: 'folder'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="incidents"
-					baseEndpoint="/incidents?owners={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.securityExceptions > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-circle-exclamation text-orange-500"></i>
-					<h3 class="font-bold text-gray-900">{m.securityExceptions()}</h3>
-					{#if counts.securityExceptions > 0}
-						<span class="wgrc-badge wgrc-badge-pending">{counts.securityExceptions}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							name: 'name',
-							status: 'status',
-							severity: 'severity',
-							expiration_date: 'expiration_date',
-							folder: 'folder'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="security-exceptions"
-					baseEndpoint="/security-exceptions?owners={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.findingsAssessments > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-clipboard-list text-blue-500"></i>
-					<h3 class="font-bold text-gray-900">{m.findingsAssessments()}</h3>
-					{#if counts.findingsAssessments > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.findingsAssessments}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							name: 'name',
-							status: 'status',
-							category: 'category',
-							perimeter: 'perimeter'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="findings-assessments"
-					baseEndpoint="/findings-assessments?authors={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if (showEmptySections || counts.validationFlows > 0) && data.featureflags?.validation_flows}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-check-circle text-green-500"></i>
-					<h3 class="font-bold text-gray-900">{m.validationFlows()}</h3>
-					{#if counts.validationFlows > 0}
-						<span class="wgrc-badge wgrc-badge-active">{counts.validationFlows}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							status: 'status',
-							created_at: 'created_at',
-							requester: 'requester',
-							folder: 'folder'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="validation-flows"
-					baseEndpoint="/validation-flows?approver={data.user.id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.findings > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-triangle-exclamation text-yellow-500"></i>
-					<h3 class="font-bold text-gray-900">{m.findings()}</h3>
-					{#if counts.findings > 0}
-						<span class="wgrc-badge wgrc-badge-pending">{counts.findings}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							severity: 'severity',
-							status: 'status'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="findings"
-					baseEndpoint="/findings?owner={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.organisationObjectives > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-bullseye text-green-500"></i>
-					<h3 class="font-bold text-gray-900">{m.organisationObjectives()}</h3>
-					{#if counts.organisationObjectives > 0}
-						<span class="wgrc-badge wgrc-badge-active">{counts.organisationObjectives}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							status: 'status',
-							health: 'health',
-							folder: 'folder'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="organisation-objectives"
-					baseEndpoint="/organisation-objectives?assigned_to={data.user.id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.rightRequests > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-user-shield text-purple-500"></i>
-					<h3 class="font-bold text-gray-900">{m.rightRequests()}</h3>
-					{#if counts.rightRequests > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.rightRequests}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							request_type: 'request_type',
-							status: 'status',
-							due_date: 'due_date'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="right-requests"
-					baseEndpoint="/right-requests?owner={data.user.actor_id}"
-				/>
-			</div>
-		{/if}
-		{#if showEmptySections || counts.metricInstances > 0}
-			<div class="wgrc-card">
-				<div class="flex items-center gap-2 mb-3">
-					<i class="fa-solid fa-chart-line text-teal-500"></i>
-					<h3 class="font-bold text-gray-900">{m.metricInstances()}</h3>
-					{#if counts.metricInstances > 0}
-						<span class="wgrc-badge wgrc-badge-in-progress">{counts.metricInstances}</span>
-					{/if}
-				</div>
-				<ModelTable
-					source={{
-						head: {
-							ref_id: 'ref_id',
-							name: 'name',
-							status: 'status',
-							current_value: 'current_value',
-							folder: 'folder'
-						},
-						body: []
-					}}
-					hideFilters={true}
-					URLModel="metric-instances"
-					baseEndpoint="/metric-instances?owner={data.user.actor_id}"
-				/>
+						<!-- Right: Upload button -->
+						<div class="flex-shrink-0 ml-4">
+							<Anchor
+								href="/applied-controls/{control.id}"
+								breadcrumbAction="push"
+								class="unstyled inline-flex items-center gap-2 px-4 py-2 bg-[#0077CC] text-white text-sm font-medium rounded-lg hover:bg-[#0066B3] transition-colors shadow-sm"
+							>
+								<i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+								Upload
+							</Anchor>
+						</div>
+					</div>
+				{/each}
 			</div>
 		{/if}
 	</div>

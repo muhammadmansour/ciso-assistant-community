@@ -13,6 +13,18 @@ export const load = (async ({ fetch, parent }) => {
 	const res = await fetch(endpoint);
 	const data = await res.json();
 
+	// Fetch applied controls assigned to the user (for All Tasks section)
+	let appliedControls: any[] = [];
+	try {
+		const controlsRes = await fetch(
+			`${BASE_API_URL}/applied-controls?owner=${userId}`
+		);
+		const controlsData = await controlsRes.json();
+		appliedControls = controlsData.results || [];
+	} catch (error) {
+		console.error('Error fetching applied controls:', error);
+	}
+
 	// Fetch counts for each section to determine which ones are empty
 	const countEndpoints = {
 		appliedControls: `/applied-controls?owner=${userId}&limit=0`,
@@ -46,5 +58,5 @@ export const load = (async ({ fetch, parent }) => {
 		})
 	);
 
-	return { data, counts, user, title: m.myAssignments() };
+	return { data, counts, user, appliedControls, title: m.myAssignments() };
 }) satisfies PageServerLoad;
