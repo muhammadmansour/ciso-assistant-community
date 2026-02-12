@@ -158,23 +158,15 @@
 	>
 		<div class="flex items-center justify-between px-6 py-3">
 			<!-- Search Bar -->
-			<div class="relative flex-1 max-w-xl flex items-center gap-2">
-				<div class="relative flex-1">
-					<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-					<input
-						type="text"
-						placeholder="Search..."
-						bind:value={searchQuery}
-						onkeydown={handleSearchKeydown}
-						class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
-					/>
-				</div>
-				<button
-					onclick={handleGlobalSearch}
-					class="px-4 py-2 bg-[#0A1628] text-white text-sm font-medium rounded-lg hover:bg-[#1a2740] transition-colors"
-				>
-					<i class="fa-solid fa-magnifying-glass"></i>
-				</button>
+			<div class="relative flex-1 max-w-xl">
+				<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+				<input
+					type="text"
+					placeholder="Search..."
+					bind:value={searchQuery}
+					onkeydown={handleSearchKeydown}
+					class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
+				/>
 			</div>
 
 			<!-- Right Side Actions -->
@@ -185,7 +177,7 @@
 						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white text-sm font-medium rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
 					>
 						<i class="fa-solid fa-play text-xs"></i>
-						Start Audit
+						Quick Start
 					</button>
 				{/if}
 				<!-- Powered by Wathbah -->
