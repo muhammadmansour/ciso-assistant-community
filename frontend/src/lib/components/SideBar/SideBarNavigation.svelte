@@ -62,11 +62,21 @@
 	<Anchor
 		href="/my-assignments"
 		breadcrumbAction="replace"
-		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/my-assignments' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
+		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg transition-all duration-150 {page.url.pathname === '/my-assignments' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
 		data-testid="sidebar-home"
 	>
 		<i class="fa-solid fa-house w-4 text-center text-[13px] opacity-80"></i>
 		<span class="text-[13px] tracking-wide">Home</span>
+	</Anchor>
+	<!-- Standalone Search link -->
+	<Anchor
+		href="/search"
+		breadcrumbAction="replace"
+		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/search' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
+		data-testid="sidebar-search"
+	>
+		<i class="fa-solid fa-magnifying-glass w-4 text-center text-[13px] opacity-80"></i>
+		<span class="text-[13px] tracking-wide">Search</span>
 	</Anchor>
 
 	<Accordion
