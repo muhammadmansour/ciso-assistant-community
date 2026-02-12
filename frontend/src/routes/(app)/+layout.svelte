@@ -12,7 +12,6 @@
 	import { getCookie, deleteCookie } from '$lib/utils/cookies';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import { m } from '$paraglide/messages';
 
 	import type { PageData, ActionData } from './$types';
@@ -135,13 +134,15 @@
 
 	function handleGlobalSearch() {
 		const q = searchQuery.trim();
-		if (q) {
-			goto(`/search?q=${encodeURIComponent(q)}`);
+		if (q && browser) {
+			window.location.href = `/search?q=${encodeURIComponent(q)}`;
 		}
 	}
 
 	function handleSearchKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
+			e.preventDefault();
+			e.stopPropagation();
 			handleGlobalSearch();
 		}
 	}
