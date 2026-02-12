@@ -91,6 +91,10 @@
 					id={item.name.toLowerCase().replace(' ', '-')}
 					onClick={() => handleNavClick(item)}
 					value={item.name}
+					controlHover="hover:bg-white/8"
+					controlPadding="py-2 px-2"
+					controlRounded="rounded-lg"
+					panelPadding="py-0 px-0"
 				>
 					{#snippet control()}
 						<SideBarCategory {item} />

@@ -243,9 +243,28 @@ html[lang="ar"] * {
 .sidebar [data-accordion] button[data-accordion-control] {
 	background: transparent !important;
 	padding: 8px 4px !important;
+	border-radius: 0.5rem;
+	transition: background-color 0.15s ease;
+}
+.sidebar [data-accordion] button[data-accordion-control]:hover {
+	background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.sidebar [data-accordion] button[data-accordion-control]:focus,
+.sidebar [data-accordion] button[data-accordion-control]:focus-visible {
+	background-color: rgba(255, 255, 255, 0.08) !important;
+	outline: none !important;
+	box-shadow: none !important;
+}
+.sidebar [data-accordion] button[data-accordion-control][data-state="open"] {
+	background-color: rgba(255, 255, 255, 0.06) !important;
 }
 .sidebar [data-accordion] [data-accordion-panel] {
 	padding: 0 !important;
+}
+/* Ensure sidebar items have correct hover */
+.sidebar a:hover,
+.sidebar button:hover {
+	text-decoration: none !important;
 }
 
 /* Smooth page transitions */
