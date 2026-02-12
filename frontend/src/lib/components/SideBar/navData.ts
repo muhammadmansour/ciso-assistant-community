@@ -1,16 +1,68 @@
 export const navData = {
 	items: [
-		// {
-		// 	name: 'Home',
-		// 	items: [
-		// 		{
-		// 			name: 'Home',
-		// 			fa_icon: 'fa-solid fa-house',
-		// 			href: '/'
-		// 		},
-		// 		{ name: 'Quick start', fa_icon: 'fa-solid fa-plane', href: '/quick-start' }
-		// 	]
-		// },
+		{
+			name: 'compliance',
+			items: [
+				{
+					name: 'complianceAssessments',
+					fa_icon: 'fa-solid fa-certificate',
+					href: '/compliance-assessments'
+				},
+				{
+					name: 'evidences',
+					fa_icon: 'fa-solid fa-receipt',
+					href: '/evidences'
+				},
+				{
+					name: 'rightRequests',
+					fa_icon: 'fa-solid fa-user-shield',
+					href: '/right-requests',
+					permissions: ['view_rightrequest']
+				},
+				{
+					name: 'calendar',
+					fa_icon: 'fa-solid fa-calendar-days',
+					href: '/calendar',
+					permissions: ['view_appliedcontrol', 'view_riskacceptance', 'view_riskassessment']
+				}
+			]
+		},
+		{
+			name: 'organization',
+			items: [
+				{
+					name: 'frameworks',
+					fa_icon: 'fa-solid fa-book',
+					href: '/frameworks'
+				},
+				{
+					name: 'domains',
+					fa_icon: 'fa-solid fa-sitemap',
+					href: '/folders',
+					exclude: ['BI-RL-TPR']
+				},
+				{
+					name: 'perimeters',
+					fa_icon: 'fa-solid fa-cubes',
+					href: '/perimeters'
+				},
+				{
+					name: 'users',
+					fa_icon: 'fa-solid fa-user',
+					href: '/users'
+				},
+				{
+					name: 'teams',
+					fa_icon: 'fa-solid fa-people-group',
+					href: '/teams'
+				},
+				{
+					name: 'userGroups',
+					fa_icon: 'fa-solid fa-users',
+					href: '/user-groups'
+				}
+			]
+		},
 		{
 			name: 'overview',
 			items: [
@@ -52,49 +104,8 @@ export const navData = {
 			]
 		},
 		{
-			name: 'organization',
-			items: [
-				{
-					name: 'domains',
-					fa_icon: 'fa-solid fa-sitemap',
-					href: '/folders',
-					exclude: ['BI-RL-TPR']
-				},
-				{
-					name: 'perimeters',
-					fa_icon: 'fa-solid fa-cubes',
-					href: '/perimeters'
-				},
-				{
-					name: 'users',
-					fa_icon: 'fa-solid fa-user',
-					href: '/users'
-				},
-				{
-					name: 'teams',
-					fa_icon: 'fa-solid fa-people-group',
-					href: '/teams'
-				},
-				{
-					name: 'userGroups',
-					fa_icon: 'fa-solid fa-users',
-					href: '/user-groups'
-				},
-				{
-					name: 'roleAssignments',
-					fa_icon: 'fa-solid fa-user-tag',
-					href: '/role-assignments'
-				}
-			]
-		},
-		{
 			name: 'catalog',
 			items: [
-				{
-					name: 'frameworks',
-					fa_icon: 'fa-solid fa-book',
-					href: '/frameworks'
-				},
 				{
 					name: 'threats',
 					fa_icon: 'fa-solid fa-biohazard',
@@ -144,12 +155,6 @@ export const navData = {
 					name: 'appliedControls',
 					fa_icon: 'fa-solid fa-fire-extinguisher',
 					href: '/applied-controls'
-				},
-				{
-					name: 'calendar',
-					fa_icon: 'fa-solid fa-calendar-days',
-					href: '/calendar',
-					permissions: ['view_appliedcontrol', 'view_riskacceptance', 'view_riskassessment']
 				},
 				{
 					name: 'xRays',
@@ -216,6 +221,11 @@ export const navData = {
 					name: 'followUp',
 					fa_icon: 'fa-solid fa-clipboard-list',
 					href: '/findings-assessments'
+				},
+				{
+					name: 'roleAssignments',
+					fa_icon: 'fa-solid fa-user-tag',
+					href: '/role-assignments'
 				}
 			]
 		},
@@ -251,31 +261,8 @@ export const navData = {
 				},
 				{
 					name: 'vulnerabilities',
-					// What is the best icon between "fa-triangle-exclamation" and "fa-skull-crossbones" for a vulnerability ?
 					fa_icon: 'fa-solid fa-triangle-exclamation',
 					href: '/vulnerabilities'
-				}
-			]
-		},
-
-		{
-			name: 'compliance',
-			items: [
-				{
-					name: 'complianceAssessments',
-					fa_icon: 'fa-solid fa-certificate',
-					href: '/compliance-assessments'
-				},
-				{
-					name: 'evidences',
-					fa_icon: 'fa-solid fa-receipt',
-					href: '/evidences'
-				},
-				{
-					name: 'recap',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/recap',
-					permissions: ['view_perimeter'] //this is temporary workaround to manage 3rd parties
 				}
 			]
 		},
@@ -366,12 +353,6 @@ export const navData = {
 					permissions: ['view_purpose']
 				},
 				{
-					name: 'rightRequests',
-					fa_icon: 'fa-solid fa-user-shield',
-					href: '/right-requests',
-					permissions: ['view_rightrequest']
-				},
-				{
 					name: 'dataBreaches',
 					fa_icon: 'fa-solid fa-triangle-exclamation',
 					href: '/data-breaches',
@@ -404,6 +385,12 @@ export const navData = {
 					fa_icon: 'fa-solid fa-tag',
 					href: '/filtering-labels',
 					permissions: ['view_filteringlabel']
+				},
+				{
+					name: 'recap',
+					fa_icon: 'fa-solid fa-clipboard-list',
+					href: '/recap',
+					permissions: ['view_perimeter']
 				},
 				{
 					name: 'terminologies',

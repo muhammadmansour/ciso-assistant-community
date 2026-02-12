@@ -7,6 +7,8 @@
 	import { page } from '$app/state';
 	import { URL_MODEL_MAP } from '$lib/utils/crud';
 	import { driverInstance } from '$lib/utils/stores';
+	import Anchor from '$lib/components/Anchor/Anchor.svelte';
+	import { safeTranslate } from '$lib/utils/i18n';
 
 	const user = page.data.user;
 
@@ -56,6 +58,17 @@
 </script>
 
 <nav class="grow scrollbar mt-2">
+	<!-- Standalone Home link -->
+	<Anchor
+		href="/analytics"
+		breadcrumbAction="replace"
+		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/analytics' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
+		data-testid="sidebar-home"
+	>
+		<i class="fa-solid fa-house w-4 text-center text-[13px] opacity-80"></i>
+		<span class="text-[13px] tracking-wide">Home</span>
+	</Anchor>
+
 	<Accordion
 		spaceY="space-y-2"
 		regionPanel="space-y-0.5"
