@@ -177,7 +177,7 @@
 						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white text-sm font-medium rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
 					>
 						<i class="fa-solid fa-play text-xs"></i>
-						Quick Start
+						Start Audit
 					</button>
 				{/if}
 				<!-- Powered by Wathbah -->
