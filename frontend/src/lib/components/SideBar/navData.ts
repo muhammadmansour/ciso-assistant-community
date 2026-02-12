@@ -13,12 +13,12 @@ export const navData = {
 					fa_icon: 'fa-solid fa-receipt',
 					href: '/evidences'
 				},
-				{
-					name: 'rightRequests',
-					fa_icon: 'fa-solid fa-user-shield',
-					href: '/right-requests',
-					permissions: ['view_rightrequest']
-				},
+			{
+				name: 'rightRequests',
+				fa_icon: 'fa-solid fa-fire-extinguisher',
+				href: '/applied-controls',
+				permissions: ['view_appliedcontrol']
+			},
 				{
 					name: 'calendar',
 					fa_icon: 'fa-solid fa-calendar-days',
