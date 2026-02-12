@@ -12,6 +12,7 @@
 	import { getCookie, deleteCookie } from '$lib/utils/cookies';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { m } from '$paraglide/messages';
 
 	import type { PageData, ActionData } from './$types';
@@ -131,6 +132,19 @@
 	}
 
 	let searchQuery = $state('');
+
+	function handleGlobalSearch() {
+		const q = searchQuery.trim();
+		if (q) {
+			goto(`/search?q=${encodeURIComponent(q)}`);
+		}
+	}
+
+	function handleSearchKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			handleGlobalSearch();
+		}
+	}
 </script>
 
 <!-- App Shell -->
@@ -143,14 +157,23 @@
 	>
 		<div class="flex items-center justify-between px-6 py-3">
 			<!-- Search Bar -->
-			<div class="relative flex-1 max-w-xl">
-				<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-				<input
-					type="text"
-					placeholder="Search..."
-					bind:value={searchQuery}
-					class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
-				/>
+			<div class="relative flex-1 max-w-xl flex items-center gap-2">
+				<div class="relative flex-1">
+					<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+					<input
+						type="text"
+						placeholder="Search..."
+						bind:value={searchQuery}
+						onkeydown={handleSearchKeydown}
+						class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
+					/>
+				</div>
+				<button
+					onclick={handleGlobalSearch}
+					class="px-4 py-2 bg-[#0A1628] text-white text-sm font-medium rounded-lg hover:bg-[#1a2740] transition-colors"
+				>
+					<i class="fa-solid fa-magnifying-glass"></i>
+				</button>
 			</div>
 
 			<!-- Right Side Actions -->
