@@ -360,7 +360,7 @@
 				>
 				<span class="pt-4 font-light text-sm">{m.powerUps()}</span>
 				<button
-					class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm"
 					onclick={(_) => modalDuplicateForm()}
 					data-testid="duplicate-button"
 				>
@@ -369,7 +369,7 @@
 				>
 				{#if !risk_assessment?.is_locked}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={async () => {
 							await modalConfirmSyncToActions(risk_assessment.id, '?/syncToActions');
 						}}
@@ -392,14 +392,14 @@
 				<Anchor
 					href="/risk-assessments/{risk_assessment.id}/convert-to-quantitative"
 					label={m.convertToQuantitative()}
-					class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm"
 				>
 					<i class="fa-solid fa-calculator mr-2"></i>
 					{m.convertToQuantitative()}
 				</Anchor>
 				{#if !risk_assessment?.is_locked && page.data?.featureflags?.validation_flows}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm"
 						onclick={() => modalRequestValidation()}
 						data-testid="request-validation-button"
 					>

@@ -54,13 +54,13 @@ html[lang="ar"] * {
 }
 
 @utility btn-mini-primary {
-	@apply text-gray-50 bg-[#1e2a4a] hover:bg-[#243156];
+	@apply text-gray-50 bg-[#0A1628] hover:bg-[#1a2740];
 }
 @utility btn-mini-secondary {
-	@apply text-gray-50 bg-[#243156] hover:bg-[#2a3a66];
+	@apply text-gray-50 bg-[#1a2740] hover:bg-[#2a3a66];
 }
 @utility btn-mini-tertiary {
-	@apply text-gray-50 bg-[#243156] hover:bg-[#2a3a66];
+	@apply text-gray-50 bg-[#1a2740] hover:bg-[#2a3a66];
 }
 
 @layer utilities {
@@ -107,8 +107,8 @@ html[lang="ar"] * {
 
 /* Custom brand colors */
 :root {
-	--wgrc-navy: #1e2a4a;
-	--wgrc-navy-light: #243156;
+	--wgrc-navy: #0A1628;
+	--wgrc-navy-light: #1a2740;
 	--wgrc-navy-dark: #1a2340;
 	--wgrc-blue: #3b82f6;
 	--wgrc-blue-dark: #2563eb;
@@ -174,11 +174,11 @@ html[lang="ar"] * {
 
 /* Button styles */
 .wgrc-btn-primary {
-	@apply bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white font-medium rounded-lg shadow-sm;
+	@apply bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-medium rounded-lg shadow-sm;
 	transition: all 0.2s ease;
 }
 .wgrc-btn-primary:hover {
-	@apply from-[#243156] to-[#2a3a66];
+	@apply from-[#1a2740] to-[#2a3a66];
 }
 
 .wgrc-btn-secondary {
@@ -212,16 +212,16 @@ html[lang="ar"] * {
 /* Override Skeleton preset-filled buttons to match sidebar navy */
 .preset-filled-primary-500,
 .preset-filled-secondary-500 {
-	background-color: #1e2a4a !important;
+	background-color: #0A1628 !important;
 	color: white !important;
 }
 .preset-filled-primary-500:hover,
 .preset-filled-secondary-500:hover {
-	background-color: #243156 !important;
+	background-color: #1a2740 !important;
 }
 
 .preset-filled-tertiary-500 {
-	background-color: #243156 !important;
+	background-color: #1a2740 !important;
 	color: white !important;
 }
 .preset-filled-tertiary-500:hover {
@@ -232,7 +232,7 @@ html[lang="ar"] * {
 .preset-tonal-primary,
 .preset-tonal-secondary {
 	background-color: rgba(30, 42, 74, 0.1) !important;
-	color: #1e2a4a !important;
+	color: #0A1628 !important;
 }
 .preset-tonal-primary:hover,
 .preset-tonal-secondary:hover {

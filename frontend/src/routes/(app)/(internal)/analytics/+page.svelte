@@ -776,7 +776,7 @@
 								</div>
 								<a
 									href="/compliance-assessments"
-									class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#1e2a4a] text-white rounded-lg hover:bg-[#243156] transition-colors"
+									class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors"
 								>
 									<i class="fas fa-plus text-sm"></i>
 									{m.createAssessment()}
@@ -979,7 +979,7 @@
 								</div>
 								<a
 									href="/incidents"
-									class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#1e2a4a] text-white rounded-lg hover:bg-[#243156] transition-colors"
+									class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors"
 								>
 									<i class="fas fa-plus text-sm"></i>
 									{m.createIncident()}

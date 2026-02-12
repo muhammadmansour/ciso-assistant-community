@@ -724,7 +724,7 @@
 					<Anchor
 						breadcrumbAction="push"
 						href={`${page.url.pathname}/flash-mode`}
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						data-testid="flash-mode-button"
 						><i class="fa-solid fa-bolt mr-2"></i> {m.flashMode()}</Anchor
 					>
@@ -733,33 +733,33 @@
 					<Anchor
 						breadcrumbAction="push"
 						href={`${page.url.pathname}/table-mode`}
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						data-testid="table-mode-button"
 						><i class="fa-solid fa-table-list mr-2"></i> {m.tableMode()}</Anchor
 					>
 				{/if}
 				{#if !page.data.user.is_third_party}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={() => modalCreateForm()}
 						data-testid="apply-mapping-button"
 						><i class="fa-solid fa-diagram-project mr-2"></i> {m.applyMapping()}
 					</button>
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={() => modalCreateCloneForm()}
 						data-testid="clone-audit-button"
 						><i class="fa-solid fa-copy mr-2"></i> {m.cloneAudit()}
 					</button>
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={() => modalCompareAudit()}
 						data-testid="compare-audit-button"
 						><i class="fa-solid fa-code-compare mr-2"></i>{m.compareToAudit()}
 					</button>
 					{#if page.data?.featureflags?.validation_flows}
 						<button
-							class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+							class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 							onclick={() => modalRequestValidation()}
 							data-testid="request-validation-button"
 						>
@@ -771,7 +771,7 @@
 
 				{#if !page.data.user.is_third_party && !data.compliance_assessment.is_locked}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						data-testid="sync-to-actions-button"
 						onclick={async () => {
 							await modalConfirmSyncToActions(
@@ -799,7 +799,7 @@
 
 				{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && data.compliance_assessment.framework.reference_controls.length > 0 && !data.compliance_assessment.is_locked}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={() => {
 							modalConfirmCreateSuggestedControls(
 								data.compliance_assessment.id,
@@ -825,7 +825,7 @@
 				{/if}
 				{#if has_threats && !page.data.user.is_third_party}
 					<button
-						class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+						class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 						onclick={openThreatsDialog}
 					>
 						<div class="flex items-center space-x-2">

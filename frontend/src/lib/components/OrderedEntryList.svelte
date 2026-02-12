@@ -82,7 +82,7 @@
 		/>
 		<button
 			type="button"
-			class="btn bg-[#1e2a4a] text-white hover:bg-[#243156] px-4 py-2 rounded font-medium transition-colors whitespace-nowrap"
+			class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] px-4 py-2 rounded font-medium transition-colors whitespace-nowrap"
 			onclick={addEntry}
 		>
 			{m.orderedEntryListAddButton()}

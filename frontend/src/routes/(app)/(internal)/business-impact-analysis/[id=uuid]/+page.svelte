@@ -81,7 +81,7 @@
 			>
 			{#if !business_impact_analysis?.is_locked && page.data?.featureflags?.validation_flows}
 				<button
-					class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 					onclick={() => modalRequestValidation()}
 					data-testid="request-validation-button"
 				>

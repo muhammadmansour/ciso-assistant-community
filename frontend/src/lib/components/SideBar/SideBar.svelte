@@ -293,7 +293,7 @@
 			open
 		)}"
 	>
-		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[#1e2a4a] py-4 px-3">
+		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[#0A1628] py-4 px-3">
 			<SideBarHeader />
 			<SideBarNavigation {sideBarVisibleItems} />
 			<SideBarFooter on:triggerGT={triggerVisit} on:loadDemoDomain={loadDemoDomain} />

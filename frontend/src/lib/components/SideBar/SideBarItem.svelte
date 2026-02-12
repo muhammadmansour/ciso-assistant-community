@@ -12,8 +12,8 @@
 
 	let classesActive = $derived((href: string) =>
 		href === page.url.pathname
-			? 'bg-[#243156] text-white font-medium'
-			: 'text-white/70 hover:bg-[#243156] hover:text-white'
+			? 'bg-[#1a2740] text-white font-medium'
+			: 'text-white/70 hover:bg-[#1a2740] hover:text-white'
 	);
 </script>
 

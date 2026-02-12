@@ -52,7 +52,7 @@
 <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
 	<div data-testid="login" class="flex flex-col w-full items-center space-y-5">
 		<!-- Icon -->
-		<div class="w-16 h-16 bg-gradient-to-br from-[#1e2a4a] to-[#243156] rounded-2xl flex items-center justify-center shadow-lg">
+		<div class="w-16 h-16 bg-gradient-to-br from-[#0A1628] to-[#1a2740] rounded-2xl flex items-center justify-center shadow-lg">
 			<i class="fa-solid fa-right-to-bracket text-white text-2xl"></i>
 		</div>
 		
@@ -86,7 +86,7 @@
 						</a>
 					</div>
 					<button
-						class="btn w-full bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white font-semibold py-3 rounded-lg shadow-sm hover:from-[#243156] hover:to-[#2a3a66] transition-all duration-200"
+						class="btn w-full bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-semibold py-3 rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
 						data-testid="login-btn"
 						type="submit">{m.login()}</button
 					>
@@ -100,7 +100,7 @@
 				<hr class="flex-1 bg-gray-200 border-0 h-px" />
 			</div>
 			<button
-				class="btn w-full bg-[#1e2a4a] hover:bg-[#243156] text-white font-semibold py-3 rounded-lg transition-all duration-200"
+				class="btn w-full bg-[#0A1628] hover:bg-[#1a2740] text-white font-semibold py-3 rounded-lg transition-all duration-200"
 				onclick={() =>
 					redirectToProvider(data.SSOInfo.sp_entity_id, data.SSOInfo.callback_url, 'login')}
 				>{m.loginSSO()}</button

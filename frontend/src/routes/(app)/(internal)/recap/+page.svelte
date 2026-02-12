@@ -138,7 +138,7 @@
 		{#each data.perimeters as perimeter}
 			{#if perimeter.compliance_assessments.length > 0}
 				<div class="wgrc-card overflow-hidden !p-0">
-					<div class="p-4 bg-gradient-to-r from-[#1e2a4a] to-[#2a3a5c] text-white flex justify-between items-center">
+					<div class="p-4 bg-gradient-to-r from-[#0A1628] to-[#2a3a5c] text-white flex justify-between items-center">
 						<a class="text-lg font-bold hover:underline text-white" href="/perimeters/{perimeter.id}">
 							{perimeter.folder.str}/{perimeter.name}
 						</a>
@@ -216,7 +216,7 @@
 										{#if canEditObject(perimeter)}
 											<Anchor
 												href="/compliance-assessments/{assessment.id}/edit?next=/recap"
-												class="btn bg-[#1e2a4a] text-white hover:bg-[#243156] rounded-lg text-sm px-4 py-2"
+												class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] rounded-lg text-sm px-4 py-2"
 											>
 												<i class="fa-solid fa-edit mr-2"></i>
 												{m.edit()}

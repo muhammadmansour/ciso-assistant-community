@@ -212,7 +212,7 @@
 								{/if}
 								{#if URLModel === 'folders'}
 									<button
-										class="text-gray-50 inline-block border-e p-3 bg-[#243156] hover:bg-[#2a3a66] w-12 focus:relative"
+										class="text-gray-50 inline-block border-e p-3 bg-[#1a2740] hover:bg-[#2a3a66] w-12 focus:relative"
 										data-testid="import-button"
 										title={safeTranslate('importFolder')}
 										aria-label={safeTranslate('importFolder')}

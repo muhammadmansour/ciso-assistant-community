@@ -65,7 +65,7 @@
 				<Anchor
 					breadcrumbAction="push"
 					href={`/applied-controls/flash-mode?risk_assessments=${page.params.id}&backUrl=${encodeURIComponent(page.url.pathname)}&backLabel=${encodeURIComponent(m.actionPlan())}`}
-					class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] shadow-sm h-fit"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit"
 					><i class="fa-solid fa-bolt mr-2"></i> {m.flashMode()}</Anchor
 				>
 			</div>

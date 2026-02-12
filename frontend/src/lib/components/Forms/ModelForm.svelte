@@ -871,7 +871,7 @@
 					}}>{m.cancel()}</button
 				>
 			<button
-				class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"
@@ -889,7 +889,7 @@
 					>
 				{/if}
 			<button
-				class="btn bg-gradient-to-r from-[#1e2a4a] to-[#243156] text-white hover:from-[#243156] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"
