@@ -24,6 +24,8 @@
 
 	let { data, form }: Props = $props();
 
+	let loading = $state(false);
+
 	const modalStore: ModalStore = getModalStore();
 
 	function modalMFAAuthenticate(): void {
@@ -45,7 +47,10 @@
 	}
 
 	run(() => {
-		form && form.mfaFlow ? modalMFAAuthenticate() : null;
+		if (form) {
+			loading = false;
+			if (form.mfaFlow) modalMFAAuthenticate();
+		}
 	});
 </script>
 
@@ -85,11 +90,23 @@
 							{m.forgtPassword()}?
 						</a>
 					</div>
-					<button
-						class="btn w-full bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-semibold py-3 rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
-						data-testid="login-btn"
-						type="submit">{m.login()}</button
-					>
+				<button
+					class="btn w-full bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-semibold py-3 rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+					data-testid="login-btn"
+					type="submit"
+					disabled={loading}
+					onclick={() => (loading = true)}
+				>
+					{#if loading}
+						<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" />
+							<path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75" />
+						</svg>
+						{m.login()}...
+					{:else}
+						{m.login()}
+					{/if}
+				</button>
 				{/snippet}
 			</SuperForm>
 		</div>
