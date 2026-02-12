@@ -1,46 +1,6 @@
 export const navData = {
 	items: [
 		{
-			name: 'home',
-			items: [
-				{
-					name: 'analytics',
-					fa_icon: 'fa-solid fa-gauge',
-					href: '/analytics',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_assessment',
-						'view_riskassessment'
-					]
-				},
-				{
-					name: 'reports',
-					fa_icon: 'fas fa-file-invoice',
-					href: '/reports',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_riskassessment'
-					]
-				},
-				{
-					name: 'myAssignments',
-					fa_icon: 'fa-solid fa-list-check',
-					href: '/my-assignments',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_assessment',
-						'view_riskassessment'
-					]
-				}
-			]
-		},
-		{
 			name: 'compliance',
 			items: [
 				{
@@ -102,321 +62,361 @@ export const navData = {
 					href: '/user-groups'
 				}
 			]
-		},
-		{
-			name: 'catalog',
-			items: [
-				{
-					name: 'threats',
-					fa_icon: 'fa-solid fa-biohazard',
-					href: '/threats'
-				},
-				{
-					name: 'referenceControls',
-					fa_icon: 'fa-solid fa-gears',
-					href: '/reference-controls'
-				},
-				{
-					name: 'requirementMappingSets',
-					fa_icon: 'fa-solid fa-diagram-project',
-					href: '/requirement-mapping-sets'
-				},
-				{
-					name: 'riskMatrices',
-					fa_icon: 'fa-solid fa-table-cells-large',
-					href: '/risk-matrices'
-				}
-			]
-		},
-		{
-			name: 'assetsManagement',
-			items: [
-				{
-					name: 'assets',
-					fa_icon: 'fa-solid fa-gem',
-					href: '/assets'
-				},
-				{
-					name: 'businessImpactAnalysis',
-					fa_icon: 'fa-solid fa-arrows-to-eye',
-					href: '/business-impact-analysis',
-					permissions: [
-						'view_businessimpactanalysis',
-						'view_assetassessment',
-						'view_escalationthreshold'
-					]
-				}
-			]
-		},
-		{
-			name: 'operations',
-			items: [
-				{
-					name: 'appliedControls',
-					fa_icon: 'fa-solid fa-fire-extinguisher',
-					href: '/applied-controls'
-				},
-				{
-					name: 'xRays',
-					fa_icon: 'fa-solid fa-bolt',
-					href: '/x-rays',
-					permissions: ['view_riskassessment', 'view_assessment']
-				},
-				{
-					name: 'incidents',
-					fa_icon: 'fa-solid fa-bug',
-					href: '/incidents'
-				},
-				{
-					name: 'tasks',
-					fa_icon: 'fa-solid fa-note-sticky',
-					href: '/task-templates'
-				}
-			]
-		},
-		{
-			name: 'governance',
-			items: [
-				{
-					name: 'libraries',
-					fa_icon: 'fa-solid fa-folder-plus',
-					href: '/libraries',
-					permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
-				},
-				{
-					name: 'policies',
-					fa_icon: 'fa-solid fa-file-alt',
-					href: '/policies',
-					permissions: ['view_appliedcontrol']
-				},
-				{
-					name: 'organisationIssues',
-					fa_icon: 'fa-solid fa-briefcase',
-					href: '/organisation-issues',
-					permissions: ['view_organisationissue']
-				},
-				{
-					name: 'organisationObjectives',
-					fa_icon: 'fa-solid fa-bullseye',
-					href: '/organisation-objectives',
-					permissions: ['view_organisationobjective']
-				},
-				{
-					name: 'riskAcceptances',
-					fa_icon: 'fa-solid fa-signature',
-					href: '/risk-acceptances'
-				},
-				{
-					name: 'validationFlows',
-					fa_icon: 'fa-solid fa-clipboard-check',
-					href: '/validation-flows',
-					permissions: ['view_validationflow']
-				},
-				{
-					name: 'securityExceptions',
-					fa_icon: 'fa-solid fa-circle-exclamation',
-					href: '/security-exceptions'
-				},
-				{
-					name: 'followUp',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/findings-assessments'
-				},
-				{
-					name: 'roleAssignments',
-					fa_icon: 'fa-solid fa-user-tag',
-					href: '/role-assignments'
-				}
-			]
-		},
-		{
-			name: 'risk',
-			items: [
-				{
-					name: 'riskAssessments',
-					fa_icon: 'fa-solid fa-magnifying-glass-chart',
-					href: '/risk-assessments'
-				},
-				{
-					name: 'ebiosRM',
-					fa_icon: 'fa-solid fa-gopuram',
-					href: '/ebios-rm'
-				},
-				{
-					name: 'quantitativeRiskStudies',
-					fa_icon: 'fa-solid fa-calculator',
-					href: '/quantitative-risk-studies',
-					permissions: ['view_quantitativeriskstudy']
-				},
-				{
-					name: 'riskScenarios',
-					fa_icon: 'fa-solid fa-clone',
-					href: '/risk-scenarios'
-				},
-				{
-					name: 'scoringAssistant',
-					fa_icon: 'fa-solid fa-star-half-stroke',
-					href: '/scoring-assistant',
-					permissions: ['view_riskmatrix']
-				},
-				{
-					name: 'vulnerabilities',
-					fa_icon: 'fa-solid fa-triangle-exclamation',
-					href: '/vulnerabilities'
-				}
-			]
-		},
-		{
-			name: 'metrology',
-			items: [
-				{
-					name: 'metricDefinitions',
-					fa_icon: 'fa-solid fa-ruler',
-					href: '/metric-definitions',
-					permissions: ['view_metricdefinition']
-				},
-				{
-					name: 'metricInstances',
-					fa_icon: 'fa-solid fa-chart-line',
-					href: '/metric-instances',
-					permissions: ['view_metricinstance']
-				},
-				{
-					name: 'dashboards',
-					fa_icon: 'fa-solid fa-chart-bar',
-					href: '/dashboards',
-					permissions: ['view_dashboard']
-				}
-			]
-		},
-		{
-			name: 'thirdPartyCategory',
-			items: [
-				{
-					name: 'tprmOverview',
-					fa_icon: 'fa-solid fa-gauge',
-					href: '/analytics/tprm',
-					permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
-				},
-				{
-					name: 'entities',
-					fa_icon: 'fa-solid fa-building',
-					href: '/entities'
-				},
-				{
-					name: 'representatives',
-					fa_icon: 'fa-solid fa-user-tie',
-					href: '/representatives'
-				},
-				{
-					name: 'solutions',
-					fa_icon: 'fa-solid fa-box',
-					href: '/solutions'
-				},
-				{
-					name: 'contracts',
-					fa_icon: 'fa-solid fa-file-contract',
-					href: '/contracts'
-				},
-				{
-					name: 'entityAssessments',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/entity-assessments'
-				}
-			]
-		},
-		{
-			name: 'privacy',
-			items: [
-				{
-					name: 'overview',
-					fa_icon: 'fa-solid fa-gauge',
-					href: '/analytics/gdpr',
-					permissions: ['view_processing', 'view_purpose']
-				},
-				{
-					name: 'processingsRegister',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/processings',
-					permissions: ['view_processing']
-				},
-				{
-					name: 'personalData',
-					fa_icon: 'fa-solid fa-users-viewfinder',
-					href: '/personal-data',
-					permissions: ['view_personaldata']
-				},
-				{
-					name: 'purposes',
-					fa_icon: 'fa-solid fa-diamond',
-					href: '/purposes',
-					permissions: ['view_purpose']
-				},
-				{
-					name: 'dataBreaches',
-					fa_icon: 'fa-solid fa-triangle-exclamation',
-					href: '/data-breaches',
-					permissions: ['view_databreach']
-				}
-			]
-		},
-		{
-			name: 'projectManagement',
-			items: [
-				{
-					name: 'genericCollections',
-					fa_icon: 'fa-solid fa-box-archive',
-					href: '/generic-collections',
-					permissions: ['view_genericcollection']
-				},
-				{
-					name: 'accreditations',
-					fa_icon: 'fa-solid fa-award',
-					href: '/accreditations',
-					permissions: ['view_accreditation']
-				}
-			]
-		},
-		{
-			name: 'extra',
-			items: [
-				{
-					name: 'labels',
-					fa_icon: 'fa-solid fa-tag',
-					href: '/filtering-labels',
-					permissions: ['view_filteringlabel']
-				},
-				{
-					name: 'recap',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/recap',
-					permissions: ['view_perimeter']
-				},
-				{
-					name: 'terminologies',
-					fa_icon: 'fa-solid fa-language',
-					href: '/terminologies',
-					permissions: ['view_terminology']
-				},
-				{
-					name: 'settings',
-					fa_icon: 'fa-solid fa-cog',
-					href: '/settings',
-					permissions: ['change_globalsettings']
-				},
-				{
-					name: 'backupRestore',
-					fa_icon: 'fa-solid fa-floppy-disk',
-					href: '/backup-restore',
-					permissions: ['backup']
-				},
-				{
-					name: 'experimental',
-					fa_icon: 'fa-solid fa-flask',
-					href: '/experimental',
-					permissions: ['change_globalsettings']
-				}
-			]
 		}
+		// {
+		// 	name: 'overview',
+		// 	items: [
+		// 		{
+		// 			name: 'analytics',
+		// 			fa_icon: 'fa-solid fa-gauge',
+		// 			href: '/analytics',
+		// 			permissions: [
+		// 				'view_perimeter',
+		// 				'view_riskscenario',
+		// 				'view_referencecontrol',
+		// 				'view_assessment',
+		// 				'view_riskassessment'
+		// 			]
+		// 		},
+		// 		{
+		// 			name: 'reports',
+		// 			fa_icon: 'fas fa-file-invoice',
+		// 			href: '/reports',
+		// 			permissions: [
+		// 				'view_perimeter',
+		// 				'view_riskscenario',
+		// 				'view_referencecontrol',
+		// 				'view_riskassessment'
+		// 			]
+		// 		},
+		// 		{
+		// 			name: 'myAssignments',
+		// 			fa_icon: 'fa-solid fa-list-check',
+		// 			href: '/my-assignments',
+		// 			permissions: [
+		// 				'view_perimeter',
+		// 				'view_riskscenario',
+		// 				'view_referencecontrol',
+		// 				'view_assessment',
+		// 				'view_riskassessment'
+		// 			]
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'catalog',
+		// 	items: [
+		// 		{
+		// 			name: 'threats',
+		// 			fa_icon: 'fa-solid fa-biohazard',
+		// 			href: '/threats'
+		// 		},
+		// 		{
+		// 			name: 'referenceControls',
+		// 			fa_icon: 'fa-solid fa-gears',
+		// 			href: '/reference-controls'
+		// 		},
+		// 		{
+		// 			name: 'requirementMappingSets',
+		// 			fa_icon: 'fa-solid fa-diagram-project',
+		// 			href: '/requirement-mapping-sets'
+		// 		},
+		// 		{
+		// 			name: 'riskMatrices',
+		// 			fa_icon: 'fa-solid fa-table-cells-large',
+		// 			href: '/risk-matrices'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'assetsManagement',
+		// 	items: [
+		// 		{
+		// 			name: 'assets',
+		// 			fa_icon: 'fa-solid fa-gem',
+		// 			href: '/assets'
+		// 		},
+		// 		{
+		// 			name: 'businessImpactAnalysis',
+		// 			fa_icon: 'fa-solid fa-arrows-to-eye',
+		// 			href: '/business-impact-analysis',
+		// 			permissions: [
+		// 				'view_businessimpactanalysis',
+		// 				'view_assetassessment',
+		// 				'view_escalationthreshold'
+		// 			]
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'operations',
+		// 	items: [
+		// 		{
+		// 			name: 'appliedControls',
+		// 			fa_icon: 'fa-solid fa-fire-extinguisher',
+		// 			href: '/applied-controls'
+		// 		},
+		// 		{
+		// 			name: 'xRays',
+		// 			fa_icon: 'fa-solid fa-bolt',
+		// 			href: '/x-rays',
+		// 			permissions: ['view_riskassessment', 'view_assessment']
+		// 		},
+		// 		{
+		// 			name: 'incidents',
+		// 			fa_icon: 'fa-solid fa-bug',
+		// 			href: '/incidents'
+		// 		},
+		// 		{
+		// 			name: 'tasks',
+		// 			fa_icon: 'fa-solid fa-note-sticky',
+		// 			href: '/task-templates'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'governance',
+		// 	items: [
+		// 		{
+		// 			name: 'libraries',
+		// 			fa_icon: 'fa-solid fa-folder-plus',
+		// 			href: '/libraries',
+		// 			permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
+		// 		},
+		// 		{
+		// 			name: 'policies',
+		// 			fa_icon: 'fa-solid fa-file-alt',
+		// 			href: '/policies',
+		// 			permissions: ['view_appliedcontrol']
+		// 		},
+		// 		{
+		// 			name: 'organisationIssues',
+		// 			fa_icon: 'fa-solid fa-briefcase',
+		// 			href: '/organisation-issues',
+		// 			permissions: ['view_organisationissue']
+		// 		},
+		// 		{
+		// 			name: 'organisationObjectives',
+		// 			fa_icon: 'fa-solid fa-bullseye',
+		// 			href: '/organisation-objectives',
+		// 			permissions: ['view_organisationobjective']
+		// 		},
+		// 		{
+		// 			name: 'riskAcceptances',
+		// 			fa_icon: 'fa-solid fa-signature',
+		// 			href: '/risk-acceptances'
+		// 		},
+		// 		{
+		// 			name: 'validationFlows',
+		// 			fa_icon: 'fa-solid fa-clipboard-check',
+		// 			href: '/validation-flows',
+		// 			permissions: ['view_validationflow']
+		// 		},
+		// 		{
+		// 			name: 'securityExceptions',
+		// 			fa_icon: 'fa-solid fa-circle-exclamation',
+		// 			href: '/security-exceptions'
+		// 		},
+		// 		{
+		// 			name: 'followUp',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/findings-assessments'
+		// 		},
+		// 		{
+		// 			name: 'roleAssignments',
+		// 			fa_icon: 'fa-solid fa-user-tag',
+		// 			href: '/role-assignments'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'risk',
+		// 	items: [
+		// 		{
+		// 			name: 'riskAssessments',
+		// 			fa_icon: 'fa-solid fa-magnifying-glass-chart',
+		// 			href: '/risk-assessments'
+		// 		},
+		// 		{
+		// 			name: 'ebiosRM',
+		// 			fa_icon: 'fa-solid fa-gopuram',
+		// 			href: '/ebios-rm'
+		// 		},
+		// 		{
+		// 			name: 'quantitativeRiskStudies',
+		// 			fa_icon: 'fa-solid fa-calculator',
+		// 			href: '/quantitative-risk-studies',
+		// 			permissions: ['view_quantitativeriskstudy']
+		// 		},
+		// 		{
+		// 			name: 'riskScenarios',
+		// 			fa_icon: 'fa-solid fa-clone',
+		// 			href: '/risk-scenarios'
+		// 		},
+		// 		{
+		// 			name: 'scoringAssistant',
+		// 			fa_icon: 'fa-solid fa-star-half-stroke',
+		// 			href: '/scoring-assistant',
+		// 			permissions: ['view_riskmatrix']
+		// 		},
+		// 		{
+		// 			name: 'vulnerabilities',
+		// 			fa_icon: 'fa-solid fa-triangle-exclamation',
+		// 			href: '/vulnerabilities'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'metrology',
+		// 	items: [
+		// 		{
+		// 			name: 'metricDefinitions',
+		// 			fa_icon: 'fa-solid fa-ruler',
+		// 			href: '/metric-definitions',
+		// 			permissions: ['view_metricdefinition']
+		// 		},
+		// 		{
+		// 			name: 'metricInstances',
+		// 			fa_icon: 'fa-solid fa-chart-line',
+		// 			href: '/metric-instances',
+		// 			permissions: ['view_metricinstance']
+		// 		},
+		// 		{
+		// 			name: 'dashboards',
+		// 			fa_icon: 'fa-solid fa-chart-bar',
+		// 			href: '/dashboards',
+		// 			permissions: ['view_dashboard']
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'thirdPartyCategory',
+		// 	items: [
+		// 		{
+		// 			name: 'tprmOverview',
+		// 			fa_icon: 'fa-solid fa-gauge',
+		// 			href: '/analytics/tprm',
+		// 			permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
+		// 		},
+		// 		{
+		// 			name: 'entities',
+		// 			fa_icon: 'fa-solid fa-building',
+		// 			href: '/entities'
+		// 		},
+		// 		{
+		// 			name: 'representatives',
+		// 			fa_icon: 'fa-solid fa-user-tie',
+		// 			href: '/representatives'
+		// 		},
+		// 		{
+		// 			name: 'solutions',
+		// 			fa_icon: 'fa-solid fa-box',
+		// 			href: '/solutions'
+		// 		},
+		// 		{
+		// 			name: 'contracts',
+		// 			fa_icon: 'fa-solid fa-file-contract',
+		// 			href: '/contracts'
+		// 		},
+		// 		{
+		// 			name: 'entityAssessments',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/entity-assessments'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'privacy',
+		// 	items: [
+		// 		{
+		// 			name: 'overview',
+		// 			fa_icon: 'fa-solid fa-gauge',
+		// 			href: '/analytics/gdpr',
+		// 			permissions: ['view_processing', 'view_purpose']
+		// 		},
+		// 		{
+		// 			name: 'processingsRegister',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/processings',
+		// 			permissions: ['view_processing']
+		// 		},
+		// 		{
+		// 			name: 'personalData',
+		// 			fa_icon: 'fa-solid fa-users-viewfinder',
+		// 			href: '/personal-data',
+		// 			permissions: ['view_personaldata']
+		// 		},
+		// 		{
+		// 			name: 'purposes',
+		// 			fa_icon: 'fa-solid fa-diamond',
+		// 			href: '/purposes',
+		// 			permissions: ['view_purpose']
+		// 		},
+		// 		{
+		// 			name: 'dataBreaches',
+		// 			fa_icon: 'fa-solid fa-triangle-exclamation',
+		// 			href: '/data-breaches',
+		// 			permissions: ['view_databreach']
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'projectManagement',
+		// 	items: [
+		// 		{
+		// 			name: 'genericCollections',
+		// 			fa_icon: 'fa-solid fa-box-archive',
+		// 			href: '/generic-collections',
+		// 			permissions: ['view_genericcollection']
+		// 		},
+		// 		{
+		// 			name: 'accreditations',
+		// 			fa_icon: 'fa-solid fa-award',
+		// 			href: '/accreditations',
+		// 			permissions: ['view_accreditation']
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'extra',
+		// 	items: [
+		// 		{
+		// 			name: 'labels',
+		// 			fa_icon: 'fa-solid fa-tag',
+		// 			href: '/filtering-labels',
+		// 			permissions: ['view_filteringlabel']
+		// 		},
+		// 		{
+		// 			name: 'recap',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/recap',
+		// 			permissions: ['view_perimeter']
+		// 		},
+		// 		{
+		// 			name: 'terminologies',
+		// 			fa_icon: 'fa-solid fa-language',
+		// 			href: '/terminologies',
+		// 			permissions: ['view_terminology']
+		// 		},
+		// 		{
+		// 			name: 'settings',
+		// 			fa_icon: 'fa-solid fa-cog',
+		// 			href: '/settings',
+		// 			permissions: ['change_globalsettings']
+		// 		},
+		// 		{
+		// 			name: 'backupRestore',
+		// 			fa_icon: 'fa-solid fa-floppy-disk',
+		// 			href: '/backup-restore',
+		// 			permissions: ['backup']
+		// 		},
+		// 		{
+		// 			name: 'experimental',
+		// 			fa_icon: 'fa-solid fa-flask',
+		// 			href: '/experimental',
+		// 			permissions: ['change_globalsettings']
+		// 		}
+		// 	]
+		// }
 	]
 };
