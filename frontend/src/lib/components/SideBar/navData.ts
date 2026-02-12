@@ -1,6 +1,46 @@
 export const navData = {
 	items: [
 		{
+			name: 'home',
+			items: [
+				{
+					name: 'analytics',
+					fa_icon: 'fa-solid fa-gauge',
+					href: '/analytics',
+					permissions: [
+						'view_perimeter',
+						'view_riskscenario',
+						'view_referencecontrol',
+						'view_assessment',
+						'view_riskassessment'
+					]
+				},
+				{
+					name: 'reports',
+					fa_icon: 'fas fa-file-invoice',
+					href: '/reports',
+					permissions: [
+						'view_perimeter',
+						'view_riskscenario',
+						'view_referencecontrol',
+						'view_riskassessment'
+					]
+				},
+				{
+					name: 'myAssignments',
+					fa_icon: 'fa-solid fa-list-check',
+					href: '/my-assignments',
+					permissions: [
+						'view_perimeter',
+						'view_riskscenario',
+						'view_referencecontrol',
+						'view_assessment',
+						'view_riskassessment'
+					]
+				}
+			]
+		},
+		{
 			name: 'compliance',
 			items: [
 				{
@@ -60,46 +100,6 @@ export const navData = {
 					name: 'userGroups',
 					fa_icon: 'fa-solid fa-users',
 					href: '/user-groups'
-				}
-			]
-		},
-		{
-			name: 'overview',
-			items: [
-				{
-					name: 'analytics',
-					fa_icon: 'fa-solid fa-gauge',
-					href: '/analytics',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_assessment',
-						'view_riskassessment'
-					]
-				},
-				{
-					name: 'reports',
-					fa_icon: 'fas fa-file-invoice',
-					href: '/reports',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_riskassessment'
-					]
-				},
-				{
-					name: 'myAssignments',
-					fa_icon: 'fa-solid fa-list-check',
-					href: '/my-assignments',
-					permissions: [
-						'view_perimeter',
-						'view_riskscenario',
-						'view_referencecontrol',
-						'view_assessment',
-						'view_riskassessment'
-					]
 				}
 			]
 		},
