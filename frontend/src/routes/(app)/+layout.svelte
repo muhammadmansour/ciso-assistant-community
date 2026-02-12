@@ -164,6 +164,16 @@
 						Start Audit
 					</button>
 				{/if}
+				<!-- Powered by Wathbah -->
+				<a
+					href="https://wathbahs.com/"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors ml-2"
+				>
+					<span class="text-xs">Powered by</span>
+					<img src="/wathbah.svg" alt="Wathbah" class="h-6" />
+				</a>
 			</div>
 		</div>
 	</header>
