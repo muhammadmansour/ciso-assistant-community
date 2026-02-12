@@ -55,7 +55,7 @@
 					{page.data.user.last_name}
 				</span>
 				<span
-					class="font-normal text-xs whitespace-nowrap truncate text-blue-200/60 w-full"
+					class="font-normal text-xs whitespace-nowrap truncate text-white/50 w-full"
 					data-testid="sidebar-user-email-display"
 				>
 					{page.data.user.email}
@@ -73,7 +73,7 @@
 			>
 				{#snippet trigger()}
 					<button
-						class="btn bg-initial text-blue-200/70 hover:text-white transition-colors"
+						class="btn bg-initial text-white/50 hover:text-white transition-colors"
 						data-testid="sidebar-more-btn"
 						aria-label="More options"
 						id="sidebar-more-btn"
@@ -141,7 +141,7 @@
 			</Popover>
 		{:else}
 			<button
-				class="btn bg-initial text-blue-200/70"
+				class="btn bg-initial text-white/50"
 				data-testid="sidebar-more-btn-disabled"
 				aria-label="More options"
 				id="sidebar-more-btn-disabled"><i class="fa-solid fa-ellipsis-vertical"></i></button
