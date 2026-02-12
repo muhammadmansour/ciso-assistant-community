@@ -164,8 +164,8 @@
 	<!-- All Tasks -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 		<div class="mb-4">
-			<h2 class="text-xl font-bold text-gray-900">All Tasks</h2>
-			<p class="text-sm text-gray-500">Complete these tasks by uploading the required evidence</p>
+		<h2 class="text-xl font-bold text-gray-900">My Assignments</h2>
+		<p class="text-sm text-gray-500">Complete these tasks by uploading the required evidence</p>
 		</div>
 
 		{#if appliedControls.length === 0}
