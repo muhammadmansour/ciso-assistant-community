@@ -3,29 +3,34 @@
 
 	const features = [
 		{
-			icon: 'fa-solid fa-clipboard-check',
-			title: 'Assessment Engine',
-			description: 'Workflows for all 10 perspectives & 23 axes'
+			icon: 'fa-solid fa-shield-halved',
+			title: 'Framework Compliance',
+			desc: 'Qiyas, SAMA, NCA & national frameworks'
 		},
 		{
-			icon: 'fa-solid fa-shield-halved',
-			title: 'Control Management',
-			description: 'Track and manage compliance controls in real time'
+			icon: 'fa-solid fa-clipboard-check',
+			title: 'Assessment Engine',
+			desc: 'Workflows for all 10 perspectives & 23 axes'
 		},
 		{
 			icon: 'fa-solid fa-chart-line',
-			title: 'Risk Analytics',
-			description: 'Comprehensive risk scoring and trend analysis'
+			title: 'Real-time Tracking',
+			desc: 'Monitor progress & control statuses live'
 		},
 		{
-			icon: 'fa-solid fa-file-certificate',
-			title: 'Evidence Collection',
-			description: 'Centralized evidence repository with version control'
+			icon: 'fa-solid fa-brain',
+			title: 'AI Evidence Analysis',
+			desc: 'Auto-assess submissions against Qiyas criteria'
 		},
 		{
-			icon: 'fa-solid fa-users-gear',
+			icon: 'fa-solid fa-users',
 			title: 'Team Collaboration',
-			description: 'Assign tasks, track progress, and manage approvals'
+			desc: 'Assign tasks, share evidence & coordinate reviews'
+		},
+		{
+			icon: 'fa-solid fa-folder-open',
+			title: 'Structured Export',
+			desc: 'Organized folder structure mapped to Qiyas criteria'
 		}
 	];
 
@@ -34,44 +39,54 @@
 	onMount(() => {
 		const interval = setInterval(() => {
 			activeIndex = (activeIndex + 1) % features.length;
-		}, 4000);
+		}, 3500);
 		return () => clearInterval(interval);
 	});
 </script>
 
 <div class="flex flex-col items-center text-center">
 	<!-- Title -->
-	<h1 class="text-5xl font-black tracking-tight mb-3">
+	<div class="text-5xl font-extrabold tracking-tight mb-3">
 		<span class="text-[#0077CC]">W</span><span class="text-white">athbahGRC</span>
-	</h1>
+	</div>
 
 	<!-- Subtitle -->
-	<h2 class="text-xl font-bold text-white mb-4">
+	<h1 class="text-3xl font-bold text-white leading-tight mb-4 whitespace-nowrap">
 		Compliance Management Platform
-	</h2>
+	</h1>
 
 	<!-- Description -->
-	<p class="text-white/60 text-base leading-relaxed max-w-md mb-12">
-		Simplify compliance assessments, track requirements in real time, and ensure your organization meets national regulatory standards.
+	<p class="text-gray-400 text-base leading-relaxed max-w-md mb-10">
+		Simplify compliance assessments, track requirements in real time, and ensure your organization
+		meets national regulatory standards.
 	</p>
 
 	<!-- Feature Carousel -->
-	<div class="w-full max-w-lg">
-		<div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl px-5 py-4 flex items-center gap-4">
-			<div class="w-10 h-10 rounded-lg bg-[#0077CC]/20 flex items-center justify-center flex-shrink-0">
-				<i class="{features[activeIndex].icon} text-[#0077CC] text-lg"></i>
-			</div>
-			<div class="text-left min-h-[40px] flex flex-col justify-center">
-				<span class="text-white font-semibold text-sm">{features[activeIndex].title}</span>
-				<span class="text-white/50 text-xs">{features[activeIndex].description}</span>
-			</div>
+	<div class="w-full max-w-xl">
+		<div class="relative h-14 overflow-hidden">
+			{#each features as feature, i}
+				<div
+					class="absolute inset-0 flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] backdrop-blur-sm transition-all duration-500 ease-out {i === activeIndex ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}"
+				>
+					<div
+						class="w-9 h-9 rounded-lg bg-[#0077CC]/15 flex items-center justify-center flex-shrink-0"
+					>
+						<i class="{feature.icon} text-[#00A3E0] text-[18px]"></i>
+					</div>
+					<span class="text-white text-sm font-semibold whitespace-nowrap">{feature.title}</span>
+					<span class="w-px h-4 bg-white/10 flex-shrink-0"></span>
+					<span class="text-gray-400 text-sm">{feature.desc}</span>
+				</div>
+			{/each}
 		</div>
 
 		<!-- Dots -->
-		<div class="flex items-center justify-center gap-2 mt-4">
+		<div class="flex items-center justify-center gap-2 mt-5">
 			{#each features as _, i}
 				<button
-					class="w-2 h-2 rounded-full transition-all duration-300 {i === activeIndex ? 'bg-[#0077CC] w-6' : 'bg-white/30 hover:bg-white/50'}"
+					class="h-1.5 rounded-full transition-all duration-300 {i === activeIndex
+						? 'w-6 bg-[#00A3E0]'
+						: 'w-1.5 bg-white/20 hover:bg-white/30'}"
 					onclick={() => (activeIndex = i)}
 					aria-label="Feature {i + 1}"
 				></button>
