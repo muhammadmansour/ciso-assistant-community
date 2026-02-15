@@ -130,17 +130,18 @@ class MicrosoftGraphEmailBackend(BaseEmailBackend):
 
     def _send_message(self, message, access_token):
         """Send a single EmailMessage via Microsoft Graph API."""
-        from_email = message.from_email or settings.DEFAULT_FROM_EMAIL
+        from_email = str(message.from_email or settings.DEFAULT_FROM_EMAIL)
 
         # Build the message payload
+        # Use str() to convert Django lazy strings (__proxy__) to regular strings
         body_type = "HTML" if hasattr(message, "alternatives") and message.alternatives else "Text"
-        body_content = message.body
+        body_content = str(message.body)
 
         # If there are HTML alternatives, use the first one
         if hasattr(message, "alternatives") and message.alternatives:
             for content, mimetype in message.alternatives:
                 if mimetype == "text/html":
-                    body_content = content
+                    body_content = str(content)
                     body_type = "HTML"
                     break
 
@@ -150,7 +151,7 @@ class MicrosoftGraphEmailBackend(BaseEmailBackend):
 
         payload = {
             "message": {
-                "subject": message.subject,
+                "subject": str(message.subject),
                 "body": {
                     "contentType": body_type,
                     "content": body_content,
