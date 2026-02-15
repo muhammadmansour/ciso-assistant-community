@@ -48,7 +48,7 @@
 <aside class="flex items-center text-sm text-gray-500">
 	{m.show()}
 	<select
-		class="bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 w-fit mx-1.5 py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+		class="bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 min-w-[60px] mx-1.5 py-1.5 px-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 appearance-auto"
 		bind:value={$rowsPerPage}
 		onchange={setRowsPerPage}
 	>
