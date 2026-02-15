@@ -281,6 +281,18 @@ html[lang="ar"] * {
 	text-decoration: none !important;
 }
 
+/* Global select dropdown styling - single clean arrow */
+select {
+	-webkit-appearance: none !important;
+	-moz-appearance: none !important;
+	appearance: none !important;
+	background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 20 20%22 fill=%22%236b7280%22%3E%3Cpath fill-rule=%22evenodd%22 d=%22M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z%22 clip-rule=%22evenodd%22/%3E%3C/svg%3E') !important;
+	background-repeat: no-repeat !important;
+	background-position: right 8px center !important;
+	background-size: 16px !important;
+	padding-right: 32px !important;
+}
+
 /* Smooth page transitions */
 .wgrc-transition {
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
