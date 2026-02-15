@@ -14,7 +14,7 @@
 <div class="min-h-screen flex">
 	<!-- Left panel - Branding -->
 	<div
-		class="hidden lg:flex lg:w-[55%] bg-[#0A1628] flex-col justify-center items-center relative overflow-hidden"
+		class="hidden lg:flex lg:w-[55%] bg-[#0A1628] flex-col relative overflow-hidden"
 	>
 		<!-- Decorative background circles (matching reference) -->
 		<div
@@ -27,30 +27,34 @@
 			class="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full bg-[#0077CC]/[0.03] -translate-x-1/2 -translate-y-1/2"
 		></div>
 
-		<div class="relative z-10 w-full px-12">
-			<Greetings />
+		<div class="relative z-10 w-full px-12 flex-1 flex items-center justify-center">
+			<div class="w-full">
+				<Greetings />
+			</div>
 		</div>
 	</div>
 
 	<!-- Right panel - Login form -->
-	<div class="flex-1 flex flex-col items-center justify-center bg-gray-50 px-6 py-12">
-		<div class="w-full max-w-[420px] flex-1 flex flex-col justify-center">
-			<!-- Mobile logo -->
-			<div class="lg:hidden flex items-center gap-3 mb-10">
-				<div
-					class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
-				>
-					W
+	<div class="flex-1 flex flex-col bg-gray-50 px-6 py-12">
+		<div class="w-full max-w-[420px] mx-auto flex-1 flex items-center">
+			<div class="w-full">
+				<!-- Mobile logo -->
+				<div class="lg:hidden flex items-center gap-3 mb-10">
+					<div
+						class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
+					>
+						W
+					</div>
+					<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
 				</div>
-				<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
+
+				<FormCard {data} {form} />
+
+				<!-- Security note -->
+				<p class="text-center text-xs text-gray-400 mt-6">
+					Protected by enterprise-grade security
+				</p>
 			</div>
-
-			<FormCard {data} {form} />
-
-			<!-- Security note -->
-			<p class="text-center text-xs text-gray-400 mt-6">
-				Protected by enterprise-grade security
-			</p>
 		</div>
 
 		<!-- Powered by Wathbah -->
