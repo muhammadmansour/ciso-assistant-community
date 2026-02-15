@@ -46,6 +46,14 @@ export ALLOWED_HOSTS=localhost,127.0.0.1,ciso.wathbahs.com
 export PUBLIC_BACKEND_API_URL=http://localhost:8000/api
 export PUBLIC_BACKEND_API_EXPOSED_URL=https://ciso.wathbahs.com/api
 
+# Outlook SMTP configuration
+export EMAIL_HOST=smtp.office365.com
+export EMAIL_PORT=587
+export EMAIL_USE_TLS=True
+export EMAIL_HOST_USER=mansourmuhammad37@outlook.com
+export EMAIL_HOST_PASSWORD=changeme
+export DEFAULT_FROM_EMAIL=mansourmuhammad37@outlook.com
+
 # Gunicorn settings (adjust based on your GCP VM)
 export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}  # 2 * num_cores + 1
 export GUNICORN_TIMEOUT=120
