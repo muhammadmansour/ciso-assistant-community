@@ -62,7 +62,7 @@
 	</p>
 
 	<!-- Feature Carousel -->
-	<div class="w-full max-w-xl">
+	<div class="w-full max-w-2xl">
 		<div class="relative h-14 overflow-hidden">
 			{#each features as feature, i}
 				<div
@@ -75,7 +75,7 @@
 					</div>
 					<span class="text-white text-sm font-semibold whitespace-nowrap">{feature.title}</span>
 					<span class="w-px h-4 bg-white/10 flex-shrink-0"></span>
-					<span class="text-gray-400 text-sm">{feature.desc}</span>
+					<span class="text-gray-400 text-sm whitespace-nowrap">{feature.desc}</span>
 				</div>
 			{/each}
 		</div>
