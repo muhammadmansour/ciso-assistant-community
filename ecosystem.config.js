@@ -24,19 +24,25 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,backend',
-        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
+        // Database
+        POSTGRES_NAME: 'wathbah_grc',
+        POSTGRES_USER: 'wathbah_grc',
+        POSTGRES_PASSWORD: 'wathbah_grc',
+        DB_HOST: 'localhost',
+        DB_PORT: '5432',
         // Outlook SMTP configuration
         EMAIL_HOST: 'smtp.office365.com',
         EMAIL_PORT: '587',
         EMAIL_USE_TLS: 'True',
-        EMAIL_HOST_USER: 'mansourmuhammad37@outlook.com',
-        EMAIL_HOST_PASSWORD: 'changeme',
-        DEFAULT_FROM_EMAIL: 'mansourmuhammad37@outlook.com',
-        // Gemini File Search - set these to enable file upload to Gemini
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+        EMAIL_HOST_USER: 'info@wathbahs.com',
+        EMAIL_HOST_PASSWORD: 'changeme',  // Replace with Outlook app password
+        DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
+        // Gemini File Search
+        GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
         GEMINI_FILE_SEARCH_STORE_NAME: process.env.GEMINI_FILE_SEARCH_STORE_NAME || '',
       },
       watch: false,
@@ -55,16 +61,22 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS: 'localhost,127.0.0.1',
-        CISO_ASSISTANT_URL: 'https://ciso.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
+        // Database
+        POSTGRES_NAME: 'wathbah_grc',
+        POSTGRES_USER: 'wathbah_grc',
+        POSTGRES_PASSWORD: 'wathbah_grc',
+        DB_HOST: 'localhost',
+        DB_PORT: '5432',
         // Outlook SMTP configuration
         EMAIL_HOST: 'smtp.office365.com',
         EMAIL_PORT: '587',
         EMAIL_USE_TLS: 'True',
-        EMAIL_HOST_USER: 'mansourmuhammad37@outlook.com',
-        EMAIL_HOST_PASSWORD: 'changeme',
-        DEFAULT_FROM_EMAIL: 'mansourmuhammad37@outlook.com',
-        // Gemini File Search - must match backend config
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+        EMAIL_HOST_USER: 'info@wathbahs.com',
+        EMAIL_HOST_PASSWORD: 'changeme',  // Replace with Outlook app password
+        DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
+        // Gemini File Search
+        GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
         GEMINI_FILE_SEARCH_STORE_NAME: process.env.GEMINI_FILE_SEARCH_STORE_NAME || '',
       },
       watch: false,
