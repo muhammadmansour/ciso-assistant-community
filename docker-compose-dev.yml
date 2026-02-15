@@ -32,12 +32,12 @@ services:
       - POSTGRES_PASSWORD=wathbah_grc
       - DB_HOST=host.docker.internal
       - DB_PORT=5432
-      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_HOST=smtp.office365.com
       - EMAIL_PORT=587
       - EMAIL_USE_TLS=True
-      - EMAIL_HOST_USER=mansourmuhammad37@gmail.com
+      - EMAIL_HOST_USER=mansourmuhammad37@outlook.com
       - EMAIL_HOST_PASSWORD=changeme
-      - DEFAULT_FROM_EMAIL=mansourmuhammad37@gmail.com
+      - DEFAULT_FROM_EMAIL=mansourmuhammad37@outlook.com
     volumes:
       - ./db:/code/db
       - ./backend:/code
