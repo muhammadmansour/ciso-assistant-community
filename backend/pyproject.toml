@@ -50,6 +50,7 @@ regex = "^2025.11.3"
 prometheus-client = "^0.22.1"
 jira = "^3.10.5"
 google-genai = "^1.0.0"
+msal = "^1.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest-django = "4.8.0"

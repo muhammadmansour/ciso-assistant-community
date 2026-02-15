@@ -274,6 +274,16 @@ EMAIL_USE_TLS_RESCUE = os.environ.get("EMAIL_USE_TLS_RESCUE", "False") == "True"
 
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", default="5"))  # seconds
 
+# Microsoft Graph API email configuration
+MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID")
+MS_GRAPH_TENANT_ID = os.environ.get("MS_GRAPH_TENANT_ID")
+MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET")
+
+# Use Microsoft Graph email backend if credentials are provided, otherwise fall back to SMTP
+if MS_GRAPH_CLIENT_ID and MS_GRAPH_TENANT_ID and MS_GRAPH_CLIENT_SECRET:
+    EMAIL_BACKEND = "core.email_backends.microsoft_graph.MicrosoftGraphEmailBackend"
+    logger.info("Email backend: Microsoft Graph API")
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",

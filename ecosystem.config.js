@@ -34,15 +34,13 @@ module.exports = {
         POSTGRES_PASSWORD: 'wathbah_grc',
         DB_HOST: 'localhost',
         DB_PORT: '5432',
-        // Outlook SMTP configuration
-        EMAIL_HOST: 'smtp.office365.com',
-        EMAIL_PORT: '587',
-        EMAIL_USE_TLS: 'True',
-        EMAIL_HOST_USER: 'info@wathbahs.com',
-        EMAIL_HOST_PASSWORD: 'Saudi2030+',
-        DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
+        // Microsoft Graph API email configuration (set in .env on server)
+        MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
+        MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
+        MS_GRAPH_CLIENT_SECRET: process.env.MS_GRAPH_CLIENT_SECRET || '',
+        DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'info@wathbahs.com',
         // Gemini File Search
-        GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
         GEMINI_FILE_SEARCH_STORE_NAME: process.env.GEMINI_FILE_SEARCH_STORE_NAME || '',
       },
       watch: false,
@@ -68,15 +66,13 @@ module.exports = {
         POSTGRES_PASSWORD: 'wathbah_grc',
         DB_HOST: 'localhost',
         DB_PORT: '5432',
-        // Outlook SMTP configuration
-        EMAIL_HOST: 'smtp.office365.com',
-        EMAIL_PORT: '587',
-        EMAIL_USE_TLS: 'True',
-        EMAIL_HOST_USER: 'info@wathbahs.com',
-        EMAIL_HOST_PASSWORD: 'Saudi2030+',
-        DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
+        // Microsoft Graph API email configuration (set in .env on server)
+        MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
+        MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
+        MS_GRAPH_CLIENT_SECRET: process.env.MS_GRAPH_CLIENT_SECRET || '',
+        DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'info@wathbahs.com',
         // Gemini File Search
-        GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
         GEMINI_FILE_SEARCH_STORE_NAME: process.env.GEMINI_FILE_SEARCH_STORE_NAME || '',
       },
       watch: false,

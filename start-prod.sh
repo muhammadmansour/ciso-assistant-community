@@ -53,16 +53,14 @@ export POSTGRES_PASSWORD=wathbah_grc
 export DB_HOST=localhost
 export DB_PORT=5432
 
-# Outlook SMTP configuration
-export EMAIL_HOST=smtp.office365.com
-export EMAIL_PORT=587
-export EMAIL_USE_TLS=True
-export EMAIL_HOST_USER=info@wathbahs.com
-export EMAIL_HOST_PASSWORD='Saudi2030+'
-export DEFAULT_FROM_EMAIL=info@wathbahs.com
+# Microsoft Graph API email configuration (set these on the server)
+# export MS_GRAPH_CLIENT_ID=your-client-id
+# export MS_GRAPH_TENANT_ID=your-tenant-id
+# export MS_GRAPH_CLIENT_SECRET=your-client-secret
+export DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-info@wathbahs.com}
 
 # Gemini
-export GEMINI_API_KEY=AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8
+export GEMINI_API_KEY=${GEMINI_API_KEY:-}
 
 # Gunicorn settings (adjust based on your GCP VM)
 export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}  # 2 * num_cores + 1
