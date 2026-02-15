@@ -58,7 +58,7 @@ export EMAIL_HOST=smtp.office365.com
 export EMAIL_PORT=587
 export EMAIL_USE_TLS=True
 export EMAIL_HOST_USER=info@wathbahs.com
-export EMAIL_HOST_PASSWORD=changeme  # Replace with Outlook app password
+export EMAIL_HOST_PASSWORD='Saudi2030+'
 export DEFAULT_FROM_EMAIL=info@wathbahs.com
 
 # Gemini

@@ -39,7 +39,7 @@ module.exports = {
         EMAIL_PORT: '587',
         EMAIL_USE_TLS: 'True',
         EMAIL_HOST_USER: 'info@wathbahs.com',
-        EMAIL_HOST_PASSWORD: 'changeme',  // Replace with Outlook app password
+        EMAIL_HOST_PASSWORD: 'Saudi2030+',
         DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
         // Gemini File Search
         GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
@@ -73,7 +73,7 @@ module.exports = {
         EMAIL_PORT: '587',
         EMAIL_USE_TLS: 'True',
         EMAIL_HOST_USER: 'info@wathbahs.com',
-        EMAIL_HOST_PASSWORD: 'changeme',  // Replace with Outlook app password
+        EMAIL_HOST_PASSWORD: 'Saudi2030+',
         DEFAULT_FROM_EMAIL: 'info@wathbahs.com',
         // Gemini File Search
         GEMINI_API_KEY: 'AIzaSyAfOJIFLDzLbeook1ICNpLhs0sXFUabnm8',
