@@ -1,5 +1,5 @@
 import { BASE_API_URL } from '$lib/utils/constants';
-import { tableSourceMapper, listViewFields } from '$lib/utils/table';
+import { tableSourceMapper } from '$lib/utils/table';
 
 import type { PageServerLoad } from './$types';
 import { m } from '$paraglide/messages';
@@ -8,13 +8,17 @@ export const load = (async ({ fetch, parent }) => {
 	const { user } = await parent();
 	const userId = user.actor_id;
 
-	// Fetch applied controls assigned to the user as a proper table source
+	// Only show ID, Name, Status, ETA columns
+	const myAssignmentFields = {
+		head: ['id', 'name', 'status', 'eta'],
+		body: ['ref_id', 'name', 'status', 'eta']
+	};
+
 	let controlsTable: any = { head: {}, body: [], meta: { count: 0, results: [] } };
 	try {
-		const fields = listViewFields['applied-controls'];
-		const head = fields.body.reduce(
+		const head = myAssignmentFields.body.reduce(
 			(obj: Record<string, string>, key: string, index: number) => {
-				obj[key] = fields.head[index];
+				obj[key] = myAssignmentFields.head[index];
 				return obj;
 			},
 			{}
@@ -24,7 +28,7 @@ export const load = (async ({ fetch, parent }) => {
 			`${BASE_API_URL}/applied-controls/?owner=${userId}`
 		);
 		const controlsData = await controlsRes.json();
-		const body = tableSourceMapper(controlsData.results || [], fields.body);
+		const body = tableSourceMapper(controlsData.results || [], myAssignmentFields.body);
 
 		controlsTable = {
 			head,
