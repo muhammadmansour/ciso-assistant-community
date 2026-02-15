@@ -76,6 +76,7 @@
 		<ModelTable
 			source={data.controlsTable}
 			URLModel="applied-controls"
+			baseEndpoint={`/applied-controls/?owner=${data.user.actor_id}`}
 			hideFilters={true}
 		/>
 	</div>

@@ -1,1 +1,0 @@
-import{a3 as c,q as o,a4 as i,ar as d,as as m}from"./stSixLta.js";function u(e,n,a){c(()=>{var r=o(()=>n(e,a==null?void 0:a())||{});if(a&&(r!=null&&r.update)){var f=!1,t={};i(()=>{var s=a();d(s),f&&m(t,s)&&(t=s,r.update(s))}),f=!0}if(r!=null&&r.destroy)return()=>r.destroy()})}export{u as a};

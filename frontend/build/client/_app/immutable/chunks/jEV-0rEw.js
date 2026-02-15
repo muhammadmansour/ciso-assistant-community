@@ -1,1 +1,0 @@
-import{at as c,aE as i,as as _,B as h,C as r,D as d,a1 as k,I as u,K as y,a2 as I}from"./stSixLta.js";function v(t,f,n){r&&d();var e=t,s=I,a,o=c()?i:_;h(()=>{o(s,s=f())&&(a&&k(a),a=u(()=>n(e)))}),r&&(e=y)}export{v as k};
