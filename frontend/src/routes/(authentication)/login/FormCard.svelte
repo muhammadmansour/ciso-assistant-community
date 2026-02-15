@@ -77,6 +77,11 @@
 				dataType="form"
 				validators={zod(loginSchema)}
 				action="?/login&next={page.url.searchParams.get('next') || '/'}"
+				onSubmit={({ cancel, formElement }) => {
+					loading = true;
+					cancel();
+					formElement.submit();
+				}}
 			>
 				{#snippet children({ form })}
 					<TextField type="email" {form} field="username" label={m.email()} />
@@ -95,7 +100,6 @@
 					data-testid="login-btn"
 					type="submit"
 					disabled={loading}
-					onclick={() => (loading = true)}
 				>
 					{#if loading}
 						<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
