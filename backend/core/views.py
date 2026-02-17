@@ -4273,8 +4273,13 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             
             analysis_data = resp.json()
 
-            # Replace Gemini file IDs with evidence names (for single AC, show evidence name)
-            id_to_name = {fs['gemini_file_id']: fs['evidence_name'] for fs in gemini_file_ids if fs.get('gemini_file_id')}
+            # Replace both Gemini file IDs and positional "Evidence N" labels with evidence names
+            id_to_name = {}
+            for idx, fs in enumerate(gemini_file_ids):
+                ev_name = fs['evidence_name']
+                if fs.get('gemini_file_id'):
+                    id_to_name[fs['gemini_file_id']] = ev_name
+                id_to_name[f"Evidence {idx + 1}"] = ev_name
             if id_to_name:
                 analysis_data = self._replace_gemini_ids_with_names(analysis_data, id_to_name)
             
@@ -10172,11 +10177,15 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             result = resp.json()
             print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
 
-            # Replace Gemini file IDs with Applied Control name (so UI shows control name, not Gemini ID)
-            id_to_name = {
-                fs['gemini_file_id']: fs.get('applied_control_name', fs['evidence_name'])
-                for fs in gemini_file_ids if fs.get('gemini_file_id')
-            }
+            # Build replacement map: both Gemini file IDs AND positional "Evidence N" labels → AC name
+            id_to_name = {}
+            for idx, fs in enumerate(gemini_file_ids):
+                ac_name = fs.get('applied_control_name', fs['evidence_name'])
+                # Map Gemini file ID (e.g. "files/abc123") → AC name
+                if fs.get('gemini_file_id'):
+                    id_to_name[fs['gemini_file_id']] = ac_name
+                # Map positional label (e.g. "Evidence 1", "Evidence 2") → AC name
+                id_to_name[f"Evidence {idx + 1}"] = ac_name
             if id_to_name:
                 result = AppliedControlViewSet._replace_gemini_ids_with_names(result, id_to_name)
 
