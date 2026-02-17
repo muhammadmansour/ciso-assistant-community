@@ -239,6 +239,54 @@ function buildContext(
 	}
 	parts.push('');
 
+	// ── Questions & current answers ──
+	const questions = requirement.questions;
+	const answers = requirementAssessment.answers || {};
+
+	if (questions && typeof questions === 'object' && Object.keys(questions).length > 0) {
+		parts.push('## Requirement Questions');
+		parts.push('');
+		parts.push('The following questions must be answered to assess this requirement:');
+		parts.push('');
+
+		let qIndex = 1;
+		for (const [urn, question] of Object.entries(questions) as [string, any][]) {
+			parts.push(`### Question ${qIndex}: ${question.text}`);
+			parts.push(`- Type: ${question.type}`);
+
+			// Show available choices
+			if (question.choices && question.choices.length > 0) {
+				parts.push('- Available choices:');
+				for (const choice of question.choices) {
+					const scoreInfo = choice.add_score !== undefined ? ` (score: ${choice.add_score})` : '';
+					parts.push(`  - \`${choice.urn}\`: **${choice.value}**${scoreInfo}${choice.description ? ' — ' + choice.description : ''}`);
+				}
+			}
+
+			// Show current answer if any
+			const currentAnswer = answers[urn];
+			if (currentAnswer) {
+				if (Array.isArray(currentAnswer)) {
+					const answerTexts = currentAnswer.map((aUrn: string) => {
+						const choice = question.choices?.find((c: any) => c.urn === aUrn);
+						return choice ? choice.value : aUrn;
+					});
+					parts.push(`- **Current answer:** ${answerTexts.join(', ')}`);
+				} else if (question.choices) {
+					const choice = question.choices.find((c: any) => c.urn === currentAnswer);
+					parts.push(`- **Current answer:** ${choice ? choice.value : currentAnswer}`);
+				} else {
+					parts.push(`- **Current answer:** ${currentAnswer}`);
+				}
+			} else {
+				parts.push('- **Current answer:** _(not answered yet)_');
+			}
+
+			parts.push('');
+			qIndex++;
+		}
+	}
+
 	// ── Applied controls with their evidences ──
 	parts.push('## Applied Controls & Evidence Mapping');
 	parts.push('');
@@ -264,9 +312,11 @@ function buildContext(
 	}
 
 	// ── Instructions for the AI ──
+	const hasQuestions = questions && typeof questions === 'object' && Object.keys(questions).length > 0;
+
 	parts.push('## ANALYSIS INSTRUCTIONS');
 	parts.push('');
-	parts.push('Please analyze this requirement and the provided evidence files. Your report MUST:');
+	parts.push('Please analyze this requirement and the provided evidence files. Your report MUST include:');
 	parts.push('');
 	parts.push(
 		'1. **Overall Assessment**: Give an overall compliance status (compliant / partially_compliant / non_compliant / not_assessed) and a score (0-100).'
@@ -274,17 +324,57 @@ function buildContext(
 	parts.push(
 		'2. **Requirement Analysis**: Analyze whether the requirement is met based on the evidence provided.'
 	);
-	parts.push(
-		'3. **Per-Applied-Control Breakdown**: For EACH applied control listed above, explain:'
-	);
+
+	if (hasQuestions) {
+		parts.push('');
+		parts.push(
+			'3. **Questions & Answers**: For EACH question listed in the "Requirement Questions" section above:'
+		);
+		parts.push('   - Answer the question based on the evidence files provided.');
+		parts.push(
+			'   - **Attribute the answer**: Clearly state which Applied Control provided the evidence for this answer, and which specific evidence file(s) support it.'
+		);
+		parts.push(
+			'   - If multiple applied controls contribute to an answer, list all of them.'
+		);
+		parts.push(
+			'   - If no evidence supports an answer, say so explicitly.'
+		);
+		parts.push('   - Select the most appropriate choice from the available options.');
+		parts.push('');
+		parts.push(
+			'4. **Per-Applied-Control Breakdown**: For EACH applied control listed above, explain:'
+		);
+	} else {
+		parts.push('');
+		parts.push(
+			'3. **Per-Applied-Control Breakdown**: For EACH applied control listed above, explain:'
+		);
+	}
+
 	parts.push('   - What evidence was found in that control\'s files');
 	parts.push('   - How that evidence contributes to meeting (or not meeting) the requirement');
 	parts.push('   - A compliance verdict for that specific control');
-	parts.push(
-		'4. **Evidence Attribution**: When citing a finding, ALWAYS specify which evidence file it came from and which applied control that file belongs to.'
-	);
-	parts.push('5. **Gaps & Recommendations**: Identify any gaps and provide actionable recommendations.');
 	parts.push('');
+	parts.push(
+		`${hasQuestions ? '5' : '4'}. **Evidence Attribution**: When citing a finding, ALWAYS specify which evidence file it came from and which applied control that file belongs to.`
+	);
+	parts.push(
+		`${hasQuestions ? '6' : '5'}. **Gaps & Recommendations**: Identify any gaps and provide actionable recommendations.`
+	);
+	parts.push('');
+
+	if (hasQuestions) {
+		parts.push('**IMPORTANT**: The "Questions & Answers" section is the MOST important part of the report.');
+		parts.push('For each question, use the following format:');
+		parts.push('');
+		parts.push('> **Q: [question text]**');
+		parts.push('> **Answer:** [chosen answer from available choices]');
+		parts.push('> **Source:** Evidence from Applied Control "[AC name]" → file "[filename]"');
+		parts.push('> **Justification:** [brief explanation of why this answer was chosen based on evidence]');
+		parts.push('');
+	}
+
 	parts.push(
 		'Format the response in clear markdown with headers and sections. Use Arabic if the requirement is in Arabic.'
 	);
