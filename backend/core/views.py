@@ -4273,7 +4273,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             
             analysis_data = resp.json()
 
-            # Replace Gemini file IDs with real evidence names
+            # Replace Gemini file IDs with evidence names (for single AC, show evidence name)
             id_to_name = {fs['gemini_file_id']: fs['evidence_name'] for fs in gemini_file_ids if fs.get('gemini_file_id')}
             if id_to_name:
                 analysis_data = self._replace_gemini_ids_with_names(analysis_data, id_to_name)
@@ -10172,8 +10172,11 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             result = resp.json()
             print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
 
-            # Replace Gemini file IDs with real evidence names
-            id_to_name = {fs['gemini_file_id']: fs['evidence_name'] for fs in gemini_file_ids if fs.get('gemini_file_id')}
+            # Replace Gemini file IDs with Applied Control name (so UI shows control name, not Gemini ID)
+            id_to_name = {
+                fs['gemini_file_id']: fs.get('applied_control_name', fs['evidence_name'])
+                for fs in gemini_file_ids if fs.get('gemini_file_id')
+            }
             if id_to_name:
                 result = AppliedControlViewSet._replace_gemini_ids_with_names(result, id_to_name)
 
