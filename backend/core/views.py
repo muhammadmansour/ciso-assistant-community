@@ -3933,6 +3933,10 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     API endpoint that allows applied controls to be viewed or edited.
     """
 
+    permission_overrides = {
+        "run_ai_analysis": "change_appliedcontrol",
+    }
+
     model = AppliedControl
     filterset_class = AppliedControlFilterSet
     search_fields = ["name", "description", "ref_id"]
@@ -9883,6 +9887,10 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
     """
     API endpoint that allows requirement assessments to be viewed or edited.
     """
+
+    permission_overrides = {
+        "run_ai_analysis": "change_requirementassessment",
+    }
 
     model = RequirementAssessment
     filterset_fields = [
