@@ -783,7 +783,7 @@ def run_evidence_auto_analysis(evidence_id: str):
     from django.utils import timezone
     
     ENTITY_EXTRACTION_API_URL = "https://muraji-api.wathbahs.com/api/entity-extraction/extract"
-    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbahs.com/api/audit/analyze"
+    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbahs.com/api/applied-control/analyze"
     
     try:
         evidence = Evidence.objects.get(id=evidence_id)

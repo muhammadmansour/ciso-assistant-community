@@ -4060,7 +4060,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
-        """Call Muraji /api/audit/analyze directly and return result"""
+        """Call Muraji /api/applied-control/analyze directly and return result"""
         import requests as http_requests
         import os
         from core.models import FileSearchTable
@@ -4198,7 +4198,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         questions = list(dict.fromkeys(questions))
         typical_evidence = list(dict.fromkeys(typical_evidence))
 
-        # Build request body matching Muraji /api/audit/analyze format
+        # Build request body matching Muraji /api/applied-control/analyze format
         request_body = {
             'applied_control': {
                 'id': str(applied_control.id),
@@ -4227,7 +4227,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbahs.com/api/applied-control/analyze'
         )
 
         from core.models import AiAnalysisResult
@@ -9934,7 +9934,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
-        """Run AI analysis for a requirement assessment via Muraji /api/audit/analyze"""
+        """Run AI analysis for a requirement assessment via Muraji /api/applied-control/analyze"""
         import requests as http_requests
         import os
         from core.models import FileSearchTable
@@ -10085,7 +10085,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'provider': requirement.framework.provider if requirement.framework else '',
         }]
 
-        # 6. Build request body for Muraji /api/audit/analyze
+        # 6. Build request body for Muraji /api/applied-control/analyze
         # Use first AC as the "main" applied control, include all ACs info in description
         first_ac = applied_controls.first()
         ac_descriptions = []
@@ -10121,7 +10121,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbahs.com/api/applied-control/analyze'
         )
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
