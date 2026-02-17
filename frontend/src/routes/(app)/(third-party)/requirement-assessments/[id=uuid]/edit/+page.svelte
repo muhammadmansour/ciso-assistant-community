@@ -279,7 +279,73 @@
 	let aiAnalysisLoading = $state(false);
 	let aiAnalysisResult: any = $state(null);
 	let aiAnalysisError: string | null = $state(null);
-	let aiAnalysisExpanded = $state(false);
+	let showAnalysisModal = $state(false);
+	let isModalExpanded = $state(false);
+
+	// Metadata keys to exclude from report sections
+	const metadataKeys = new Set([
+		'_appliedcontrols', '_appliedControls', 'metadata', 'timestamp', 'model',
+		'analysis_config', 'analysisconfig', 'text', 'content', 'message'
+	]);
+
+	const isReportSection = (key: string, value: any) =>
+		typeof value === 'object' && value !== null && !metadataKeys.has(key) && !metadataKeys.has(key.toLowerCase());
+
+	// Case-insensitive field getter
+	function getField(obj: Record<string, any>, field: string): any {
+		if (obj == null) return undefined;
+		const lower = field.toLowerCase();
+		for (const key of Object.keys(obj)) {
+			if (key.toLowerCase() === lower) return obj[key];
+		}
+		return undefined;
+	}
+
+	// Section display order
+	const sectionOrder = [
+		'overallassessment', 'summary', 'questionevaluation', 'questionsanswers',
+		'questions_answers', 'appliedcontrolbreakdown', 'applied_control_breakdown',
+		'typicalevidencecheck', 'strengths', 'weaknesses', 'gaps', 'recommendations',
+		'findings', 'detailedanalysis', 'detailed_analysis'
+	];
+
+	function getOrderedSections(result: Record<string, any>): [string, any][] {
+		const entries = Object.entries(result).filter(([key, val]) => isReportSection(key, val));
+		return entries.sort((a, b) => {
+			const idxA = sectionOrder.indexOf(a[0].toLowerCase());
+			const idxB = sectionOrder.indexOf(b[0].toLowerCase());
+			const orderA = idxA === -1 ? sectionOrder.length : idxA;
+			const orderB = idxB === -1 ? sectionOrder.length : idxB;
+			return orderA - orderB;
+		});
+	}
+
+	function getStatusColor(status: string): string {
+		const s = (status || '').toLowerCase().replace(/[_\s-]+/g, '');
+		if (s === 'compliant') return 'text-green-700 bg-green-100';
+		if (s === 'partiallycompliant') return 'text-yellow-700 bg-yellow-100';
+		if (s === 'noncompliant') return 'text-red-700 bg-red-100';
+		if (s === 'notassessed') return 'text-gray-700 bg-gray-100';
+		if (s === 'notapplicable') return 'text-blue-700 bg-blue-100';
+		return 'text-gray-700 bg-gray-100';
+	}
+
+	function getScoreColor(score: number | null): string {
+		if (score === null || score === undefined) return 'text-gray-500';
+		if (score >= 80) return 'text-green-600';
+		if (score >= 50) return 'text-yellow-600';
+		return 'text-red-600';
+	}
+
+	// Extract top-level scalar fields for the summary bar
+	function getScalarField(result: any, ...keys: string[]): any {
+		if (!result || typeof result !== 'object') return undefined;
+		for (const key of keys) {
+			const val = getField(result, key);
+			if (val !== undefined && val !== null && typeof val !== 'object') return val;
+		}
+		return undefined;
+	}
 
 	async function startAiAnalysis() {
 		aiAnalysisLoading = true;
@@ -299,12 +365,17 @@
 			}
 
 			aiAnalysisResult = await res.json();
-			aiAnalysisExpanded = true;
+			showAnalysisModal = true;
 		} catch (err) {
 			aiAnalysisError = String(err);
 		} finally {
 			aiAnalysisLoading = false;
 		}
+	}
+
+	function closeModal() {
+		showAnalysisModal = false;
+		isModalExpanded = false;
 	}
 </script>
 
@@ -510,7 +581,7 @@
 			{/if}
 		</div>
 	{/if}
-	<!-- AI Analysis Results -->
+	<!-- AI Analysis Error Toast -->
 	{#if aiAnalysisError}
 		<div class="card p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
 			<div class="flex items-center justify-between">
@@ -526,146 +597,18 @@
 		</div>
 	{/if}
 
-	{#if aiAnalysisResult}
-		<div class="card bg-white border border-indigo-200 shadow-sm rounded-xl mt-2 overflow-hidden">
-			<!-- Header -->
+	<!-- Show "View Report" button if result exists but modal is closed -->
+	{#if aiAnalysisResult && !showAnalysisModal}
+		<div class="mt-2">
 			<button
 				type="button"
-				class="w-full flex items-center justify-between px-5 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 hover:from-violet-100 hover:to-indigo-100 transition-colors cursor-pointer"
-				onclick={() => (aiAnalysisExpanded = !aiAnalysisExpanded)}
+				class="btn text-sm text-white shadow-sm flex items-center gap-2"
+				style="background: linear-gradient(to right, #0A1628, #1a2740);"
+				onclick={() => (showAnalysisModal = true)}
 			>
-				<div class="flex items-center gap-2">
-					<i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
-					<span class="font-semibold text-indigo-900">AI Analysis Report</span>
-					{#if aiAnalysisResult._appliedControls}
-						<span class="text-xs text-indigo-400">
-							({aiAnalysisResult._appliedControls.length} applied controls analyzed)
-						</span>
-					{/if}
-				</div>
-				<i class="fa-solid fa-chevron-{aiAnalysisExpanded ? 'up' : 'down'} text-indigo-400"></i>
+				<i class="fa-solid fa-brain"></i>
+				<span>View AI Analysis Report</span>
 			</button>
-
-			{#if aiAnalysisExpanded}
-				<div class="p-5 space-y-5">
-					<!-- Applied Controls Summary Cards -->
-					{#if aiAnalysisResult._appliedControls && aiAnalysisResult._appliedControls.length > 0}
-						<div>
-							<h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-								<i class="fa-solid fa-layer-group text-indigo-500"></i>
-								Evidence Sources
-							</h4>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-								{#each aiAnalysisResult._appliedControls as ac}
-									<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-										<div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-											<i class="fa-solid fa-shield-halved text-indigo-600 text-sm"></i>
-										</div>
-										<div class="flex-1 min-w-0">
-											<p class="font-medium text-gray-800 text-sm truncate">{ac.name}</p>
-											<p class="text-xs text-gray-500">
-												{ac.evidenceCount} evidence{ac.evidenceCount !== 1 ? 's' : ''}
-												· {ac.fileNames.length} file{ac.fileNames.length !== 1 ? 's' : ''}
-												· <span class="capitalize">{ac.status.replace('_', ' ')}</span>
-											</p>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
-					<!-- AI Response Content -->
-					{#if typeof aiAnalysisResult === 'string'}
-						<div class="prose prose-sm max-w-none text-gray-700">
-							<MarkdownRenderer content={aiAnalysisResult} />
-						</div>
-					{:else if aiAnalysisResult.text || aiAnalysisResult.content || aiAnalysisResult.message}
-						<div class="prose prose-sm max-w-none text-gray-700">
-							<MarkdownRenderer content={aiAnalysisResult.text || aiAnalysisResult.content || aiAnalysisResult.message} />
-						</div>
-					{:else if aiAnalysisResult.overallAssessment}
-						<div class="space-y-4">
-							<!-- Score & Status -->
-							{#if aiAnalysisResult.overallAssessment.score !== undefined || aiAnalysisResult.overallAssessment.status}
-								<div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-									{#if aiAnalysisResult.overallAssessment.score !== undefined}
-										<div class="flex flex-col items-center">
-											<span class="text-3xl font-bold text-indigo-600">{aiAnalysisResult.overallAssessment.score}</span>
-											<span class="text-xs text-gray-500">Score</span>
-										</div>
-									{/if}
-									{#if aiAnalysisResult.overallAssessment.status}
-										<div class="flex-1">
-											<span class="px-3 py-1 rounded-full text-sm font-medium
-												{aiAnalysisResult.overallAssessment.status === 'compliant' ? 'bg-green-100 text-green-800' :
-												 aiAnalysisResult.overallAssessment.status === 'partially_compliant' ? 'bg-yellow-100 text-yellow-800' :
-												 aiAnalysisResult.overallAssessment.status === 'non_compliant' ? 'bg-red-100 text-red-800' :
-												 'bg-gray-100 text-gray-800'}">
-												{safeTranslate(aiAnalysisResult.overallAssessment.status)}
-											</span>
-										</div>
-									{/if}
-								</div>
-							{/if}
-
-							{#if aiAnalysisResult.overallAssessment.summary}
-								<div>
-									<h4 class="font-semibold text-gray-800 mb-1"><i class="fa-solid fa-clipboard-list mr-1"></i> Summary</h4>
-									<p class="text-gray-600 text-sm">{aiAnalysisResult.overallAssessment.summary}</p>
-								</div>
-							{/if}
-
-							{#if aiAnalysisResult.findings && aiAnalysisResult.findings.length > 0}
-								<div>
-									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-magnifying-glass mr-1"></i> Key Findings</h4>
-									<ul class="space-y-2">
-										{#each aiAnalysisResult.findings as finding}
-											<li class="flex items-start gap-2 text-sm text-gray-600">
-												<i class="fa-solid fa-circle-check text-indigo-400 mt-0.5 flex-shrink-0"></i>
-												<span>{typeof finding === 'string' ? finding : finding.description || finding.text || JSON.stringify(finding)}</span>
-											</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-
-							{#if aiAnalysisResult.recommendations && aiAnalysisResult.recommendations.length > 0}
-								<div>
-									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> Recommendations</h4>
-									<ul class="space-y-2">
-										{#each aiAnalysisResult.recommendations as rec}
-											<li class="flex items-start gap-2 text-sm text-gray-600">
-												<i class="fa-solid fa-arrow-right text-amber-400 mt-0.5 flex-shrink-0"></i>
-												<span>{typeof rec === 'string' ? rec : rec.description || rec.text || JSON.stringify(rec)}</span>
-											</li>
-										{/each}
-									</ul>
-								</div>
-							{/if}
-						</div>
-					{:else}
-						<!-- Fallback: render full response as JSON -->
-						{@const displayResult = Object.fromEntries(
-							Object.entries(aiAnalysisResult).filter(([k]) => k !== '_appliedControls')
-						)}
-						<pre class="bg-gray-50 p-4 rounded-lg text-xs text-gray-600 overflow-auto max-h-96">{JSON.stringify(displayResult, null, 2)}</pre>
-					{/if}
-
-					<!-- Re-run button -->
-					<div class="flex justify-end pt-2 border-t border-gray-100">
-						<button
-							type="button"
-							class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-							onclick={startAiAnalysis}
-							disabled={aiAnalysisLoading}
-						>
-							<i class="fa-solid fa-arrows-rotate {aiAnalysisLoading ? 'animate-spin' : ''}"></i>
-							Re-run Analysis
-						</button>
-					</div>
-				</div>
-			{/if}
 		</div>
 	{/if}
 
@@ -959,3 +902,420 @@
 		</SuperForm>
 	</div>
 </div>
+
+<!-- AI Analysis Modal -->
+{#if showAnalysisModal && aiAnalysisResult}
+	{@const result = aiAnalysisResult}
+	{@const appliedControls = result._appliedControls || []}
+	{@const score = getScalarField(result, 'score') ?? getField(getField(result, 'overallAssessment') || {}, 'score')}
+	{@const complianceStatus = getScalarField(result, 'compliance_status', 'complianceStatus', 'status') ?? getField(getField(result, 'overallAssessment') || {}, 'status')}
+	{@const evidenceQuality = getScalarField(result, 'evidenceQuality', 'evidence_quality')}
+	{@const summaryText = getScalarField(result, 'summary') ?? getField(getField(result, 'overallAssessment') || {}, 'summary')}
+	{@const markdownText = result.text || result.content || result.message}
+
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4"
+		onkeydown={(e) => e.key === 'Escape' && closeModal()}
+	>
+		<!-- Backdrop -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick={closeModal}></div>
+
+		<!-- Modal Content -->
+		<div
+			class="relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300"
+			class:rounded-xl={!isModalExpanded}
+			class:w-full={isModalExpanded}
+			class:h-full={isModalExpanded}
+			class:max-w-4xl={!isModalExpanded}
+			class:max-h-[90vh]={!isModalExpanded}
+			class:inset-0={isModalExpanded}
+			class:absolute={isModalExpanded}
+			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : 'width:95vw;'}
+		>
+			<!-- Modal Header -->
+			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#0A1628]/5 to-white shrink-0">
+				<div class="flex items-center gap-3">
+					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
+						<i class="fa-solid fa-brain text-[#0A1628] text-lg"></i>
+					</div>
+					<div>
+						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
+						<p class="text-sm text-gray-500">
+							{data.requirement.ref_id} — {appliedControls.length} applied control{appliedControls.length !== 1 ? 's' : ''} analyzed
+						</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-1">
+					<button
+						type="button"
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={() => startAiAnalysis()}
+						disabled={aiAnalysisLoading}
+						title="Re-run analysis"
+					>
+						<i class="fa-solid fa-arrows-rotate text-gray-500 text-lg {aiAnalysisLoading ? 'animate-spin' : ''}"></i>
+					</button>
+					<button
+						type="button"
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={() => (isModalExpanded = !isModalExpanded)}
+						title={isModalExpanded ? 'Restore size' : 'Expand fullscreen'}
+					>
+						<i class="fa-solid {isModalExpanded ? 'fa-compress' : 'fa-expand'} text-gray-500 text-lg"></i>
+					</button>
+					<button
+						type="button"
+						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						onclick={closeModal}
+					>
+						<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
+					</button>
+				</div>
+			</div>
+
+			<!-- Modal Body -->
+			<div class="overflow-y-auto flex-1 p-6">
+				<!-- Summary Bar -->
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+					<div class="bg-gray-50 rounded-lg p-4 text-center">
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Score</p>
+						<p class="text-2xl font-bold {getScoreColor(typeof score === 'number' ? score : null)}">
+							{score ?? '—'}
+						</p>
+					</div>
+					<div class="bg-gray-50 rounded-lg p-4 text-center">
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Compliance</p>
+						{#if complianceStatus}
+							<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {getStatusColor(complianceStatus)}">
+								{complianceStatus}
+							</span>
+						{:else}
+							<p class="text-2xl font-bold text-gray-400">—</p>
+						{/if}
+					</div>
+					<div class="bg-gray-50 rounded-lg p-4 text-center">
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Evidence Quality</p>
+						{#if evidenceQuality}
+							<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+								{evidenceQuality.toLowerCase() === 'good' || evidenceQuality.toLowerCase() === 'strong' ? 'text-green-700 bg-green-100' :
+								 evidenceQuality.toLowerCase() === 'moderate' || evidenceQuality.toLowerCase() === 'fair' ? 'text-yellow-700 bg-yellow-100' :
+								 'text-red-700 bg-red-100'}">
+								{evidenceQuality}
+							</span>
+						{:else}
+							<p class="text-2xl font-bold text-gray-400">—</p>
+						{/if}
+					</div>
+					<div class="bg-gray-50 rounded-lg p-4 text-center">
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Applied Controls</p>
+						<p class="text-2xl font-bold text-gray-800">{appliedControls.length}</p>
+					</div>
+				</div>
+
+				<!-- Applied Controls Source Cards -->
+				{#if appliedControls.length > 0}
+					<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+						<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+							<h4 class="font-semibold text-gray-700">
+								<i class="fa-solid fa-layer-group mr-2 text-[#0A1628]"></i>Evidence Sources
+							</h4>
+						</div>
+						<div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+							{#each appliedControls as ac}
+								<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+									<div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+										<i class="fa-solid fa-shield-halved text-indigo-600 text-sm"></i>
+									</div>
+									<div class="flex-1 min-w-0">
+										<p class="font-medium text-gray-800 text-sm truncate">{ac.name}</p>
+										<p class="text-xs text-gray-500">
+											{ac.evidenceCount} evidence{ac.evidenceCount !== 1 ? 's' : ''}
+											· {ac.fileNames?.length || 0} file{(ac.fileNames?.length || 0) !== 1 ? 's' : ''}
+											· <span class="capitalize">{(ac.status || '').replace(/_/g, ' ')}</span>
+										</p>
+										{#if ac.fileNames && ac.fileNames.length > 0}
+											<div class="flex flex-wrap gap-1 mt-1">
+												{#each ac.fileNames as fname}
+													<span class="text-[10px] px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 truncate max-w-[150px]">
+														<i class="fa-solid fa-file text-gray-400 mr-0.5"></i>{fname}
+													</span>
+												{/each}
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- If AI returned a markdown text response, render it nicely -->
+				{#if markdownText && typeof markdownText === 'string'}
+					<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+						<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+							<h4 class="font-semibold text-gray-700">
+								<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>Analysis Report
+							</h4>
+						</div>
+						<div class="p-4 prose prose-sm max-w-none text-gray-700">
+							<MarkdownRenderer content={markdownText} />
+						</div>
+					</div>
+				{/if}
+
+				<!-- Structured sections (if response is JSON object) -->
+				{#if typeof result === 'object' && !markdownText}
+					<!-- Summary text -->
+					{#if summaryText && typeof summaryText === 'string'}
+						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+								<h4 class="font-semibold text-gray-700">
+									<i class="fa-solid fa-clipboard-list mr-2"></i>Summary
+								</h4>
+							</div>
+							<div class="p-4">
+								<p class="text-gray-700 whitespace-pre-wrap">{summaryText}</p>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Ordered sections -->
+					{#each getOrderedSections(result) as [sectionKey, sectionValue]}
+						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+								<h4 class="font-semibold text-gray-700 capitalize">
+									{#if sectionKey.toLowerCase().includes('question')}
+										<i class="fa-solid fa-circle-question mr-2 text-indigo-600"></i>
+									{:else if sectionKey.toLowerCase().includes('gap')}
+										<i class="fa-solid fa-triangle-exclamation mr-2 text-orange-500"></i>
+									{:else if sectionKey.toLowerCase().includes('recommendation')}
+										<i class="fa-solid fa-lightbulb mr-2 text-amber-500"></i>
+									{:else if sectionKey.toLowerCase().includes('strength')}
+										<i class="fa-solid fa-circle-check mr-2 text-green-500"></i>
+									{:else if sectionKey.toLowerCase().includes('weakness')}
+										<i class="fa-solid fa-circle-xmark mr-2 text-red-500"></i>
+									{:else if sectionKey.toLowerCase().includes('finding')}
+										<i class="fa-solid fa-magnifying-glass mr-2 text-blue-500"></i>
+									{:else if sectionKey.toLowerCase().includes('evidence')}
+										<i class="fa-solid fa-file-lines mr-2 text-teal-500"></i>
+									{:else if sectionKey.toLowerCase().includes('assessment') || sectionKey.toLowerCase().includes('overall')}
+										<i class="fa-solid fa-gauge mr-2 text-[#0A1628]"></i>
+									{:else if sectionKey.toLowerCase().includes('control') || sectionKey.toLowerCase().includes('breakdown')}
+										<i class="fa-solid fa-shield-halved mr-2 text-violet-500"></i>
+									{:else}
+										<i class="fa-solid fa-list mr-2 text-gray-500"></i>
+									{/if}
+									{sectionKey.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}
+								</h4>
+							</div>
+							<div class="p-4">
+								{#if typeof sectionValue === 'string'}
+									<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
+
+								<!-- Question evaluation cards -->
+								{:else if (sectionKey.toLowerCase().includes('question') || sectionKey.toLowerCase().includes('answer')) && Array.isArray(sectionValue)}
+									{#if sectionValue.length === 0}
+										<p class="text-gray-400 italic">No questions evaluated</p>
+									{:else}
+										<div class="space-y-4">
+											{#each sectionValue as item, idx}
+												{@const qNum = getField(item, 'questionNumber') || getField(item, 'number') || idx + 1}
+												{@const qText = getField(item, 'question') || getField(item, 'text') || getField(item, 'questionText')}
+												{@const qAnswer = getField(item, 'answer') || getField(item, 'answered') || getField(item, 'selectedChoice')}
+												{@const qSource = getField(item, 'source') || getField(item, 'sourceFile') || getField(item, 'appliedControl')}
+												{@const qJustification = getField(item, 'justification') || getField(item, 'explanation') || getField(item, 'notes') || getField(item, 'reasoning')}
+												{@const qEvidence = getField(item, 'evidence') || getField(item, 'evidenceFound') || getField(item, 'evidenceFile')}
+												{@const qConfidence = getField(item, 'confidence')}
+												<div class="border border-gray-200 rounded-lg overflow-hidden">
+													<div class="bg-indigo-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+														<span class="font-semibold text-indigo-800 text-sm">
+															<i class="fa-solid fa-circle-question mr-1"></i>
+															Q{qNum}
+														</span>
+														{#if qConfidence !== undefined && qConfidence !== null}
+															<span class="text-xs font-medium px-2 py-0.5 rounded-full {Number(qConfidence) >= 0.8 ? 'bg-green-100 text-green-700' : Number(qConfidence) >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																Confidence: {Math.round(Number(qConfidence) * 100)}%
+															</span>
+														{/if}
+													</div>
+													<div class="p-4 space-y-3">
+														{#if qText}
+															<p class="text-gray-800 font-medium">{qText}</p>
+														{/if}
+														<div class="grid grid-cols-1 gap-3 text-sm">
+															{#if qAnswer !== undefined && qAnswer !== null}
+																<div class="flex items-start gap-2">
+																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px]">Answer:</span>
+																	<span class="text-gray-800 font-semibold">{qAnswer}</span>
+																</div>
+															{/if}
+															{#if qSource}
+																<div class="flex items-start gap-2">
+																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px]">Source:</span>
+																	<span class="text-gray-800">
+																		<i class="fa-solid fa-shield-halved text-indigo-400 mr-1"></i>
+																		{typeof qSource === 'object' ? JSON.stringify(qSource) : qSource}
+																	</span>
+																</div>
+															{/if}
+															{#if qEvidence}
+																<div class="flex items-start gap-2">
+																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px]">Evidence:</span>
+																	<span class="text-gray-800">{typeof qEvidence === 'object' ? JSON.stringify(qEvidence) : qEvidence}</span>
+																</div>
+															{/if}
+														</div>
+														{#if qJustification}
+															<div class="bg-gray-50 rounded-md p-3 text-sm">
+																<span class="font-medium text-gray-500">Justification: </span>
+																<span class="text-gray-700">{qJustification}</span>
+															</div>
+														{/if}
+														<!-- Fallback: show remaining fields not already displayed -->
+														{#if typeof item === 'object'}
+															{@const shownKeys = new Set(['questionnumber', 'number', 'question', 'text', 'questiontext', 'answer', 'answered', 'selectedchoice', 'source', 'sourcefile', 'appliedcontrol', 'justification', 'explanation', 'notes', 'reasoning', 'evidence', 'evidencefound', 'evidencefile', 'confidence'])}
+															{#each Object.entries(item).filter(([k]) => !shownKeys.has(k.toLowerCase())) as [k, v]}
+																<div class="flex items-start gap-2 text-sm">
+																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px] capitalize">{k.replace(/_/g, ' ')}:</span>
+																	<span class="text-gray-700">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																</div>
+															{/each}
+														{/if}
+													</div>
+												</div>
+											{/each}
+										</div>
+									{/if}
+
+								<!-- Gaps cards -->
+								{:else if sectionKey.toLowerCase().includes('gap') && Array.isArray(sectionValue)}
+									{#if sectionValue.length === 0}
+										<p class="text-gray-400 italic">No gaps identified</p>
+									{:else}
+										<div class="space-y-3">
+											{#each sectionValue as item, idx}
+												{@const gGap = typeof item === 'string' ? item : (getField(item, 'gap') || getField(item, 'description') || getField(item, 'text'))}
+												{@const gRec = typeof item === 'object' ? (getField(item, 'recommendation') || getField(item, 'action')) : null}
+												<div class="border border-orange-200 rounded-lg overflow-hidden">
+													<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
+														<span class="font-semibold text-orange-800 text-sm">
+															<i class="fa-solid fa-triangle-exclamation mr-1"></i>
+															Gap {idx + 1}
+														</span>
+													</div>
+													<div class="p-4 space-y-2 text-sm">
+														{#if gGap}
+															<p class="text-gray-800 font-medium">{gGap}</p>
+														{/if}
+														{#if gRec}
+															<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
+																<span class="font-medium text-blue-700"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
+																<span class="text-blue-800">{gRec}</span>
+															</div>
+														{/if}
+													</div>
+												</div>
+											{/each}
+										</div>
+									{/if}
+
+								<!-- Strengths / Weaknesses / Recommendations / Findings (string arrays) -->
+								{:else if Array.isArray(sectionValue)}
+									{#if sectionValue.length === 0}
+										<p class="text-gray-400 italic">No items</p>
+									{:else}
+										<ul class="space-y-2">
+											{#each sectionValue as item}
+												{#if typeof item === 'string'}
+													<li class="flex items-start gap-2">
+														{#if sectionKey.toLowerCase().includes('strength')}
+															<i class="fa-solid fa-circle-check text-green-500 mt-1 text-sm shrink-0"></i>
+														{:else if sectionKey.toLowerCase().includes('weakness')}
+															<i class="fa-solid fa-circle-xmark text-red-500 mt-1 text-sm shrink-0"></i>
+														{:else if sectionKey.toLowerCase().includes('recommendation')}
+															<i class="fa-solid fa-arrow-right text-amber-500 mt-1 text-sm shrink-0"></i>
+														{:else}
+															<i class="fa-solid fa-circle text-gray-400 mt-1.5 text-[6px] shrink-0"></i>
+														{/if}
+														<span class="text-gray-700">{item}</span>
+													</li>
+												{:else if typeof item === 'object' && item !== null}
+													<li class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+														{#each Object.entries(item) as [k, v]}
+															<div class="mb-1">
+																<span class="font-medium text-gray-600 capitalize">{k.replace(/_/g, ' ')}:</span>
+																<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+															</div>
+														{/each}
+													</li>
+												{:else}
+													<li class="text-gray-700">{JSON.stringify(item)}</li>
+												{/if}
+											{/each}
+										</ul>
+									{/if}
+
+								<!-- Object section (overallAssessment, etc.) -->
+								{:else if typeof sectionValue === 'object' && sectionValue !== null}
+									<div class="space-y-2">
+										{#each Object.entries(sectionValue) as [k, v]}
+											<div class="flex items-start gap-2">
+												<span class="font-medium text-gray-600 capitalize min-w-[140px] shrink-0">{k.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</span>
+												{#if typeof v === 'string'}
+													<span class="text-gray-700">{v}</span>
+												{:else}
+													<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(v, null, 2)}</pre>
+												{/if}
+											</div>
+										{/each}
+									</div>
+
+								{:else}
+									<p class="text-gray-700">{JSON.stringify(sectionValue)}</p>
+								{/if}
+							</div>
+						</div>
+					{/each}
+
+					<!-- Fallback: if no sections were rendered, show raw -->
+					{#if getOrderedSections(result).length === 0 && !summaryText}
+						{@const displayResult = Object.fromEntries(
+							Object.entries(result).filter(([k]) => !metadataKeys.has(k) && !metadataKeys.has(k.toLowerCase()))
+						)}
+						<div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+							<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(displayResult, null, 2)}</pre>
+						</div>
+					{/if}
+				{/if}
+			</div>
+
+			<!-- Modal Footer -->
+			<div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+				<button
+					type="button"
+					class="btn text-sm flex items-center gap-2 text-white disabled:opacity-50"
+					style="background: linear-gradient(to right, #7c3aed, #4f46e5);"
+					onclick={() => startAiAnalysis()}
+					disabled={aiAnalysisLoading}
+				>
+					{#if aiAnalysisLoading}
+						<i class="fa-solid fa-spinner fa-spin"></i>
+						<span>Re-analyzing...</span>
+					{:else}
+						<i class="fa-solid fa-arrows-rotate"></i>
+						<span>Re-run Analysis</span>
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="btn preset-filled-surface-200-800"
+					onclick={closeModal}
+				>
+					Close
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
