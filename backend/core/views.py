@@ -4062,6 +4062,19 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             )
         )
 
+    @staticmethod
+    def _replace_gemini_ids_with_names(obj, id_to_name_map):
+        """Recursively replace Gemini file IDs (e.g. files/abc123) with real evidence names in the API response."""
+        if isinstance(obj, str):
+            for gid, name in id_to_name_map.items():
+                obj = obj.replace(gid, name)
+            return obj
+        elif isinstance(obj, dict):
+            return {k: AppliedControlViewSet._replace_gemini_ids_with_names(v, id_to_name_map) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [AppliedControlViewSet._replace_gemini_ids_with_names(item, id_to_name_map) for item in obj]
+        return obj
+
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
         """Call Muraji /api/audit/analyze directly and return result"""
@@ -4259,6 +4272,11 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 )
             
             analysis_data = resp.json()
+
+            # Replace Gemini file IDs with real evidence names
+            id_to_name = {fs['gemini_file_id']: fs['evidence_name'] for fs in gemini_file_ids if fs.get('gemini_file_id')}
+            if id_to_name:
+                analysis_data = self._replace_gemini_ids_with_names(analysis_data, id_to_name)
             
             # Extract score and status from the analysis result
             overall = analysis_data.get('overallAssessment', {})
@@ -10153,6 +10171,11 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
             result = resp.json()
             print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
+
+            # Replace Gemini file IDs with real evidence names
+            id_to_name = {fs['gemini_file_id']: fs['evidence_name'] for fs in gemini_file_ids if fs.get('gemini_file_id')}
+            if id_to_name:
+                result = AppliedControlViewSet._replace_gemini_ids_with_names(result, id_to_name)
 
             # Add applied controls metadata to the response
             if isinstance(result, dict):
