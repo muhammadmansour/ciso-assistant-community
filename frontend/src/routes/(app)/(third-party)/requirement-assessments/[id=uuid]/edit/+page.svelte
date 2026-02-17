@@ -274,6 +274,38 @@
 
 	let computedResult = $derived(computedScoreAndResult.result);
 	let computedScore = $derived(computedScoreAndResult.score);
+
+	// AI Analysis state
+	let aiAnalysisLoading = $state(false);
+	let aiAnalysisResult: any = $state(null);
+	let aiAnalysisError: string | null = $state(null);
+	let aiAnalysisExpanded = $state(false);
+
+	async function startAiAnalysis() {
+		aiAnalysisLoading = true;
+		aiAnalysisError = null;
+		aiAnalysisResult = null;
+
+		try {
+			const res = await fetch(`/requirement-assessments/${data.requirementAssessment.id}/analysis`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' }
+			});
+
+			if (!res.ok) {
+				const errData = await res.json().catch(() => ({}));
+				aiAnalysisError = errData.error || errData.details || `Analysis failed (${res.status})`;
+				return;
+			}
+
+			aiAnalysisResult = await res.json();
+			aiAnalysisExpanded = true;
+		} catch (err) {
+			aiAnalysisError = String(err);
+		} finally {
+			aiAnalysisLoading = false;
+		}
+	}
 </script>
 
 {#if data.requirementAssessment.compliance_assessment.is_locked}
@@ -288,15 +320,36 @@
 	</div>
 {/if}
 <div class="card space-y-2 p-4 bg-white shadow-sm">
-	<div class="flex justify-between">
+	<div class="flex justify-between items-center">
 		<div class="flex">
 			<span class="code left h-min">{data.requirement.urn}</span>
 		</div>
-		<a
-			class="text-pink-500 hover:text-pink-400"
-			href={complianceAssessmentURL}
-			aria-label="Go to compliance assessment"><i class="fa-solid fa-turn-up"></i></a
-		>
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="btn bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-sm text-sm flex items-center gap-2 disabled:opacity-50"
+				onclick={startAiAnalysis}
+				disabled={aiAnalysisLoading || data.requirementAssessment.compliance_assessment.is_locked}
+				title="Analyze this requirement with AI"
+			>
+				{#if aiAnalysisLoading}
+					<ProgressRing
+						strokeWidth="16px"
+						meterStroke="stroke-white"
+						size="size-5"
+					/>
+					<span>Analyzing...</span>
+				{:else}
+					<i class="fa-solid fa-wand-magic-sparkles"></i>
+					<span>AI Analysis</span>
+				{/if}
+			</button>
+			<a
+				class="text-pink-500 hover:text-pink-400"
+				href={complianceAssessmentURL}
+				aria-label="Go to compliance assessment"><i class="fa-solid fa-turn-up"></i></a
+			>
+		</div>
 	</div>
 	{#if data.requirement?.implementation_groups?.length > 0}
 		<div class="mb-2">
@@ -456,6 +509,134 @@
 			{/if}
 		</div>
 	{/if}
+	<!-- AI Analysis Results -->
+	{#if aiAnalysisError}
+		<div class="card p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2 text-red-700">
+					<i class="fa-solid fa-circle-exclamation"></i>
+					<span class="font-semibold">AI Analysis Failed</span>
+				</div>
+				<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (aiAnalysisError = null)}>
+					<i class="fa-solid fa-xmark"></i>
+				</button>
+			</div>
+			<p class="text-red-600 text-sm mt-2">{aiAnalysisError}</p>
+		</div>
+	{/if}
+
+	{#if aiAnalysisResult}
+		<div class="card bg-white border border-indigo-200 shadow-sm rounded-xl mt-2 overflow-hidden">
+			<!-- Header -->
+			<button
+				type="button"
+				class="w-full flex items-center justify-between px-5 py-3 bg-gradient-to-r from-violet-50 to-indigo-50 hover:from-violet-100 hover:to-indigo-100 transition-colors cursor-pointer"
+				onclick={() => (aiAnalysisExpanded = !aiAnalysisExpanded)}
+			>
+				<div class="flex items-center gap-2">
+					<i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+					<span class="font-semibold text-indigo-900">AI Analysis Report</span>
+				</div>
+				<i class="fa-solid fa-chevron-{aiAnalysisExpanded ? 'up' : 'down'} text-indigo-400"></i>
+			</button>
+
+			{#if aiAnalysisExpanded}
+				<div class="p-5 space-y-4">
+					<!-- Render the AI response as markdown if it's a string -->
+					{#if typeof aiAnalysisResult === 'string'}
+						<div class="prose prose-sm max-w-none text-gray-700">
+							<MarkdownRenderer content={aiAnalysisResult} />
+						</div>
+					{:else if aiAnalysisResult.text || aiAnalysisResult.content || aiAnalysisResult.message}
+						<div class="prose prose-sm max-w-none text-gray-700">
+							<MarkdownRenderer content={aiAnalysisResult.text || aiAnalysisResult.content || aiAnalysisResult.message} />
+						</div>
+					{:else if aiAnalysisResult.overallAssessment}
+						<!-- Structured response format -->
+						<div class="space-y-4">
+							<!-- Score & Status -->
+							{#if aiAnalysisResult.overallAssessment.score !== undefined || aiAnalysisResult.overallAssessment.status}
+								<div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+									{#if aiAnalysisResult.overallAssessment.score !== undefined}
+										<div class="flex flex-col items-center">
+											<span class="text-3xl font-bold text-indigo-600">{aiAnalysisResult.overallAssessment.score}</span>
+											<span class="text-xs text-gray-500">Score</span>
+										</div>
+									{/if}
+									{#if aiAnalysisResult.overallAssessment.status}
+										<div class="flex-1">
+											<span class="px-3 py-1 rounded-full text-sm font-medium
+												{aiAnalysisResult.overallAssessment.status === 'compliant' ? 'bg-green-100 text-green-800' :
+												 aiAnalysisResult.overallAssessment.status === 'partially_compliant' ? 'bg-yellow-100 text-yellow-800' :
+												 aiAnalysisResult.overallAssessment.status === 'non_compliant' ? 'bg-red-100 text-red-800' :
+												 'bg-gray-100 text-gray-800'}">
+												{safeTranslate(aiAnalysisResult.overallAssessment.status)}
+											</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+
+							<!-- Summary -->
+							{#if aiAnalysisResult.overallAssessment.summary}
+								<div>
+									<h4 class="font-semibold text-gray-800 mb-1"><i class="fa-solid fa-clipboard-list mr-1"></i> Summary</h4>
+									<p class="text-gray-600 text-sm">{aiAnalysisResult.overallAssessment.summary}</p>
+								</div>
+							{/if}
+
+							<!-- Findings -->
+							{#if aiAnalysisResult.findings && aiAnalysisResult.findings.length > 0}
+								<div>
+									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-magnifying-glass mr-1"></i> Key Findings</h4>
+									<ul class="space-y-2">
+										{#each aiAnalysisResult.findings as finding}
+											<li class="flex items-start gap-2 text-sm text-gray-600">
+												<i class="fa-solid fa-circle-check text-indigo-400 mt-0.5 flex-shrink-0"></i>
+												<span>{typeof finding === 'string' ? finding : finding.description || finding.text || JSON.stringify(finding)}</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Recommendations -->
+							{#if aiAnalysisResult.recommendations && aiAnalysisResult.recommendations.length > 0}
+								<div>
+									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> Recommendations</h4>
+									<ul class="space-y-2">
+										{#each aiAnalysisResult.recommendations as rec}
+											<li class="flex items-start gap-2 text-sm text-gray-600">
+												<i class="fa-solid fa-arrow-right text-amber-400 mt-0.5 flex-shrink-0"></i>
+												<span>{typeof rec === 'string' ? rec : rec.description || rec.text || JSON.stringify(rec)}</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<!-- Fallback: render as pretty JSON -->
+						<pre class="bg-gray-50 p-4 rounded-lg text-xs text-gray-600 overflow-auto max-h-96">{JSON.stringify(aiAnalysisResult, null, 2)}</pre>
+					{/if}
+
+					<!-- Re-run button -->
+					<div class="flex justify-end pt-2 border-t border-gray-100">
+						<button
+							type="button"
+							class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+							onclick={startAiAnalysis}
+							disabled={aiAnalysisLoading}
+						>
+							<i class="fa-solid fa-arrows-rotate {aiAnalysisLoading ? 'animate-spin' : ''}"></i>
+							Re-run Analysis
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	<div class="mt-4">
 		<SuperForm
 			class="flex flex-col"
