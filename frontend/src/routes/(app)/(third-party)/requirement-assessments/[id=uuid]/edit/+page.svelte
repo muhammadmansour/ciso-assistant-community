@@ -536,13 +536,45 @@
 				<div class="flex items-center gap-2">
 					<i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
 					<span class="font-semibold text-indigo-900">AI Analysis Report</span>
+					{#if aiAnalysisResult._appliedControls}
+						<span class="text-xs text-indigo-400">
+							({aiAnalysisResult._appliedControls.length} applied controls analyzed)
+						</span>
+					{/if}
 				</div>
 				<i class="fa-solid fa-chevron-{aiAnalysisExpanded ? 'up' : 'down'} text-indigo-400"></i>
 			</button>
 
 			{#if aiAnalysisExpanded}
-				<div class="p-5 space-y-4">
-					<!-- Render the AI response as markdown if it's a string -->
+				<div class="p-5 space-y-5">
+					<!-- Applied Controls Summary Cards -->
+					{#if aiAnalysisResult._appliedControls && aiAnalysisResult._appliedControls.length > 0}
+						<div>
+							<h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+								<i class="fa-solid fa-layer-group text-indigo-500"></i>
+								Evidence Sources
+							</h4>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+								{#each aiAnalysisResult._appliedControls as ac}
+									<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+										<div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+											<i class="fa-solid fa-shield-halved text-indigo-600 text-sm"></i>
+										</div>
+										<div class="flex-1 min-w-0">
+											<p class="font-medium text-gray-800 text-sm truncate">{ac.name}</p>
+											<p class="text-xs text-gray-500">
+												{ac.evidenceCount} evidence{ac.evidenceCount !== 1 ? 's' : ''}
+												· {ac.fileNames.length} file{ac.fileNames.length !== 1 ? 's' : ''}
+												· <span class="capitalize">{ac.status.replace('_', ' ')}</span>
+											</p>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- AI Response Content -->
 					{#if typeof aiAnalysisResult === 'string'}
 						<div class="prose prose-sm max-w-none text-gray-700">
 							<MarkdownRenderer content={aiAnalysisResult} />
@@ -552,7 +584,6 @@
 							<MarkdownRenderer content={aiAnalysisResult.text || aiAnalysisResult.content || aiAnalysisResult.message} />
 						</div>
 					{:else if aiAnalysisResult.overallAssessment}
-						<!-- Structured response format -->
 						<div class="space-y-4">
 							<!-- Score & Status -->
 							{#if aiAnalysisResult.overallAssessment.score !== undefined || aiAnalysisResult.overallAssessment.status}
@@ -577,7 +608,6 @@
 								</div>
 							{/if}
 
-							<!-- Summary -->
 							{#if aiAnalysisResult.overallAssessment.summary}
 								<div>
 									<h4 class="font-semibold text-gray-800 mb-1"><i class="fa-solid fa-clipboard-list mr-1"></i> Summary</h4>
@@ -585,7 +615,6 @@
 								</div>
 							{/if}
 
-							<!-- Findings -->
 							{#if aiAnalysisResult.findings && aiAnalysisResult.findings.length > 0}
 								<div>
 									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-magnifying-glass mr-1"></i> Key Findings</h4>
@@ -600,7 +629,6 @@
 								</div>
 							{/if}
 
-							<!-- Recommendations -->
 							{#if aiAnalysisResult.recommendations && aiAnalysisResult.recommendations.length > 0}
 								<div>
 									<h4 class="font-semibold text-gray-800 mb-2"><i class="fa-solid fa-lightbulb mr-1"></i> Recommendations</h4>
@@ -616,8 +644,11 @@
 							{/if}
 						</div>
 					{:else}
-						<!-- Fallback: render as pretty JSON -->
-						<pre class="bg-gray-50 p-4 rounded-lg text-xs text-gray-600 overflow-auto max-h-96">{JSON.stringify(aiAnalysisResult, null, 2)}</pre>
+						<!-- Fallback: render full response as JSON -->
+						{@const displayResult = Object.fromEntries(
+							Object.entries(aiAnalysisResult).filter(([k]) => k !== '_appliedControls')
+						)}
+						<pre class="bg-gray-50 p-4 rounded-lg text-xs text-gray-600 overflow-auto max-h-96">{JSON.stringify(displayResult, null, 2)}</pre>
 					{/if}
 
 					<!-- Re-run button -->
