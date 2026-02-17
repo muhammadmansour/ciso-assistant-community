@@ -38,6 +38,8 @@
 		formatScoreValue,
 		displayScoreColor
 	} from '$lib/utils/helpers';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	interface Props {
 		data: PageData;
@@ -276,11 +278,13 @@
 	let computedScore = $derived(computedScoreAndResult.score);
 
 	// AI Analysis state
-	let aiAnalysisLoading = $state(false);
+	let isAnalyzing = $state(false);
 	let aiAnalysisResult: any = $state(null);
 	let aiAnalysisError: string | null = $state(null);
 	let showAnalysisModal = $state(false);
 	let isModalExpanded = $state(false);
+	let deletingAnalysisId: string | null = $state(null);
+	let selectedAnalysis: any = $state(null);
 
 	// Metadata/scalar keys to exclude from report sections
 	const metadataKeys = new Set([
@@ -352,35 +356,19 @@
 		return undefined;
 	}
 
-	async function startAiAnalysis() {
-		aiAnalysisLoading = true;
-		aiAnalysisError = null;
-		aiAnalysisResult = null;
-
-		try {
-			const res = await fetch(`/requirement-assessments/${data.requirementAssessment.id}/analysis`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' }
-			});
-
-			if (!res.ok) {
-				const errData = await res.json().catch(() => ({}));
-				aiAnalysisError = errData.error || errData.details || `Analysis failed (${res.status})`;
-				return;
-			}
-
-			aiAnalysisResult = await res.json();
-			showAnalysisModal = true;
-		} catch (err) {
-			aiAnalysisError = String(err);
-		} finally {
-			aiAnalysisLoading = false;
-		}
+	function openAnalysisDetail(analysis: any) {
+		selectedAnalysis = analysis;
+		showAnalysisModal = true;
 	}
 
 	function closeModal() {
 		showAnalysisModal = false;
+		selectedAnalysis = null;
 		isModalExpanded = false;
+	}
+
+	function formatDate(dateStr: string): string {
+		return new Date(dateStr).toLocaleString();
 	}
 </script>
 
@@ -401,26 +389,52 @@
 			<span class="code left h-min">{data.requirement.urn}</span>
 		</div>
 		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				class="btn text-white shadow-sm text-sm flex items-center gap-2 disabled:opacity-50"
-				style="background: linear-gradient(to right, #7c3aed, #4f46e5);"
-				onclick={startAiAnalysis}
-				disabled={aiAnalysisLoading || data.requirementAssessment.compliance_assessment.is_locked}
-				title="Analyze this requirement with AI"
+			<form
+				method="POST"
+				action="?/runAiAnalysis"
+				use:enhance={() => {
+					isAnalyzing = true;
+					aiAnalysisResult = null;
+					aiAnalysisError = null;
+					return async ({ result }) => {
+						isAnalyzing = false;
+						if (result.type === 'success' && result.data?.aiAnalysis) {
+							aiAnalysisResult = result.data.aiAnalysis;
+							// Auto-open modal with the fresh result
+							selectedAnalysis = {
+								...result.data.aiAnalysis,
+								result: result.data.aiAnalysis.ai_analysis,
+								created_at: result.data.aiAnalysis.ai_analysis_updated_at,
+								score: result.data.aiAnalysis.ai_analysis?.overallAssessment?.score,
+								compliance_status: result.data.aiAnalysis.ai_analysis?.overallAssessment?.status,
+								gemini_files_count: 0,
+								requirements_count: 1,
+							};
+							showAnalysisModal = true;
+						} else if (result.type === 'failure' && result.data?.aiError) {
+							aiAnalysisError = result.data.aiError;
+						} else {
+							aiAnalysisError = 'Unexpected response from server';
+						}
+						await invalidateAll();
+					};
+				}}
 			>
-				{#if aiAnalysisLoading}
-					<ProgressRing
-						strokeWidth="16px"
-						meterStroke="stroke-white"
-						size="size-5"
-					/>
-					<span>Analyzing...</span>
-				{:else}
-					<i class="fa-solid fa-wand-magic-sparkles"></i>
-					<span>AI Analysis</span>
-				{/if}
-			</button>
+				<button
+					type="submit"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+					disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
+					title="Start AI Analysis on Associated Evidences"
+				>
+					{#if isAnalyzing}
+						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						<span>Analyzing...</span>
+					{:else}
+						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+						<span>Start AI Analysis</span>
+					{/if}
+				</button>
+			</form>
 			<a
 				class="text-pink-500 hover:text-pink-400"
 				href={complianceAssessmentURL}
@@ -599,21 +613,6 @@
 				</button>
 			</div>
 			<p class="text-red-600 text-sm mt-2">{aiAnalysisError}</p>
-		</div>
-	{/if}
-
-	<!-- Show "View Report" button if result exists but modal is closed -->
-	{#if aiAnalysisResult && !showAnalysisModal}
-		<div class="mt-2">
-			<button
-				type="button"
-				class="btn text-sm text-white shadow-sm flex items-center gap-2"
-				style="background: linear-gradient(to right, #0A1628, #1a2740);"
-				onclick={() => (showAnalysisModal = true)}
-			>
-				<i class="fa-solid fa-brain"></i>
-				<span>View AI Analysis Report</span>
-			</button>
 		</div>
 	{/if}
 
@@ -908,12 +907,144 @@
 	</div>
 </div>
 
+<!-- AI Analysis History -->
+<div class="card mt-8 bg-white shadow-lg">
+	<div class="p-6">
+		{#if isAnalyzing}
+			<div class="text-center py-16">
+				<div class="inline-block mb-6">
+					<i class="fa-solid fa-spinner fa-spin text-5xl text-[#0A1628]"></i>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
+				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
+			</div>
+		{:else if aiAnalysisError}
+			<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+				<div class="flex items-center gap-2 mb-2">
+					<i class="fa-solid fa-circle-exclamation text-red-600"></i>
+					<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
+				</div>
+				<p class="text-red-600 text-sm">{aiAnalysisError}</p>
+			</div>
+		{/if}
+
+		<div class="mb-4 flex items-center justify-between">
+			<h3 class="text-lg font-semibold text-gray-800">
+				<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
+				AI Analysis History
+			</h3>
+			<span class="text-sm text-gray-500">
+				{data.aiAnalyses?.length || 0} analysis(es)
+			</span>
+		</div>
+
+		{#if data.aiAnalyses?.length > 0}
+			<div class="overflow-x-auto border border-gray-200 rounded-lg">
+				<table class="w-full text-sm">
+					<thead class="bg-gray-50 border-b border-gray-200">
+						<tr>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
+							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
+							<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-100">
+						{#each data.aiAnalyses as analysis}
+							<tr class="hover:bg-gray-50 transition-colors">
+								<td class="px-4 py-3 text-gray-700">
+									{formatDate(analysis.created_at)}
+								</td>
+								<td class="px-4 py-3">
+									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
+										{#if analysis.status === 'completed'}
+											<i class="fa-solid fa-circle-check mr-1"></i>
+										{:else}
+											<i class="fa-solid fa-circle-xmark mr-1"></i>
+										{/if}
+										{analysis.status}
+									</span>
+								</td>
+								<td class="px-4 py-3 text-center text-gray-600">
+									{analysis.gemini_files_count}
+								</td>
+								<td class="px-4 py-3 text-center text-gray-600">
+									{analysis.requirements_count}
+								</td>
+								<td class="px-4 py-3 text-center">
+									<div class="flex items-center justify-center gap-1">
+										<button
+											class="btn btn-sm preset-tonal-primary"
+											onclick={() => openAnalysisDetail(analysis)}
+											title="View full analysis"
+										>
+											<i class="fa-solid fa-eye mr-1"></i>
+											View
+										</button>
+										<form
+											method="POST"
+											action="?/deleteAiAnalysis"
+											use:enhance={() => {
+												if (!confirm('Are you sure you want to delete this analysis?')) {
+													return ({ cancel }) => cancel();
+												}
+												deletingAnalysisId = analysis.id;
+												return async ({ result }) => {
+													deletingAnalysisId = null;
+													if (result.type === 'success') {
+														await invalidateAll();
+													}
+												};
+											}}
+										>
+											<input type="hidden" name="analysisId" value={analysis.id} />
+											<button
+												type="submit"
+												class="btn btn-sm preset-tonal-error"
+												title="Delete analysis"
+												disabled={deletingAnalysisId === analysis.id}
+											>
+												{#if deletingAnalysisId === analysis.id}
+													<i class="fa-solid fa-spinner fa-spin"></i>
+												{:else}
+													<i class="fa-solid fa-trash"></i>
+												{/if}
+											</button>
+										</form>
+									</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{:else}
+			<div class="text-center py-12">
+				<div class="inline-block p-6 rounded-full bg-[#0A1628]/10 mb-4">
+					<i class="fa-solid fa-brain text-4xl text-[#0A1628]"></i>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
+				<p class="text-gray-600 mb-6">
+					Click the "Start AI Analysis" button above to analyze all associated evidence files.
+				</p>
+				<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
+					<p class="text-sm text-blue-800">
+						<i class="fa-solid fa-info-circle mr-2"></i>
+						Each analysis will be saved here for future reference.
+					</p>
+				</div>
+			</div>
+		{/if}
+	</div>
+</div>
+
 <!-- AI Analysis Modal -->
-{#if showAnalysisModal && aiAnalysisResult}
-	{@const result = aiAnalysisResult}
+{#if showAnalysisModal && selectedAnalysis}
+	{@const result = selectedAnalysis.result || selectedAnalysis}
 	{@const appliedControls = result._appliedControls || []}
-	{@const score = getScalarField(result, 'score') ?? getField(getField(result, 'overallAssessment') || {}, 'score')}
-	{@const complianceStatus = getScalarField(result, 'compliance_status', 'complianceStatus', 'status') ?? getField(getField(result, 'overallAssessment') || {}, 'status')}
+	{@const score = selectedAnalysis.score ?? getScalarField(result, 'score') ?? getField(getField(result, 'overallAssessment') || {}, 'score')}
+	{@const complianceStatus = selectedAnalysis.compliance_status ?? getScalarField(result, 'compliance_status', 'complianceStatus', 'status') ?? getField(getField(result, 'overallAssessment') || {}, 'status')}
 	{@const evidenceQuality = getScalarField(result, 'evidenceQuality', 'evidence_quality')}
 	{@const summaryText = getScalarField(result, 'summary') ?? getField(getField(result, 'overallAssessment') || {}, 'summary')}
 	{@const markdownText = result.text || result.content || result.message}
@@ -949,19 +1080,13 @@
 						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
 						<p class="text-sm text-gray-500">
 							{data.requirement.ref_id} — {appliedControls.length} applied control{appliedControls.length !== 1 ? 's' : ''} analyzed
+							{#if selectedAnalysis?.created_at}
+								· {formatDate(selectedAnalysis.created_at)}
+							{/if}
 						</p>
 					</div>
 				</div>
 				<div class="flex items-center gap-1">
-					<button
-						type="button"
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-						onclick={() => startAiAnalysis()}
-						disabled={aiAnalysisLoading}
-						title="Re-run analysis"
-					>
-						<i class="fa-solid fa-arrows-rotate text-gray-500 text-lg {aiAnalysisLoading ? 'animate-spin' : ''}"></i>
-					</button>
 					<button
 						type="button"
 						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -1328,22 +1453,7 @@
 			</div>
 
 			<!-- Modal Footer -->
-			<div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
-				<button
-					type="button"
-					class="btn text-sm flex items-center gap-2 text-white disabled:opacity-50"
-					style="background: linear-gradient(to right, #7c3aed, #4f46e5);"
-					onclick={() => startAiAnalysis()}
-					disabled={aiAnalysisLoading}
-				>
-					{#if aiAnalysisLoading}
-						<i class="fa-solid fa-spinner fa-spin"></i>
-						<span>Re-analyzing...</span>
-					{:else}
-						<i class="fa-solid fa-arrows-rotate"></i>
-						<span>Re-run Analysis</span>
-					{/if}
-				</button>
+			<div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
 					class="btn preset-filled-surface-200-800"

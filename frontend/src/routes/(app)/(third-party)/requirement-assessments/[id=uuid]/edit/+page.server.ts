@@ -162,6 +162,19 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
+	// Load past AI analyses (safe — won't break page if it fails)
+	let aiAnalyses: any[] = [];
+	try {
+		const analysesResponse = await fetch(
+			`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`
+		);
+		if (analysesResponse.ok) {
+			aiAnalyses = await analysesResponse.json();
+		}
+	} catch (e) {
+		console.error('Failed to load AI analyses:', e);
+	}
+
 	return {
 		URLModel,
 		title: requirementAssessment.name,
@@ -177,7 +190,8 @@ export const load = (async ({ fetch, params }) => {
 		evidenceCreateForm,
 		securityExceptionModel,
 		securityExceptionCreateForm,
-		tables
+		tables,
+		aiAnalyses
 	};
 }) satisfies PageServerLoad;
 
@@ -266,6 +280,39 @@ export const actions: Actions = {
 	createSecurityException: async (event) => {
 		const result = await nestedWriteFormAction({ event, action: 'create' });
 		return { form: result.form, newSecurityException: result.form.message.object.id };
+	},
+	runAiAnalysis: async (event) => {
+		// Call backend which calls Muraji API directly, wait for result
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/run-ai-analysis/`,
+			{ method: 'POST' }
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			return fail(response.status, { aiError: err.message || `Error ${response.status}` });
+		}
+
+		const result = await response.json();
+		return { aiAnalysis: result };
+	},
+	deleteAiAnalysis: async (event) => {
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId');
+		if (!analysisId) {
+			return fail(400, { error: 'Missing analysis ID' });
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/ai-analyses/${analysisId}/delete/`,
+			{ method: 'DELETE' }
+		);
+
+		if (!response.ok) {
+			return fail(response.status, { error: 'Failed to delete analysis' });
+		}
+
+		return { deleted: true };
 	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();

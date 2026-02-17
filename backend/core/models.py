@@ -3851,7 +3851,7 @@ class Evidence(
 
 
 class AiAnalysisResult(models.Model):
-    """Stores AI analysis results for applied controls"""
+    """Stores AI analysis results for applied controls and requirement assessments"""
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
@@ -3860,7 +3860,18 @@ class AiAnalysisResult(models.Model):
         "AppliedControl",
         on_delete=models.CASCADE,
         related_name="ai_analyses",
-        verbose_name=_("Applied Control")
+        verbose_name=_("Applied Control"),
+        null=True,
+        blank=True,
+    )
+    
+    requirement_assessment = models.ForeignKey(
+        "RequirementAssessment",
+        on_delete=models.CASCADE,
+        related_name="ai_analyses",
+        verbose_name=_("Requirement Assessment"),
+        null=True,
+        blank=True,
     )
     
     result = models.JSONField(
