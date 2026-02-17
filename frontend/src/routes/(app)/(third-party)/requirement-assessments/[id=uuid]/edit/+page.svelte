@@ -327,7 +327,8 @@
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="btn bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-sm text-sm flex items-center gap-2 disabled:opacity-50"
+				class="btn text-white shadow-sm text-sm flex items-center gap-2 disabled:opacity-50"
+				style="background: linear-gradient(to right, #7c3aed, #4f46e5);"
 				onclick={startAiAnalysis}
 				disabled={aiAnalysisLoading || data.requirementAssessment.compliance_assessment.is_locked}
 				title="Analyze this requirement with AI"
