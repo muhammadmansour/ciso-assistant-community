@@ -282,10 +282,14 @@
 	let showAnalysisModal = $state(false);
 	let isModalExpanded = $state(false);
 
-	// Metadata keys to exclude from report sections
+	// Metadata/scalar keys to exclude from report sections
 	const metadataKeys = new Set([
 		'_appliedcontrols', '_appliedControls', 'metadata', 'timestamp', 'model',
-		'analysis_config', 'analysisconfig', 'text', 'content', 'message'
+		'analysis_config', 'analysisconfig', 'text', 'content', 'message',
+		'status', 'compliance_status', 'compliancestatus', 'effectiveness',
+		'score', 'compliancelevel', 'compliance_level', 'evidencequality',
+		'evidence_quality', 'summary', 'detailedanalysis', 'detailed_analysis',
+		'riskassessment', 'risk_assessment', 'note', 'aimodel', 'ai_model',
 	]);
 
 	const isReportSection = (key: string, value: any) =>
@@ -303,10 +307,11 @@
 
 	// Section display order
 	const sectionOrder = [
-		'overallassessment', 'summary', 'questionevaluation', 'questionsanswers',
-		'questions_answers', 'appliedcontrolbreakdown', 'applied_control_breakdown',
-		'typicalevidencecheck', 'strengths', 'weaknesses', 'gaps', 'recommendations',
-		'findings', 'detailedanalysis', 'detailed_analysis'
+		'overallassessment', 'questionevaluation', 'questionsanswers',
+		'questions_answers', 'typicalevidencecheck', 'typical_evidence_check',
+		'appliedcontrolbreakdown', 'applied_control_breakdown',
+		'filesanalyzed', 'files_analyzed', 'strengths', 'weaknesses',
+		'gaps', 'recommendations', 'findings', 'nextsteps', 'next_steps',
 	];
 
 	function getOrderedSections(result: Record<string, any>): [string, any][] {
@@ -1067,6 +1072,9 @@
 
 				<!-- Structured sections (if response is JSON object) -->
 				{#if typeof result === 'object' && !markdownText}
+					{@const detailedAnalysis = getScalarField(result, 'detailedAnalysis', 'detailed_analysis', 'detailedanalysis')}
+					{@const noteText = getScalarField(result, 'note', 'notes')}
+
 					<!-- Summary text -->
 					{#if summaryText && typeof summaryText === 'string'}
 						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
@@ -1077,6 +1085,20 @@
 							</div>
 							<div class="p-4">
 								<p class="text-gray-700 whitespace-pre-wrap">{summaryText}</p>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Detailed Analysis text -->
+					{#if detailedAnalysis && typeof detailedAnalysis === 'string'}
+						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+								<h4 class="font-semibold text-gray-700">
+									<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>Detailed Analysis
+								</h4>
+							</div>
+							<div class="p-4">
+								<p class="text-gray-700 whitespace-pre-wrap leading-relaxed">{detailedAnalysis}</p>
 							</div>
 						</div>
 					{/if}
@@ -1279,8 +1301,22 @@
 						</div>
 					{/each}
 
+					<!-- Note section -->
+					{#if noteText && typeof noteText === 'string'}
+						<div class="mb-6 border border-blue-200 rounded-lg overflow-hidden">
+							<div class="bg-blue-50 px-4 py-3 border-b border-blue-200">
+								<h4 class="font-semibold text-blue-800">
+									<i class="fa-solid fa-circle-info mr-2"></i>Note
+								</h4>
+							</div>
+							<div class="p-4">
+								<p class="text-blue-700 text-sm whitespace-pre-wrap">{noteText}</p>
+							</div>
+						</div>
+					{/if}
+
 					<!-- Fallback: if no sections were rendered, show raw -->
-					{#if getOrderedSections(result).length === 0 && !summaryText}
+					{#if getOrderedSections(result).length === 0 && !summaryText && !detailedAnalysis}
 						{@const displayResult = Object.fromEntries(
 							Object.entries(result).filter(([k]) => !metadataKeys.has(k) && !metadataKeys.has(k.toLowerCase()))
 						)}

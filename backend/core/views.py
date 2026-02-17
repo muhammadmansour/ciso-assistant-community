@@ -9932,6 +9932,239 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         cache.clear()
         return response
 
+    @action(detail=True, methods=["post"], url_path="run-ai-analysis")
+    def run_ai_analysis(self, request, pk=None):
+        """Run AI analysis for a requirement assessment via Muraji /api/audit/analyze"""
+        import requests as http_requests
+        import os
+        from core.models import FileSearchTable
+        from core.gemini_file_search import get_gemini_client
+
+        requirement_assessment = self.get_object()
+        requirement = requirement_assessment.requirement
+
+        print(f"[RA-AI-ANALYSIS] ====== START ======")
+        print(f"[RA-AI-ANALYSIS] Requirement Assessment: id={requirement_assessment.id}")
+        print(f"[RA-AI-ANALYSIS] Requirement: {requirement.ref_id} - {requirement.name}")
+
+        # 1. Get all applied controls linked to this requirement assessment
+        applied_controls = requirement_assessment.applied_controls.all()
+        ac_count = applied_controls.count()
+        print(f"[RA-AI-ANALYSIS] Applied Controls linked: {ac_count}")
+
+        if ac_count == 0:
+            return Response(
+                {'message': 'No applied controls linked. Please link applied controls with evidences first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Gather Gemini file IDs from all applied controls' evidences
+        gemini_file_ids = []
+        applied_controls_meta = []
+        gemini_client = None
+
+        for ac in applied_controls:
+            ac_evidence_count = 0
+            ac_file_names = []
+
+            for evidence in ac.evidences.all():
+                for revision in evidence.revisions.all():
+                    if not revision.attachment:
+                        continue
+
+                    has_valid_id = False
+                    try:
+                        fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+                        if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                            gemini_file_ids.append({
+                                'gemini_file_id': fs_entry.gemini_file_id,
+                                'gemini_store_id': fs_entry.gemini_store_id,
+                                'evidence_name': f"[AC: {ac.name}] {evidence.name}",
+                                'evidence_description': evidence.description or '',
+                                'applied_control_name': ac.name,
+                            })
+                            has_valid_id = True
+                            ac_file_names.append(evidence.filename() or evidence.name)
+                            ac_evidence_count += 1
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' (AC: {ac.name}): using existing file ID {fs_entry.gemini_file_id}")
+                    except Exception as e:
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+
+                    # Upload on-the-fly if no valid ID exists
+                    if not has_valid_id:
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' (AC: {ac.name}): no valid Gemini file ID, uploading now...")
+                        try:
+                            if gemini_client is None:
+                                gemini_client = get_gemini_client()
+                            if gemini_client is None:
+                                print(f"[RA-AI-ANALYSIS] Gemini client not configured, skipping file upload")
+                                continue
+
+                            file_path = revision.attachment.path
+                            from urllib.parse import unquote
+                            decoded_filename = unquote(evidence.filename() or '')
+                            display_name = f"[AC: {ac.name}] {evidence.name} - {decoded_filename}"
+
+                            result = gemini_client.upload_file(
+                                file_path=file_path,
+                                display_name=display_name,
+                                max_wait_seconds=120,
+                                poll_interval=3,
+                            )
+
+                            if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
+                                fs_entry, _ = FileSearchTable.objects.update_or_create(
+                                    evidence_revision=revision,
+                                    defaults={
+                                        'gemini_file_id': result['gemini_file_id'],
+                                        'gemini_store_id': result.get('gemini_store_id', ''),
+                                        'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                        'error_message': None,
+                                    }
+                                )
+                                gemini_file_ids.append({
+                                    'gemini_file_id': result['gemini_file_id'],
+                                    'gemini_store_id': result.get('gemini_store_id', ''),
+                                    'evidence_name': f"[AC: {ac.name}] {evidence.name}",
+                                    'evidence_description': evidence.description or '',
+                                    'applied_control_name': ac.name,
+                                })
+                                ac_file_names.append(decoded_filename or evidence.name)
+                                ac_evidence_count += 1
+                                print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': uploaded -> {result['gemini_file_id']}")
+                            else:
+                                print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
+                        except Exception as e:
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+
+            applied_controls_meta.append({
+                'id': str(ac.id),
+                'name': ac.name,
+                'ref_id': ac.ref_id or '',
+                'status': ac.status or '--',
+                'evidenceCount': ac_evidence_count,
+                'fileNames': ac_file_names,
+            })
+
+        print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
+
+        # 3. Extract questions from the requirement
+        questions = []
+        if requirement.questions:
+            if isinstance(requirement.questions, dict):
+                for q_key, q_val in requirement.questions.items():
+                    if isinstance(q_val, dict) and 'text' in q_val:
+                        questions.append(q_val['text'])
+                    elif isinstance(q_val, str):
+                        questions.append(q_val)
+            elif isinstance(requirement.questions, list):
+                questions.extend(
+                    [q.get('text', q) if isinstance(q, dict) else q for q in requirement.questions]
+                )
+        questions = list(dict.fromkeys(questions))
+        print(f"[RA-AI-ANALYSIS] Questions extracted: {len(questions)}")
+
+        # 4. Extract typical evidence
+        typical_evidence = []
+        if requirement.typical_evidence:
+            if isinstance(requirement.typical_evidence, str):
+                for line in requirement.typical_evidence.strip().split('\n'):
+                    line = line.strip().lstrip('-').lstrip('•').strip()
+                    if line:
+                        typical_evidence.append(line)
+            elif isinstance(requirement.typical_evidence, list):
+                typical_evidence.extend(requirement.typical_evidence)
+        typical_evidence = list(dict.fromkeys(typical_evidence))
+
+        # 5. Build requirement context
+        requirements_context = [{
+            'ref_id': requirement.ref_id,
+            'name': requirement.name,
+            'description': requirement.description or '',
+            'framework': requirement.framework.name if requirement.framework else '',
+            'provider': requirement.framework.provider if requirement.framework else '',
+        }]
+
+        # 6. Build request body for Muraji /api/audit/analyze
+        # Use first AC as the "main" applied control, include all ACs info in description
+        first_ac = applied_controls.first()
+        ac_descriptions = []
+        for ac in applied_controls:
+            ac_descriptions.append(f"- {ac.name} ({ac.ref_id or 'no ref'}) [status: {ac.status or 'unknown'}]: {ac.description or 'no description'}")
+        merged_description = f"This analysis covers {ac_count} applied control(s) linked to requirement {requirement.ref_id}:\n" + "\n".join(ac_descriptions)
+
+        request_body = {
+            'applied_control': {
+                'id': str(first_ac.id),
+                'ref_id': first_ac.ref_id or requirement.ref_id or '',
+                'name': f"Requirement Assessment: {requirement.ref_id} - {requirement.name}",
+                'description': merged_description,
+                'status': first_ac.status or '',
+                'category': first_ac.category or '',
+                'csf_function': first_ac.csf_function or '',
+            },
+            'gemini_file_search': {
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids,
+            } if gemini_file_ids else None,
+            'requirements': requirements_context,
+            'questions': questions,
+            'typical_evidence': typical_evidence,
+            'analysis_config': {
+                'include_entity_extraction': True,
+                'include_compliance_check': True,
+                'include_gap_analysis': True,
+                'include_recommendations': True,
+            }
+        }
+
+        muraji_url = os.environ.get(
+            'MURAJI_ANALYSIS_API_URL',
+            'https://muraji-api.wathbahs.com/api/audit/analyze'
+        )
+
+        print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
+        print(f"[RA-AI-ANALYSIS] Questions: {questions}")
+        print(f"[RA-AI-ANALYSIS] Typical evidence: {typical_evidence}")
+
+        try:
+            resp = http_requests.post(
+                muraji_url,
+                json=request_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=300,
+            )
+
+            if not resp.ok:
+                print(f"[RA-AI-ANALYSIS] Muraji API error: {resp.status_code} - {resp.text[:500]}")
+                return Response(
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+
+            result = resp.json()
+            print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
+
+            # Add applied controls metadata to the response
+            if isinstance(result, dict):
+                result['_appliedControls'] = applied_controls_meta
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except http_requests.exceptions.Timeout:
+            print(f"[RA-AI-ANALYSIS] Muraji API timed out")
+            return Response(
+                {'message': 'Analysis timed out. Please try again.'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except Exception as e:
+            print(f"[RA-AI-ANALYSIS] Error: {e}")
+            return Response(
+                {'message': f'Analysis failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     @action(detail=False, name="Get updatable measures")
     def updatables(self, request):
         (_, object_ids_change, _) = RoleAssignment.get_accessible_object_ids(
