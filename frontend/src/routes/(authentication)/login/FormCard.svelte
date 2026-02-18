@@ -76,6 +76,7 @@
 				data={data?.form}
 				dataType="form"
 				validators={zod(loginSchema)}
+				taintedMessage={null}
 				action="?/login&next={page.url.searchParams.get('next') || '/'}"
 				onSubmit={({ cancel, formElement }) => {
 					loading = true;
