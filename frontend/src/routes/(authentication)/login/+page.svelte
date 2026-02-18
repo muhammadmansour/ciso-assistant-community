@@ -16,7 +16,7 @@
 	<div
 		class="hidden lg:flex lg:w-[55%] bg-[#0A1628] relative overflow-hidden items-center justify-center"
 	>
-		<!-- Decorative background circles (matching reference) -->
+		<!-- Decorative background circles -->
 		<div
 			class="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-[#0077CC]/5 -translate-y-1/3 translate-x-1/4"
 		></div>
@@ -33,7 +33,7 @@
 	</div>
 
 	<!-- Right panel - Login form -->
-	<div class="flex-1 flex flex-col bg-gray-50 items-center justify-center px-6 py-12">
+	<div class="flex-1 relative bg-gray-50 flex items-center justify-center px-6 py-12">
 		<div class="w-full max-w-[420px]">
 			<!-- Mobile logo -->
 			<div class="lg:hidden flex items-center gap-3 mb-10">
@@ -53,8 +53,8 @@
 			</p>
 		</div>
 
-		<!-- Powered by Wathbah -->
-		<div class="flex flex-col items-center gap-1.5 pt-10">
+		<!-- Powered by Wathbah - pinned to bottom -->
+		<div class="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-1.5">
 			<span class="text-gray-400 text-xs">Powered by</span>
 			<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
 				<img
