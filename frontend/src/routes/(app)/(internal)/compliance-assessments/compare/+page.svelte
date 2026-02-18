@@ -10,7 +10,7 @@
 	import { ProgressRing } from '@skeletonlabs/skeleton-svelte';
 	import { displayScoreColor } from '$lib/utils/helpers';
 	import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
-	import ComparisonRadarChart from '$lib/components/Chart/ComparisonRadarChart.svelte';
+
 
 	interface Props {
 		data: PageData;
@@ -261,52 +261,6 @@
 						</div>
 					</div>
 				</div>
-			</div>
-		</div>
-	</div>
-
-	<!-- Radar Charts Comparison -->
-	<div class="card bg-white shadow-lg">
-		<div class="px-6 py-4 border-b border-gray-200">
-			<h2 class="h4 font-bold">
-				<i class="fa-solid fa-chart-radar mr-2"></i>
-				{m.radarComparisonByTopLevel()}
-			</h2>
-		</div>
-		<div class="grid grid-cols-2 gap-6 p-6">
-			<!-- Compliance Radar -->
-			<div class="flex flex-col">
-				<div class="h-96">
-					<ComparisonRadarChart
-						name="compliance_radar"
-						title={m.compliance()}
-						labels={data.baseAudit.radar_data.labels}
-						baseData={data.baseAudit.radar_data.compliance_percentages}
-						compareData={data.compareAudit.radar_data.compliance_percentages}
-						baseName={data.baseAudit.name}
-						compareName={data.compareAudit.name}
-						height="h-full"
-					/>
-				</div>
-				<p class="text-xs text-gray-500 text-center mt-2">
-					<i class="fa-solid fa-info-circle mr-1"></i>
-					{m.complianceIncludesCompliantAndPartiallyCompliant()}
-				</p>
-			</div>
-
-			<!-- Maturity Radar -->
-			<div class="h-96">
-				<ComparisonRadarChart
-					name="maturity_radar"
-					title={m.maturity()}
-					labels={data.baseAudit.radar_data.labels}
-					baseData={data.baseAudit.radar_data.maturity_scores}
-					compareData={data.compareAudit.radar_data.maturity_scores}
-					baseName={data.baseAudit.name}
-					compareName={data.compareAudit.name}
-					maxValue={data.baseAudit.max_score || 100}
-					height="h-full"
-				/>
 			</div>
 		</div>
 	</div>
