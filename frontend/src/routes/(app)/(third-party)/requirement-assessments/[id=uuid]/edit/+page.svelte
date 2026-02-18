@@ -294,9 +294,6 @@
 		'score', 'compliancelevel', 'compliance_level', 'evidencequality',
 		'evidence_quality', 'summary', 'detailedanalysis', 'detailed_analysis',
 		'riskassessment', 'risk_assessment', 'note', 'aimodel', 'ai_model',
-		// Question sections are rendered in the dedicated "Question Answers" card
-		'questionevaluation', 'questionEvaluation', 'questionsanswers', 'questionsAnswers',
-		'questions_answers', 'questionanswers', 'questionAnswers', 'questionsandanswers',
 	]);
 
 	const isReportSection = (key: string, value: any) =>
@@ -314,8 +311,8 @@
 
 	// Section display order
 	const sectionOrder = [
-		'overallassessment',
-		'typicalevidencecheck', 'typical_evidence_check',
+		'overallassessment', 'questionevaluation', 'questionsanswers',
+		'questions_answers', 'typicalevidencecheck', 'typical_evidence_check',
 		'appliedcontrolbreakdown', 'applied_control_breakdown',
 		'filesanalyzed', 'files_analyzed', 'strengths', 'weaknesses',
 		'gaps', 'recommendations', 'findings', 'nextsteps', 'next_steps',
