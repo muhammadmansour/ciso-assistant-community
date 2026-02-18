@@ -10514,6 +10514,14 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         """List all AI analysis results for this requirement assessment"""
         from core.models import AiAnalysisResult
         requirement_assessment = self.get_object()
+        print(f"[RA-AI-LIST] Listing AI analyses for RA: {requirement_assessment.id}")
+        
+        # Debug: check total records in db
+        total_records = AiAnalysisResult.objects.count()
+        ra_records = AiAnalysisResult.objects.filter(requirement_assessment=requirement_assessment).count()
+        all_ra_records = AiAnalysisResult.objects.filter(requirement_assessment__isnull=False).count()
+        print(f"[RA-AI-LIST] Total AiAnalysisResult: {total_records}, For this RA: {ra_records}, All with RA set: {all_ra_records}")
+        
         analyses = AiAnalysisResult.objects.filter(
             requirement_assessment=requirement_assessment
         ).order_by('-created_at')
@@ -10534,6 +10542,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'question_answers': a.question_answers,
             })
 
+        print(f"[RA-AI-LIST] Returning {len(results)} analyses")
         return Response(results)
 
     @action(detail=True, methods=["get"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)")
