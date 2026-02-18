@@ -51,7 +51,7 @@
 	<!-- Home icon -->
 	<li>
 		<a
-			href="/my-assignments"
+			href="/recap"
 			class="text-gray-400 hover:text-blue-600 transition-colors"
 			title="Home"
 		>

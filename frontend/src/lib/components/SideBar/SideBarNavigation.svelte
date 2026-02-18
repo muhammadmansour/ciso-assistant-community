@@ -60,9 +60,9 @@
 <nav class="grow scrollbar mt-2">
 	<!-- Standalone Home link -->
 	<Anchor
-		href="/my-assignments"
+		href="/recap"
 		breadcrumbAction="replace"
-		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/my-assignments' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
+		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/recap' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
 		data-testid="sidebar-home"
 	>
 		<i class="fa-solid fa-house w-4 text-center text-[13px] opacity-80"></i>
