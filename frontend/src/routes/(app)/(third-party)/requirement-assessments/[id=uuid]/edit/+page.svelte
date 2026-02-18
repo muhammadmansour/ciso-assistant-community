@@ -774,8 +774,134 @@
 				<HiddenInput {form} field="folder" />
 				<HiddenInput {form} field="requirement" />
 				<HiddenInput {form} field="compliance_assessment" />
-				<div class="flex flex-col my-8 space-y-6">
-					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+			<div class="flex flex-col my-8 space-y-6">
+				<!-- AI Analysis Section -->
+				<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
+					<div class="p-6">
+						{#if isAnalyzing}
+							<div class="text-center py-16">
+								<div class="inline-block mb-6">
+									<i class="fa-solid fa-spinner fa-spin text-5xl text-[#0A1628]"></i>
+								</div>
+								<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
+								<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
+							</div>
+						{:else if aiAnalysisError}
+							<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+								<div class="flex items-center gap-2 mb-2">
+									<i class="fa-solid fa-circle-exclamation text-red-600"></i>
+									<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
+								</div>
+								<p class="text-red-600 text-sm">{aiAnalysisError}</p>
+							</div>
+						{/if}
+
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="text-lg font-semibold text-gray-800">
+								<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
+								AI Analysis History
+							</h3>
+							<span class="text-sm text-gray-500">
+								{data.aiAnalyses?.length || 0} analysis(es)
+							</span>
+						</div>
+
+						{#if data.aiAnalyses?.length > 0}
+							<div class="overflow-x-auto border border-gray-200 rounded-lg">
+								<table class="w-full text-sm">
+									<thead class="bg-gray-50 border-b border-gray-200">
+										<tr>
+											<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+											<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+											<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
+											<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
+											<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-gray-100">
+										{#each data.aiAnalyses as analysis}
+											<tr class="hover:bg-gray-50 transition-colors">
+												<td class="px-4 py-3 text-gray-700">
+													{formatDate(analysis.created_at)}
+												</td>
+												<td class="px-4 py-3">
+													<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
+														{#if analysis.status === 'completed'}
+															<i class="fa-solid fa-circle-check mr-1"></i>
+														{:else}
+															<i class="fa-solid fa-circle-xmark mr-1"></i>
+														{/if}
+														{analysis.status}
+													</span>
+												</td>
+												<td class="px-4 py-3 text-center text-gray-600">
+													{analysis.gemini_files_count}
+												</td>
+												<td class="px-4 py-3 text-center text-gray-600">
+													{analysis.requirements_count}
+												</td>
+												<td class="px-4 py-3 text-center">
+													<div class="flex items-center justify-center gap-1">
+														<button
+															class="btn btn-sm preset-tonal-primary"
+															onclick={() => openAnalysisDetail(analysis)}
+															title="View full analysis"
+														>
+															<i class="fa-solid fa-eye mr-1"></i>
+															View
+														</button>
+														<form
+															method="POST"
+															action="?/deleteAiAnalysis"
+															use:enhance={() => {
+																if (!confirm('Are you sure you want to delete this analysis?')) {
+																	return ({ cancel }) => cancel();
+																}
+																deletingAnalysisId = analysis.id;
+																return async ({ result }) => {
+																	deletingAnalysisId = null;
+																	if (result.type === 'success') {
+																		await invalidateAll();
+																	}
+																};
+															}}
+														>
+															<input type="hidden" name="analysisId" value={analysis.id} />
+															<button
+																type="submit"
+																class="btn btn-sm preset-tonal-error"
+																title="Delete analysis"
+																disabled={deletingAnalysisId === analysis.id}
+															>
+																{#if deletingAnalysisId === analysis.id}
+																	<i class="fa-solid fa-spinner fa-spin"></i>
+																{:else}
+																	<i class="fa-solid fa-trash"></i>
+																{/if}
+															</button>
+														</form>
+													</div>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{:else}
+							<div class="text-center py-8">
+								<div class="inline-block p-4 rounded-full bg-[#0A1628]/10 mb-3">
+									<i class="fa-solid fa-brain text-3xl text-[#0A1628]"></i>
+								</div>
+								<h3 class="text-lg font-semibold text-gray-800 mb-1">No AI Analyses Yet</h3>
+								<p class="text-gray-600 text-sm">
+									Click "Start AI Analysis" above to analyze all associated evidence files.
+								</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
 						<Question
 							{form}
 							field="answers"
@@ -904,138 +1030,6 @@
 				</div>
 			{/snippet}
 		</SuperForm>
-	</div>
-</div>
-
-<!-- AI Analysis History -->
-<div class="card mt-8 bg-white shadow-lg">
-	<div class="p-6">
-		{#if isAnalyzing}
-			<div class="text-center py-16">
-				<div class="inline-block mb-6">
-					<i class="fa-solid fa-spinner fa-spin text-5xl text-[#0A1628]"></i>
-				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
-				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
-			</div>
-		{:else if aiAnalysisError}
-			<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-				<div class="flex items-center gap-2 mb-2">
-					<i class="fa-solid fa-circle-exclamation text-red-600"></i>
-					<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
-				</div>
-				<p class="text-red-600 text-sm">{aiAnalysisError}</p>
-			</div>
-		{/if}
-
-		<div class="mb-4 flex items-center justify-between">
-			<h3 class="text-lg font-semibold text-gray-800">
-				<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
-				AI Analysis History
-			</h3>
-			<span class="text-sm text-gray-500">
-				{data.aiAnalyses?.length || 0} analysis(es)
-			</span>
-		</div>
-
-		{#if data.aiAnalyses?.length > 0}
-			<div class="overflow-x-auto border border-gray-200 rounded-lg">
-				<table class="w-full text-sm">
-					<thead class="bg-gray-50 border-b border-gray-200">
-						<tr>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-100">
-						{#each data.aiAnalyses as analysis}
-							<tr class="hover:bg-gray-50 transition-colors">
-								<td class="px-4 py-3 text-gray-700">
-									{formatDate(analysis.created_at)}
-								</td>
-								<td class="px-4 py-3">
-									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
-										{#if analysis.status === 'completed'}
-											<i class="fa-solid fa-circle-check mr-1"></i>
-										{:else}
-											<i class="fa-solid fa-circle-xmark mr-1"></i>
-										{/if}
-										{analysis.status}
-									</span>
-								</td>
-								<td class="px-4 py-3 text-center text-gray-600">
-									{analysis.gemini_files_count}
-								</td>
-								<td class="px-4 py-3 text-center text-gray-600">
-									{analysis.requirements_count}
-								</td>
-								<td class="px-4 py-3 text-center">
-									<div class="flex items-center justify-center gap-1">
-										<button
-											class="btn btn-sm preset-tonal-primary"
-											onclick={() => openAnalysisDetail(analysis)}
-											title="View full analysis"
-										>
-											<i class="fa-solid fa-eye mr-1"></i>
-											View
-										</button>
-										<form
-											method="POST"
-											action="?/deleteAiAnalysis"
-											use:enhance={() => {
-												if (!confirm('Are you sure you want to delete this analysis?')) {
-													return ({ cancel }) => cancel();
-												}
-												deletingAnalysisId = analysis.id;
-												return async ({ result }) => {
-													deletingAnalysisId = null;
-													if (result.type === 'success') {
-														await invalidateAll();
-													}
-												};
-											}}
-										>
-											<input type="hidden" name="analysisId" value={analysis.id} />
-											<button
-												type="submit"
-												class="btn btn-sm preset-tonal-error"
-												title="Delete analysis"
-												disabled={deletingAnalysisId === analysis.id}
-											>
-												{#if deletingAnalysisId === analysis.id}
-													<i class="fa-solid fa-spinner fa-spin"></i>
-												{:else}
-													<i class="fa-solid fa-trash"></i>
-												{/if}
-											</button>
-										</form>
-									</div>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{:else}
-			<div class="text-center py-12">
-				<div class="inline-block p-6 rounded-full bg-[#0A1628]/10 mb-4">
-					<i class="fa-solid fa-brain text-4xl text-[#0A1628]"></i>
-				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
-				<p class="text-gray-600 mb-6">
-					Click the "Start AI Analysis" button above to analyze all associated evidence files.
-				</p>
-				<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
-					<p class="text-sm text-blue-800">
-						<i class="fa-solid fa-info-circle mr-2"></i>
-						Each analysis will be saved here for future reference.
-					</p>
-				</div>
-			</div>
-		{/if}
 	</div>
 </div>
 
