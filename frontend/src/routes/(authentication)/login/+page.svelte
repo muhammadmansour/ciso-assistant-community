@@ -33,7 +33,7 @@
 	</div>
 
 	<!-- Right panel - Login form -->
-	<div class="flex-1 relative bg-gray-50 flex items-center justify-center px-6 pb-16 pt-6">
+	<div class="flex-1 bg-gray-50 flex items-center justify-center px-6 py-6">
 		<div class="w-full max-w-[420px]">
 			<!-- Mobile logo -->
 			<div class="lg:hidden flex items-center gap-3 mb-10">
@@ -51,18 +51,18 @@
 			<p class="text-center text-xs text-gray-400 mt-6">
 				Protected by enterprise-grade security
 			</p>
-		</div>
 
-		<!-- Powered by Wathbah - pinned to bottom, pb-16 above prevents overlap -->
-		<div class="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-1.5">
-			<span class="text-gray-400 text-xs">Powered by</span>
-			<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
-				<img
-					src="/wathba_logo_full.png"
-					alt="Wathbah"
-					class="h-10 hover:opacity-90 transition-opacity"
-				/>
-			</a>
+			<!-- Powered by Wathbah -->
+			<div class="mt-8 flex flex-col items-center gap-1.5">
+				<span class="text-gray-400 text-xs">Powered by</span>
+				<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
+					<img
+						src="/wathba_logo_full.png"
+						alt="Wathbah"
+						class="h-10 hover:opacity-90 transition-opacity"
+					/>
+				</a>
+			</div>
 		</div>
 	</div>
 </div>
