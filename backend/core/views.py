@@ -9986,90 +9986,115 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         ac_count = applied_controls.count()
         print(f"[RA-AI-ANALYSIS] Applied Controls linked: {ac_count}")
 
-        if ac_count == 0:
+        # Also get evidences directly linked to the requirement assessment
+        direct_evidences = requirement_assessment.evidences.all()
+        direct_evidence_count = direct_evidences.count()
+        print(f"[RA-AI-ANALYSIS] Direct evidences on RA: {direct_evidence_count}")
+
+        if ac_count == 0 and direct_evidence_count == 0:
             return Response(
-                {'message': 'No applied controls linked. Please link applied controls with evidences first.'},
+                {'message': 'No applied controls or evidences linked. Please link applied controls with evidences first.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 2. Gather Gemini file IDs from all applied controls' evidences
+        # 2. Gather Gemini file IDs from all sources
         gemini_file_ids = []
         applied_controls_meta = []
         gemini_client = None
+        seen_evidence_ids = set()  # Track already-processed evidences to avoid duplicates
+        from urllib.parse import unquote
 
+        def _process_evidence(evidence, source_label, ac_name=None):
+            """Process a single evidence: check FileSearchTable or upload on-the-fly."""
+            nonlocal gemini_client
+            if evidence.id in seen_evidence_ids:
+                return 0, []
+            seen_evidence_ids.add(evidence.id)
+
+            ev_count = 0
+            ev_files = []
+            label_prefix = f"[AC: {ac_name}]" if ac_name else "[Direct]"
+            ctrl_name = ac_name or "Direct Evidence"
+
+            for revision in evidence.revisions.all():
+                if not revision.attachment:
+                    continue
+
+                has_valid_id = False
+                try:
+                    fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                        gemini_file_ids.append({
+                            'gemini_file_id': fs_entry.gemini_file_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
+                            'evidence_name': f"{label_prefix} {evidence.name}",
+                            'evidence_description': evidence.description or '',
+                            'applied_control_name': ctrl_name,
+                        })
+                        has_valid_id = True
+                        ev_files.append(evidence.filename() or evidence.name)
+                        ev_count += 1
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): using existing file ID {fs_entry.gemini_file_id}")
+                except Exception as e:
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+
+                # Upload on-the-fly if no valid ID exists
+                if not has_valid_id:
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no valid Gemini file ID, uploading now...")
+                    try:
+                        if gemini_client is None:
+                            gemini_client = get_gemini_client()
+                        if gemini_client is None:
+                            print(f"[RA-AI-ANALYSIS] Gemini client not configured, skipping file upload")
+                            continue
+
+                        file_path = revision.attachment.path
+                        decoded_filename = unquote(evidence.filename() or '')
+                        display_name = f"{label_prefix} {evidence.name} - {decoded_filename}"
+
+                        upload_result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+
+                        if upload_result['status'] == 'completed' and upload_result.get('gemini_file_id', '').startswith('files/'):
+                            fs_entry, _ = FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'gemini_file_id': upload_result['gemini_file_id'],
+                                    'gemini_store_id': upload_result.get('gemini_store_id', ''),
+                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                    'error_message': None,
+                                }
+                            )
+                            gemini_file_ids.append({
+                                'gemini_file_id': upload_result['gemini_file_id'],
+                                'gemini_store_id': upload_result.get('gemini_store_id', ''),
+                                'evidence_name': f"{label_prefix} {evidence.name}",
+                                'evidence_description': evidence.description or '',
+                                'applied_control_name': ctrl_name,
+                            })
+                            ev_files.append(decoded_filename or evidence.name)
+                            ev_count += 1
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': uploaded -> {upload_result['gemini_file_id']}")
+                        else:
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {upload_result}")
+                    except Exception as e:
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+
+            return ev_count, ev_files
+
+        # 2a. Process evidences from applied controls
         for ac in applied_controls:
             ac_evidence_count = 0
             ac_file_names = []
 
             for evidence in ac.evidences.all():
-                for revision in evidence.revisions.all():
-                    if not revision.attachment:
-                        continue
-
-                    has_valid_id = False
-                    try:
-                        fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
-                        if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
-                            gemini_file_ids.append({
-                                'gemini_file_id': fs_entry.gemini_file_id,
-                                'gemini_store_id': fs_entry.gemini_store_id,
-                                'evidence_name': f"[AC: {ac.name}] {evidence.name}",
-                                'evidence_description': evidence.description or '',
-                                'applied_control_name': ac.name,
-                            })
-                            has_valid_id = True
-                            ac_file_names.append(evidence.filename() or evidence.name)
-                            ac_evidence_count += 1
-                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' (AC: {ac.name}): using existing file ID {fs_entry.gemini_file_id}")
-                    except Exception as e:
-                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
-
-                    # Upload on-the-fly if no valid ID exists
-                    if not has_valid_id:
-                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' (AC: {ac.name}): no valid Gemini file ID, uploading now...")
-                        try:
-                            if gemini_client is None:
-                                gemini_client = get_gemini_client()
-                            if gemini_client is None:
-                                print(f"[RA-AI-ANALYSIS] Gemini client not configured, skipping file upload")
-                                continue
-
-                            file_path = revision.attachment.path
-                            from urllib.parse import unquote
-                            decoded_filename = unquote(evidence.filename() or '')
-                            display_name = f"[AC: {ac.name}] {evidence.name} - {decoded_filename}"
-
-                            result = gemini_client.upload_file(
-                                file_path=file_path,
-                                display_name=display_name,
-                                max_wait_seconds=120,
-                                poll_interval=3,
-                            )
-
-                            if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
-                                fs_entry, _ = FileSearchTable.objects.update_or_create(
-                                    evidence_revision=revision,
-                                    defaults={
-                                        'gemini_file_id': result['gemini_file_id'],
-                                        'gemini_store_id': result.get('gemini_store_id', ''),
-                                        'upload_status': FileSearchTable.UploadStatus.COMPLETED,
-                                        'error_message': None,
-                                    }
-                                )
-                                gemini_file_ids.append({
-                                    'gemini_file_id': result['gemini_file_id'],
-                                    'gemini_store_id': result.get('gemini_store_id', ''),
-                                    'evidence_name': f"[AC: {ac.name}] {evidence.name}",
-                                    'evidence_description': evidence.description or '',
-                                    'applied_control_name': ac.name,
-                                })
-                                ac_file_names.append(decoded_filename or evidence.name)
-                                ac_evidence_count += 1
-                                print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': uploaded -> {result['gemini_file_id']}")
-                            else:
-                                print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
-                        except Exception as e:
-                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+                count, files = _process_evidence(evidence, f"AC: {ac.name}", ac_name=ac.name)
+                ac_evidence_count += count
+                ac_file_names.extend(files)
 
             applied_controls_meta.append({
                 'id': str(ac.id),
@@ -10080,7 +10105,26 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'fileNames': ac_file_names,
             })
 
+        # 2b. Process evidences directly linked to the requirement assessment
+        direct_ev_count = 0
+        direct_ev_files = []
+        for evidence in direct_evidences:
+            count, files = _process_evidence(evidence, "Direct on RA")
+            direct_ev_count += count
+            direct_ev_files.extend(files)
+
+        if direct_ev_count > 0:
+            applied_controls_meta.append({
+                'id': 'direct',
+                'name': 'Direct Evidences (on Requirement Assessment)',
+                'ref_id': '',
+                'status': '--',
+                'evidenceCount': direct_ev_count,
+                'fileNames': direct_ev_files,
+            })
+
         print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
+        print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_file_ids) - direct_ev_count}, Direct on RA: {direct_ev_count}")
 
         # 3. Extract questions from the requirement
         questions = []
@@ -10120,12 +10164,19 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         }]
 
         # 6. Build request body for Muraji /api/audit/analyze
-        # Use first AC as the "main" applied control, include all ACs info in description
+        # Use first AC as the "main" applied control if available, otherwise use RA info directly
         first_ac = applied_controls.first()
         ac_descriptions = []
         for ac in applied_controls:
             ac_descriptions.append(f"- {ac.name} ({ac.ref_id or 'no ref'}) [status: {ac.status or 'unknown'}]: {ac.description or 'no description'}")
-        merged_description = f"This analysis covers {ac_count} applied control(s) linked to requirement {requirement.ref_id}:\n" + "\n".join(ac_descriptions)
+
+        if ac_count > 0:
+            merged_description = f"This analysis covers {ac_count} applied control(s) linked to requirement {requirement.ref_id}:\n" + "\n".join(ac_descriptions)
+        else:
+            merged_description = f"This analysis covers requirement {requirement.ref_id} with {direct_evidence_count} direct evidence(s)."
+
+        if direct_ev_count > 0:
+            merged_description += f"\nAdditionally, {direct_ev_count} evidence file(s) are directly attached to the requirement assessment."
 
         # Format questions with answer constraint: each question must be answered with Yes, No, or Partial
         questions_with_format = []
@@ -10138,13 +10189,13 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         request_body = {
             'applied_control': {
-                'id': str(first_ac.id),
-                'ref_id': first_ac.ref_id or requirement.ref_id or '',
+                'id': str(first_ac.id) if first_ac else str(requirement_assessment.id),
+                'ref_id': (first_ac.ref_id if first_ac else '') or requirement.ref_id or '',
                 'name': f"Requirement Assessment: {requirement.ref_id} - {requirement.name}",
                 'description': merged_description,
-                'status': first_ac.status or '',
-                'category': first_ac.category or '',
-                'csf_function': first_ac.csf_function or '',
+                'status': first_ac.status if first_ac else '',
+                'category': first_ac.category if first_ac else '',
+                'csf_function': first_ac.csf_function if first_ac else '',
             },
             'gemini_file_search': {
                 'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
