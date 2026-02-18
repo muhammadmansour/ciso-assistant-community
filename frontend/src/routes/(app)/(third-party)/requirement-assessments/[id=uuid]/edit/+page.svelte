@@ -286,6 +286,16 @@
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
 
+	// Local reactive list of AI analyses — updated immediately on success and synced with server data
+	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
+
+	// Keep local list in sync when server data changes (e.g. after invalidateAll)
+	$effect(() => {
+		if (data.aiAnalyses) {
+			localAiAnalyses = data.aiAnalyses;
+		}
+	});
+
 	// Metadata/scalar keys to exclude from report sections
 	const metadataKeys = new Set([
 		'_appliedcontrols', '_appliedControls', 'metadata', 'timestamp', 'model',
@@ -412,6 +422,22 @@
 								requirements_count: 1,
 							};
 							showAnalysisModal = true;
+
+							// Add to local AI analyses list immediately so the history table updates without refresh
+							localAiAnalyses = [
+								{
+									id: result.data.aiAnalysis.ai_analysis_id,
+									created_at: result.data.aiAnalysis.ai_analysis_updated_at || new Date().toISOString(),
+									status: 'completed',
+									score: result.data.aiAnalysis.ai_analysis?.overallAssessment?.score ?? null,
+									compliance_status: result.data.aiAnalysis.ai_analysis?.overallAssessment?.status ?? null,
+									gemini_files_count: 0,
+									requirements_count: 1,
+									result: result.data.aiAnalysis.ai_analysis,
+									question_answers: result.data.aiAnalysis.question_answers,
+								},
+								...localAiAnalyses
+							];
 
 							// Update form answers immediately so the Question component reflects AI choices
 							const updatedAnswers = result.data.aiAnalysis.updated_answers;
@@ -815,11 +841,11 @@
 								AI Analysis History
 							</h3>
 							<span class="text-sm text-gray-500">
-								{data.aiAnalyses?.length || 0} analysis(es)
+								{localAiAnalyses?.length || 0} analysis(es)
 							</span>
 						</div>
 
-						{#if data.aiAnalyses?.length > 0}
+						{#if localAiAnalyses?.length > 0}
 							<div class="overflow-x-auto border border-gray-200 rounded-lg">
 								<table class="w-full text-sm">
 									<thead class="bg-gray-50 border-b border-gray-200">
@@ -832,7 +858,7 @@
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-gray-100">
-										{#each data.aiAnalyses as analysis}
+										{#each localAiAnalyses as analysis}
 											<tr class="hover:bg-gray-50 transition-colors">
 												<td class="px-4 py-3 text-gray-700">
 													{formatDate(analysis.created_at)}
@@ -874,6 +900,8 @@
 																return async ({ result }) => {
 																	deletingAnalysisId = null;
 																	if (result.type === 'success') {
+																		// Remove from local list immediately
+																		localAiAnalyses = localAiAnalyses.filter(a => a.id !== analysis.id);
 																		await invalidateAll();
 																	}
 																};
