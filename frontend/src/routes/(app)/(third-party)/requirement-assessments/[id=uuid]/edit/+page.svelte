@@ -1039,7 +1039,37 @@
 	{@const result = selectedAnalysis.result || selectedAnalysis}
 	{@const appliedControls = result._appliedControls || []}
 	{@const questionAnswers = selectedAnalysis.question_answers || {}}
-	{@const questionAnswerEntries = Object.values(questionAnswers)}
+	{@const questionAnswerEntriesFromDb = Object.values(questionAnswers)}
+	{@const questionAnswerEntriesFromResult = (() => {
+		// Fallback: extract from the AI result body if question_answers is empty
+		if (questionAnswerEntriesFromDb.length > 0) return [];
+		if (!result || typeof result !== 'object') return [];
+		for (const key of Object.keys(result)) {
+			const lower = key.toLowerCase().replace(/_/g, '');
+			if (['questionevaluation', 'questionsanswers', 'questionanswers', 'questionsandanswers'].includes(lower)) {
+				const section = result[key];
+				if (Array.isArray(section)) {
+					return section.map((item, idx) => {
+						if (typeof item !== 'object' || !item) return { question: `Question ${idx + 1}`, answer: 'Partial' };
+						const qText = item.question || item.text || item.questionText || `Question ${idx + 1}`;
+						let rawAnswer = item.answer || item.answered || item.selectedChoice || item.value || item.response || '';
+						const normalized = typeof rawAnswer === 'string' ? rawAnswer.trim() : String(rawAnswer);
+						const lower = normalized.toLowerCase();
+						const answer = lower === 'yes' ? 'Yes' : lower === 'no' ? 'No' : 'Partial';
+						return {
+							question: qText,
+							answer,
+							source: item.source || item.sourceFile || item.appliedControl || item.applied_control || null,
+							justification: item.justification || item.explanation || item.reasoning || item.notes || null,
+						};
+					});
+				}
+				break;
+			}
+		}
+		return [];
+	})()}
+	{@const questionAnswerEntries = questionAnswerEntriesFromDb.length > 0 ? questionAnswerEntriesFromDb : questionAnswerEntriesFromResult}
 	{@const score = selectedAnalysis.score ?? getScalarField(result, 'score') ?? getField(getField(result, 'overallAssessment') || {}, 'score')}
 	{@const complianceStatus = selectedAnalysis.compliance_status ?? getScalarField(result, 'compliance_status', 'complianceStatus', 'status') ?? getField(getField(result, 'overallAssessment') || {}, 'status')}
 	{@const evidenceQuality = getScalarField(result, 'evidenceQuality', 'evidence_quality')}
