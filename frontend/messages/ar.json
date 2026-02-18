@@ -456,6 +456,8 @@
 	"attachmentHelpText": "ملف دليل (مثل لقطة الشاشة، ملف السجل، إلخ.)",
 	"attachmentWarningText": "تحذير: تحميل ملف جديد سيكتب فوق الملف الحالي",
 	"attachmentRequired": "مرفق الملف مطلوب للأدلة",
+	"evidenceToRequirement": "ربط الدليل بالمتطلب",
+	"evidenceToAppliedControl": "ربط الدليل بالإجراء",
 	"fileUploadFailed": "فشل تحميل الملف. يرجى المحاولة مرة أخرى.",
 	"isActiveHelpText": "يحدد ما إذا كان يجب اعتبار هذا المستخدم نشطًا",
 	"helloThere": "مرحبًا 👋",

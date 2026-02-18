@@ -594,6 +594,8 @@
 	"attachmentHelpText": "File for evidence (eg. screenshot, log file, etc.). When selected, you can paste screenshots directly from your clipboard.",
 	"attachmentWarningText": "WARNING: Uploading a new file will overwrite the existing one",
 	"attachmentRequired": "A file attachment is required for evidence",
+	"evidenceToRequirement": "Evidence to Requirement",
+	"evidenceToAppliedControl": "Evidence to Applied Control",
 	"fileUploadFailed": "File upload failed. Please try again.",
 	"isActiveHelpText": "Use this to disable and re-enable user access. Note that password will be reset if the user is disabled.",
 	"helloThere": "Hello there 👋",

@@ -135,6 +135,18 @@ export const load = (async ({ fetch, params }) => {
 	}
 	evidenceModel.selectOptions = evidenceSelectOptions;
 
+	// Attach applied control options to the evidence model so the EvidenceForm
+	// can show an optional "Evidence to Applied Control" dropdown in the RA context
+	const acList = requirementAssessment.applied_controls;
+	if (Array.isArray(acList) && acList.length > 0) {
+		evidenceModel.appliedControlOptions = acList
+			.filter((ac: any) => ac && ac.id && ac.str)
+			.map((ac: any) => ({
+				label: ac.str,
+				value: ac.id
+			}));
+	}
+
 	const securityExceptionModel = getModelInfo('security-exceptions');
 	const securityExceptionCreateSchema = modelSchema('security-exceptions');
 	const securityExceptionCreateForm = await superValidate(

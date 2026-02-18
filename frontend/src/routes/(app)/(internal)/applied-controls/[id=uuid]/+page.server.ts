@@ -47,6 +47,35 @@ export const load: PageServerLoad = async (event) => {
 		console.error('Failed to load AI analyses:', e);
 	}
 
+	// Attach requirement assessment options to the evidence related model
+	// so the EvidenceForm can show an optional "Evidence to Requirement" dropdown
+	if (data.relatedModels?.['evidences']) {
+		const raIds: string[] = appliedControl.requirement_assessments ?? [];
+		if (Array.isArray(raIds) && raIds.length > 0) {
+			try {
+				// Fetch each RA to get its display name (str)
+				const raOptions = await Promise.all(
+					raIds.map(async (raId: string) => {
+						const raResp = await event.fetch(
+							`${BASE_API_URL}/requirement-assessments/${raId}/`
+						);
+						if (raResp.ok) {
+							const ra = await raResp.json();
+							return { label: ra.str || ra.name || raId, value: raId };
+						}
+						return null;
+					})
+				);
+				const filtered = raOptions.filter(Boolean);
+				if (filtered.length > 0) {
+					data.relatedModels['evidences'].requirementAssessmentOptions = filtered;
+				}
+			} catch (e) {
+				console.error('Failed to load RA options for evidence form:', e);
+			}
+		}
+	}
+
 	return {
 		...data,
 		duplicateForm: appliedControlDuplicateForm,
