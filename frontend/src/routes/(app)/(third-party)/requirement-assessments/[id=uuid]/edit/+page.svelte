@@ -404,6 +404,7 @@
 							selectedAnalysis = {
 								...result.data.aiAnalysis,
 								result: result.data.aiAnalysis.ai_analysis,
+								question_answers: result.data.aiAnalysis.question_answers,
 								created_at: result.data.aiAnalysis.ai_analysis_updated_at,
 								score: result.data.aiAnalysis.ai_analysis?.overallAssessment?.score,
 								compliance_status: result.data.aiAnalysis.ai_analysis?.overallAssessment?.status,
@@ -1037,6 +1038,8 @@
 {#if showAnalysisModal && selectedAnalysis}
 	{@const result = selectedAnalysis.result || selectedAnalysis}
 	{@const appliedControls = result._appliedControls || []}
+	{@const questionAnswers = selectedAnalysis.question_answers || {}}
+	{@const questionAnswerEntries = Object.values(questionAnswers)}
 	{@const score = selectedAnalysis.score ?? getScalarField(result, 'score') ?? getField(getField(result, 'overallAssessment') || {}, 'score')}
 	{@const complianceStatus = selectedAnalysis.compliance_status ?? getScalarField(result, 'compliance_status', 'complianceStatus', 'status') ?? getField(getField(result, 'overallAssessment') || {}, 'status')}
 	{@const evidenceQuality = getScalarField(result, 'evidenceQuality', 'evidence_quality')}
@@ -1137,6 +1140,52 @@
 						<p class="text-2xl font-bold text-gray-800">{appliedControls.length}</p>
 					</div>
 				</div>
+
+				<!-- Question Answers (separate from AI response body) -->
+				{#if questionAnswerEntries.length > 0}
+					<div class="mb-6 border border-indigo-200 rounded-lg overflow-hidden">
+						<div class="bg-indigo-50 px-4 py-3 border-b border-indigo-200">
+							<h4 class="font-semibold text-indigo-800">
+								<i class="fa-solid fa-clipboard-question mr-2"></i>Question Answers
+								<span class="text-xs font-normal text-indigo-500 ml-2">({questionAnswerEntries.length} question{questionAnswerEntries.length !== 1 ? 's' : ''})</span>
+							</h4>
+						</div>
+						<div class="divide-y divide-indigo-100">
+							{#each questionAnswerEntries as qa, idx}
+								{@const answer = qa.answer || 'Partial'}
+								{@const answerColor = answer === 'Yes' ? 'bg-green-100 text-green-800 border-green-300' : answer === 'No' ? 'bg-red-100 text-red-800 border-red-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300'}
+								{@const answerIcon = answer === 'Yes' ? 'fa-circle-check text-green-600' : answer === 'No' ? 'fa-circle-xmark text-red-600' : 'fa-circle-half-stroke text-yellow-600'}
+								<div class="p-4 hover:bg-indigo-50/50 transition-colors">
+									<div class="flex items-start gap-3">
+										<div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm shrink-0 mt-0.5">
+											{idx + 1}
+										</div>
+										<div class="flex-1 min-w-0">
+											<p class="text-gray-800 font-medium text-sm mb-2">{qa.question || `Question ${idx + 1}`}</p>
+											<div class="flex flex-wrap items-center gap-3">
+												<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold border {answerColor}">
+													<i class="fa-solid {answerIcon}"></i>
+													{answer}
+												</span>
+												{#if qa.source}
+													<span class="text-xs text-gray-500">
+														<i class="fa-solid fa-shield-halved text-indigo-400 mr-1"></i>
+														{qa.source}
+													</span>
+												{/if}
+											</div>
+											{#if qa.justification}
+												<p class="text-xs text-gray-500 mt-2 bg-gray-50 rounded p-2 border border-gray-100">
+													<span class="font-medium text-gray-600">Justification:</span> {qa.justification}
+												</p>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
 				<!-- Applied Controls Source Cards -->
 				{#if appliedControls.length > 0}

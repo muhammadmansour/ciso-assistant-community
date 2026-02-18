@@ -10127,6 +10127,15 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             ac_descriptions.append(f"- {ac.name} ({ac.ref_id or 'no ref'}) [status: {ac.status or 'unknown'}]: {ac.description or 'no description'}")
         merged_description = f"This analysis covers {ac_count} applied control(s) linked to requirement {requirement.ref_id}:\n" + "\n".join(ac_descriptions)
 
+        # Format questions with answer constraint: each question must be answered with Yes, No, or Partial
+        questions_with_format = []
+        for q in questions:
+            questions_with_format.append({
+                'text': q,
+                'answer_format': 'Must answer with exactly one of: Yes, No, Partial',
+                'allowed_values': ['Yes', 'No', 'Partial'],
+            })
+
         request_body = {
             'applied_control': {
                 'id': str(first_ac.id),
@@ -10143,13 +10152,15 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'evidences': gemini_file_ids,
             } if gemini_file_ids else None,
             'requirements': requirements_context,
-            'questions': questions,
+            'questions': questions_with_format,
             'typical_evidence': typical_evidence,
             'analysis_config': {
                 'include_entity_extraction': True,
                 'include_compliance_check': True,
                 'include_gap_analysis': True,
                 'include_recommendations': True,
+                'question_answer_values': ['Yes', 'No', 'Partial'],
+                'question_answer_instruction': 'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". Do not use any other values.',
             }
         }
 
@@ -10204,15 +10215,132 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             if isinstance(result, dict):
                 result['_appliedControls'] = applied_controls_meta
 
+            # ── Extract question answers as a separate JSON object ──
+            # Look for question evaluation in the AI response and normalize answers to Yes/No/Partial
+            VALID_ANSWERS = {'yes': 'Yes', 'no': 'No', 'partial': 'Partial'}
+
+            def _normalize_answer(raw_answer):
+                """Normalize an answer string to exactly Yes, No, or Partial."""
+                if raw_answer is None:
+                    return 'Partial'
+                val = str(raw_answer).strip().lower()
+                if val in VALID_ANSWERS:
+                    return VALID_ANSWERS[val]
+                # Try common variations
+                if val in ('true', 'compliant', 'met', 'full', 'fully'):
+                    return 'Yes'
+                if val in ('false', 'non-compliant', 'noncompliant', 'not met', 'none', 'not_met'):
+                    return 'No'
+                if val in ('partially', 'partially compliant', 'partially_compliant', 'partial', 'partly'):
+                    return 'Partial'
+                return 'Partial'  # Default to Partial if answer is ambiguous
+
+            def _extract_question_answers(ai_result, original_questions):
+                """Extract question answers from the AI response and return as a separate dict."""
+                if not isinstance(ai_result, dict):
+                    return {}
+
+                # Find the question evaluation section (case-insensitive)
+                question_section = None
+                question_section_key = None
+                for key in ai_result:
+                    lower_key = key.lower().replace('_', '').replace(' ', '')
+                    if lower_key in ('questionevaluation', 'questionsanswers', 'questionanswers',
+                                     'questions_answers', 'question_evaluation', 'questionsandanswers'):
+                        question_section = ai_result[key]
+                        question_section_key = key
+                        break
+
+                answers_dict = {}
+
+                if isinstance(question_section, list):
+                    for idx, item in enumerate(question_section):
+                        if isinstance(item, dict):
+                            # Get question text
+                            q_text = None
+                            for q_key in ('question', 'text', 'questionText', 'question_text'):
+                                if q_key in item:
+                                    q_text = item[q_key]
+                                    break
+                            if not q_text and idx < len(original_questions):
+                                q_text = original_questions[idx]
+
+                            # Get the answer and normalize
+                            raw_answer = None
+                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
+                                if a_key in item:
+                                    raw_answer = item[a_key]
+                                    break
+
+                            normalized = _normalize_answer(raw_answer)
+                            q_number = item.get('questionNumber', item.get('number', idx + 1))
+
+                            answer_entry = {
+                                'question': q_text or f"Question {q_number}",
+                                'answer': normalized,
+                            }
+                            # Include source/justification if present
+                            for extra_key in ('source', 'sourceFile', 'appliedControl', 'applied_control'):
+                                if extra_key in item and item[extra_key]:
+                                    answer_entry['source'] = item[extra_key] if isinstance(item[extra_key], str) else str(item[extra_key])
+                                    break
+                            for extra_key in ('justification', 'explanation', 'reasoning', 'notes'):
+                                if extra_key in item and item[extra_key]:
+                                    answer_entry['justification'] = str(item[extra_key])
+                                    break
+
+                            answers_dict[f"q{idx + 1}"] = answer_entry
+
+                            # Also normalize the answer in-place in the AI response
+                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
+                                if a_key in item:
+                                    item[a_key] = normalized
+                                    break
+                            else:
+                                item['answer'] = normalized
+
+                elif isinstance(question_section, dict):
+                    # Handle dict format
+                    for idx, (q_key, q_val) in enumerate(question_section.items()):
+                        if isinstance(q_val, dict):
+                            raw_answer = q_val.get('answer', q_val.get('value'))
+                            normalized = _normalize_answer(raw_answer)
+                            answers_dict[f"q{idx + 1}"] = {
+                                'question': q_val.get('question', q_val.get('text', q_key)),
+                                'answer': normalized,
+                            }
+                            q_val['answer'] = normalized
+                        elif isinstance(q_val, str):
+                            normalized = _normalize_answer(q_val)
+                            answers_dict[f"q{idx + 1}"] = {
+                                'question': q_key,
+                                'answer': normalized,
+                            }
+                            question_section[q_key] = normalized
+
+                # If no question section found, create answers from original questions with Partial
+                if not answers_dict and original_questions:
+                    for idx, q in enumerate(original_questions):
+                        answers_dict[f"q{idx + 1}"] = {
+                            'question': q,
+                            'answer': 'Partial',  # Default when AI didn't provide answers
+                        }
+
+                return answers_dict
+
+            question_answers = _extract_question_answers(result, questions)
+            print(f"[RA-AI-ANALYSIS] Extracted question_answers: {question_answers}")
+
             # Extract score and status from the analysis result
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
             compliance_status_val = overall.get('status', '') if isinstance(overall, dict) else ''
 
-            # Save to database
+            # Save to database — question_answers stored separately from the main result
             analysis_record = AiAnalysisResult.objects.create(
                 requirement_assessment=requirement_assessment,
                 result=result,
+                question_answers=question_answers,
                 status='completed',
                 score=score,
                 compliance_status=compliance_status_val,
@@ -10223,6 +10351,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
             return Response({
                 'ai_analysis': result,
+                'question_answers': question_answers,
                 'ai_analysis_id': str(analysis_record.id),
                 'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
             }, status=status.HTTP_200_OK)
@@ -10280,6 +10409,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'requirements_count': a.requirements_count,
                 'error_message': a.error_message,
                 'result': a.result,
+                'question_answers': a.question_answers,
             })
 
         return Response(results)
@@ -10312,6 +10442,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'requirements_count': analysis.requirements_count,
             'error_message': analysis.error_message,
             'result': analysis.result,
+            'question_answers': analysis.question_answers,
         })
 
     @action(detail=True, methods=["delete"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)/delete")

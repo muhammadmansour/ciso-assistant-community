@@ -3921,6 +3921,13 @@ class AiAnalysisResult(models.Model):
         blank=True,
         verbose_name=_("Error Message")
     )
+
+    question_answers = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_("Question Answers"),
+        help_text=_("Extracted question answers (Yes/No/Partial) stored separately from the AI response body")
+    )
     
     class Meta:
         verbose_name = _("AI Analysis Result")
@@ -3931,7 +3938,8 @@ class AiAnalysisResult(models.Model):
         ]
     
     def __str__(self):
-        return f"AI Analysis for {self.applied_control.name} at {self.created_at}"
+        target = self.applied_control or self.requirement_assessment
+        return f"AI Analysis for {target} at {self.created_at}"
 
 
 class FileSearchTable(models.Model):
