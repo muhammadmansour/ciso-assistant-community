@@ -10172,6 +10172,10 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
         print(f"[RA-AI-ANALYSIS] Questions: {questions}")
         print(f"[RA-AI-ANALYSIS] Typical evidence: {typical_evidence}")
+        print(f"[RA-AI-ANALYSIS] Gemini files count: {len(gemini_file_ids)}")
+        print(f"[RA-AI-ANALYSIS] Request body keys: {list(request_body.keys())}")
+        import json as _json
+        print(f"[RA-AI-ANALYSIS] Request body (truncated): {_json.dumps(request_body, default=str)[:2000]}")
 
         try:
             resp = http_requests.post(
@@ -10184,7 +10188,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             from core.models import AiAnalysisResult
 
             if not resp.ok:
-                print(f"[RA-AI-ANALYSIS] Muraji API error: {resp.status_code} - {resp.text[:500]}")
+                print(f"[RA-AI-ANALYSIS] Muraji API error: {resp.status_code} - {resp.text[:1000]}")
                 AiAnalysisResult.objects.create(
                     requirement_assessment=requirement_assessment,
                     result={'error': resp.text[:2000]},
