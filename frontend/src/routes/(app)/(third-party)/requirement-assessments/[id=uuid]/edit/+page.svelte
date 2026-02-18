@@ -380,6 +380,27 @@
 	function formatDate(dateStr: string): string {
 		return new Date(dateStr).toLocaleString();
 	}
+
+	async function deleteAnalysis(analysisId: string) {
+		if (!confirm('Are you sure you want to delete this analysis?')) return;
+		deletingAnalysisId = analysisId;
+		try {
+			const formData = new FormData();
+			formData.append('analysisId', analysisId);
+			const response = await fetch('?/deleteAiAnalysis', {
+				method: 'POST',
+				body: formData
+			});
+			if (response.ok) {
+				localAiAnalyses = localAiAnalyses.filter((a) => a.id !== analysisId);
+				await invalidateAll();
+			}
+		} catch (e) {
+			console.error('Failed to delete analysis:', e);
+		} finally {
+			deletingAnalysisId = null;
+		}
+	}
 </script>
 
 {#if data.requirementAssessment.compliance_assessment.is_locked}
@@ -889,38 +910,19 @@
 															<i class="fa-solid fa-eye mr-1"></i>
 															View
 														</button>
-														<form
-															method="POST"
-															action="?/deleteAiAnalysis"
-															use:enhance={() => {
-																if (!confirm('Are you sure you want to delete this analysis?')) {
-																	return ({ cancel }) => cancel();
-																}
-																deletingAnalysisId = analysis.id;
-																return async ({ result }) => {
-																	deletingAnalysisId = null;
-																	if (result.type === 'success') {
-																		// Remove from local list immediately
-																		localAiAnalyses = localAiAnalyses.filter(a => a.id !== analysis.id);
-																		await invalidateAll();
-																	}
-																};
-															}}
+														<button
+															type="button"
+															class="btn btn-sm preset-tonal-error"
+															title="Delete analysis"
+															disabled={deletingAnalysisId === analysis.id}
+															onclick={() => deleteAnalysis(analysis.id)}
 														>
-															<input type="hidden" name="analysisId" value={analysis.id} />
-															<button
-																type="submit"
-																class="btn btn-sm preset-tonal-error"
-																title="Delete analysis"
-																disabled={deletingAnalysisId === analysis.id}
-															>
-																{#if deletingAnalysisId === analysis.id}
-																	<i class="fa-solid fa-spinner fa-spin"></i>
-																{:else}
-																	<i class="fa-solid fa-trash"></i>
-																{/if}
-															</button>
-														</form>
+															{#if deletingAnalysisId === analysis.id}
+																<i class="fa-solid fa-spinner fa-spin"></i>
+															{:else}
+																<i class="fa-solid fa-trash"></i>
+															{/if}
+														</button>
 													</div>
 												</td>
 											</tr>
