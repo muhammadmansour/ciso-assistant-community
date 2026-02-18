@@ -242,7 +242,7 @@
 									<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 								</Anchor>
 
-								<!-- Data Requests -->
+								<!-- Data Controls -->
 								<Anchor
 									href="/applied-controls"
 									breadcrumbAction="push"
@@ -252,8 +252,8 @@
 										<i class="fa-solid fa-shield-halved text-[#0A1628] text-lg"></i>
 									</div>
 									<div class="flex-1 min-w-0">
-										<p class="font-semibold text-gray-900 text-sm">Data Requests</p>
-										<p class="text-xs text-gray-500">See all compliance requests</p>
+										<p class="font-semibold text-gray-900 text-sm">Data Controls</p>
+										<p class="text-xs text-gray-500">See all data controls</p>
 									</div>
 									<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 								</Anchor>
