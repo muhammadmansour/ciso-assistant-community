@@ -33,31 +33,28 @@
 	</div>
 
 	<!-- Right panel - Login form -->
-	<div class="flex-1 flex flex-col bg-gray-50">
-		<!-- Centered form area -->
-		<div class="flex-1 flex items-center justify-center px-6 py-12">
-			<div class="w-full max-w-[420px]">
-				<!-- Mobile logo -->
-				<div class="lg:hidden flex items-center gap-3 mb-10">
-					<div
-						class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
-					>
-						W
-					</div>
-					<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
+	<div class="flex-1 relative bg-gray-50 flex items-center justify-center px-6 pb-16 pt-6">
+		<div class="w-full max-w-[420px]">
+			<!-- Mobile logo -->
+			<div class="lg:hidden flex items-center gap-3 mb-10">
+				<div
+					class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
+				>
+					W
 				</div>
-
-				<FormCard {data} {form} />
-
-				<!-- Security note -->
-				<p class="text-center text-xs text-gray-400 mt-6">
-					Protected by enterprise-grade security
-				</p>
+				<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
 			</div>
+
+			<FormCard {data} {form} />
+
+			<!-- Security note -->
+			<p class="text-center text-xs text-gray-400 mt-6">
+				Protected by enterprise-grade security
+			</p>
 		</div>
 
-		<!-- Powered by Wathbah - always at bottom, never overlaps -->
-		<div class="pb-4 flex flex-col items-center gap-1.5">
+		<!-- Powered by Wathbah - pinned to bottom, pb-16 above prevents overlap -->
+		<div class="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-1.5">
 			<span class="text-gray-400 text-xs">Powered by</span>
 			<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
 				<img
