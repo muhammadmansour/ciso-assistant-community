@@ -295,7 +295,7 @@
 		
 		<!-- Modal Content -->
 		<div
-			class="relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300 font-['Cairo',sans-serif]"
+			class="relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300"
 			class:rounded-xl={!isModalExpanded}
 			class:w-full={isModalExpanded}
 			class:h-full={isModalExpanded}

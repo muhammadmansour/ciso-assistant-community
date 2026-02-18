@@ -9,19 +9,23 @@
 */
 @import '../ciso-theme.css';
 
-/* Arabic RTL and Cairo Font Support */
+/* Cairo Font — Global */
 :root {
   --font-cairo: 'Cairo', sans-serif;
+}
+
+html,
+body {
+  font-family: var(--font-cairo), sans-serif;
+}
+
+* {
+  font-family: inherit;
 }
 
 html[dir="rtl"],
 html[lang="ar"] {
   direction: rtl;
-  font-family: var(--font-cairo), sans-serif;
-}
-
-html[lang="ar"] * {
-  font-family: var(--font-cairo), sans-serif;
 }
 
 /* RTL specific adjustments */
