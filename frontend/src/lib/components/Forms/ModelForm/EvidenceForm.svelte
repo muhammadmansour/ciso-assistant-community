@@ -8,6 +8,7 @@
 	import type { ModelInfo, CacheLock } from '$lib/utils/types';
 	import { onMount } from 'svelte';
 	import { m } from '$paraglide/messages';
+	import { safeTranslate } from '$lib/utils/i18n';
 
 	interface Props {
 		form: SuperValidated<any>;
@@ -59,7 +60,7 @@
 		translateOptions={false}
 		options={model.appliedControlOptions}
 		field="applied_controls"
-		label={m.evidenceToAppliedControl()}
+		label={safeTranslate('evidenceToAppliedControl')}
 		cacheLock={cacheLocks['applied_controls']}
 		bind:cachedValue={formDataCache['applied_controls']}
 	/>
@@ -73,7 +74,7 @@
 		translateOptions={false}
 		options={model.requirementAssessmentOptions}
 		field="requirement_assessments"
-		label={m.evidenceToRequirement()}
+		label={safeTranslate('evidenceToRequirement')}
 		cacheLock={cacheLocks['requirement_assessments']}
 		bind:cachedValue={formDataCache['requirement_assessments']}
 	/>
