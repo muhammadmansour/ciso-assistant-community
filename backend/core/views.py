@@ -10150,7 +10150,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
                 'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
                 'evidences': gemini_file_ids,
-            } if gemini_file_ids else None,
+            },
             'requirements': requirements_context,
             'questions': questions_with_format,
             'typical_evidence': typical_evidence,
