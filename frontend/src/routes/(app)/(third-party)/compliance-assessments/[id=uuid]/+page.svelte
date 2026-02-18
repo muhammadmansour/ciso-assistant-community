@@ -884,14 +884,6 @@
 				{#if !page.data.user.is_third_party}
 					<button
 						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-						onclick={() => modalCreateForm()}
-						data-testid="apply-mapping-button"
-					>
-						<i class="fa-solid fa-diagram-project w-4"></i>
-						{m.applyMapping()}
-					</button>
-					<button
-						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
 						onclick={() => modalCreateCloneForm()}
 						data-testid="clone-audit-button"
 					>
@@ -918,30 +910,6 @@
 					{/if}
 				{/if}
 
-				{#if !page.data.user.is_third_party && !data.compliance_assessment.is_locked}
-					<button
-						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-						data-testid="sync-to-actions-button"
-						onclick={async () => {
-							await modalConfirmSyncToActions(
-								data.compliance_assessment.id,
-								data.compliance_assessment.name,
-								'?/syncToActions'
-							);
-						}}
-					>
-						{#if syncingToActionsIsLoading}
-							<ProgressRing
-								strokeWidth="16px"
-								meterStroke="stroke-[#0A1628]"
-								size="size-5"
-							/>
-						{:else}
-							<i class="fa-solid fa-arrows-rotate w-4"></i>
-						{/if}
-						{m.syncToAppliedControls()}
-					</button>
-				{/if}
 
 				{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && data.compliance_assessment.framework.reference_controls.length > 0 && !data.compliance_assessment.is_locked}
 					<button
