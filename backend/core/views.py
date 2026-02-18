@@ -10331,6 +10331,69 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             question_answers = _extract_question_answers(result, questions)
             print(f"[RA-AI-ANALYSIS] Extracted question_answers: {question_answers}")
 
+            # ── Auto-update requirement assessment answers from AI responses ──
+            # Map AI Yes/No/Partial answers → choice URNs in the requirement's questions
+            req_questions = requirement.questions or {}
+            current_answers = dict(requirement_assessment.answers or {})
+            answers_updated = False
+
+            if req_questions and question_answers:
+                # Build ordered list of question URNs matching the order we sent to the AI
+                question_urns_ordered = []
+                for q_urn, q_def in req_questions.items():
+                    if isinstance(q_def, dict) and 'text' in q_def:
+                        question_urns_ordered.append((q_urn, q_def))
+
+                # Map AI answer index to question URN
+                qa_entries = list(question_answers.values())
+                for idx, qa_entry in enumerate(qa_entries):
+                    if idx >= len(question_urns_ordered):
+                        break
+
+                    q_urn, q_def = question_urns_ordered[idx]
+                    ai_answer = qa_entry.get('answer', '')  # "Yes", "No", or "Partial"
+                    choices = q_def.get('choices', [])
+
+                    if not choices or not ai_answer:
+                        continue
+
+                    # Find the choice whose value matches the AI answer (case-insensitive)
+                    matched_choice_urn = None
+                    ai_lower = ai_answer.lower()
+                    for choice in choices:
+                        choice_value = (choice.get('value') or '').lower()
+                        if choice_value == ai_lower:
+                            matched_choice_urn = choice.get('urn')
+                            break
+
+                    # Fallback: if "Partial" not found, try "N/A" or similar
+                    if not matched_choice_urn and ai_lower == 'partial':
+                        for choice in choices:
+                            choice_value = (choice.get('value') or '').lower()
+                            if choice_value in ('partial', 'n/a', 'na', 'partially'):
+                                matched_choice_urn = choice.get('urn')
+                                break
+
+                    if matched_choice_urn:
+                        q_type = q_def.get('type', 'unique_choice')
+                        if q_type == 'multiple_choice':
+                            current_answers[q_urn] = [matched_choice_urn]
+                        else:
+                            current_answers[q_urn] = matched_choice_urn
+                        answers_updated = True
+                        print(f"[RA-AI-ANALYSIS] Auto-set answer for {q_urn}: {ai_answer} → {matched_choice_urn}")
+                    else:
+                        print(f"[RA-AI-ANALYSIS] No matching choice for {q_urn}: AI answered '{ai_answer}', available: {[c.get('value') for c in choices]}")
+
+            # Save updated answers and recompute score/result
+            ra_status_before = requirement_assessment.result
+            if answers_updated:
+                requirement_assessment.answers = current_answers
+                requirement_assessment.save(update_fields=['answers'])
+                requirement_assessment.compute_score_and_result()
+                requirement_assessment.refresh_from_db()
+                print(f"[RA-AI-ANALYSIS] Auto-updated RA status: {ra_status_before} → {requirement_assessment.result}")
+
             # Extract score and status from the analysis result
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
@@ -10354,6 +10417,9 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'question_answers': question_answers,
                 'ai_analysis_id': str(analysis_record.id),
                 'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
+                'answers_auto_updated': answers_updated,
+                'requirement_assessment_result': requirement_assessment.result,
+                'requirement_assessment_score': requirement_assessment.score,
             }, status=status.HTTP_200_OK)
 
         except http_requests.exceptions.Timeout:
