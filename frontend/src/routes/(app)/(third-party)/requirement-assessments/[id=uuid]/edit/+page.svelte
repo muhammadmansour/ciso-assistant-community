@@ -412,6 +412,18 @@
 								requirements_count: 1,
 							};
 							showAnalysisModal = true;
+
+							// Update form answers immediately so the Question component reflects AI choices
+							const updatedAnswers = result.data.aiAnalysis.updated_answers;
+							if (updatedAnswers && typeof updatedAnswers === 'object') {
+								requirementAssessmentForm.form.update(
+									(current: Record<string, any>) => ({
+										...current,
+										answers: updatedAnswers
+									}),
+									{ taint: false }
+								);
+							}
 						} else if (result.type === 'failure' && result.data?.aiError) {
 							aiAnalysisError = result.data.aiError;
 						} else {

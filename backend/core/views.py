@@ -10418,6 +10418,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'ai_analysis_id': str(analysis_record.id),
                 'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
                 'answers_auto_updated': answers_updated,
+                'updated_answers': requirement_assessment.answers,
                 'requirement_assessment_result': requirement_assessment.result,
                 'requirement_assessment_score': requirement_assessment.score,
             }, status=status.HTTP_200_OK)
