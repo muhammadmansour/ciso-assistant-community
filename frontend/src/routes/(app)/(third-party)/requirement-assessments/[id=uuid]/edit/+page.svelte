@@ -903,6 +903,7 @@
 												<td class="px-4 py-3 text-center">
 													<div class="flex items-center justify-center gap-1">
 														<button
+															type="button"
 															class="btn btn-sm preset-tonal-primary"
 															onclick={() => openAnalysisDetail(analysis)}
 															title="View full analysis"
