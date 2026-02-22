@@ -1,6 +1,6 @@
 #!/bin/bash
-# CISO Assistant - PM2 Production Script
-# Domain: ciso.wathbahs.com
+# CISO Assistant - PM2 Dev Version Script
+# Domain: wathbah.dev
 # Uses PM2 for process management
 
 set -e
@@ -10,9 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-DOMAIN="grc.wathbahs.com"
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
+DOMAIN="wathbah.dev"
+BACKEND_PORT=8001
+FRONTEND_PORT=3001
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
@@ -28,7 +28,7 @@ NC='\033[0m'
 export PATH="$HOME/.local/bin:$PATH"
 
 echo -e "${GREEN}========================================"
-echo "  CISO Assistant - PM2 Production"
+echo "  CISO Assistant - PM2 Dev Version"
 echo -e "========================================${NC}"
 
 # Check if PM2 is installed
@@ -43,15 +43,15 @@ module.exports = {
   apps: [
     {
       // BACKEND - Using Gunicorn (production server, not runserver!)
-      name: 'ciso-backend',
+      name: 'dev-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8001 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,backend',
-        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,backend',
+        CISO_ASSISTANT_URL: 'https://wathbah.dev',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -64,15 +64,15 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      name: 'ciso-huey',
+      name: 'dev-huey',
       cwd: './backend',
       script: 'poetry',
       args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev',
+        CISO_ASSISTANT_URL: 'https://wathbah.dev',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
@@ -83,17 +83,17 @@ module.exports = {
     },
     {
       // FRONTEND - Running in dev mode
-      name: 'ciso-frontend',
+      name: 'dev-frontend',
       cwd: './frontend',
       script: 'pnpm',
       args: 'run dev',
       interpreter: 'none',
       env: {
-        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc.wathbahs.com/api',
-        ORIGIN: 'https://grc.wathbahs.com',
+        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://wathbah.dev/api',
+        ORIGIN: 'https://wathbah.dev',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
-        PORT: '3000',
+        PORT: '3001',
         HOST: '0.0.0.0'
       },
       watch: false,
@@ -116,8 +116,8 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,grc.wathbahs.com"
-    export CISO_ASSISTANT_URL="https://grc.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,wathbah.dev"
+    export CISO_ASSISTANT_URL="https://wathbah.dev"
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
@@ -145,7 +145,7 @@ case "${1:-start}" in
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  All services started in PRODUCTION!  ${NC}"
+        echo -e "${GREEN}  All services started (DEV VERSION)!  ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn (4 workers)"
@@ -170,7 +170,7 @@ case "${1:-start}" in
         ;;
     logs)
         if [ -n "$2" ]; then
-            pm2 logs "ciso-$2"
+            pm2 logs "dev-$2"
         else
             pm2 logs
         fi
