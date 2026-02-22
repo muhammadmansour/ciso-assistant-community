@@ -1,12 +1,12 @@
 services:
   backend:
-    container_name: backend
+    container_name: dev-backend
     image: ghcr.io/intuitem/ciso-assistant-community/backend:latest
     pull_policy: always
     restart: always
     environment:
       - ALLOWED_HOSTS=backend,localhost
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
       - ATTACHMENT_MAX_SIZE_MB=100
@@ -19,7 +19,7 @@ services:
       - DEFAULT_FROM_EMAIL=mansourmuhammad37@outlook.com
 
     volumes:
-      - ./db:/code/db
+      - ./dev-db:/code/db
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://backend:8000/api/health/ || exit 1"]
       interval: 10s
@@ -28,7 +28,7 @@ services:
       start_period: 100s
 
   huey:
-    container_name: huey
+    container_name: dev-huey
     image: ghcr.io/intuitem/ciso-assistant-community/backend:latest
     pull_policy: always
     depends_on:
@@ -37,7 +37,7 @@ services:
     restart: always
     environment:
       - ALLOWED_HOSTS=backend,localhost
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
       - ATTACHMENT_MAX_SIZE_MB=100
@@ -50,7 +50,7 @@ services:
       - DEFAULT_FROM_EMAIL=mansourmuhammad37@outlook.com
 
     volumes:
-      - ./db:/code/db
+      - ./dev-db:/code/db
     entrypoint:
       - /bin/sh
       - -c
@@ -58,10 +58,10 @@ services:
         poetry run python manage.py run_huey -w 2 --scheduler-interval 60
 
   frontend:
-    container_name: frontend
+    container_name: dev-frontend
     environment:
       - PUBLIC_BACKEND_API_URL=http://backend:8000/api
-      - PUBLIC_BACKEND_API_EXPOSED_URL=https://localhost:8443/api
+      - PUBLIC_BACKEND_API_EXPOSED_URL=https://localhost:9443/api
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
     image: ghcr.io/intuitem/ciso-assistant-community/frontend:latest
@@ -72,18 +72,18 @@ services:
         condition: service_healthy
 
   caddy:
-    container_name: caddy
+    container_name: dev-caddy
     image: caddy:2.10.0
     environment:
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
     ports:
-      - 8443:8443
+      - 9443:9443
     volumes:
-      - ./caddy_data:/data
+      - ./dev-caddy_data:/data
     command: |
       sh -c 'echo $$CISO_ASSISTANT_URL "{
       reverse_proxy /api/* backend:8000
