@@ -8,26 +8,26 @@
 # Subsequent : much faster  (libraries skipped, dev server used)
 #
 # To force library reload:
-#   rm db/.libraries_loaded && docker compose -f docker-compose-dev.yml restart backend
+#   rm dev-db/.libraries_loaded && docker compose -f docker-compose-dev.yml restart backend
 ##################################################################
 services:
   backend:
-    container_name: backend
+    container_name: dev-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - ALLOWED_HOSTS=backend,localhost
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
       - ATTACHMENT_MAX_SIZE_MB=100
       - ATTACHMENT_MAX_NAME_LENGTH=512
       - SKIP_STORE_LIBRARIES=true
-      - POSTGRES_NAME=wathbah_grc
+      - POSTGRES_NAME=wathbah_grc_dev
       - POSTGRES_USER=wathbah_grc
       - POSTGRES_PASSWORD=wathbah_grc
       - DB_HOST=host.docker.internal
@@ -39,7 +39,7 @@ services:
       - EMAIL_HOST_PASSWORD=changeme
       - DEFAULT_FROM_EMAIL=mansourmuhammad37@outlook.com
     volumes:
-      - ./db:/code/db
+      - ./dev-db:/code/db
       - ./backend:/code
     entrypoint: ["poetry", "run", "bash", "startup-dev.sh"]
     healthcheck:
@@ -50,7 +50,7 @@ services:
       start_period: 30s
 
   huey:
-    container_name: huey
+    container_name: dev-huey
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -60,17 +60,17 @@ services:
     restart: unless-stopped
     environment:
       - ALLOWED_HOSTS=backend,localhost
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
       - SKIP_STORE_LIBRARIES=true
-      - POSTGRES_NAME=wathbah_grc
+      - POSTGRES_NAME=wathbah_grc_dev
       - POSTGRES_USER=wathbah_grc
       - POSTGRES_PASSWORD=wathbah_grc
       - DB_HOST=host.docker.internal
       - DB_PORT=5432
     volumes:
-      - ./db:/code/db
+      - ./dev-db:/code/db
       - ./backend:/code
     entrypoint:
       - /bin/sh
@@ -79,16 +79,16 @@ services:
         poetry run python manage.py run_huey -w 1 --scheduler-interval 120
 
   frontend:
-    container_name: frontend
+    container_name: dev-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - PUBLIC_BACKEND_API_URL=http://backend:8000/api
-      - PUBLIC_BACKEND_API_EXPOSED_URL=https://localhost:8443/api
+      - PUBLIC_BACKEND_API_EXPOSED_URL=https://localhost:9443/api
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
     depends_on:
@@ -96,18 +96,18 @@ services:
         condition: service_healthy
 
   caddy:
-    container_name: caddy
+    container_name: dev-caddy
     image: caddy:2.10.0
     environment:
-      - CISO_ASSISTANT_URL=https://localhost:8443
+      - CISO_ASSISTANT_URL=https://localhost:9443
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
     ports:
-      - 8443:8443
+      - 9443:9443
     volumes:
-      - ./caddy_data:/data
+      - ./dev-caddy_data:/data
     command: |
       sh -c 'echo $$CISO_ASSISTANT_URL "{
       reverse_proxy /api/* backend:8000
