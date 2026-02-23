@@ -10452,10 +10452,9 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             # Extract score and status from the analysis result
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
-            compliance_status_val = overall.get('status', '') if isinstance(overall, dict) else ''
 
             # ── AUTO-FILL: compliance_result (result field) ──
-            # Map the AI's compliance status to the RequirementAssessment.Result enum
+            # Search broadly for compliance status in the AI response (case-insensitive)
             RESULT_MAPPING = {
                 'compliant': 'compliant',
                 'partially_compliant': 'partially_compliant',
@@ -10464,17 +10463,74 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'non_compliant': 'non_compliant',
                 'non-compliant': 'non_compliant',
                 'noncompliant': 'non_compliant',
+                'not compliant': 'non_compliant',
+                'not met': 'non_compliant',
                 'not_applicable': 'not_applicable',
                 'not applicable': 'not_applicable',
                 'na': 'not_applicable',
                 'n/a': 'not_applicable',
             }
+
+            def _find_compliance_status(ai_result):
+                """Search multiple paths in the AI response to find the compliance status."""
+                if not isinstance(ai_result, dict):
+                    return ''
+
+                # Helper: case-insensitive dict lookup
+                def _ci_get(d, *keys):
+                    if not isinstance(d, dict):
+                        return None
+                    lower_map = {k.lower(): k for k in d}
+                    for key in keys:
+                        real_key = lower_map.get(key.lower())
+                        if real_key is not None:
+                            val = d[real_key]
+                            if isinstance(val, str) and val.strip():
+                                return val.strip()
+                    return None
+
+                # 1. Top-level: compliance_status, complianceStatus, status
+                val = _ci_get(ai_result, 'compliance_status', 'complianceStatus', 'compliancestatus', 'status')
+                if val:
+                    return val
+
+                # 2. Inside overallAssessment
+                for oa_key in ('overallAssessment', 'overall_assessment', 'overallassessment'):
+                    oa = _ci_get(ai_result, oa_key)
+                    if oa is None:
+                        # Try as dict
+                        lower_map = {k.lower(): k for k in ai_result}
+                        real_key = lower_map.get(oa_key.lower())
+                        if real_key and isinstance(ai_result[real_key], dict):
+                            val = _ci_get(ai_result[real_key], 'status', 'compliance_status', 'complianceStatus', 'result')
+                            if val:
+                                return val
+
+                # 3. Inside results block
+                results_block = ai_result.get('results', {})
+                if isinstance(results_block, dict):
+                    val = _ci_get(results_block, 'compliance_status', 'complianceStatus', 'status', 'result')
+                    if val:
+                        return val
+
+                return ''
+
+            compliance_status_val = _find_compliance_status(result)
+            if isinstance(result, dict):
+                print(f"[RA-AI-ANALYSIS] AI response top-level keys: {list(result.keys())}")
+                for k, v in result.items():
+                    if isinstance(v, str):
+                        print(f"[RA-AI-ANALYSIS]   {k} = '{v}'")
+                    elif isinstance(v, dict):
+                        print(f"[RA-AI-ANALYSIS]   {k} (dict) keys = {list(v.keys())}")
+            print(f"[RA-AI-ANALYSIS] Compliance status found: '{compliance_status_val}'")
+
             ai_result_value = RESULT_MAPPING.get(
                 compliance_status_val.lower().strip(),
                 None
             ) if compliance_status_val else None
 
-            # If AI didn't return overallAssessment.status, derive result from question answers
+            # If AI didn't return an explicit compliance status, derive from question answers
             if not ai_result_value and question_answers:
                 answer_values = [
                     qa.get('answer', '').lower()
@@ -10490,13 +10546,10 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                         ai_result_value = 'partially_compliant'
                     print(f"[RA-AI-ANALYSIS] Derived compliance_result from question answers: {ai_result_value} (answers: {answer_values})")
 
-            # Override result if AI returned a valid compliance status AND
-            # the question-based scoring hasn't already computed a meaningful result
+            # Always apply the AI result — this is the AI's assessment
             if ai_result_value:
-                current_result = requirement_assessment.result
-                if not answers_updated or current_result in (None, 'not_assessed', ''):
-                    requirement_assessment.result = ai_result_value
-                    print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
+                requirement_assessment.result = ai_result_value
+                print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
 
             # ── AUTO-FILL: observation field ──
             # Build AI observation text from the analysis reasoning / summary
@@ -10584,15 +10637,19 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
             # ── Save all auto-filled fields at once ──
             update_fields = ['status', 'observation', 'ai_analysis_data']
-            # Include result if it was set by the AI (either directly or as fallback)
-            if requirement_assessment.result and requirement_assessment.result not in ('not_assessed', ''):
+            if ai_result_value:
                 update_fields.append('result')
             requirement_assessment.save(update_fields=update_fields)
 
-            # If answers were updated, recompute score/result (may override ai_result_value)
+            # If answers were updated, recompute score/result from questions
             if answers_updated:
                 requirement_assessment.compute_score_and_result()
                 requirement_assessment.refresh_from_db()
+                # If compute_score_and_result reset result to not_assessed but AI had a value, restore it
+                if ai_result_value and requirement_assessment.result in (None, 'not_assessed', ''):
+                    requirement_assessment.result = ai_result_value
+                    requirement_assessment.save(update_fields=['result'])
+                    print(f"[RA-AI-ANALYSIS] Restored AI result after compute_score_and_result: {ai_result_value}")
 
             print(f"[RA-AI-ANALYSIS] Final RA state: result={requirement_assessment.result}, "
                   f"status={requirement_assessment.status}, score={requirement_assessment.score}")
