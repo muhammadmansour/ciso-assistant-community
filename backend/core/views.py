@@ -10679,7 +10679,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         entries = LogEntry.objects.filter(
             content_type=ct,
-            object_id=str(requirement_assessment.pk),
+            object_pk=str(requirement_assessment.pk),
         ).select_related('actor').order_by('-timestamp')[:50]
 
         results = []
