@@ -174,35 +174,15 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
-	// Load past AI analyses (safe — won't break page if it fails)
-	let aiAnalyses: any[] = [];
-	try {
-		const aiAnalysesUrl = `${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`;
-		console.log('[RA-EDIT] Fetching AI analyses from:', aiAnalysesUrl);
-		const analysesResponse = await fetch(aiAnalysesUrl);
-		console.log('[RA-EDIT] AI analyses response status:', analysesResponse.status, analysesResponse.statusText);
-		if (analysesResponse.ok) {
-			aiAnalyses = await analysesResponse.json();
-			console.log('[RA-EDIT] AI analyses loaded:', aiAnalyses.length, 'records');
-		} else {
-			const errorText = await analysesResponse.text().catch(() => '');
-			console.error('[RA-EDIT] AI analyses fetch failed:', analysesResponse.status, errorText.substring(0, 500));
-		}
-	} catch (e) {
-		console.error('[RA-EDIT] Failed to load AI analyses:', e);
-	}
-
-	// Load audit log entries for this requirement assessment
-	let auditLogEntries: any[] = [];
-	try {
-		const auditLogUrl = `${baseUrl}/requirement-assessments/${params.id}/audit-log/`;
-		const auditLogResponse = await fetch(auditLogUrl);
-		if (auditLogResponse.ok) {
-			auditLogEntries = await auditLogResponse.json();
-		}
-	} catch (e) {
-		console.error('[RA-EDIT] Failed to load audit log:', e);
-	}
+	// Load AI analyses and audit log in parallel (non-blocking for each other)
+	const [aiAnalyses, auditLogEntries] = await Promise.all([
+		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`).then(
+			(data) => (Array.isArray(data) ? data : [])
+		).catch(() => []),
+		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/audit-log/`).then(
+			(data) => (Array.isArray(data) ? data : [])
+		).catch(() => []),
+	]);
 
 	return {
 		URLModel,
