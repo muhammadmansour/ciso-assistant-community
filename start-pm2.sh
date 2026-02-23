@@ -50,8 +50,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,backend',
-        CISO_ASSISTANT_URL: 'https://wathbah.dev',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev,backend',
+        CISO_ASSISTANT_URL: 'https://grc.wathbah.dev',
+        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbah.dev,https://wathbah.dev',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -71,8 +72,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev',
-        CISO_ASSISTANT_URL: 'https://wathbah.dev',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev',
+        CISO_ASSISTANT_URL: 'https://grc.wathbah.dev',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
@@ -116,8 +117,8 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,wathbah.dev"
-    export CISO_ASSISTANT_URL="https://wathbah.dev"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev"
+    export CISO_ASSISTANT_URL="https://grc.wathbah.dev"
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"

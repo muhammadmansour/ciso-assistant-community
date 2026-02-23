@@ -126,7 +126,10 @@ ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS", "localhost,127.0.0.1,host.docker.internal"
 ).split(",")
 logger.info("ALLOWED_HOSTS: %s", ALLOWED_HOSTS)
-CSRF_TRUSTED_ORIGINS = [CISO_ASSISTANT_URL]
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    "CSRF_TRUSTED_ORIGINS", CISO_ASSISTANT_URL
+).split(",")
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
 LOCAL_STORAGE_DIRECTORY = os.environ.get(
     "LOCAL_STORAGE_DIRECTORY", BASE_DIR / "db/attachments"
 )
