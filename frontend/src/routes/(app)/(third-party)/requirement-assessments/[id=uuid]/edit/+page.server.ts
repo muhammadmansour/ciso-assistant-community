@@ -174,26 +174,14 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
-	// Load AI analyses and audit log in parallel (non-blocking for each other)
-	const [aiAnalyses, auditLogEntries] = await Promise.all([
-		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`).then(
-			(data) => (Array.isArray(data) ? data : [])
-		).catch((e) => { console.error('[RA-EDIT] AI analyses fetch error:', e); return []; }),
-		(async () => {
-			const auditUrl = `${baseUrl}/requirement-assessments/${params.id}/audit-log/`;
-			console.log('[RA-EDIT] Fetching audit log from:', auditUrl);
-			const res = await fetch(auditUrl);
-			console.log('[RA-EDIT] Audit log response:', res.status, res.statusText);
-			if (!res.ok) {
-				const text = await res.text().catch(() => '');
-				console.error('[RA-EDIT] Audit log error body:', text.substring(0, 500));
-				return [];
-			}
-			const data = await res.json();
-			console.log('[RA-EDIT] Audit log entries:', data?.length ?? 0, 'records');
-			return Array.isArray(data) ? data : [];
-		})().catch((e) => { console.error('[RA-EDIT] Audit log fetch error:', e); return []; }),
-	]);
+	// Load AI analyses (audit log is fetched client-side for better debuggability)
+	let aiAnalyses: any[] = [];
+	try {
+		const data = await fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`);
+		aiAnalyses = Array.isArray(data) ? data : [];
+	} catch {
+		aiAnalyses = [];
+	}
 
 	return {
 		URLModel,
@@ -211,8 +199,7 @@ export const load = (async ({ fetch, params }) => {
 		securityExceptionModel,
 		securityExceptionCreateForm,
 		tables,
-		aiAnalyses,
-		auditLogEntries
+		aiAnalyses
 	};
 }) satisfies PageServerLoad;
 
