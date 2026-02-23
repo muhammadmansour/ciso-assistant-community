@@ -516,82 +516,49 @@
 			<form
 				method="POST"
 				action="?/runAiAnalysis"
-				use:enhance={() => {
-					isAnalyzing = true;
-					aiAnalysisResult = null;
-					aiAnalysisError = null;
-					return async ({ result }) => {
-						isAnalyzing = false;
-						if (result.type === 'success' && result.data?.aiAnalysis) {
-							aiAnalysisResult = result.data.aiAnalysis;
-							// Auto-open modal with the fresh result
-							selectedAnalysis = {
-								...result.data.aiAnalysis,
-								result: result.data.aiAnalysis.ai_analysis,
-								question_answers: result.data.aiAnalysis.question_answers,
-								created_at: result.data.aiAnalysis.ai_analysis_updated_at,
-								score: result.data.aiAnalysis.requirement_assessment_score ?? result.data.aiAnalysis.ai_analysis?.overallAssessment?.score,
-								compliance_status: result.data.aiAnalysis.requirement_assessment_result ?? result.data.aiAnalysis.ai_analysis?.overallAssessment?.status,
-								gemini_files_count: 0,
-								requirements_count: 1,
-							};
-							showAnalysisModal = true;
+			use:enhance={() => {
+				isAnalyzing = true;
+				aiAnalysisResult = null;
+				aiAnalysisError = null;
+				return async ({ result, update }) => {
+					isAnalyzing = false;
+					if (result.type === 'success' && result.data?.aiAnalysis) {
+						const aiData = result.data.aiAnalysis;
+						aiAnalysisResult = aiData;
 
-							// Add to local AI analyses list immediately so the history table updates without refresh
-							localAiAnalyses = [
-								{
-									id: result.data.aiAnalysis.ai_analysis_id,
-									created_at: result.data.aiAnalysis.ai_analysis_updated_at || new Date().toISOString(),
-									status: 'completed',
-									score: result.data.aiAnalysis.requirement_assessment_score ?? result.data.aiAnalysis.ai_analysis?.overallAssessment?.score ?? null,
-									compliance_status: result.data.aiAnalysis.requirement_assessment_result ?? result.data.aiAnalysis.ai_analysis?.overallAssessment?.status ?? null,
-									gemini_files_count: 0,
-									requirements_count: 1,
-									result: result.data.aiAnalysis.ai_analysis,
-									question_answers: result.data.aiAnalysis.question_answers,
-								},
-								...localAiAnalyses
-							];
+						// Add to local AI analyses list immediately so the history table updates
+						const newEntry = {
+							id: aiData.ai_analysis_id,
+							created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
+							status: 'completed',
+							score: aiData.ai_analysis?.overallAssessment?.score ?? null,
+							compliance_status: aiData.proposed_result ?? aiData.ai_analysis?.overallAssessment?.status ?? null,
+							gemini_files_count: 0,
+							requirements_count: 1,
+							result: aiData.ai_analysis,
+							question_answers: aiData.question_answers,
+						};
+						localAiAnalyses = [newEntry, ...localAiAnalyses];
 
-							// Update form fields immediately so the UI reflects AI-filled values
-							const aiData = result.data.aiAnalysis;
-							requirementAssessmentForm.form.update(
-								(current: Record<string, any>) => {
-									const updates: Record<string, any> = { ...current };
-
-									// Update answers if available
-									const updatedAnswers = aiData.updated_answers;
-									if (updatedAnswers && typeof updatedAnswers === 'object') {
-										updates.answers = updatedAnswers;
-									}
-
-									// Update status (e.g. "in_review")
-									if (aiData.requirement_assessment_status) {
-										updates.status = aiData.requirement_assessment_status;
-									}
-
-									// Update result (e.g. "compliant", "partially_compliant", etc.)
-									if (aiData.requirement_assessment_result) {
-										updates.result = aiData.requirement_assessment_result;
-									}
-
-									// Update observation
-									if (aiData.requirement_assessment_observation) {
-										updates.observation = aiData.requirement_assessment_observation;
-									}
-
-									return updates;
-								},
-								{ taint: false }
-							);
-						} else if (result.type === 'failure' && result.data?.aiError) {
-							aiAnalysisError = result.data.aiError;
-						} else {
-							aiAnalysisError = 'Unexpected response from server';
-						}
-						await invalidateAll();
-					};
-				}}
+						// Auto-open modal with the fresh result
+						selectedAnalysis = {
+							...newEntry,
+							result: aiData.ai_analysis,
+							question_answers: aiData.question_answers,
+							created_at: aiData.ai_analysis_updated_at,
+							score: newEntry.score,
+							compliance_status: newEntry.compliance_status,
+						};
+						showAnalysisModal = true;
+					} else if (result.type === 'failure' && result.data?.aiError) {
+						aiAnalysisError = result.data.aiError;
+					} else {
+						aiAnalysisError = 'Unexpected response from server';
+					}
+					// Do NOT call invalidateAll() here — it resets the page and closes the modal.
+					// The local state (localAiAnalyses, selectedAnalysis) is already up to date.
+				};
+			}}
 			>
 				<button
 					type="submit"
