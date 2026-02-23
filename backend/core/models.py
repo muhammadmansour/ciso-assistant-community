@@ -7091,6 +7091,15 @@ class RequirementAssessment(AbstractBaseModel, FolderMixin, ETADueDateMixin):
         verbose_name="Security exceptions",
         related_name="requirement_assessments",
     )
+    ai_analysis_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_("AI Analysis Data"),
+        help_text=_(
+            "Stores the complete AI analysis output including raw JSON, "
+            "analysis run ID, model version, timestamp, and source metadata."
+        ),
+    )
 
     def __str__(self) -> str:
         return self.requirement.display_short

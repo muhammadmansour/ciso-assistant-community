@@ -10454,7 +10454,131 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             score = overall.get('score', None) if isinstance(overall, dict) else None
             compliance_status_val = overall.get('status', '') if isinstance(overall, dict) else ''
 
-            # Save to database — question_answers stored separately from the main result
+            # ── AUTO-FILL: compliance_result (result field) ──
+            # Map the AI's compliance status to the RequirementAssessment.Result enum
+            RESULT_MAPPING = {
+                'compliant': 'compliant',
+                'partially_compliant': 'partially_compliant',
+                'partial': 'partially_compliant',
+                'partially compliant': 'partially_compliant',
+                'non_compliant': 'non_compliant',
+                'non-compliant': 'non_compliant',
+                'noncompliant': 'non_compliant',
+                'not_applicable': 'not_applicable',
+                'not applicable': 'not_applicable',
+                'na': 'not_applicable',
+                'n/a': 'not_applicable',
+            }
+            ai_result_value = RESULT_MAPPING.get(
+                compliance_status_val.lower().strip(),
+                None
+            ) if compliance_status_val else None
+
+            # Only override if AI returned a valid compliance status AND
+            # the question-based scoring hasn't already set a result
+            if ai_result_value and not answers_updated:
+                requirement_assessment.result = ai_result_value
+                print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
+
+            # ── AUTO-FILL: observation field ──
+            # Build AI observation text from the analysis reasoning / summary
+            from django.utils import timezone as tz
+            ai_observation_parts = []
+
+            # Try to get summary text from known response keys
+            if isinstance(result, dict):
+                results_block = result.get('results', {}) if isinstance(result.get('results'), dict) else {}
+                summary_text = (
+                    result.get('summary')
+                    or (overall.get('summary') if isinstance(overall, dict) else None)
+                    or (overall.get('reasoning') if isinstance(overall, dict) else None)
+                    or results_block.get('summary')
+                )
+                if summary_text:
+                    ai_observation_parts.append(str(summary_text))
+
+                # Include gap analysis highlights
+                gap_analysis = (
+                    result.get('gapAnalysis')
+                    or result.get('gap_analysis')
+                    or results_block.get('gap_analysis')
+                )
+                if isinstance(gap_analysis, dict):
+                    gaps = gap_analysis.get('identified_gaps') or gap_analysis.get('gaps', [])
+                    if isinstance(gaps, list) and gaps:
+                        gap_lines = []
+                        for gap in gaps[:5]:  # Limit to top 5 gaps
+                            if isinstance(gap, dict):
+                                gap_text = gap.get('gap') or gap.get('description') or gap.get('finding', '')
+                                if gap_text:
+                                    gap_lines.append(f"  - {gap_text}")
+                            elif isinstance(gap, str):
+                                gap_lines.append(f"  - {gap}")
+                        if gap_lines:
+                            ai_observation_parts.append("Gaps identified:\n" + "\n".join(gap_lines))
+
+                # Include recommendations
+                recs = result.get('recommendations') or results_block.get('recommendations')
+                if isinstance(recs, list) and recs:
+                    rec_lines = []
+                    for rec in recs[:5]:  # Limit to top 5
+                        if isinstance(rec, str):
+                            rec_lines.append(f"  - {rec}")
+                        elif isinstance(rec, dict):
+                            rec_text = rec.get('recommendation') or rec.get('text') or rec.get('description', '')
+                            if rec_text:
+                                rec_lines.append(f"  - {rec_text}")
+                    if rec_lines:
+                        ai_observation_parts.append("Recommendations:\n" + "\n".join(rec_lines))
+
+            if ai_observation_parts:
+                ai_date = tz.now().strftime('%Y-%m-%d %H:%M')
+                ai_header = f"[AI Analysis — {ai_date}]"
+                ai_text = f"{ai_header}\n" + "\n\n".join(ai_observation_parts)
+
+                existing_observation = requirement_assessment.observation or ''
+                if existing_observation.strip():
+                    # Prepend AI text, preserve existing human notes below
+                    requirement_assessment.observation = f"{ai_text}\n\n---\n{existing_observation}"
+                else:
+                    requirement_assessment.observation = ai_text
+                print(f"[RA-AI-ANALYSIS] Auto-set observation ({len(ai_text)} chars)")
+
+            # ── AUTO-FILL: status → in_review ──
+            old_status = requirement_assessment.status
+            requirement_assessment.status = 'in_review'
+            print(f"[RA-AI-ANALYSIS] Auto-set status: {old_status} → in_review")
+
+            # ── AUTO-FILL: ai_analysis_data (new JSON field) ──
+            ai_analysis_data_payload = {
+                'raw_json': result,
+                'analysis_run_id': str(uuid.uuid4()),
+                'model_version': os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                'timestamp': tz.now().isoformat(),
+                'source': muraji_url,
+                'question_answers': question_answers,
+                'applied_controls_meta': applied_controls_meta,
+                'gemini_files_count': len(gemini_file_ids),
+                'requirements_count': 1,
+            }
+            requirement_assessment.ai_analysis_data = ai_analysis_data_payload
+            print(f"[RA-AI-ANALYSIS] Auto-set ai_analysis_data (keys: {list(ai_analysis_data_payload.keys())})")
+
+            # ── Save all auto-filled fields at once ──
+            update_fields = ['status', 'observation', 'ai_analysis_data']
+            if ai_result_value and not answers_updated:
+                update_fields.append('result')
+            requirement_assessment.save(update_fields=update_fields)
+
+            # If answers were updated, recompute score/result (may override ai_result_value)
+            if answers_updated:
+                requirement_assessment.compute_score_and_result()
+                requirement_assessment.refresh_from_db()
+
+            print(f"[RA-AI-ANALYSIS] Final RA state: result={requirement_assessment.result}, "
+                  f"status={requirement_assessment.status}, score={requirement_assessment.score}")
+
+            # Save to AiAnalysisResult table as well
             analysis_record = AiAnalysisResult.objects.create(
                 requirement_assessment=requirement_assessment,
                 result=result,
@@ -10475,7 +10599,11 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'answers_auto_updated': answers_updated,
                 'updated_answers': requirement_assessment.answers,
                 'requirement_assessment_result': requirement_assessment.result,
+                'requirement_assessment_status': requirement_assessment.status,
                 'requirement_assessment_score': requirement_assessment.score,
+                'requirement_assessment_observation': requirement_assessment.observation or '',
+                'observation_updated': bool(ai_observation_parts),
+                'ai_analysis_data_saved': True,
             }, status=status.HTTP_200_OK)
 
         except http_requests.exceptions.Timeout:

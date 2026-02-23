@@ -460,17 +460,37 @@
 								...localAiAnalyses
 							];
 
-							// Update form answers immediately so the Question component reflects AI choices
-							const updatedAnswers = result.data.aiAnalysis.updated_answers;
-							if (updatedAnswers && typeof updatedAnswers === 'object') {
-								requirementAssessmentForm.form.update(
-									(current: Record<string, any>) => ({
-										...current,
-										answers: updatedAnswers
-									}),
-									{ taint: false }
-								);
-							}
+							// Update form fields immediately so the UI reflects AI-filled values
+							const aiData = result.data.aiAnalysis;
+							requirementAssessmentForm.form.update(
+								(current: Record<string, any>) => {
+									const updates: Record<string, any> = { ...current };
+
+									// Update answers if available
+									const updatedAnswers = aiData.updated_answers;
+									if (updatedAnswers && typeof updatedAnswers === 'object') {
+										updates.answers = updatedAnswers;
+									}
+
+									// Update status (e.g. "in_review")
+									if (aiData.requirement_assessment_status) {
+										updates.status = aiData.requirement_assessment_status;
+									}
+
+									// Update result (e.g. "compliant", "partially_compliant", etc.)
+									if (aiData.requirement_assessment_result) {
+										updates.result = aiData.requirement_assessment_result;
+									}
+
+									// Update observation
+									if (aiData.requirement_assessment_observation) {
+										updates.observation = aiData.requirement_assessment_observation;
+									}
+
+									return updates;
+								},
+								{ taint: false }
+							);
 						} else if (result.type === 'failure' && result.data?.aiError) {
 							aiAnalysisError = result.data.aiError;
 						} else {

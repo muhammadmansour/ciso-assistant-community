@@ -6,8 +6,6 @@
 	import TextArea from '../TextArea.svelte';
 	import Checkbox from '../Checkbox.svelte';
 	import RadioGroup from '../RadioGroup.svelte';
-	import { type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
-	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import { page } from '$app/state';
 	import { safeTranslate } from '$lib/utils/i18n';
 
@@ -33,9 +31,10 @@
 
 	// const modalStore = getModalStore();
 
-	function modalMeasureCreateForm(): void {
+	async function modalMeasureCreateForm(): Promise<void> {
+		const { default: CreateModal } = await import('$lib/components/Modals/CreateModal.svelte');
 		const measureModel = page.data.measureModel;
-		const modalComponent: ModalComponent = {
+		const modalComponent = {
 			ref: CreateModal,
 			props: {
 				form: page.data.measureCreateForm,
@@ -44,7 +43,7 @@
 				debug: false
 			}
 		};
-		const modal: ModalSettings = {
+		const modal = {
 			type: 'component',
 			component: modalComponent,
 			// Data
