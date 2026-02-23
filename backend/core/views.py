@@ -10212,6 +10212,14 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'include_recommendations': True,
                 'question_answer_values': ['Yes', 'No', 'Partial'],
                 'question_answer_instruction': 'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". Do not use any other values.',
+                'return_compliance_result': True,
+                'compliance_result_values': ['compliant', 'partially_compliant', 'non_compliant', 'not_applicable'],
+                'compliance_result_instruction': (
+                    'IMPORTANT: You MUST include an overall compliance assessment in your response. '
+                    'Add a top-level field called "overallAssessment" with a "status" field that is '
+                    'exactly one of: "compliant", "partially_compliant", "non_compliant", or "not_applicable". '
+                    'Also include a "score" field (0-100) and a "summary" field with a brief explanation.'
+                ),
             }
         }
 
@@ -10472,12 +10480,14 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             }
 
             def _find_compliance_status(ai_result):
-                """Search multiple paths in the AI response to find the compliance status."""
+                """Search multiple paths in the AI response to find the compliance status.
+                Returns a string like 'compliant', 'partially_compliant', etc., or '' if not found.
+                """
                 if not isinstance(ai_result, dict):
                     return ''
 
-                # Helper: case-insensitive dict lookup
-                def _ci_get(d, *keys):
+                # Helper: case-insensitive dict lookup (returns string values only)
+                def _ci_get_str(d, *keys):
                     if not isinstance(d, dict):
                         return None
                     lower_map = {k.lower(): k for k in d}
@@ -10489,29 +10499,73 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                                 return val.strip()
                     return None
 
-                # 1. Top-level: compliance_status, complianceStatus, status
-                val = _ci_get(ai_result, 'compliance_status', 'complianceStatus', 'compliancestatus', 'status')
+                # Helper: case-insensitive dict lookup (returns any value)
+                def _ci_get_any(d, *keys):
+                    if not isinstance(d, dict):
+                        return None
+                    lower_map = {k.lower(): k for k in d}
+                    for key in keys:
+                        real_key = lower_map.get(key.lower())
+                        if real_key is not None:
+                            return d[real_key]
+                    return None
+
+                STATUS_KEYS = ('status', 'compliance_status', 'complianceStatus', 'compliancestatus', 'result', 'compliance_result')
+
+                # 1. overallAssessment.status (our requested format)
+                for oa_key in ('overallAssessment', 'overall_assessment', 'overallassessment'):
+                    oa = _ci_get_any(ai_result, oa_key)
+                    if isinstance(oa, dict):
+                        val = _ci_get_str(oa, *STATUS_KEYS)
+                        if val:
+                            print(f"[RA-AI-ANALYSIS] Found compliance status in {oa_key}: '{val}'")
+                            return val
+
+                # 2. Top-level string: compliance_status, complianceStatus, status
+                val = _ci_get_str(ai_result, *STATUS_KEYS)
                 if val:
+                    print(f"[RA-AI-ANALYSIS] Found compliance status at top-level: '{val}'")
                     return val
 
-                # 2. Inside overallAssessment
-                for oa_key in ('overallAssessment', 'overall_assessment', 'overallassessment'):
-                    oa = _ci_get(ai_result, oa_key)
-                    if oa is None:
-                        # Try as dict
-                        lower_map = {k.lower(): k for k in ai_result}
-                        real_key = lower_map.get(oa_key.lower())
-                        if real_key and isinstance(ai_result[real_key], dict):
-                            val = _ci_get(ai_result[real_key], 'status', 'compliance_status', 'complianceStatus', 'result')
-                            if val:
-                                return val
-
-                # 3. Inside results block
-                results_block = ai_result.get('results', {})
+                # 3. results.compliance_status (documented Muraji response format)
+                results_block = _ci_get_any(ai_result, 'results')
                 if isinstance(results_block, dict):
-                    val = _ci_get(results_block, 'compliance_status', 'complianceStatus', 'status', 'result')
+                    # results.compliance_status could be a string or a dict
+                    cs = _ci_get_any(results_block, 'compliance_status', 'complianceStatus', 'compliancestatus')
+                    if isinstance(cs, str) and cs.strip():
+                        print(f"[RA-AI-ANALYSIS] Found compliance status in results: '{cs.strip()}'")
+                        return cs.strip()
+                    if isinstance(cs, dict):
+                        # results.compliance_status.findings[0].status
+                        findings = cs.get('findings', [])
+                        if isinstance(findings, list) and findings:
+                            # Use the first (or only) finding's status
+                            first = findings[0]
+                            if isinstance(first, dict):
+                                s = first.get('status', '')
+                                if isinstance(s, str) and s.strip():
+                                    print(f"[RA-AI-ANALYSIS] Found compliance status in results.compliance_status.findings[0]: '{s.strip()}'")
+                                    return s.strip()
+                        # results.compliance_status.status
+                        val = _ci_get_str(cs, *STATUS_KEYS)
+                        if val:
+                            print(f"[RA-AI-ANALYSIS] Found compliance status in results.compliance_status: '{val}'")
+                            return val
+                    # results.status directly
+                    val = _ci_get_str(results_block, *STATUS_KEYS)
                     if val:
+                        print(f"[RA-AI-ANALYSIS] Found compliance status in results (direct): '{val}'")
                         return val
+
+                # 4. Scan all top-level dict values for a status field
+                for k, v in ai_result.items():
+                    if isinstance(v, dict):
+                        val = _ci_get_str(v, *STATUS_KEYS)
+                        if val and val.lower().replace('_', '').replace(' ', '').replace('-', '') in (
+                            'compliant', 'partiallycompliant', 'noncompliant', 'notapplicable', 'notassessed'
+                        ):
+                            print(f"[RA-AI-ANALYSIS] Found compliance status in '{k}': '{val}'")
+                            return val
 
                 return ''
 
@@ -10530,8 +10584,11 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 None
             ) if compliance_status_val else None
 
-            # If AI didn't return an explicit compliance status, derive from question answers
+            # FALLBACK ONLY: If the AI response didn't include an explicit compliance status
+            # anywhere, derive it from the AI's question answers as a last resort.
+            # This is NOT the preferred path — ideally the AI returns overallAssessment.status directly.
             if not ai_result_value and question_answers:
+                print(f"[RA-AI-ANALYSIS] WARNING: No explicit compliance status in AI response, deriving from question answers")
                 answer_values = [
                     qa.get('answer', '').lower()
                     for qa in question_answers.values()
