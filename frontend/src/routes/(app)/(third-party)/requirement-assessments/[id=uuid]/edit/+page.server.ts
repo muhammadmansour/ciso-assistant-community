@@ -192,6 +192,18 @@ export const load = (async ({ fetch, params }) => {
 		console.error('[RA-EDIT] Failed to load AI analyses:', e);
 	}
 
+	// Load audit log entries for this requirement assessment
+	let auditLogEntries: any[] = [];
+	try {
+		const auditLogUrl = `${baseUrl}/requirement-assessments/${params.id}/audit-log/`;
+		const auditLogResponse = await fetch(auditLogUrl);
+		if (auditLogResponse.ok) {
+			auditLogEntries = await auditLogResponse.json();
+		}
+	} catch (e) {
+		console.error('[RA-EDIT] Failed to load audit log:', e);
+	}
+
 	return {
 		URLModel,
 		title: requirementAssessment.name,
@@ -208,7 +220,8 @@ export const load = (async ({ fetch, params }) => {
 		securityExceptionModel,
 		securityExceptionCreateForm,
 		tables,
-		aiAnalyses
+		aiAnalyses,
+		auditLogEntries
 	};
 }) satisfies PageServerLoad;
 
@@ -330,6 +343,30 @@ export const actions: Actions = {
 		}
 
 		return { deleted: true };
+	},
+	applyAiAnalysis: async (event) => {
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId');
+		if (!analysisId) {
+			return fail(400, { error: 'Missing analysis ID' });
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/apply-ai-analysis/`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ analysis_id: analysisId })
+			}
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			return fail(response.status, { applyError: err.message || `Error ${response.status}` });
+		}
+
+		const result = await response.json();
+		return { applyResult: result };
 	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();

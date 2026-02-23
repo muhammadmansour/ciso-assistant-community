@@ -286,6 +286,111 @@
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
 
+	// AI Apply state — tracks which fields were populated by "Apply Analysis Results"
+	let aiAppliedFields: Set<string> = $state(new Set());
+	let aiApplyBannerVisible = $state(false);
+	let isApplyingAnalysis = $state(false);
+	let applyError: string | null = $state(null);
+
+	/**
+	 * Apply AI analysis results to the form fields without saving to DB.
+	 * The user reviews the populated form and clicks Save manually.
+	 */
+	async function applyAnalysisResults(analysisId: string) {
+		isApplyingAnalysis = true;
+		applyError = null;
+
+		try {
+			const formData = new FormData();
+			formData.append('analysisId', analysisId);
+			const response = await fetch('?/applyAiAnalysis', {
+				method: 'POST',
+				body: formData
+			});
+
+			const responseData = await response.json();
+			// SvelteKit returns { type, status, data } for form actions
+			const actionData = responseData?.data;
+			// Handle the nested format from SvelteKit: data might be a JSON-stringified array
+			let applyResult: any = null;
+			if (actionData) {
+				// Try to parse if it's in SvelteKit's response format
+				if (typeof actionData === 'string') {
+					try {
+						const parsed = JSON.parse(actionData);
+						applyResult = Array.isArray(parsed) ? parsed.find((item: any) => item?.applyResult)?.applyResult : parsed?.applyResult;
+					} catch {
+						applyResult = actionData;
+					}
+				} else if (Array.isArray(actionData)) {
+					// SvelteKit action responses come as arrays of nodes
+					for (const node of actionData) {
+						if (node && typeof node === 'object' && 'applyResult' in node) {
+							applyResult = node.applyResult;
+							break;
+						}
+					}
+				} else {
+					applyResult = actionData.applyResult || actionData;
+				}
+			}
+
+			if (!applyResult) {
+				applyError = 'Failed to get analysis results. Please try again.';
+				return;
+			}
+
+			// Populate form fields with proposed AI values
+			const fieldsChanged = new Set<string>();
+
+			requirementAssessmentForm.form.update(
+				(current: Record<string, any>) => {
+					const updated = { ...current };
+
+					if (applyResult.proposed_result && applyResult.proposed_result !== current.result) {
+						updated.result = applyResult.proposed_result;
+						fieldsChanged.add('result');
+					}
+
+					if (applyResult.proposed_status && applyResult.proposed_status !== current.status) {
+						updated.status = applyResult.proposed_status;
+						fieldsChanged.add('status');
+					}
+
+					if (applyResult.proposed_observation && applyResult.proposed_observation !== current.observation) {
+						updated.observation = applyResult.proposed_observation;
+						fieldsChanged.add('observation');
+					}
+
+					if (applyResult.proposed_answers && Object.keys(applyResult.proposed_answers).length > 0) {
+						updated.answers = applyResult.proposed_answers;
+						fieldsChanged.add('answers');
+					}
+
+					return updated;
+				},
+				{ taint: true }
+			);
+
+			aiAppliedFields = fieldsChanged;
+			aiApplyBannerVisible = fieldsChanged.size > 0;
+
+			// Close the modal so the user can review the form
+			closeModal();
+
+		} catch (e) {
+			console.error('Failed to apply AI analysis:', e);
+			applyError = 'An error occurred while applying analysis results.';
+		} finally {
+			isApplyingAnalysis = false;
+		}
+	}
+
+	function dismissApplyBanner() {
+		aiApplyBannerVisible = false;
+		aiAppliedFields = new Set();
+	}
+
 	// Local reactive list of AI analyses — updated immediately on success and synced with server data
 	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
 
@@ -696,6 +801,46 @@
 		</div>
 	{/if}
 
+	<!-- AI Apply Error -->
+	{#if applyError}
+		<div class="card p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2 text-red-700">
+					<i class="fa-solid fa-circle-exclamation"></i>
+					<span class="font-semibold">Apply Failed</span>
+				</div>
+				<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (applyError = null)}>
+					<i class="fa-solid fa-xmark"></i>
+				</button>
+			</div>
+			<p class="text-red-600 text-sm mt-2">{applyError}</p>
+		</div>
+	{/if}
+
+	<!-- AI Values Applied Banner -->
+	{#if aiApplyBannerVisible}
+		<div class="card p-4 bg-blue-50 border border-blue-200 rounded-lg mt-2">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<div class="p-2 bg-blue-100 rounded-lg">
+						<i class="fa-solid fa-wand-magic-sparkles text-blue-700"></i>
+					</div>
+					<div>
+						<p class="font-semibold text-blue-800">AI Analysis Results Applied</p>
+						<p class="text-blue-600 text-sm">
+							The following fields have been populated with AI-proposed values:
+							<strong>{[...aiAppliedFields].join(', ')}</strong>.
+							Review the values below and click <strong>Save</strong> to confirm.
+						</p>
+					</div>
+				</div>
+				<button type="button" class="text-blue-400 hover:text-blue-600" onclick={dismissApplyBanner}>
+					<i class="fa-solid fa-xmark"></i>
+				</button>
+			</div>
+		</div>
+	{/if}
+
 	<div class="mt-4">
 		<SuperForm
 			class="flex flex-col"
@@ -966,20 +1111,34 @@
 				</div>
 
 				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-						<Question
-							{form}
-							field="answers"
-							questions={page.data.requirementAssessment.requirement.questions}
-							label={m.questionSingular()}
-						/>
+						<div class="relative">
+							{#if aiAppliedFields.has('answers')}
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+								</span>
+							{/if}
+							<Question
+								{form}
+								field="answers"
+								questions={page.data.requirementAssessment.requirement.questions}
+								label={m.questionSingular()}
+							/>
+						</div>
 					{/if}
-					<Select
-						{form}
-						options={page.data.model.selectOptions['status']}
-						field="status"
-						label={m.status()}
-						helpText={m.requirementAssessmentStatusHelpText()}
-					/>
+					<div class="relative">
+						{#if aiAppliedFields.has('status')}
+							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+							</span>
+						{/if}
+						<Select
+							{form}
+							options={page.data.model.selectOptions['status']}
+							field="status"
+							label={m.status()}
+							helpText={m.requirementAssessmentStatusHelpText()}
+						/>
+					</div>
 					{#if computedResult}
 						<p class="flex flex-row items-center space-x-4">
 							<span class="font-medium">{m.result()}</span>
@@ -993,13 +1152,20 @@
 							</span>
 						</p>
 					{:else}
-						<Select
-							{form}
-							options={page.data.model.selectOptions['result']}
-							field="result"
-							label={m.result()}
-							helpText={m.requirementAssessmentResultHelpText()}
-						/>
+						<div class="relative">
+							{#if aiAppliedFields.has('result')}
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+								</span>
+							{/if}
+							<Select
+								{form}
+								options={page.data.model.selectOptions['result']}
+								field="result"
+								label={m.result()}
+								helpText={m.requirementAssessmentResultHelpText()}
+							/>
+						</div>
 					{/if}
 					{#if page.data.requirementAssessment.compliance_assessment.extended_result_enabled}
 						<Select
@@ -1069,7 +1235,14 @@
 						{/if}
 					{/if}
 
-					<MarkdownField {form} field="observation" label="Observation" />
+					<div class="relative">
+						{#if aiAppliedFields.has('observation')}
+							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+							</span>
+						{/if}
+						<MarkdownField {form} field="observation" label="Observation" />
+					</div>
 					<div class="flex flex-row justify-between space-x-4">
 						<button
 							class="btn bg-gray-400 text-white font-semibold w-full"
@@ -1096,6 +1269,88 @@
 		</SuperForm>
 	</div>
 </div>
+
+<!-- Audit History Section -->
+{#if data.auditLogEntries && data.auditLogEntries.length > 0}
+	<div class="card bg-white shadow-lg rounded-lg overflow-hidden mt-6">
+		<div class="p-6">
+			<div class="mb-4 flex items-center justify-between">
+				<h3 class="text-lg font-semibold text-gray-800">
+					<i class="fa-solid fa-clock-rotate-left text-gray-600 mr-2"></i>
+					Change History
+				</h3>
+				<span class="text-sm text-gray-500">
+					{data.auditLogEntries.length} change(s)
+				</span>
+			</div>
+
+			<div class="overflow-x-auto border border-gray-200 rounded-lg">
+				<table class="w-full text-sm">
+					<thead class="bg-gray-50 border-b border-gray-200">
+						<tr>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Actor</th>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Action</th>
+							<th class="text-left px-4 py-3 font-semibold text-gray-600">Changes</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-100">
+						{#each data.auditLogEntries as entry}
+							<tr class="hover:bg-gray-50 transition-colors">
+								<td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+									{new Date(entry.timestamp).toLocaleString()}
+								</td>
+								<td class="px-4 py-3">
+									{#if entry.actor}
+										<span class="inline-flex items-center gap-1">
+											{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
+												<i class="fa-solid fa-robot text-blue-500"></i>
+											{:else}
+												<i class="fa-solid fa-user text-gray-400"></i>
+											{/if}
+											<span class="text-gray-700">{entry.actor}</span>
+										</span>
+									{:else}
+										<span class="text-gray-400 italic">System</span>
+									{/if}
+								</td>
+								<td class="px-4 py-3">
+									<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+										{entry.action === 'create' ? 'bg-green-100 text-green-700' :
+										 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
+										 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
+										 'bg-gray-100 text-gray-700'}">
+										{entry.action}
+									</span>
+								</td>
+								<td class="px-4 py-3">
+									{#if entry.changes && typeof entry.changes === 'object'}
+										<div class="space-y-1">
+											{#each Object.entries(entry.changes) as [field, change]}
+												<div class="text-xs">
+													<span class="font-medium text-gray-600">{field}:</span>
+													{#if Array.isArray(change) && change.length >= 2}
+														<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : change[0]}</span>
+														<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
+														<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : change[1]}</span>
+													{:else}
+														<span class="text-gray-500">{JSON.stringify(change)}</span>
+													{/if}
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<span class="text-gray-400 italic">No details</span>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- AI Analysis Modal -->
 {#if showAnalysisModal && selectedAnalysis}
@@ -1544,7 +1799,24 @@
 			</div>
 
 			<!-- Modal Footer -->
-			<div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+			<div class="flex justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+				<button
+					type="button"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm font-semibold"
+					disabled={isApplyingAnalysis || !selectedAnalysis?.id}
+					onclick={() => {
+						const id = selectedAnalysis?.id;
+						if (id) applyAnalysisResults(id);
+					}}
+				>
+					{#if isApplyingAnalysis}
+						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						Applying...
+					{:else}
+						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+						Apply Analysis Results
+					{/if}
+				</button>
 				<button
 					type="button"
 					class="btn preset-filled-surface-200-800"

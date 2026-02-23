@@ -9916,6 +9916,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         "list_ai_analyses": "view_requirementassessment",
         "get_ai_analysis": "view_requirementassessment",
         "delete_ai_analysis": "change_requirementassessment",
+        "apply_ai_analysis": "change_requirementassessment",
+        "audit_log": "view_requirementassessment",
     }
 
     model = RequirementAssessment
@@ -10276,459 +10278,44 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             if isinstance(result, dict):
                 result['_appliedControls'] = applied_controls_meta
 
-            # ── Extract question answers as a separate JSON object ──
-            # Look for question evaluation in the AI response and normalize answers to Yes/No/Partial
-            VALID_ANSWERS = {'yes': 'Yes', 'no': 'No', 'partial': 'Partial'}
+            # ── Parse AI results using shared helpers (no auto-write to RA) ──
+            from core.ai_analysis_helpers import (
+                extract_question_answers,
+                find_compliance_status,
+                derive_compliance_result,
+                build_observation_text,
+                map_answers_to_requirement_choices,
+                compute_proposed_status,
+            )
 
-            def _normalize_answer(raw_answer):
-                """Normalize an answer string to exactly Yes, No, or Partial."""
-                if raw_answer is None:
-                    return 'Partial'
-                val = str(raw_answer).strip().lower()
-                if val in VALID_ANSWERS:
-                    return VALID_ANSWERS[val]
-                # Try common variations
-                if val in ('true', 'compliant', 'met', 'full', 'fully'):
-                    return 'Yes'
-                if val in ('false', 'non-compliant', 'noncompliant', 'not met', 'none', 'not_met'):
-                    return 'No'
-                if val in ('partially', 'partially compliant', 'partially_compliant', 'partial', 'partly'):
-                    return 'Partial'
-                return 'Partial'  # Default to Partial if answer is ambiguous
-
-            def _extract_question_answers(ai_result, original_questions):
-                """Extract question answers from the AI response and return as a separate dict.
-                
-                IMPORTANT: Always uses the original requirement questions as the question text,
-                not whatever the AI may have rephrased them to. The AI's answers are matched
-                to original questions by index order.
-                """
-                if not isinstance(ai_result, dict):
-                    return {}
-
-                # Find the question evaluation section (case-insensitive)
-                question_section = None
-                question_section_key = None
-                for key in ai_result:
-                    lower_key = key.lower().replace('_', '').replace(' ', '')
-                    if lower_key in ('questionevaluation', 'questionsanswers', 'questionanswers',
-                                     'questions_answers', 'question_evaluation', 'questionsandanswers'):
-                        question_section = ai_result[key]
-                        question_section_key = key
-                        break
-
-                answers_dict = {}
-
-                if isinstance(question_section, list):
-                    for idx, item in enumerate(question_section):
-                        if isinstance(item, dict):
-                            # ALWAYS use the original requirement question text
-                            # The AI may rephrase questions — we want the exact requirement question
-                            q_text = original_questions[idx] if idx < len(original_questions) else None
-
-                            # If we don't have an original question for this index, use AI's text as fallback
-                            if not q_text:
-                                for q_key in ('question', 'text', 'questionText', 'question_text'):
-                                    if q_key in item:
-                                        q_text = item[q_key]
-                                        break
-
-                            # Get the answer and normalize
-                            raw_answer = None
-                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
-                                if a_key in item:
-                                    raw_answer = item[a_key]
-                                    break
-
-                            normalized = _normalize_answer(raw_answer)
-                            q_number = item.get('questionNumber', item.get('number', idx + 1))
-
-                            answer_entry = {
-                                'question': q_text or f"Question {q_number}",
-                                'answer': normalized,
-                            }
-                            # Include source/justification if present
-                            for extra_key in ('source', 'sourceFile', 'appliedControl', 'applied_control'):
-                                if extra_key in item and item[extra_key]:
-                                    answer_entry['source'] = item[extra_key] if isinstance(item[extra_key], str) else str(item[extra_key])
-                                    break
-                            for extra_key in ('justification', 'explanation', 'reasoning', 'notes'):
-                                if extra_key in item and item[extra_key]:
-                                    answer_entry['justification'] = str(item[extra_key])
-                                    break
-
-                            answers_dict[f"q{idx + 1}"] = answer_entry
-
-                            # Also normalize the answer in-place in the AI response
-                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
-                                if a_key in item:
-                                    item[a_key] = normalized
-                                    break
-                            else:
-                                item['answer'] = normalized
-
-                            # Also replace the question text in the AI response with the original
-                            if idx < len(original_questions):
-                                for q_key in ('question', 'text', 'questionText', 'question_text'):
-                                    if q_key in item:
-                                        item[q_key] = original_questions[idx]
-                                        break
-
-                elif isinstance(question_section, dict):
-                    # Handle dict format
-                    for idx, (q_key, q_val) in enumerate(question_section.items()):
-                        # ALWAYS use the original requirement question text
-                        q_text = original_questions[idx] if idx < len(original_questions) else None
-
-                        if isinstance(q_val, dict):
-                            raw_answer = q_val.get('answer', q_val.get('value'))
-                            normalized = _normalize_answer(raw_answer)
-                            answers_dict[f"q{idx + 1}"] = {
-                                'question': q_text or q_val.get('question', q_val.get('text', q_key)),
-                                'answer': normalized,
-                            }
-                            q_val['answer'] = normalized
-                            # Replace question text in AI response with original
-                            if q_text:
-                                if 'question' in q_val:
-                                    q_val['question'] = q_text
-                                elif 'text' in q_val:
-                                    q_val['text'] = q_text
-                        elif isinstance(q_val, str):
-                            normalized = _normalize_answer(q_val)
-                            answers_dict[f"q{idx + 1}"] = {
-                                'question': q_text or q_key,
-                                'answer': normalized,
-                            }
-                            question_section[q_key] = normalized
-
-                # If no question section found, create answers from original questions with Partial
-                if not answers_dict and original_questions:
-                    for idx, q in enumerate(original_questions):
-                        answers_dict[f"q{idx + 1}"] = {
-                            'question': q,
-                            'answer': 'Partial',  # Default when AI didn't provide answers
-                        }
-
-                return answers_dict
-
-            question_answers = _extract_question_answers(result, questions)
+            question_answers = extract_question_answers(result, questions)
             print(f"[RA-AI-ANALYSIS] Extracted question_answers: {question_answers}")
 
-            # ── Auto-update requirement assessment answers from AI responses ──
-            # Map AI Yes/No/Partial answers → choice URNs in the requirement's questions
+            # Derive proposed field values (but do NOT write them to the RA)
+            compliance_status_val = find_compliance_status(result)
+            ai_result_value = derive_compliance_result(result, question_answers)
+            print(f"[RA-AI-ANALYSIS] Proposed compliance_result: {ai_result_value}")
+
+            # Compute proposed observation text
+            existing_observation = requirement_assessment.observation or ''
+            proposed_observation = build_observation_text(result, existing_observation)
+
+            # Compute proposed status
+            proposed_status = compute_proposed_status(requirement_assessment.status)
+
+            # Map AI answers to requirement question choice URNs
             req_questions = requirement.questions or {}
+            proposed_answers = map_answers_to_requirement_choices(question_answers, req_questions)
+
+            # Merge proposed answers with current answers for the preview
             current_answers = dict(requirement_assessment.answers or {})
-            answers_updated = False
+            merged_answers = {**current_answers, **proposed_answers}
 
-            if req_questions and question_answers:
-                # Build ordered list of question URNs matching the order we sent to the AI
-                question_urns_ordered = []
-                for q_urn, q_def in req_questions.items():
-                    if isinstance(q_def, dict) and 'text' in q_def:
-                        question_urns_ordered.append((q_urn, q_def))
-
-                # Map AI answer index to question URN
-                qa_entries = list(question_answers.values())
-                for idx, qa_entry in enumerate(qa_entries):
-                    if idx >= len(question_urns_ordered):
-                        break
-
-                    q_urn, q_def = question_urns_ordered[idx]
-                    ai_answer = qa_entry.get('answer', '')  # "Yes", "No", or "Partial"
-                    choices = q_def.get('choices', [])
-
-                    if not choices or not ai_answer:
-                        continue
-
-                    # Find the choice whose value matches the AI answer (case-insensitive)
-                    matched_choice_urn = None
-                    ai_lower = ai_answer.lower()
-                    for choice in choices:
-                        choice_value = (choice.get('value') or '').lower()
-                        if choice_value == ai_lower:
-                            matched_choice_urn = choice.get('urn')
-                            break
-
-                    # Fallback: if "Partial" not found, try "N/A" or similar
-                    if not matched_choice_urn and ai_lower == 'partial':
-                        for choice in choices:
-                            choice_value = (choice.get('value') or '').lower()
-                            if choice_value in ('partial', 'n/a', 'na', 'partially'):
-                                matched_choice_urn = choice.get('urn')
-                                break
-
-                    if matched_choice_urn:
-                        q_type = q_def.get('type', 'unique_choice')
-                        if q_type == 'multiple_choice':
-                            current_answers[q_urn] = [matched_choice_urn]
-                        else:
-                            current_answers[q_urn] = matched_choice_urn
-                        answers_updated = True
-                        print(f"[RA-AI-ANALYSIS] Auto-set answer for {q_urn}: {ai_answer} → {matched_choice_urn}")
-                    else:
-                        print(f"[RA-AI-ANALYSIS] No matching choice for {q_urn}: AI answered '{ai_answer}', available: {[c.get('value') for c in choices]}")
-
-            # Save updated answers (but do NOT call compute_score_and_result — the AI's
-            # compliance assessment takes precedence over framework-based question scoring)
-            if answers_updated:
-                requirement_assessment.answers = current_answers
-                requirement_assessment.save(update_fields=['answers'])
-                print(f"[RA-AI-ANALYSIS] Auto-updated answers from AI")
-
-            # Extract score and status from the analysis result
+            # Extract score
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
 
-            # ── AUTO-FILL: compliance_result (result field) ──
-            # Search broadly for compliance status in the AI response (case-insensitive)
-            RESULT_MAPPING = {
-                'compliant': 'compliant',
-                'partially_compliant': 'partially_compliant',
-                'partial': 'partially_compliant',
-                'partially compliant': 'partially_compliant',
-                'non_compliant': 'non_compliant',
-                'non-compliant': 'non_compliant',
-                'noncompliant': 'non_compliant',
-                'not compliant': 'non_compliant',
-                'not met': 'non_compliant',
-                'not_applicable': 'not_applicable',
-                'not applicable': 'not_applicable',
-                'na': 'not_applicable',
-                'n/a': 'not_applicable',
-            }
-
-            def _find_compliance_status(ai_result):
-                """Search multiple paths in the AI response to find the compliance status.
-                Returns a string like 'compliant', 'partially_compliant', etc., or '' if not found.
-                """
-                if not isinstance(ai_result, dict):
-                    return ''
-
-                # Helper: case-insensitive dict lookup (returns string values only)
-                def _ci_get_str(d, *keys):
-                    if not isinstance(d, dict):
-                        return None
-                    lower_map = {k.lower(): k for k in d}
-                    for key in keys:
-                        real_key = lower_map.get(key.lower())
-                        if real_key is not None:
-                            val = d[real_key]
-                            if isinstance(val, str) and val.strip():
-                                return val.strip()
-                    return None
-
-                # Helper: case-insensitive dict lookup (returns any value)
-                def _ci_get_any(d, *keys):
-                    if not isinstance(d, dict):
-                        return None
-                    lower_map = {k.lower(): k for k in d}
-                    for key in keys:
-                        real_key = lower_map.get(key.lower())
-                        if real_key is not None:
-                            return d[real_key]
-                    return None
-
-                STATUS_KEYS = ('status', 'compliance_status', 'complianceStatus', 'compliancestatus', 'result', 'compliance_result')
-
-                # 1. overallAssessment.status (our requested format)
-                for oa_key in ('overallAssessment', 'overall_assessment', 'overallassessment'):
-                    oa = _ci_get_any(ai_result, oa_key)
-                    if isinstance(oa, dict):
-                        val = _ci_get_str(oa, *STATUS_KEYS)
-                        if val:
-                            print(f"[RA-AI-ANALYSIS] Found compliance status in {oa_key}: '{val}'")
-                            return val
-
-                # 2. Top-level string: compliance_status, complianceStatus, status
-                val = _ci_get_str(ai_result, *STATUS_KEYS)
-                if val:
-                    print(f"[RA-AI-ANALYSIS] Found compliance status at top-level: '{val}'")
-                    return val
-
-                # 3. results.compliance_status (documented Muraji response format)
-                results_block = _ci_get_any(ai_result, 'results')
-                if isinstance(results_block, dict):
-                    # results.compliance_status could be a string or a dict
-                    cs = _ci_get_any(results_block, 'compliance_status', 'complianceStatus', 'compliancestatus')
-                    if isinstance(cs, str) and cs.strip():
-                        print(f"[RA-AI-ANALYSIS] Found compliance status in results: '{cs.strip()}'")
-                        return cs.strip()
-                    if isinstance(cs, dict):
-                        # results.compliance_status.findings[0].status
-                        findings = cs.get('findings', [])
-                        if isinstance(findings, list) and findings:
-                            # Use the first (or only) finding's status
-                            first = findings[0]
-                            if isinstance(first, dict):
-                                s = first.get('status', '')
-                                if isinstance(s, str) and s.strip():
-                                    print(f"[RA-AI-ANALYSIS] Found compliance status in results.compliance_status.findings[0]: '{s.strip()}'")
-                                    return s.strip()
-                        # results.compliance_status.status
-                        val = _ci_get_str(cs, *STATUS_KEYS)
-                        if val:
-                            print(f"[RA-AI-ANALYSIS] Found compliance status in results.compliance_status: '{val}'")
-                            return val
-                    # results.status directly
-                    val = _ci_get_str(results_block, *STATUS_KEYS)
-                    if val:
-                        print(f"[RA-AI-ANALYSIS] Found compliance status in results (direct): '{val}'")
-                        return val
-
-                # 4. Scan all top-level dict values for a status field
-                for k, v in ai_result.items():
-                    if isinstance(v, dict):
-                        val = _ci_get_str(v, *STATUS_KEYS)
-                        if val and val.lower().replace('_', '').replace(' ', '').replace('-', '') in (
-                            'compliant', 'partiallycompliant', 'noncompliant', 'notapplicable', 'notassessed'
-                        ):
-                            print(f"[RA-AI-ANALYSIS] Found compliance status in '{k}': '{val}'")
-                            return val
-
-                return ''
-
-            compliance_status_val = _find_compliance_status(result)
-            if isinstance(result, dict):
-                print(f"[RA-AI-ANALYSIS] AI response top-level keys: {list(result.keys())}")
-                for k, v in result.items():
-                    if isinstance(v, str):
-                        print(f"[RA-AI-ANALYSIS]   {k} = '{v}'")
-                    elif isinstance(v, dict):
-                        print(f"[RA-AI-ANALYSIS]   {k} (dict) keys = {list(v.keys())}")
-            print(f"[RA-AI-ANALYSIS] Compliance status found: '{compliance_status_val}'")
-
-            ai_result_value = RESULT_MAPPING.get(
-                compliance_status_val.lower().strip(),
-                None
-            ) if compliance_status_val else None
-
-            # FALLBACK ONLY: If the AI response didn't include an explicit compliance status
-            # anywhere, derive it from the AI's question answers as a last resort.
-            # This is NOT the preferred path — ideally the AI returns overallAssessment.status directly.
-            if not ai_result_value and question_answers:
-                print(f"[RA-AI-ANALYSIS] WARNING: No explicit compliance status in AI response, deriving from question answers")
-                answer_values = [
-                    qa.get('answer', '').lower()
-                    for qa in question_answers.values()
-                    if isinstance(qa, dict) and qa.get('answer')
-                ]
-                if answer_values:
-                    if all(a == 'yes' for a in answer_values):
-                        ai_result_value = 'compliant'
-                    elif all(a == 'no' for a in answer_values):
-                        ai_result_value = 'non_compliant'
-                    else:
-                        ai_result_value = 'partially_compliant'
-                    print(f"[RA-AI-ANALYSIS] Derived compliance_result from question answers: {ai_result_value} (answers: {answer_values})")
-
-            # Always apply the AI result — this is the AI's assessment
-            if ai_result_value:
-                requirement_assessment.result = ai_result_value
-                print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
-
-            # ── AUTO-FILL: observation field ──
-            # Build AI observation text from the analysis reasoning / summary
-            from django.utils import timezone as tz
-            ai_observation_parts = []
-
-            # Try to get summary text from known response keys
-            if isinstance(result, dict):
-                results_block = result.get('results', {}) if isinstance(result.get('results'), dict) else {}
-                summary_text = (
-                    result.get('summary')
-                    or (overall.get('summary') if isinstance(overall, dict) else None)
-                    or (overall.get('reasoning') if isinstance(overall, dict) else None)
-                    or results_block.get('summary')
-                )
-                if summary_text:
-                    ai_observation_parts.append(str(summary_text))
-
-                # Include gap analysis highlights
-                gap_analysis = (
-                    result.get('gapAnalysis')
-                    or result.get('gap_analysis')
-                    or results_block.get('gap_analysis')
-                )
-                if isinstance(gap_analysis, dict):
-                    gaps = gap_analysis.get('identified_gaps') or gap_analysis.get('gaps', [])
-                    if isinstance(gaps, list) and gaps:
-                        gap_lines = []
-                        for gap in gaps[:5]:  # Limit to top 5 gaps
-                            if isinstance(gap, dict):
-                                gap_text = gap.get('gap') or gap.get('description') or gap.get('finding', '')
-                                if gap_text:
-                                    gap_lines.append(f"  - {gap_text}")
-                            elif isinstance(gap, str):
-                                gap_lines.append(f"  - {gap}")
-                        if gap_lines:
-                            ai_observation_parts.append("Gaps identified:\n" + "\n".join(gap_lines))
-
-                # Include recommendations
-                recs = result.get('recommendations') or results_block.get('recommendations')
-                if isinstance(recs, list) and recs:
-                    rec_lines = []
-                    for rec in recs[:5]:  # Limit to top 5
-                        if isinstance(rec, str):
-                            rec_lines.append(f"  - {rec}")
-                        elif isinstance(rec, dict):
-                            rec_text = rec.get('recommendation') or rec.get('text') or rec.get('description', '')
-                            if rec_text:
-                                rec_lines.append(f"  - {rec_text}")
-                    if rec_lines:
-                        ai_observation_parts.append("Recommendations:\n" + "\n".join(rec_lines))
-
-            if ai_observation_parts:
-                ai_date = tz.now().strftime('%Y-%m-%d %H:%M')
-                ai_header = f"[AI Analysis — {ai_date}]"
-                ai_text = f"{ai_header}\n" + "\n\n".join(ai_observation_parts)
-
-                existing_observation = requirement_assessment.observation or ''
-                if existing_observation.strip():
-                    # Prepend AI text, preserve existing human notes below
-                    requirement_assessment.observation = f"{ai_text}\n\n---\n{existing_observation}"
-                else:
-                    requirement_assessment.observation = ai_text
-                print(f"[RA-AI-ANALYSIS] Auto-set observation ({len(ai_text)} chars)")
-
-            # ── AUTO-FILL: status ──
-            # Only advance status forward (to_do → in_progress → in_review), never regress
-            STATUS_ORDER = ['to_do', 'in_progress', 'in_review', 'done']
-            old_status = requirement_assessment.status
-            old_idx = STATUS_ORDER.index(old_status) if old_status in STATUS_ORDER else -1
-            target_idx = STATUS_ORDER.index('in_review')
-            if old_idx < target_idx:
-                requirement_assessment.status = 'in_review'
-                print(f"[RA-AI-ANALYSIS] Advanced status: {old_status} → in_review")
-            else:
-                print(f"[RA-AI-ANALYSIS] Kept status: {old_status} (already at or past in_review)")
-
-            # ── AUTO-FILL: ai_analysis_data (new JSON field) ──
-            ai_analysis_data_payload = {
-                'raw_json': result,
-                'analysis_run_id': str(uuid.uuid4()),
-                'model_version': os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
-                'timestamp': tz.now().isoformat(),
-                'source': muraji_url,
-                'question_answers': question_answers,
-                'applied_controls_meta': applied_controls_meta,
-                'gemini_files_count': len(gemini_file_ids),
-                'requirements_count': 1,
-            }
-            requirement_assessment.ai_analysis_data = ai_analysis_data_payload
-            print(f"[RA-AI-ANALYSIS] Auto-set ai_analysis_data (keys: {list(ai_analysis_data_payload.keys())})")
-
-            # ── Save all auto-filled fields at once ──
-            update_fields = ['status', 'observation', 'ai_analysis_data']
-            if ai_result_value:
-                update_fields.append('result')
-            requirement_assessment.save(update_fields=update_fields)
-            print(f"[RA-AI-ANALYSIS] Saved fields: {update_fields}, result={requirement_assessment.result}")
-
-            print(f"[RA-AI-ANALYSIS] Final RA state: result={requirement_assessment.result}, "
-                  f"status={requirement_assessment.status}, score={requirement_assessment.score}")
-
-            # Save to AiAnalysisResult table as well
+            # Save to AiAnalysisResult table ONLY (no RA field writes)
             analysis_record = AiAnalysisResult.objects.create(
                 requirement_assessment=requirement_assessment,
                 result=result,
@@ -10741,19 +10328,27 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 requirements_count=1,
             )
 
+            print(f"[RA-AI-ANALYSIS] Saved AiAnalysisResult {analysis_record.id} (RA fields NOT auto-written)")
+
             return Response({
                 'ai_analysis': result,
                 'question_answers': question_answers,
                 'ai_analysis_id': str(analysis_record.id),
                 'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
-                'answers_auto_updated': answers_updated,
-                'updated_answers': requirement_assessment.answers,
+                # Proposed values for the frontend to populate the form with
+                'proposed_result': ai_result_value,
+                'proposed_status': proposed_status,
+                'proposed_observation': proposed_observation,
+                'proposed_answers': merged_answers,
+                # Current values for diff display
+                'current_result': requirement_assessment.result,
+                'current_status': requirement_assessment.status,
+                'current_observation': existing_observation,
+                'current_answers': current_answers,
+                # Legacy fields for backward compatibility
                 'requirement_assessment_result': requirement_assessment.result,
                 'requirement_assessment_status': requirement_assessment.status,
                 'requirement_assessment_score': requirement_assessment.score,
-                'requirement_assessment_observation': requirement_assessment.observation or '',
-                'observation_updated': bool(ai_observation_parts),
-                'ai_analysis_data_saved': True,
             }, status=status.HTTP_200_OK)
 
         except http_requests.exceptions.Timeout:
@@ -10970,6 +10565,137 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             AppliedControlReadSerializer(controls, many=True).data,
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["post"], url_path="apply-ai-analysis")
+    def apply_ai_analysis(self, request, pk=None):
+        """Preview proposed field values from a stored AI analysis result.
+
+        Accepts { "analysis_id": "<uuid>" } and returns the proposed field mapping
+        without writing anything to the RequirementAssessment. The frontend uses
+        these values to populate the form; the user reviews and saves normally.
+        """
+        from core.models import AiAnalysisResult
+        from core.ai_analysis_helpers import (
+            extract_question_answers,
+            find_compliance_status,
+            derive_compliance_result,
+            build_observation_text,
+            map_answers_to_requirement_choices,
+            compute_proposed_status,
+        )
+
+        requirement_assessment = self.get_object()
+        analysis_id = request.data.get('analysis_id')
+        if not analysis_id:
+            return Response(
+                {'message': 'analysis_id is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                requirement_assessment=requirement_assessment,
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ai_result = analysis.result
+        if not isinstance(ai_result, dict):
+            return Response(
+                {'message': 'Analysis result is not a valid JSON object'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Extract original question texts from the requirement
+        requirement = requirement_assessment.requirement
+        req_questions = requirement.questions or {}
+        original_questions = []
+        for q_urn, q_def in req_questions.items():
+            if isinstance(q_def, dict) and 'text' in q_def:
+                original_questions.append(q_def['text'])
+
+        # Use stored question_answers if available, otherwise re-extract
+        question_answers = analysis.question_answers
+        if not question_answers:
+            question_answers = extract_question_answers(ai_result, original_questions)
+
+        # Derive proposed compliance result
+        compliance_status_val = find_compliance_status(ai_result)
+        proposed_result = derive_compliance_result(ai_result, question_answers)
+
+        # Build proposed observation
+        existing_observation = requirement_assessment.observation or ''
+        proposed_observation = build_observation_text(ai_result, existing_observation)
+
+        # Compute proposed status
+        proposed_status = compute_proposed_status(requirement_assessment.status)
+
+        # Map AI answers to requirement question choice URNs
+        proposed_answer_urns = map_answers_to_requirement_choices(question_answers, req_questions)
+
+        # Merge with current answers
+        current_answers = dict(requirement_assessment.answers or {})
+        merged_answers = {**current_answers, **proposed_answer_urns}
+
+        # Extract score
+        overall = ai_result.get('overallAssessment', {}) if isinstance(ai_result, dict) else {}
+        proposed_score = overall.get('score', None) if isinstance(overall, dict) else None
+
+        return Response({
+            'analysis_id': str(analysis.id),
+            'analysis_created_at': analysis.created_at.isoformat(),
+            # Proposed values for form population
+            'proposed_result': proposed_result,
+            'proposed_status': proposed_status,
+            'proposed_observation': proposed_observation,
+            'proposed_answers': merged_answers,
+            'proposed_score': proposed_score,
+            # Question answers with justifications (for display)
+            'question_answers': question_answers,
+            # Current values (for diff/preview)
+            'current_result': requirement_assessment.result,
+            'current_status': requirement_assessment.status,
+            'current_observation': existing_observation,
+            'current_answers': current_answers,
+            'current_score': requirement_assessment.score,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="audit-log")
+    def audit_log(self, request, pk=None):
+        """Return audit log entries for this RequirementAssessment.
+
+        Queries django-auditlog LogEntry records filtered by content_type
+        and object_id so the frontend can display change history inline.
+        """
+        from auditlog.models import LogEntry
+        from django.contrib.contenttypes.models import ContentType
+
+        requirement_assessment = self.get_object()
+        ct = ContentType.objects.get_for_model(RequirementAssessment)
+
+        entries = LogEntry.objects.filter(
+            content_type=ct,
+            object_id=str(requirement_assessment.pk),
+        ).order_by('-timestamp')[:50]  # Limit to last 50 entries
+
+        results = []
+        for entry in entries:
+            results.append({
+                'id': entry.pk,
+                'timestamp': entry.timestamp.isoformat(),
+                'actor': entry.actor.email if entry.actor else (
+                    entry.additional_data.get('user_email') if entry.additional_data else None
+                ),
+                'action': {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action)),
+                'changes': entry.changes or {},
+                'object_repr': entry.object_repr,
+            })
+
+        return Response(results, status=status.HTTP_200_OK)
 
 
 class RequirementMappingSetViewSet(BaseModelViewSet):
