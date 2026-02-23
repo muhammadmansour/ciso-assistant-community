@@ -10180,8 +10180,9 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         # Format questions with answer constraint: each question must be answered with Yes, No, or Partial
         questions_with_format = []
-        for q in questions:
+        for i, q in enumerate(questions):
             questions_with_format.append({
+                'questionNumber': i + 1,
                 'text': q,
                 'answer_format': 'Must answer with exactly one of: Yes, No, Partial',
                 'allowed_values': ['Yes', 'No', 'Partial'],
@@ -10211,7 +10212,13 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'include_gap_analysis': True,
                 'include_recommendations': True,
                 'question_answer_values': ['Yes', 'No', 'Partial'],
-                'question_answer_instruction': 'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". Do not use any other values.',
+                'question_answer_instruction': (
+                    'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". '
+                    'Do not use any other values. '
+                    'You MUST answer the EXACT questions provided in the "questions" array. '
+                    'Do NOT rephrase, rewrite, or generate your own questions. '
+                    'Return the questions in the same order as provided, using the exact same text.'
+                ),
                 'return_compliance_result': True,
                 'compliance_result_values': ['compliant', 'partially_compliant', 'non_compliant', 'not_applicable'],
                 'compliance_result_instruction': (
@@ -10299,7 +10306,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 return 'Partial'  # Default to Partial if answer is ambiguous
 
             def _extract_question_answers(ai_result, original_questions):
-                """Extract question answers from the AI response and return as a separate dict."""
+                """Extract question answers from the AI response and return as a separate dict.
+                
+                IMPORTANT: Always uses the original requirement questions as the question text,
+                not whatever the AI may have rephrased them to. The AI's answers are matched
+                to original questions by index order.
+                """
                 if not isinstance(ai_result, dict):
                     return {}
 
@@ -10319,14 +10331,16 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 if isinstance(question_section, list):
                     for idx, item in enumerate(question_section):
                         if isinstance(item, dict):
-                            # Get question text
-                            q_text = None
-                            for q_key in ('question', 'text', 'questionText', 'question_text'):
-                                if q_key in item:
-                                    q_text = item[q_key]
-                                    break
-                            if not q_text and idx < len(original_questions):
-                                q_text = original_questions[idx]
+                            # ALWAYS use the original requirement question text
+                            # The AI may rephrase questions — we want the exact requirement question
+                            q_text = original_questions[idx] if idx < len(original_questions) else None
+
+                            # If we don't have an original question for this index, use AI's text as fallback
+                            if not q_text:
+                                for q_key in ('question', 'text', 'questionText', 'question_text'):
+                                    if q_key in item:
+                                        q_text = item[q_key]
+                                        break
 
                             # Get the answer and normalize
                             raw_answer = None
@@ -10362,21 +10376,37 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                             else:
                                 item['answer'] = normalized
 
+                            # Also replace the question text in the AI response with the original
+                            if idx < len(original_questions):
+                                for q_key in ('question', 'text', 'questionText', 'question_text'):
+                                    if q_key in item:
+                                        item[q_key] = original_questions[idx]
+                                        break
+
                 elif isinstance(question_section, dict):
                     # Handle dict format
                     for idx, (q_key, q_val) in enumerate(question_section.items()):
+                        # ALWAYS use the original requirement question text
+                        q_text = original_questions[idx] if idx < len(original_questions) else None
+
                         if isinstance(q_val, dict):
                             raw_answer = q_val.get('answer', q_val.get('value'))
                             normalized = _normalize_answer(raw_answer)
                             answers_dict[f"q{idx + 1}"] = {
-                                'question': q_val.get('question', q_val.get('text', q_key)),
+                                'question': q_text or q_val.get('question', q_val.get('text', q_key)),
                                 'answer': normalized,
                             }
                             q_val['answer'] = normalized
+                            # Replace question text in AI response with original
+                            if q_text:
+                                if 'question' in q_val:
+                                    q_val['question'] = q_text
+                                elif 'text' in q_val:
+                                    q_val['text'] = q_text
                         elif isinstance(q_val, str):
                             normalized = _normalize_answer(q_val)
                             answers_dict[f"q{idx + 1}"] = {
-                                'question': q_key,
+                                'question': q_text or q_key,
                                 'answer': normalized,
                             }
                             question_section[q_key] = normalized
