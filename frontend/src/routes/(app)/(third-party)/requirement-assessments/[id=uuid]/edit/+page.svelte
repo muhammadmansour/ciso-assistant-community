@@ -15,8 +15,8 @@
 	import { getSecureRedirect } from '$lib/utils/helpers';
 	import { ProgressRing, Tabs } from '@skeletonlabs/skeleton-svelte';
 
-	import { complianceResultColorMap, BASE_API_URL } from '$lib/utils/constants';
-	import { csrfToken } from '$lib/utils/csrf';
+	import { complianceResultColorMap, BACKEND_API_EXPOSED_URL } from '$lib/utils/constants';
+	import { getCSRFToken } from '$lib/django';
 	import { hideSuggestions } from '$lib/utils/stores';
 	import { m } from '$paraglide/messages';
 	import { countMasked } from '$lib/utils/related-visibility';
@@ -304,7 +304,7 @@
 
 		try {
 			const raId = data.requirementAssessment.id;
-			const url = `${BASE_API_URL}/requirement-assessments/${raId}/apply-ai-analysis/`;
+			const url = `${BACKEND_API_EXPOSED_URL}/requirement-assessments/${raId}/apply-ai-analysis/`;
 			console.log('[Apply AI] Calling:', url, 'with analysis_id:', analysisId);
 
 			const response = await fetch(url, {
@@ -312,7 +312,7 @@
 				credentials: 'include',
 				headers: {
 					'Content-Type': 'application/json',
-					'X-CSRFToken': csrfToken ?? ''
+					'X-CSRFToken': getCSRFToken() ?? ''
 				},
 				body: JSON.stringify({ analysis_id: analysisId })
 			});
