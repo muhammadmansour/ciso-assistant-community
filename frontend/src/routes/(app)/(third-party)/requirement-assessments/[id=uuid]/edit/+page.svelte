@@ -284,9 +284,7 @@
 	let aiAnalysisError: string | null = $state(null);
 	let showAnalysisModal = $state(false);
 	let showChangeHistory = $state(false);
-	let auditEntries: any[] = $state([]);
-	let auditLoading = $state(false);
-	let auditError: string | null = $state(null);
+	let auditEntries: any[] = $state(data.auditLogEntries ?? []);
 	let isModalExpanded = $state(false);
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
@@ -297,36 +295,9 @@
 	let isApplyingAnalysis = $state(false);
 	let applyError: string | null = $state(null);
 
-	// Fetch audit log entries client-side so we can see the request in browser DevTools
-	async function loadAuditLog() {
-		auditLoading = true;
-		auditError = null;
-		try {
-			const raId = data.requirementAssessment.id;
-			const url = `/api/requirement-assessments/${raId}/audit-log/`;
-			console.log('[Audit Log] Fetching from:', url);
-			const res = await fetch(url);
-			console.log('[Audit Log] Response:', res.status, res.statusText);
-			if (!res.ok) {
-				const text = await res.text().catch(() => '');
-				auditError = `Error ${res.status}: ${text.substring(0, 200)}`;
-				console.error('[Audit Log] Error:', auditError);
-				return;
-			}
-			const entries = await res.json();
-			console.log('[Audit Log] Got', entries?.length ?? 0, 'entries');
-			auditEntries = Array.isArray(entries) ? entries : [];
-		} catch (e) {
-			auditError = `Fetch failed: ${e}`;
-			console.error('[Audit Log] Fetch failed:', e);
-		} finally {
-			auditLoading = false;
-		}
-	}
-
-	// Load audit log when the component mounts
+	// Keep auditEntries in sync with server data
 	$effect(() => {
-		loadAuditLog();
+		auditEntries = data.auditLogEntries ?? [];
 	});
 
 	/**
@@ -1287,17 +1258,7 @@
 
 	{#if showChangeHistory}
 		<div class="px-6 pb-6">
-			{#if auditLoading}
-				<div class="text-center py-8 text-gray-400">
-					<i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
-					<p class="text-sm">Loading change history...</p>
-				</div>
-			{:else if auditError}
-				<div class="text-center py-8 text-red-400">
-					<i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
-					<p class="text-sm">{auditError}</p>
-				</div>
-			{:else if auditEntries.length === 0}
+			{#if auditEntries.length === 0}
 				<div class="text-center py-8 text-gray-400">
 					<i class="fa-solid fa-clock-rotate-left text-3xl mb-2"></i>
 					<p class="text-sm">No changes recorded yet.</p>

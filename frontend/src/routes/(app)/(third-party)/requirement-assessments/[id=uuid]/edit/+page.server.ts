@@ -174,14 +174,21 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
-	// Load AI analyses (audit log is fetched client-side for better debuggability)
-	let aiAnalyses: any[] = [];
-	try {
-		const data = await fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`);
-		aiAnalyses = Array.isArray(data) ? data : [];
-	} catch {
-		aiAnalyses = [];
-	}
+	// Load AI analyses and audit log in parallel via server-side fetch
+	const [aiAnalyses, auditLogEntries] = await Promise.all([
+		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`)
+			.then((d) => (Array.isArray(d) ? d : []))
+			.catch(() => []),
+		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/audit-log/`)
+			.then((d) => {
+				console.log('[RA-EDIT] audit-log result:', JSON.stringify(d)?.substring(0, 300));
+				return Array.isArray(d) ? d : [];
+			})
+			.catch((e) => {
+				console.error('[RA-EDIT] audit-log error:', e);
+				return [];
+			}),
+	]);
 
 	return {
 		URLModel,
@@ -199,7 +206,8 @@ export const load = (async ({ fetch, params }) => {
 		securityExceptionModel,
 		securityExceptionCreateForm,
 		tables,
-		aiAnalyses
+		aiAnalyses,
+		auditLogEntries
 	};
 }) satisfies PageServerLoad;
 
