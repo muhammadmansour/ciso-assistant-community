@@ -15,8 +15,8 @@
 	import { getSecureRedirect } from '$lib/utils/helpers';
 	import { ProgressRing, Tabs } from '@skeletonlabs/skeleton-svelte';
 
-	import { complianceResultColorMap, BACKEND_API_EXPOSED_URL } from '$lib/utils/constants';
-	import { getCSRFToken } from '$lib/django';
+	import { complianceResultColorMap } from '$lib/utils/constants';
+	import { deserialize } from '$app/forms';
 	import { hideSuggestions } from '$lib/utils/stores';
 	import { m } from '$paraglide/messages';
 	import { countMasked } from '$lib/utils/related-visibility';
@@ -295,7 +295,7 @@
 
 	/**
 	 * Apply AI analysis results to the form fields without saving to DB.
-	 * Calls the backend API directly and populates the form with proposed values.
+	 * Routes through the SvelteKit server action to avoid CORS issues.
 	 * The user reviews the populated form and clicks Save manually.
 	 */
 	async function applyAnalysisResults(analysisId: string) {
@@ -303,28 +303,31 @@
 		applyError = null;
 
 		try {
-			const raId = data.requirementAssessment.id;
-			const url = `${BACKEND_API_EXPOSED_URL}/requirement-assessments/${raId}/apply-ai-analysis/`;
-			console.log('[Apply AI] Calling:', url, 'with analysis_id:', analysisId);
+			console.log('[Apply AI] Calling applyAiAnalysis action with analysis_id:', analysisId);
 
-			const response = await fetch(url, {
+			const formData = new FormData();
+			formData.append('analysisId', analysisId);
+			const response = await fetch('?/applyAiAnalysis', {
 				method: 'POST',
-				credentials: 'include',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRFToken': getCSRFToken() ?? ''
-				},
-				body: JSON.stringify({ analysis_id: analysisId })
+				body: formData
 			});
 
-			if (!response.ok) {
-				const err = await response.json().catch(() => ({}));
-				applyError = err.message || `Server error ${response.status}`;
+			const text = await response.text();
+			const result = deserialize(text);
+			console.log('[Apply AI] Deserialized result:', result);
+
+			if (result.type !== 'success' || !result.data) {
+				const errorData = result.type === 'failure' ? (result.data as any) : null;
+				applyError = errorData?.applyError || `Failed to apply analysis (${result.type})`;
 				console.error('[Apply AI] Error:', applyError);
 				return;
 			}
 
-			const applyResult = await response.json();
+			const applyResult = (result.data as any).applyResult;
+			if (!applyResult) {
+				applyError = 'No analysis results returned from server.';
+				return;
+			}
 			console.log('[Apply AI] Got proposed values:', applyResult);
 
 			// Populate form fields with proposed AI values
