@@ -284,6 +284,7 @@
 	let aiAnalysisError: string | null = $state(null);
 	let showAnalysisModal = $state(false);
 	let showChangeHistory = $state(false);
+	let auditEntries = $derived(data.auditLogEntries ?? []);
 	let isModalExpanded = $state(false);
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
@@ -1232,7 +1233,6 @@
 </div>
 
 <!-- Audit / Change History Section — always visible with collapsible toggle -->
-{@const auditEntries = data.auditLogEntries ?? []}
 <div class="card bg-white shadow-lg rounded-lg overflow-hidden mt-6">
 	<button
 		type="button"
