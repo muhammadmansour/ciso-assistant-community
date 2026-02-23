@@ -522,8 +522,23 @@
 				aiAnalysisError = null;
 				return async ({ result, update }) => {
 					isAnalyzing = false;
+
+					// Capture the AI data BEFORE calling update() which may invalidate state
+					let aiData: any = null;
 					if (result.type === 'success' && result.data?.aiAnalysis) {
-						const aiData = result.data.aiAnalysis;
+						aiData = result.data.aiAnalysis;
+					} else if (result.type === 'failure' && result.data?.aiError) {
+						aiAnalysisError = result.data.aiError;
+					} else {
+						aiAnalysisError = 'Unexpected response from server';
+					}
+
+					// Call update() with reset:false to complete the form lifecycle
+					// (allows the form to be re-submitted) without resetting form data
+					await update({ reset: false });
+
+					// Now apply our UI updates after the form lifecycle is complete
+					if (aiData) {
 						aiAnalysisResult = aiData;
 
 						// Add to local AI analyses list immediately so the history table updates
@@ -550,13 +565,7 @@
 							compliance_status: newEntry.compliance_status,
 						};
 						showAnalysisModal = true;
-					} else if (result.type === 'failure' && result.data?.aiError) {
-						aiAnalysisError = result.data.aiError;
-					} else {
-						aiAnalysisError = 'Unexpected response from server';
 					}
-					// Do NOT call invalidateAll() here — it resets the page and closes the modal.
-					// The local state (localAiAnalyses, selectedAnalysis) is already up to date.
 				};
 			}}
 			>
