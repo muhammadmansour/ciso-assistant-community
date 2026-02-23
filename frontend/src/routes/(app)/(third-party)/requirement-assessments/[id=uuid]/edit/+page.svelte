@@ -1803,11 +1803,11 @@
 				<button
 					type="button"
 					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm font-semibold"
-					disabled={isApplyingAnalysis || !selectedAnalysis?.id}
-					onclick={() => {
-						const id = selectedAnalysis?.id;
-						if (id) applyAnalysisResults(id);
-					}}
+				disabled={isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+				onclick={() => {
+					const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
+					if (id) applyAnalysisResults(id);
+				}}
 				>
 					{#if isApplyingAnalysis}
 						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
