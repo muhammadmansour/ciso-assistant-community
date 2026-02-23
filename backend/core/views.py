@@ -10178,16 +10178,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         if direct_ev_count > 0:
             merged_description += f"\nAdditionally, {direct_ev_count} evidence file(s) are directly attached to the requirement assessment."
 
-        # Format questions with answer constraint: each question must be answered with Yes, No, or Partial
-        questions_with_format = []
-        for i, q in enumerate(questions):
-            questions_with_format.append({
-                'questionNumber': i + 1,
-                'text': q,
-                'answer_format': 'Must answer with exactly one of: Yes, No, Partial',
-                'allowed_values': ['Yes', 'No', 'Partial'],
-            })
-
+        # Send questions as plain strings — the Muraji API expects a string array, not objects
         request_body = {
             'applied_control': {
                 'id': str(first_ac.id) if first_ac else str(requirement_assessment.id),
@@ -10204,7 +10195,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'evidences': gemini_file_ids,
             },
             'requirements': requirements_context,
-            'questions': questions_with_format,
+            'questions': questions,
             'typical_evidence': typical_evidence,
             'analysis_config': {
                 'include_entity_extraction': True,
