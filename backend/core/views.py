@@ -10474,11 +10474,25 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 None
             ) if compliance_status_val else None
 
+            # If AI didn't return overallAssessment.status, derive result from question answers
+            if not ai_result_value and question_answers:
+                answer_values = [
+                    qa.get('answer', '').lower()
+                    for qa in question_answers.values()
+                    if isinstance(qa, dict) and qa.get('answer')
+                ]
+                if answer_values:
+                    if all(a == 'yes' for a in answer_values):
+                        ai_result_value = 'compliant'
+                    elif all(a == 'no' for a in answer_values):
+                        ai_result_value = 'non_compliant'
+                    else:
+                        ai_result_value = 'partially_compliant'
+                    print(f"[RA-AI-ANALYSIS] Derived compliance_result from question answers: {ai_result_value} (answers: {answer_values})")
+
             # Override result if AI returned a valid compliance status AND
             # the question-based scoring hasn't already computed a meaningful result
             if ai_result_value:
-                # If answers weren't updated, or if compute_score_and_result left result
-                # as 'not_assessed' (i.e. questions lack compute_result flags), use AI result
                 current_result = requirement_assessment.result
                 if not answers_updated or current_result in (None, 'not_assessed', ''):
                     requirement_assessment.result = ai_result_value
