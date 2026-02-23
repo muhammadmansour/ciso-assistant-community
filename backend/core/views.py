@@ -10478,14 +10478,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                     else:
                         print(f"[RA-AI-ANALYSIS] No matching choice for {q_urn}: AI answered '{ai_answer}', available: {[c.get('value') for c in choices]}")
 
-            # Save updated answers and recompute score/result
-            ra_status_before = requirement_assessment.result
+            # Save updated answers (but do NOT call compute_score_and_result — the AI's
+            # compliance assessment takes precedence over framework-based question scoring)
             if answers_updated:
                 requirement_assessment.answers = current_answers
                 requirement_assessment.save(update_fields=['answers'])
-                requirement_assessment.compute_score_and_result()
-                requirement_assessment.refresh_from_db()
-                print(f"[RA-AI-ANALYSIS] Auto-updated RA status: {ra_status_before} → {requirement_assessment.result}")
+                print(f"[RA-AI-ANALYSIS] Auto-updated answers from AI")
 
             # Extract score and status from the analysis result
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
@@ -10702,10 +10700,17 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                     requirement_assessment.observation = ai_text
                 print(f"[RA-AI-ANALYSIS] Auto-set observation ({len(ai_text)} chars)")
 
-            # ── AUTO-FILL: status → in_review ──
+            # ── AUTO-FILL: status ──
+            # Only advance status forward (to_do → in_progress → in_review), never regress
+            STATUS_ORDER = ['to_do', 'in_progress', 'in_review', 'done']
             old_status = requirement_assessment.status
-            requirement_assessment.status = 'in_review'
-            print(f"[RA-AI-ANALYSIS] Auto-set status: {old_status} → in_review")
+            old_idx = STATUS_ORDER.index(old_status) if old_status in STATUS_ORDER else -1
+            target_idx = STATUS_ORDER.index('in_review')
+            if old_idx < target_idx:
+                requirement_assessment.status = 'in_review'
+                print(f"[RA-AI-ANALYSIS] Advanced status: {old_status} → in_review")
+            else:
+                print(f"[RA-AI-ANALYSIS] Kept status: {old_status} (already at or past in_review)")
 
             # ── AUTO-FILL: ai_analysis_data (new JSON field) ──
             ai_analysis_data_payload = {
@@ -10727,16 +10732,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             if ai_result_value:
                 update_fields.append('result')
             requirement_assessment.save(update_fields=update_fields)
-
-            # If answers were updated, recompute score/result from questions
-            if answers_updated:
-                requirement_assessment.compute_score_and_result()
-                requirement_assessment.refresh_from_db()
-                # If compute_score_and_result reset result to not_assessed but AI had a value, restore it
-                if ai_result_value and requirement_assessment.result in (None, 'not_assessed', ''):
-                    requirement_assessment.result = ai_result_value
-                    requirement_assessment.save(update_fields=['result'])
-                    print(f"[RA-AI-ANALYSIS] Restored AI result after compute_score_and_result: {ai_result_value}")
+            print(f"[RA-AI-ANALYSIS] Saved fields: {update_fields}, result={requirement_assessment.result}")
 
             print(f"[RA-AI-ANALYSIS] Final RA state: result={requirement_assessment.result}, "
                   f"status={requirement_assessment.status}, score={requirement_assessment.score}")
