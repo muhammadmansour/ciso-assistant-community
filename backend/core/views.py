@@ -10474,11 +10474,15 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 None
             ) if compliance_status_val else None
 
-            # Only override if AI returned a valid compliance status AND
-            # the question-based scoring hasn't already set a result
-            if ai_result_value and not answers_updated:
-                requirement_assessment.result = ai_result_value
-                print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
+            # Override result if AI returned a valid compliance status AND
+            # the question-based scoring hasn't already computed a meaningful result
+            if ai_result_value:
+                # If answers weren't updated, or if compute_score_and_result left result
+                # as 'not_assessed' (i.e. questions lack compute_result flags), use AI result
+                current_result = requirement_assessment.result
+                if not answers_updated or current_result in (None, 'not_assessed', ''):
+                    requirement_assessment.result = ai_result_value
+                    print(f"[RA-AI-ANALYSIS] Auto-set compliance_result: {ai_result_value}")
 
             # ── AUTO-FILL: observation field ──
             # Build AI observation text from the analysis reasoning / summary
@@ -10566,7 +10570,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
             # ── Save all auto-filled fields at once ──
             update_fields = ['status', 'observation', 'ai_analysis_data']
-            if ai_result_value and not answers_updated:
+            # Include result if it was set by the AI (either directly or as fallback)
+            if requirement_assessment.result and requirement_assessment.result not in ('not_assessed', ''):
                 update_fields.append('result')
             requirement_assessment.save(update_fields=update_fields)
 
