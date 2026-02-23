@@ -15,7 +15,8 @@
 	import { getSecureRedirect } from '$lib/utils/helpers';
 	import { ProgressRing, Tabs } from '@skeletonlabs/skeleton-svelte';
 
-	import { complianceResultColorMap } from '$lib/utils/constants';
+	import { complianceResultColorMap, BASE_API_URL } from '$lib/utils/constants';
+	import { csrfToken } from '$lib/utils/csrf';
 	import { hideSuggestions } from '$lib/utils/stores';
 	import { m } from '$paraglide/messages';
 	import { countMasked } from '$lib/utils/related-visibility';
@@ -294,6 +295,7 @@
 
 	/**
 	 * Apply AI analysis results to the form fields without saving to DB.
+	 * Calls the backend API directly and populates the form with proposed values.
 	 * The user reviews the populated form and clicks Save manually.
 	 */
 	async function applyAnalysisResults(analysisId: string) {
@@ -301,44 +303,29 @@
 		applyError = null;
 
 		try {
-			const formData = new FormData();
-			formData.append('analysisId', analysisId);
-			const response = await fetch('?/applyAiAnalysis', {
+			const raId = data.requirementAssessment.id;
+			const url = `${BASE_API_URL}/requirement-assessments/${raId}/apply-ai-analysis/`;
+			console.log('[Apply AI] Calling:', url, 'with analysis_id:', analysisId);
+
+			const response = await fetch(url, {
 				method: 'POST',
-				body: formData
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRFToken': csrfToken ?? ''
+				},
+				body: JSON.stringify({ analysis_id: analysisId })
 			});
 
-			const responseData = await response.json();
-			// SvelteKit returns { type, status, data } for form actions
-			const actionData = responseData?.data;
-			// Handle the nested format from SvelteKit: data might be a JSON-stringified array
-			let applyResult: any = null;
-			if (actionData) {
-				// Try to parse if it's in SvelteKit's response format
-				if (typeof actionData === 'string') {
-					try {
-						const parsed = JSON.parse(actionData);
-						applyResult = Array.isArray(parsed) ? parsed.find((item: any) => item?.applyResult)?.applyResult : parsed?.applyResult;
-					} catch {
-						applyResult = actionData;
-					}
-				} else if (Array.isArray(actionData)) {
-					// SvelteKit action responses come as arrays of nodes
-					for (const node of actionData) {
-						if (node && typeof node === 'object' && 'applyResult' in node) {
-							applyResult = node.applyResult;
-							break;
-						}
-					}
-				} else {
-					applyResult = actionData.applyResult || actionData;
-				}
-			}
-
-			if (!applyResult) {
-				applyError = 'Failed to get analysis results. Please try again.';
+			if (!response.ok) {
+				const err = await response.json().catch(() => ({}));
+				applyError = err.message || `Server error ${response.status}`;
+				console.error('[Apply AI] Error:', applyError);
 				return;
 			}
+
+			const applyResult = await response.json();
+			console.log('[Apply AI] Got proposed values:', applyResult);
 
 			// Populate form fields with proposed AI values
 			const fieldsChanged = new Set<string>();
@@ -374,12 +361,13 @@
 
 			aiAppliedFields = fieldsChanged;
 			aiApplyBannerVisible = fieldsChanged.size > 0;
+			console.log('[Apply AI] Fields changed:', [...fieldsChanged]);
 
 			// Close the modal so the user can review the form
 			closeModal();
 
 		} catch (e) {
-			console.error('Failed to apply AI analysis:', e);
+			console.error('[Apply AI] Failed:', e);
 			applyError = 'An error occurred while applying analysis results.';
 		} finally {
 			isApplyingAnalysis = false;
