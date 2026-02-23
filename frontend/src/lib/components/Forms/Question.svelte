@@ -120,17 +120,17 @@
 						{:else}
 							<p class="text-gray-400 italic">{m.noAnswer()}</p>
 						{/if}
-					{:else if question.type === 'unique_choice'}
-						<div class="flex flex-col gap-1 p-1 border border-surface-500 rounded-base">
-							{#each question.choices as option}
-								{@const selected = internalAnswers[urn] === option.urn}
-								<button
-									type="button"
-									name="question"
-									class="shadow-sm p-1 rounded-base border border-gray-300 transition-all duration-150
-										{selected
-										? 'preset-filled-primary-500 rounded-base'
-										: 'bg-gray-100 rounded-base hover:bg-gray-300'}"
+				{:else if question.type === 'unique_choice'}
+					<div class="flex flex-row flex-wrap gap-1 p-1 border border-surface-500 rounded-base w-fit">
+						{#each question.choices as option}
+							{@const selected = internalAnswers[urn] === option.urn}
+							<button
+								type="button"
+								name="question"
+								class="shadow-sm px-3 py-0.5 text-sm rounded-base border border-gray-300 transition-all duration-150
+									{selected
+									? 'preset-filled-primary-500 rounded-base'
+									: 'bg-gray-100 rounded-base hover:bg-gray-300'}"
 									style={selected
 										? `background-color: ${sanitizeColor(option.color) ?? ''}; color: white;`
 										: ''}
@@ -159,18 +159,18 @@
 								</button>
 							{/each}
 						</div>
-					{:else if question.type === 'multiple_choice'}
-						<div class="flex flex-col gap-1 p-1 border border-surface-500 rounded-base">
-							{#each question.choices as option}
-								{@const selected =
-									Array.isArray(internalAnswers[urn]) && internalAnswers[urn].includes(option.urn)}
-								<button
-									type="button"
-									name="question"
-									class="shadow-sm p-1 rounded-base border border-gray-300 transition-all duration-150
-										{selected
-										? 'preset-filled-primary-500 rounded-base'
-										: 'bg-gray-100 rounded-base hover:bg-gray-300'}"
+				{:else if question.type === 'multiple_choice'}
+					<div class="flex flex-row flex-wrap gap-1 p-1 border border-surface-500 rounded-base w-fit">
+						{#each question.choices as option}
+							{@const selected =
+								Array.isArray(internalAnswers[urn]) && internalAnswers[urn].includes(option.urn)}
+							<button
+								type="button"
+								name="question"
+								class="shadow-sm px-3 py-0.5 text-sm rounded-base border border-gray-300 transition-all duration-150
+									{selected
+									? 'preset-filled-primary-500 rounded-base'
+									: 'bg-gray-100 rounded-base hover:bg-gray-300'}"
 									style={selected
 										? `background-color: ${sanitizeColor(option.color) ?? ''}; color: white;`
 										: ''}
