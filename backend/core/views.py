@@ -10674,12 +10674,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         from auditlog.models import LogEntry
         from django.contrib.contenttypes.models import ContentType
 
-        # Use pk directly instead of self.get_object() to avoid a heavy DB query
+        requirement_assessment = self.get_object()
         ct = ContentType.objects.get_for_model(RequirementAssessment)
 
         entries = LogEntry.objects.filter(
             content_type=ct,
-            object_id=str(pk),
+            object_id=str(requirement_assessment.pk),
         ).select_related('actor').order_by('-timestamp')[:50]
 
         results = []
