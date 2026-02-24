@@ -632,15 +632,29 @@
 		</div>
 	</div>
 {/if}
-<div class="card space-y-2 p-4 bg-white shadow-sm">
-	<div class="flex justify-between items-center">
-		<div class="flex">
-			<span class="code left h-min">{data.requirement.urn}</span>
+<!-- ═══ HEADER ═══ -->
+<div class="flex items-start justify-between mb-6">
+	<div class="flex items-start gap-3">
+		<a
+			class="mt-1.5 text-gray-400 hover:text-[#0A1628] transition-colors"
+			href={complianceAssessmentURL}
+			aria-label="Go back"
+		>
+			<i class="fa-solid fa-arrow-left text-lg"></i>
+		</a>
+		<div>
+			<div class="flex items-center gap-3 mb-1">
+				<h1 class="text-2xl font-bold text-gray-900">{data.requirement.ref_id}</h1>
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-white border border-[#0A1628]/20 text-[#0A1628]">
+					{data.requirement.urn}
+				</span>
+			</div>
+			<p class="text-sm text-gray-500">{data.requirementAssessment.name}</p>
 		</div>
-		<div class="flex items-center gap-2">
-			<form
-				method="POST"
-				action="?/runAiAnalysis"
+	</div>
+	<form
+		method="POST"
+		action="?/runAiAnalysis"
 		use:enhance={() => {
 			isAnalyzing = true;
 			aiAnalysisResult = null;
@@ -648,12 +662,9 @@
 			startProgressTimer();
 			return async ({ result }) => {
 				isAnalyzing = false;
-
 				if (result.type === 'success' && result.data?.aiAnalysis) {
 					const aiData = result.data.aiAnalysis;
 					aiAnalysisResult = aiData;
-
-					// Build a local entry for the history table
 					const newEntry = {
 						id: aiData.ai_analysis_id,
 						created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
@@ -665,8 +676,6 @@
 						result: aiData.ai_analysis,
 						question_answers: aiData.question_answers,
 					};
-
-					// Store the result for "View Results" button
 					pendingAnalysisResult = {
 						...newEntry,
 						result: aiData.ai_analysis,
@@ -675,11 +684,7 @@
 						score: newEntry.score,
 						compliance_status: newEntry.compliance_status,
 					};
-
-					// Show completion state in progress modal
 					stopProgressTimer(true);
-
-					// Refresh server data (updates localAiAnalyses via $effect)
 					await invalidateAll();
 				} else if (result.type === 'failure' && result.data?.aiError) {
 					stopProgressTimer(false);
@@ -690,63 +695,78 @@
 				}
 			};
 		}}
-			>
-				<button
-					type="submit"
-					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-					disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
-					title="Start AI Analysis on Associated Evidences"
-				>
-					{#if isAnalyzing}
-						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-						<span>Analyzing...</span>
-					{:else}
-						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-						<span>Start AI Analysis</span>
-					{/if}
-				</button>
-			</form>
-			<a
-				class="text-pink-500 hover:text-pink-400"
-				href={complianceAssessmentURL}
-				aria-label="Go to compliance assessment"><i class="fa-solid fa-turn-up"></i></a
-			>
-		</div>
+	>
+		<button
+			type="submit"
+			class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 rounded-lg px-5 py-2.5"
+			disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
+			title="Run AI Analysis on Associated Evidences"
+		>
+			{#if isAnalyzing}
+				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+				<span>Analyzing...</span>
+			{:else}
+				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+				<span>Run AI Analysis</span>
+			{/if}
+		</button>
+	</form>
+</div>
+
+{#if data.requirement?.implementation_groups?.length > 0}
+	<div class="mb-4">
+		{#each data.requirement.implementation_groups as ig}
+			<span class="badge bg-blue-100 mr-2">
+				{getImplementationGroupName(ig)}
+			</span>
+		{/each}
 	</div>
-	{#if data.requirement?.implementation_groups?.length > 0}
-		<div class="mb-2">
-			{#each data.requirement.implementation_groups as ig}
-				<span class="badge bg-blue-100 mr-2">
-					{getImplementationGroupName(ig)}
-				</span>
-			{/each}
-		</div>
-	{/if}
+{/if}
+
+<div class="space-y-4">
 	{#if data.requirement.description}
-		<div class="font-light text-lg card p-4 preset-tonal-primary">
-			<h2 class="font-semibold text-base flex flex-row justify-between">
-				<div>
-					<i class="fa-solid fa-file-lines mr-2"></i>{m.description()}
-				</div>
+		<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+			<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900 mb-3">
+				<i class="fa-solid fa-circle-info text-[#0A1628]"></i>
+				{m.description()}
 			</h2>
-			<MarkdownRenderer content={data.requirement.description} />
+			<div class="text-sm text-gray-600 leading-relaxed">
+				<MarkdownRenderer content={data.requirement.description} />
+			</div>
 		</div>
 	{/if}
 	{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence}
-		<div class="card p-4 preset-tonal-secondary text-sm flex flex-col justify-evenly cursor-auto">
-			<h2 class="font-semibold text-base flex flex-row justify-between">
-				<div>
-					<i class="fa-solid fa-circle-info mr-2"></i>{m.additionalInformation()}
-				</div>
-				<button onclick={toggleSuggestions}>
+		<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5 text-sm">
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900">
+					<i class="fa-solid fa-circle-info text-[#0A1628]"></i>
+					{m.additionalInformation()}
+				</h2>
+				<button type="button" onclick={toggleSuggestions} class="text-gray-400 hover:text-gray-600 transition-colors">
 					{#if !hideSuggestion}
 						<i class="fa-solid fa-eye"></i>
 					{:else}
 						<i class="fa-solid fa-eye-slash"></i>
 					{/if}
 				</button>
-			</h2>
+			</div>
 			{#if !hideSuggestion}
+				{#if typical_evidence}
+					<div class="mb-3">
+						<p class="font-semibold text-xs uppercase tracking-wider text-teal-700 mb-1.5">
+							<i class="fa-solid fa-clipboard-list mr-1.5 text-teal-600"></i>
+							{m.typicalEvidence()}
+						</p>
+						<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
+							<MarkdownRenderer content={typical_evidence} />
+						</div>
+					</div>
+				{/if}
+				{#if annotation}
+					<div class="text-sm text-gray-600 italic leading-relaxed mb-3" dir="auto">
+						<MarkdownRenderer content={annotation} />
+					</div>
+				{/if}
 				{#if has_threats || has_reference_controls}
 					<div class="my-2 flex flex-col">
 						<div class="flex-1">
@@ -790,28 +810,6 @@
 									{/each}
 								</ul>
 							{/if}
-						</div>
-					</div>
-				{/if}
-				{#if annotation}
-					<div class="my-2">
-						<p class="font-medium">
-							<i class="fa-solid fa-pencil"></i>
-							{m.annotation()}
-						</p>
-						<div class="py-1">
-							<MarkdownRenderer content={annotation} />
-						</div>
-					</div>
-				{/if}
-				{#if typical_evidence}
-					<div class="my-2">
-						<p class="font-medium">
-							<i class="fa-solid fa-pencil"></i>
-							{m.typicalEvidence()}
-						</p>
-						<div class="py-1">
-							<MarkdownRenderer content={typical_evidence} />
 						</div>
 					</div>
 				{/if}
@@ -873,7 +871,7 @@
 	{/if}
 	<!-- AI Analysis Error Toast -->
 	{#if aiAnalysisError}
-		<div class="card p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
+		<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2 text-red-700">
 					<i class="fa-solid fa-circle-exclamation"></i>
@@ -889,7 +887,7 @@
 
 	<!-- AI Apply Error -->
 	{#if applyError}
-		<div class="card p-4 bg-red-50 border border-red-200 rounded-lg mt-2">
+		<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2 text-red-700">
 					<i class="fa-solid fa-circle-exclamation"></i>
@@ -905,7 +903,7 @@
 
 	<!-- AI Values Applied Banner -->
 	{#if aiApplyBannerVisible}
-		<div class="card p-4 bg-[#0A1628]/5 border border-[#0A1628]/15 rounded-lg mt-2">
+		<div class="p-4 bg-[#0A1628]/5 border border-[#0A1628]/15 rounded-lg mb-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
@@ -926,17 +924,25 @@
 		</div>
 	{/if}
 
-	<div class="mt-4">
-		<SuperForm
-			class="flex flex-col"
-			_form={requirementAssessmentForm}
-			data={data.form}
-			action="?/updateRequirementAssessment"
-			{...rest}
-		>
-			{#snippet children({ form, data })}
-				<div class="card shadow-lg bg-white">
-					<Tabs
+	<!-- ═══ TWO-COLUMN LAYOUT ═══ -->
+	<SuperForm
+		class="flex flex-col"
+		_form={requirementAssessmentForm}
+		data={data.form}
+		action="?/updateRequirementAssessment"
+		{...rest}
+	>
+		{#snippet children({ form, data })}
+			<HiddenInput {form} field="folder" />
+			<HiddenInput {form} field="requirement" />
+			<HiddenInput {form} field="compliance_assessment" />
+
+			<div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+				<!-- ── LEFT COLUMN ── -->
+				<div class="space-y-4 min-w-0">
+					<!-- Tabs Card -->
+					<div class="card shadow-sm bg-white border border-gray-200 rounded-lg">
+						<Tabs
 						value={group}
 						onValueChange={(e) => {
 							group = e.value;
@@ -959,7 +965,7 @@
 									<span class="flex flex-row justify-end items-center space-x-2">
 										{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && reference_controls.length > 0}
 											<button
-												class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm h-fit whitespace-normal"
+												class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] shadow-sm h-fit whitespace-normal"
 												type="button"
 												onclick={() => {
 													modalConfirmCreateSuggestedControls(
@@ -1080,31 +1086,348 @@
 							</Tabs.Panel>
 						{/snippet}
 					</Tabs>
-				</div>
-				<HiddenInput {form} field="folder" />
-				<HiddenInput {form} field="requirement" />
-				<HiddenInput {form} field="compliance_assessment" />
-			<div class="flex flex-col my-8 space-y-6">
-				<!-- AI Analysis Section -->
-				<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
-					<div class="p-5">
-						{#if aiAnalysisError}
-							<div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-								<div class="flex items-center gap-2 mb-1">
-									<i class="fa-solid fa-circle-exclamation text-red-600"></i>
-									<h3 class="font-semibold text-red-800 text-sm">Analysis Failed</h3>
+					</div>
+
+					<!-- AI Analysis Questions (read-only from latest AI analysis) -->
+					{#if latestAnalysisQuestions.length > 0}
+						<div class="card bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+							<button
+								type="button"
+								class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+								onclick={() => (showAiQuestions = !showAiQuestions)}
+							>
+								<span class="flex items-center gap-2.5">
+									<i class="fa-solid fa-robot text-[#0A1628]"></i>
+									<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
+									<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628]">
+										{latestAnalysisQuestions.length}
+									</span>
+								</span>
+								<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
+							</button>
+
+							{#if showAiQuestions}
+								<div class="px-5 pb-5 space-y-3">
+									{#each latestAnalysisQuestions as q, idx}
+										<div class="border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-4">
+											<div class="shrink-0 min-w-[60px]">
+												<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
+												<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
+													{q.type === 'unique_choice' ? 'Unique choice' : q.type === 'multiple_choice' ? 'Multiple choice' : q.type.replace(/_/g, ' ')}
+												</div>
+											</div>
+											<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
+												{q.question}
+											</div>
+											<div class="flex items-center gap-4 shrink-0">
+												<span class="text-sm font-semibold
+													{q.answer === 'Yes' ? 'text-green-600' : q.answer === 'No' ? 'text-red-600' : 'text-amber-600'}">
+													{q.answer}
+												</span>
+												{#if q.confidence !== null && q.confidence !== undefined}
+													<span class="text-sm font-semibold
+														{q.confidence >= 80 ? 'text-green-600' : q.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
+														{q.confidence}%
+													</span>
+												{/if}
+											</div>
+										</div>
+									{/each}
 								</div>
-								<p class="text-red-600 text-sm">{aiAnalysisError}</p>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- Questions Form Field -->
+					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+						<div class="relative">
+							{#if aiAppliedFields.has('answers')}
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+								</span>
+							{/if}
+							<Question
+								{form}
+								field="answers"
+								questions={page.data.requirementAssessment.requirement.questions}
+								label={m.questionSingular()}
+							/>
+						</div>
+					{/if}
+
+					<!-- Observation -->
+					<div class="relative">
+						{#if aiAppliedFields.has('observation')}
+							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+							</span>
+						{/if}
+						<MarkdownField {form} field="observation" label="Observation" />
+					</div>
+
+					<!-- Change History (inline below observation) -->
+					<div class="border border-gray-200 rounded-lg overflow-hidden">
+						<button
+							type="button"
+							class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+							onclick={() => (showChangeHistory = !showChangeHistory)}
+						>
+							<span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+								<i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
+								Change History
+								{#if auditEntries.length > 0}
+									<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+										{auditEntries.length}
+									</span>
+								{/if}
+							</span>
+							<i class="fa-solid {showChangeHistory ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
+						</button>
+						{#if showChangeHistory}
+							<div class="px-4 pb-4">
+								{#if auditEntries.length === 0}
+									<div class="text-center py-6 text-gray-400">
+										<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
+										<p class="text-sm">No changes recorded yet.</p>
+									</div>
+								{:else}
+									<div class="overflow-x-auto mt-3">
+										<table class="w-full text-sm">
+											<thead class="bg-gray-50 border-b border-gray-200">
+												<tr>
+													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Timestamp</th>
+													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Actor</th>
+													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Action</th>
+													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Changes</th>
+												</tr>
+											</thead>
+											<tbody class="divide-y divide-gray-100">
+												{#each auditEntries as entry}
+													<tr class="hover:bg-gray-50 transition-colors">
+														<td class="px-3 py-2 text-gray-700 whitespace-nowrap text-xs">
+															{new Date(entry.timestamp).toLocaleString()}
+														</td>
+														<td class="px-3 py-2 text-xs">
+															{#if entry.actor}
+																<span class="inline-flex items-center gap-1">
+																	{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
+																		<i class="fa-solid fa-robot text-[#0A1628]"></i>
+																	{:else}
+																		<i class="fa-solid fa-user text-gray-400"></i>
+																	{/if}
+																	<span class="text-gray-700">{entry.actor}</span>
+																</span>
+															{:else}
+																<span class="text-gray-400 italic">System</span>
+															{/if}
+														</td>
+														<td class="px-3 py-2">
+															<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
+																{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
+																 entry.action === 'update' ? 'bg-[#0A1628]/10 text-[#0A1628]' :
+																 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
+																 'bg-gray-100 text-gray-700'}">
+																{entry.action}
+															</span>
+														</td>
+														<td class="px-3 py-2">
+															{#if entry.changes && typeof entry.changes === 'object'}
+																<div class="space-y-1">
+																	{#each Object.entries(entry.changes) as [field, change]}
+																		<div class="text-xs">
+																			<span class="font-medium text-gray-600">{field}:</span>
+																			{#if Array.isArray(change) && change.length >= 2}
+																				<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : String(change[0]).substring(0, 80)}{String(change[0]).length > 80 ? '...' : ''}</span>
+																				<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
+																				<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : String(change[1]).substring(0, 80)}{String(change[1]).length > 80 ? '...' : ''}</span>
+																			{:else}
+																				<span class="text-gray-500">{JSON.stringify(change)}</span>
+																			{/if}
+																		</div>
+																	{/each}
+																</div>
+															{:else}
+																<span class="text-gray-400 italic">No details</span>
+															{/if}
+														</td>
+													</tr>
+												{/each}
+											</tbody>
+										</table>
+									</div>
+								{/if}
 							</div>
 						{/if}
+					</div>
 
+					<!-- Save / Cancel Buttons -->
+					<div class="flex flex-row justify-between space-x-4">
+						<button
+							class="btn bg-gray-400 text-white font-semibold w-full"
+							type="button"
+							onclick={cancel}>{m.cancel()}</button
+						>
+						<button
+							class="btn preset-filled-secondary-500 font-semibold w-full"
+							data-testid="save-no-continue-button"
+							type="submit"
+							onclick={() =>
+								form.form.update((data) => {
+									return { ...data, noRedirect: true };
+								})}>{m.saveAndContinue()}</button
+						>
+						<button
+							class="btn preset-filled-primary-500 font-semibold w-full"
+							data-testid="save-button"
+							type="submit">{m.save()}</button
+						>
+					</div>
+				</div>
+
+				<!-- ── RIGHT SIDEBAR ── -->
+				<div class="space-y-5">
+					<!-- STATUS -->
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+						<div class="relative">
+							{#if aiAppliedFields.has('status')}
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+								</span>
+							{/if}
+							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+								<i class="fa-regular fa-clock text-gray-400"></i>
+								{m.status()}
+							</label>
+							<Select
+								{form}
+								options={page.data.model.selectOptions['status']}
+								field="status"
+								label=""
+								helpText={m.requirementAssessmentStatusHelpText()}
+							/>
+						</div>
+					</div>
+
+					<!-- RESULT -->
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+						{#if computedResult}
+							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+								<i class="fa-regular fa-circle-question text-gray-400"></i>
+								{m.result()}
+							</label>
+							<span
+								class="badge text-sm font-semibold"
+								style="background-color: {complianceResultColorMap[computedResult || 'not_assessed'] || '#ddd'}"
+							>
+								{safeTranslate(computedResult || 'not_assessed')}
+							</span>
+						{:else}
+							<div class="relative">
+								{#if aiAppliedFields.has('result')}
+									<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+										<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+									</span>
+								{/if}
+								<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+									<i class="fa-regular fa-circle-question text-gray-400"></i>
+									{m.result()}
+								</label>
+								<Select
+									{form}
+									options={page.data.model.selectOptions['result']}
+									field="result"
+									label=""
+									helpText={m.requirementAssessmentResultHelpText()}
+								/>
+							</div>
+						{/if}
+						{#if page.data.requirementAssessment.compliance_assessment.extended_result_enabled}
+							<div class="mt-3">
+								<Select
+									{form}
+									options={page.data.model.selectOptions['extended_result']}
+									field="extended_result"
+									label={m.extendedResult()}
+									helpText={m.extendedResultHelpText()}
+								/>
+							</div>
+						{/if}
+					</div>
+
+					<!-- SCORING -->
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+						<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+							<i class="fa-solid fa-chart-simple text-gray-400"></i>
+							Scoring
+						</label>
+						{#if computedScore !== null}
+							<div class="flex flex-row items-center space-x-4">
+								<ProgressRing
+									strokeWidth="20px"
+									meterStroke={displayScoreColor(
+										computedScore,
+										page.data.compliance_assessment_score.max_score
+									)}
+									value={formatScoreValue(
+										computedScore || 0,
+										page.data.compliance_assessment_score.max_score
+									)}
+									classes="shrink-0"
+									size="size-10">{computedScore}</ProgressRing
+								>
+							</div>
+						{:else}
+							<div class="flex flex-col">
+								<Score
+									{form}
+									min_score={page.data.compliance_assessment_score.min_score}
+									max_score={page.data.compliance_assessment_score.max_score}
+									scores_definition={page.data.compliance_assessment_score.scores_definition}
+									field="score"
+									label=""
+									disabled={!data.is_scored || data.result === 'not_applicable'}
+								>
+									{#snippet left()}
+										<div>
+											<Checkbox
+												{form}
+												field="is_scored"
+												label={''}
+												helpText={m.scoringHelpText()}
+												checkboxComponent="switch"
+												classes="h-full flex flex-row items-center justify-center my-1"
+												classesContainer="h-full flex flex-row items-center space-x-4"
+											/>
+										</div>
+									{/snippet}
+								</Score>
+							</div>
+							{#if page.data.compliance_assessment_score.show_documentation_score}
+								<div class="mt-3">
+									<Score
+										{form}
+										min_score={page.data.compliance_assessment_score.min_score}
+										max_score={page.data.compliance_assessment_score.max_score}
+										scores_definition={page.data.compliance_assessment_score.scores_definition}
+										field="documentation_score"
+										label={m.documentationScore()}
+										isDoc={true}
+										disabled={!data.is_scored || data.result === 'not_applicable'}
+									/>
+								</div>
+							{/if}
+						{/if}
+					</div>
+
+					<!-- AI HISTORY -->
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
 						<div class="flex items-center justify-between mb-3">
-							<h3 class="text-sm font-semibold text-[#0A1628] flex items-center gap-2">
+							<h3 class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
 								<i class="fa-solid fa-wand-magic-sparkles text-[#0A1628]"></i>
 								AI HISTORY
 							</h3>
 							{#if localAiAnalyses?.length > 0}
-								<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
 									{localAiAnalyses.length}
 								</span>
 							{/if}
@@ -1152,317 +1475,9 @@
 						{/if}
 					</div>
 				</div>
-
-				<!-- AI Analysis Questions (read-only from latest AI analysis) -->
-				{#if latestAnalysisQuestions.length > 0}
-					<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
-						<button
-							type="button"
-							class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-							onclick={() => (showAiQuestions = !showAiQuestions)}
-						>
-							<span class="flex items-center gap-2.5">
-								<i class="fa-solid fa-robot text-[#0A1628]"></i>
-								<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
-								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628]">
-									{latestAnalysisQuestions.length}
-								</span>
-							</span>
-							<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
-						</button>
-
-						{#if showAiQuestions}
-							<div class="px-5 pb-5 space-y-3">
-								{#each latestAnalysisQuestions as q, idx}
-									<div class="border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-4">
-										<!-- Question number & type -->
-										<div class="shrink-0 min-w-[60px]">
-											<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
-											<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
-												{q.type === 'unique_choice' ? 'Unique choice' : q.type === 'multiple_choice' ? 'Multiple choice' : q.type.replace(/_/g, ' ')}
-											</div>
-										</div>
-
-										<!-- Question text -->
-										<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
-											{q.question}
-										</div>
-
-										<!-- Answer & Confidence -->
-										<div class="flex items-center gap-4 shrink-0">
-											<span class="text-sm font-semibold
-												{q.answer === 'Yes' ? 'text-green-600' : q.answer === 'No' ? 'text-red-600' : 'text-amber-600'}">
-												{q.answer}
-											</span>
-											{#if q.confidence !== null && q.confidence !== undefined}
-												<span class="text-sm font-semibold
-													{q.confidence >= 80 ? 'text-green-600' : q.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
-													{q.confidence}%
-												</span>
-											{/if}
-										</div>
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-						<div class="relative">
-							{#if aiAppliedFields.has('answers')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
-									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-								</span>
-							{/if}
-							<Question
-								{form}
-								field="answers"
-								questions={page.data.requirementAssessment.requirement.questions}
-								label={m.questionSingular()}
-							/>
-						</div>
-					{/if}
-					<div class="relative">
-					{#if aiAppliedFields.has('status')}
-						<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
-							<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-						</span>
-					{/if}
-						<Select
-							{form}
-							options={page.data.model.selectOptions['status']}
-							field="status"
-							label={m.status()}
-							helpText={m.requirementAssessmentStatusHelpText()}
-						/>
-					</div>
-					{#if computedResult}
-						<p class="flex flex-row items-center space-x-4">
-							<span class="font-medium">{m.result()}</span>
-							<span
-								class="badge text-sm font-semibold"
-								style="background-color: {complianceResultColorMap[
-									computedResult || 'not_assessed'
-								] || '#ddd'}"
-							>
-								{safeTranslate(computedResult || 'not_assessed')}
-							</span>
-						</p>
-					{:else}
-						<div class="relative">
-						{#if aiAppliedFields.has('result')}
-							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
-								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-							</span>
-						{/if}
-							<Select
-								{form}
-								options={page.data.model.selectOptions['result']}
-								field="result"
-								label={m.result()}
-								helpText={m.requirementAssessmentResultHelpText()}
-							/>
-						</div>
-					{/if}
-					{#if page.data.requirementAssessment.compliance_assessment.extended_result_enabled}
-						<Select
-							{form}
-							options={page.data.model.selectOptions['extended_result']}
-							field="extended_result"
-							label={m.extendedResult()}
-							helpText={m.extendedResultHelpText()}
-						/>
-					{/if}
-					{#if computedScore !== null}
-						<div class="flex flex-row items-center space-x-4">
-							<span class="font-medium">{m.score()}</span>
-							<ProgressRing
-								strokeWidth="20px"
-								meterStroke={displayScoreColor(
-									computedScore,
-									page.data.compliance_assessment_score.max_score
-								)}
-								value={formatScoreValue(
-									computedScore || 0,
-									page.data.compliance_assessment_score.max_score
-								)}
-								classes="shrink-0"
-								size="size-10">{computedScore}</ProgressRing
-							>
-						</div>
-					{:else}
-						<div class="flex flex-col">
-							<Score
-								{form}
-								min_score={page.data.compliance_assessment_score.min_score}
-								max_score={page.data.compliance_assessment_score.max_score}
-								scores_definition={page.data.compliance_assessment_score.scores_definition}
-								field="score"
-								label={page.data.compliance_assessment_score.show_documentation_score
-									? m.implementationScore()
-									: m.score()}
-								disabled={!data.is_scored || data.result === 'not_applicable'}
-							>
-								{#snippet left()}
-									<div>
-										<Checkbox
-											{form}
-											field="is_scored"
-											label={''}
-											helpText={m.scoringHelpText()}
-											checkboxComponent="switch"
-											classes="h-full flex flex-row items-center justify-center my-1"
-											classesContainer="h-full flex flex-row items-center space-x-4"
-										/>
-									</div>
-								{/snippet}
-							</Score>
-						</div>
-						{#if page.data.compliance_assessment_score.show_documentation_score}
-							<Score
-								{form}
-								min_score={page.data.compliance_assessment_score.min_score}
-								max_score={page.data.compliance_assessment_score.max_score}
-								scores_definition={page.data.compliance_assessment_score.scores_definition}
-								field="documentation_score"
-								label={m.documentationScore()}
-								isDoc={true}
-								disabled={!data.is_scored || data.result === 'not_applicable'}
-							/>
-						{/if}
-					{/if}
-
-				<div class="relative">
-				{#if aiAppliedFields.has('observation')}
-					<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
-						<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-					</span>
-				{/if}
-					<MarkdownField {form} field="observation" label="Observation" />
-				</div>
-
-				<!-- Change History (inline below observation) -->
-				<div class="border border-gray-200 rounded-lg overflow-hidden">
-					<button
-						type="button"
-						class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
-						onclick={() => (showChangeHistory = !showChangeHistory)}
-					>
-						<span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-							<i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
-							Change History
-							{#if auditEntries.length > 0}
-								<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-									{auditEntries.length}
-								</span>
-							{/if}
-						</span>
-						<i class="fa-solid {showChangeHistory ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
-					</button>
-
-					{#if showChangeHistory}
-						<div class="px-4 pb-4">
-							{#if auditEntries.length === 0}
-								<div class="text-center py-6 text-gray-400">
-									<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
-									<p class="text-sm">No changes recorded yet.</p>
-								</div>
-							{:else}
-								<div class="overflow-x-auto mt-3">
-									<table class="w-full text-sm">
-										<thead class="bg-gray-50 border-b border-gray-200">
-											<tr>
-												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Timestamp</th>
-												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Actor</th>
-												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Action</th>
-												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Changes</th>
-											</tr>
-										</thead>
-										<tbody class="divide-y divide-gray-100">
-											{#each auditEntries as entry}
-												<tr class="hover:bg-gray-50 transition-colors">
-													<td class="px-3 py-2 text-gray-700 whitespace-nowrap text-xs">
-														{new Date(entry.timestamp).toLocaleString()}
-													</td>
-													<td class="px-3 py-2 text-xs">
-														{#if entry.actor}
-															<span class="inline-flex items-center gap-1">
-																{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
-																	<i class="fa-solid fa-robot text-[#0A1628]"></i>
-																{:else}
-																	<i class="fa-solid fa-user text-gray-400"></i>
-																{/if}
-																<span class="text-gray-700">{entry.actor}</span>
-															</span>
-														{:else}
-															<span class="text-gray-400 italic">System</span>
-														{/if}
-													</td>
-													<td class="px-3 py-2">
-														<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
-															{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
-															 entry.action === 'update' ? 'bg-[#0A1628]/10 text-[#0A1628]' :
-															 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
-															 'bg-gray-100 text-gray-700'}">
-															{entry.action}
-														</span>
-													</td>
-													<td class="px-3 py-2">
-														{#if entry.changes && typeof entry.changes === 'object'}
-															<div class="space-y-1">
-																{#each Object.entries(entry.changes) as [field, change]}
-																	<div class="text-xs">
-																		<span class="font-medium text-gray-600">{field}:</span>
-																		{#if Array.isArray(change) && change.length >= 2}
-																			<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : String(change[0]).substring(0, 80)}{String(change[0]).length > 80 ? '...' : ''}</span>
-																			<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
-																			<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : String(change[1]).substring(0, 80)}{String(change[1]).length > 80 ? '...' : ''}</span>
-																		{:else}
-																			<span class="text-gray-500">{JSON.stringify(change)}</span>
-																		{/if}
-																	</div>
-																{/each}
-															</div>
-														{:else}
-															<span class="text-gray-400 italic">No details</span>
-														{/if}
-													</td>
-												</tr>
-											{/each}
-										</tbody>
-									</table>
-								</div>
-							{/if}
-						</div>
-					{/if}
-				</div>
-
-				<div class="flex flex-row justify-between space-x-4">
-						<button
-							class="btn bg-gray-400 text-white font-semibold w-full"
-							type="button"
-							onclick={cancel}>{m.cancel()}</button
-						>
-						<button
-							class="btn preset-filled-secondary-500 font-semibold w-full"
-							data-testid="save-no-continue-button"
-							type="submit"
-							onclick={() =>
-								form.form.update((data) => {
-									return { ...data, noRedirect: true };
-								})}>{m.saveAndContinue()}</button
-						>
-						<button
-							class="btn preset-filled-primary-500 font-semibold w-full"
-							data-testid="save-button"
-							type="submit">{m.save()}</button
-						>
-					</div>
-				</div>
-			{/snippet}
-		</SuperForm>
-	</div>
+			</div>
+		{/snippet}
+	</SuperForm>
 </div>
 
 <!-- AI Analysis Progress Modal -->
@@ -2020,7 +2035,7 @@
 			<div class="flex justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
-					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm font-semibold"
+					class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] shadow-sm font-semibold"
 				disabled={isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
 				onclick={() => {
 					const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
