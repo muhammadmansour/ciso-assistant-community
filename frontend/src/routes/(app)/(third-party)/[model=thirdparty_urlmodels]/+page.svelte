@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
+	import { page } from '$app/state';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { m } from '$paraglide/messages';
 	import type { PageData, ActionData } from './$types';
@@ -10,6 +11,8 @@
 		type ModalSettings,
 		type ModalStore
 	} from '$lib/components/Modals/stores';
+
+	import QuickStartModal from '$lib/components/SideBar/QuickStart/QuickStartModal.svelte';
 
 	interface Props {
 		data: PageData;
@@ -37,10 +40,65 @@
 		};
 		modalStore.trigger(modal);
 	}
+
+	function modalQuickStart(): void {
+		let modalComponent: ModalComponent = {
+			ref: QuickStartModal,
+			props: {}
+		};
+		let modal: ModalSettings = {
+			type: 'component',
+			component: modalComponent,
+			title: m.quickStart()
+		};
+		modalStore.trigger(modal);
+	}
+
+	// Compute the description key for the model
+	const modelDescriptionKey = $derived(() => {
+		if (!URLModel) return null;
+		const camelCase = URLModel
+			.split('-')
+			.map((word: string, index: number) => (index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+			.join('');
+		return `${camelCase}Description`;
+	});
+
+	const modelDescription = $derived(() => {
+		const key = modelDescriptionKey();
+		if (key && m[key]) {
+			return m[key]();
+		}
+		return '';
+	});
 </script>
 
 {#if data.table}
-	<div class="shadow-lg">
+	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+		<!-- Card Header: Model title + description + action button -->
+		<div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+			<div>
+				<h2 class="text-lg font-bold text-gray-900">
+					{safeTranslate(data.model.localNamePlural)}
+				</h2>
+				{#if modelDescription()}
+					<p class="text-sm text-gray-500 mt-0.5">{modelDescription()}</p>
+				{/if}
+			</div>
+			<div class="flex items-center gap-2">
+				{#if URLModel === 'compliance-assessments' && page.data?.user?.is_admin}
+					<button
+						class="btn bg-[#005FA3] text-white hover:bg-[#004d85] shadow-sm rounded-lg px-5 py-2.5 text-sm font-medium transition-colors"
+						onclick={modalQuickStart}
+					>
+						<i class="fa-solid fa-plus mr-2"></i>
+						{m.quickStart()}
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Table -->
 		{#key URLModel}
 			<ModelTable source={data.table} deleteForm={data.deleteForm} {URLModel}>
 				{#snippet addButton()}
@@ -82,30 +140,6 @@
 							{:else if URLModel === 'requirement-mapping-sets'}
 								<a
 									href="/libraries?object_type=requirement_mapping_set"
-									class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
-									data-testid="add-button"
-									id="add-button"
-									title={m.importMappings()}><i class="fa-solid fa-file-import mr-2"></i></a
-								>
-							{:else if URLModel === 'risk-matrices'}
-								<a
-									href="/libraries?object_type=risk_matrices"
-									class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
-									data-testid="add-button"
-									id="add-button"
-									title={m.importMatrices()}><i class="fa-solid fa-file-import mr-2"></i></a
-								>
-							{:else if URLModel === 'frameworks'}
-								<a
-									href="/libraries?object_type=frameworks"
-									class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
-									data-testid="add-button"
-									id="add-button"
-									title={m.importFrameworks()}><i class="fa-solid fa-file-import mr-2"></i></a
-								>
-							{:else if URLModel === 'requirement-mapping-sets'}
-								<a
-									href="/libraries?object_type=requirement_mapping_sets"
 									class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
 									data-testid="add-button"
 									id="add-button"
