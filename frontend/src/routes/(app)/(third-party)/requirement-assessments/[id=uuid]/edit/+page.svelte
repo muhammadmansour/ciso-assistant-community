@@ -1059,9 +1059,10 @@
 						{#if localAiAnalyses?.length > 0}
 							<div class="space-y-1">
 								{#each localAiAnalyses as analysis}
-									<button
-										type="button"
-										class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left group"
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<div
+										class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left group cursor-pointer"
 										onclick={() => openAnalysisDetail(analysis)}
 									>
 										<span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 {analysis.status === 'completed' ? 'bg-emerald-500' : 'bg-red-400'}"></span>
@@ -1084,7 +1085,7 @@
 												{/if}
 											</button>
 										</div>
-									</button>
+									</div>
 								{/each}
 							</div>
 						{:else}
