@@ -472,15 +472,17 @@
 
 	// Compute tree categories for domains coverage
 	let treeCategories = $derived(
-		Object.entries(tree).map(([id, node]: [string, any], index: number) => {
-			const reqCount = countTreeReqs(node);
-			return {
-				id,
-				name: node.name || node.ref_id || `Category ${index + 1}`,
-				reqCount,
-				index: index + 1
-			};
-		})
+		tree
+			? Object.entries(tree).map(([id, node]: [string, any], index: number) => {
+					const reqCount = countTreeReqs(node);
+					return {
+						id,
+						name: node.name || node.ref_id || `Category ${index + 1}`,
+						reqCount,
+						index: index + 1
+					};
+				})
+			: []
 	);
 
 	let totalTreeRequirements = $derived(
@@ -599,16 +601,20 @@
 								<i class="fa-regular fa-circle text-[13px] text-gray-400"></i>
 								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.status()}</span>
 							</div>
-							{@const statusValue = data.compliance_assessment.status}
-							{@const statusLabel = safeTranslate(statusValue?.str ?? statusValue)}
-							<span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {
-								statusValue === 'active' || statusValue?.str === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-								statusValue === 'in_progress' || statusValue?.str === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-								statusValue === 'done' || statusValue?.str === 'Completed' || statusValue?.str === 'Done' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
-								'bg-gray-50 text-gray-600 border border-gray-200'
-							}" data-testid="status-field-value">
-								{statusLabel}
-							</span>
+							{#if data.compliance_assessment.status}
+								{@const statusValue = data.compliance_assessment.status}
+								{@const statusLabel = safeTranslate(statusValue?.str ?? statusValue)}
+								<span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {
+									statusValue === 'active' || statusValue?.str === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+									statusValue === 'in_progress' || statusValue?.str === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+									statusValue === 'done' || statusValue?.str === 'Completed' || statusValue?.str === 'Done' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+									'bg-gray-50 text-gray-600 border border-gray-200'
+								}" data-testid="status-field-value">
+									{statusLabel}
+								</span>
+							{:else}
+								<span class="text-gray-400">-</span>
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -1077,7 +1083,10 @@
 			{#key compliance_assessment_donut_values}
 				<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
 					<h3 class="text-sm font-semibold text-gray-900 mb-4">{m.progress()}</h3>
-					{#if data.global_score.score >= 0}
+					{#if data.global_score && data.global_score.score >= 0 && data.global_score.max_score > 0}
+						{@const progressPercent = Math.round((data.global_score.score * 100) / data.global_score.max_score)}
+						{@const circumference = 2 * Math.PI * 45}
+						{@const strokeDashoffset = circumference - (progressPercent / 100) * circumference}
 						<div class="flex items-center justify-center mb-4">
 							<div class="relative w-28 h-28">
 								<svg class="transform -rotate-90" viewBox="0 0 120 120">
@@ -1090,13 +1099,13 @@
 										stroke="#0891b2"
 										stroke-width="12"
 										stroke-linecap="round"
-										stroke-dasharray={2 * Math.PI * 45}
-										stroke-dashoffset={2 * Math.PI * 45 - ((data.global_score.score * 100 / data.global_score.max_score) / 100) * 2 * Math.PI * 45}
+										stroke-dasharray={circumference}
+										stroke-dashoffset={strokeDashoffset}
 										class="transition-all duration-700 ease-out"
 									/>
 								</svg>
 								<div class="absolute inset-0 flex flex-col items-center justify-center">
-									<div class="text-2xl font-bold text-gray-900">{Math.round((data.global_score.score * 100) / data.global_score.max_score)}%</div>
+									<div class="text-2xl font-bold text-gray-900">{progressPercent}%</div>
 									<div class="text-[10px] text-gray-500 uppercase tracking-wide">completed</div>
 								</div>
 							</div>
