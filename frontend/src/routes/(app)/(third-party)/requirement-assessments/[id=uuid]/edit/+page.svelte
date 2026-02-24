@@ -38,7 +38,7 @@
 		formatScoreValue,
 		displayScoreColor
 	} from '$lib/utils/helpers';
-	import { enhance } from '$app/forms';
+
 	import { invalidateAll } from '$app/navigation';
 
 	interface Props {
@@ -349,6 +349,69 @@
 			selectedAnalysis = pendingAnalysisResult;
 			showAnalysisModal = true;
 			pendingAnalysisResult = null;
+		}
+	}
+
+	/**
+	 * Run AI analysis via direct fetch (avoids use:enhance which can fail on
+	 * long-running requests when browser extensions close the message channel).
+	 */
+	async function runAiAnalysis() {
+		isAnalyzing = true;
+		aiAnalysisResult = null;
+		aiAnalysisError = null;
+		startProgressTimer();
+
+		try {
+			const response = await fetch('?/runAiAnalysis', {
+				method: 'POST',
+				body: new FormData()
+			});
+
+			const text = await response.text();
+			const result = deserialize(text);
+
+			isAnalyzing = false;
+
+			if (result.type === 'success' && (result.data as any)?.aiAnalysis) {
+				const aiData = (result.data as any).aiAnalysis;
+				aiAnalysisResult = aiData;
+				const newEntry = {
+					id: aiData.ai_analysis_id,
+					created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
+					status: 'completed',
+					score: aiData.ai_analysis?.overallAssessment?.score ?? null,
+					compliance_status:
+						aiData.proposed_result ??
+						aiData.ai_analysis?.overallAssessment?.status ??
+						null,
+					gemini_files_count: 0,
+					requirements_count: 1,
+					result: aiData.ai_analysis,
+					question_answers: aiData.question_answers
+				};
+				pendingAnalysisResult = {
+					...newEntry,
+					result: aiData.ai_analysis,
+					question_answers: aiData.question_answers,
+					created_at: aiData.ai_analysis_updated_at,
+					score: newEntry.score,
+					compliance_status: newEntry.compliance_status
+				};
+				stopProgressTimer(true);
+				await invalidateAll();
+			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
+				stopProgressTimer(false);
+				aiAnalysisError = (result.data as any).aiError;
+			} else {
+				stopProgressTimer(false);
+				aiAnalysisError = 'Unexpected response from server';
+			}
+		} catch (e) {
+			console.error('[Run AI Analysis] Failed:', e);
+			isAnalyzing = false;
+			stopProgressTimer(false);
+			aiAnalysisError = 'Request failed — please check your connection and try again.';
 		}
 	}
 
@@ -704,65 +767,21 @@
 			<p class="text-sm text-gray-500">{data.requirementAssessment.name}</p>
 		</div>
 	</div>
-	<form
-		method="POST"
-		action="?/runAiAnalysis"
-		use:enhance={() => {
-			isAnalyzing = true;
-			aiAnalysisResult = null;
-			aiAnalysisError = null;
-			startProgressTimer();
-			return async ({ result }) => {
-				isAnalyzing = false;
-				if (result.type === 'success' && result.data?.aiAnalysis) {
-					const aiData = result.data.aiAnalysis;
-					aiAnalysisResult = aiData;
-					const newEntry = {
-						id: aiData.ai_analysis_id,
-						created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
-						status: 'completed',
-						score: aiData.ai_analysis?.overallAssessment?.score ?? null,
-						compliance_status: aiData.proposed_result ?? aiData.ai_analysis?.overallAssessment?.status ?? null,
-						gemini_files_count: 0,
-						requirements_count: 1,
-						result: aiData.ai_analysis,
-						question_answers: aiData.question_answers,
-					};
-					pendingAnalysisResult = {
-						...newEntry,
-						result: aiData.ai_analysis,
-						question_answers: aiData.question_answers,
-						created_at: aiData.ai_analysis_updated_at,
-						score: newEntry.score,
-						compliance_status: newEntry.compliance_status,
-					};
-					stopProgressTimer(true);
-					await invalidateAll();
-				} else if (result.type === 'failure' && result.data?.aiError) {
-					stopProgressTimer(false);
-					aiAnalysisError = result.data.aiError;
-				} else {
-					stopProgressTimer(false);
-					aiAnalysisError = 'Unexpected response from server';
-				}
-			};
-		}}
+	<button
+		type="button"
+		class="btn bg-[#005FA3] text-white hover:bg-[#004d85] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 rounded-lg px-5 py-2.5"
+		disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
+		title="Run AI Analysis on Associated Evidences"
+		onclick={() => runAiAnalysis()}
 	>
-		<button
-			type="submit"
-			class="btn bg-[#005FA3] text-white hover:bg-[#004d85] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 rounded-lg px-5 py-2.5"
-			disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
-			title="Run AI Analysis on Associated Evidences"
-		>
-			{#if isAnalyzing}
-				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-				<span>Analyzing...</span>
-			{:else}
-				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-				<span>Run AI Analysis</span>
-			{/if}
-		</button>
-	</form>
+		{#if isAnalyzing}
+			<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+			<span>Analyzing...</span>
+		{:else}
+			<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+			<span>Run AI Analysis</span>
+		{/if}
+	</button>
 </div>
 
 {#if data.requirement?.implementation_groups?.length > 0}
