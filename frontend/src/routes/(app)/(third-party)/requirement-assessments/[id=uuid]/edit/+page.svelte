@@ -1511,10 +1511,9 @@
 											{/if}
 										</div>
 										<div class="flex items-center gap-2 flex-shrink-0 pt-1">
-											{@const ans = (qa.answer || '').toLowerCase()}
 											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {
-												ans === 'yes' ? 'bg-green-50 text-green-700' :
-												ans === 'no' ? 'bg-red-50 text-red-700' :
+												(qa.answer || '').toLowerCase() === 'yes' ? 'bg-green-50 text-green-700' :
+												(qa.answer || '').toLowerCase() === 'no' ? 'bg-red-50 text-red-700' :
 												'bg-amber-50 text-amber-700'
 											}">
 												{qa.answer || 'Partial'}
