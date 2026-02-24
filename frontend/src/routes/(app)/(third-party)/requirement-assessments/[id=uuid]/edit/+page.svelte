@@ -1259,15 +1259,112 @@
 						{/if}
 					{/if}
 
-					<div class="relative">
-						{#if aiAppliedFields.has('observation')}
-							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-							</span>
-						{/if}
-						<MarkdownField {form} field="observation" label="Observation" />
-					</div>
-					<div class="flex flex-row justify-between space-x-4">
+				<div class="relative">
+					{#if aiAppliedFields.has('observation')}
+						<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+							<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+						</span>
+					{/if}
+					<MarkdownField {form} field="observation" label="Observation" />
+				</div>
+
+				<!-- Change History (inline below observation) -->
+				<div class="border border-gray-200 rounded-lg overflow-hidden">
+					<button
+						type="button"
+						class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+						onclick={() => (showChangeHistory = !showChangeHistory)}
+					>
+						<span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+							<i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
+							Change History
+							{#if auditEntries.length > 0}
+								<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+									{auditEntries.length}
+								</span>
+							{/if}
+						</span>
+						<i class="fa-solid {showChangeHistory ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
+					</button>
+
+					{#if showChangeHistory}
+						<div class="px-4 pb-4">
+							{#if auditEntries.length === 0}
+								<div class="text-center py-6 text-gray-400">
+									<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
+									<p class="text-sm">No changes recorded yet.</p>
+								</div>
+							{:else}
+								<div class="overflow-x-auto mt-3">
+									<table class="w-full text-sm">
+										<thead class="bg-gray-50 border-b border-gray-200">
+											<tr>
+												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Timestamp</th>
+												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Actor</th>
+												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Action</th>
+												<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Changes</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-gray-100">
+											{#each auditEntries as entry}
+												<tr class="hover:bg-gray-50 transition-colors">
+													<td class="px-3 py-2 text-gray-700 whitespace-nowrap text-xs">
+														{new Date(entry.timestamp).toLocaleString()}
+													</td>
+													<td class="px-3 py-2 text-xs">
+														{#if entry.actor}
+															<span class="inline-flex items-center gap-1">
+																{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
+																	<i class="fa-solid fa-robot text-blue-500"></i>
+																{:else}
+																	<i class="fa-solid fa-user text-gray-400"></i>
+																{/if}
+																<span class="text-gray-700">{entry.actor}</span>
+															</span>
+														{:else}
+															<span class="text-gray-400 italic">System</span>
+														{/if}
+													</td>
+													<td class="px-3 py-2">
+														<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
+															{entry.action === 'create' ? 'bg-green-100 text-green-700' :
+															 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
+															 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
+															 'bg-gray-100 text-gray-700'}">
+															{entry.action}
+														</span>
+													</td>
+													<td class="px-3 py-2">
+														{#if entry.changes && typeof entry.changes === 'object'}
+															<div class="space-y-1">
+																{#each Object.entries(entry.changes) as [field, change]}
+																	<div class="text-xs">
+																		<span class="font-medium text-gray-600">{field}:</span>
+																		{#if Array.isArray(change) && change.length >= 2}
+																			<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : String(change[0]).substring(0, 80)}{String(change[0]).length > 80 ? '...' : ''}</span>
+																			<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
+																			<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : String(change[1]).substring(0, 80)}{String(change[1]).length > 80 ? '...' : ''}</span>
+																		{:else}
+																			<span class="text-gray-500">{JSON.stringify(change)}</span>
+																		{/if}
+																	</div>
+																{/each}
+															</div>
+														{:else}
+															<span class="text-gray-400 italic">No details</span>
+														{/if}
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex flex-row justify-between space-x-4">
 						<button
 							class="btn bg-gray-400 text-white font-semibold w-full"
 							type="button"
@@ -1292,102 +1389,6 @@
 			{/snippet}
 		</SuperForm>
 	</div>
-</div>
-
-<!-- Audit / Change History Section — always visible with collapsible toggle -->
-<div class="card bg-white shadow-lg rounded-lg overflow-hidden mt-6">
-	<button
-		type="button"
-		class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
-		onclick={() => (showChangeHistory = !showChangeHistory)}
-	>
-		<h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
-			<i class="fa-solid fa-clock-rotate-left text-gray-600"></i>
-			Change History
-			{#if auditEntries.length > 0}
-				<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-					{auditEntries.length}
-				</span>
-			{/if}
-		</h3>
-		<i class="fa-solid {showChangeHistory ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400"></i>
-	</button>
-
-	{#if showChangeHistory}
-		<div class="px-6 pb-6">
-			{#if auditEntries.length === 0}
-				<div class="text-center py-8 text-gray-400">
-					<i class="fa-solid fa-clock-rotate-left text-3xl mb-2"></i>
-					<p class="text-sm">No changes recorded yet.</p>
-				</div>
-			{:else}
-				<div class="overflow-x-auto border border-gray-200 rounded-lg">
-					<table class="w-full text-sm">
-						<thead class="bg-gray-50 border-b border-gray-200">
-							<tr>
-								<th class="text-left px-4 py-3 font-semibold text-gray-600">Timestamp</th>
-								<th class="text-left px-4 py-3 font-semibold text-gray-600">Actor</th>
-								<th class="text-left px-4 py-3 font-semibold text-gray-600">Action</th>
-								<th class="text-left px-4 py-3 font-semibold text-gray-600">Changes</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-100">
-							{#each auditEntries as entry}
-								<tr class="hover:bg-gray-50 transition-colors">
-									<td class="px-4 py-3 text-gray-700 whitespace-nowrap">
-										{new Date(entry.timestamp).toLocaleString()}
-									</td>
-									<td class="px-4 py-3">
-										{#if entry.actor}
-											<span class="inline-flex items-center gap-1">
-												{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
-													<i class="fa-solid fa-robot text-blue-500"></i>
-												{:else}
-													<i class="fa-solid fa-user text-gray-400"></i>
-												{/if}
-												<span class="text-gray-700">{entry.actor}</span>
-											</span>
-										{:else}
-											<span class="text-gray-400 italic">System</span>
-										{/if}
-									</td>
-									<td class="px-4 py-3">
-										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-											{entry.action === 'create' ? 'bg-green-100 text-green-700' :
-											 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
-											 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
-											 'bg-gray-100 text-gray-700'}">
-											{entry.action}
-										</span>
-									</td>
-									<td class="px-4 py-3">
-										{#if entry.changes && typeof entry.changes === 'object'}
-											<div class="space-y-1">
-												{#each Object.entries(entry.changes) as [field, change]}
-													<div class="text-xs">
-														<span class="font-medium text-gray-600">{field}:</span>
-														{#if Array.isArray(change) && change.length >= 2}
-															<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : change[0]}</span>
-															<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
-															<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : change[1]}</span>
-														{:else}
-															<span class="text-gray-500">{JSON.stringify(change)}</span>
-														{/if}
-													</div>
-												{/each}
-											</div>
-										{:else}
-											<span class="text-gray-400 italic">No details</span>
-										{/if}
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-		</div>
-	{/if}
 </div>
 
 <!-- AI Analysis Progress Modal -->
