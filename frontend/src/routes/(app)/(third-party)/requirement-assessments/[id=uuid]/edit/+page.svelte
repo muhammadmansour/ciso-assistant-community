@@ -352,10 +352,10 @@
 		}
 	}
 
-	// AI Apply state — tracks which fields were populated by "Apply Analysis Results"
+	// AI Apply state
 	let aiAppliedFields: Set<string> = $state(new Set());
 	let aiApplyBannerVisible = $state(false);
-	let isApplyingAnalysis = $state(false);
+	let isApplyingResults = $state(false);
 	let applyError: string | null = $state(null);
 
 	// Keep auditEntries in sync with server data
@@ -363,102 +363,19 @@
 		auditEntries = data.auditLogEntries ?? [];
 	});
 
-	/**
-	 * Apply AI analysis results to the form fields without saving to DB.
-	 * Routes through the SvelteKit server action to avoid CORS issues.
-	 * The user reviews the populated form and clicks Save manually.
-	 */
-	async function applyAnalysisResults(analysisId: string) {
-		isApplyingAnalysis = true;
-		applyError = null;
-
-		try {
-			console.log('[Apply AI] Calling applyAiAnalysis action with analysis_id:', analysisId);
-
-			const formData = new FormData();
-			formData.append('analysisId', analysisId);
-			const response = await fetch('?/applyAiAnalysis', {
-				method: 'POST',
-				body: formData
-			});
-
-			const text = await response.text();
-			const result = deserialize(text);
-			console.log('[Apply AI] Deserialized result:', result);
-
-			if (result.type !== 'success' || !result.data) {
-				const errorData = result.type === 'failure' ? (result.data as any) : null;
-				applyError = errorData?.applyError || `Failed to apply analysis (${result.type})`;
-				console.error('[Apply AI] Error:', applyError);
-				return;
-			}
-
-			const applyResult = (result.data as any).applyResult;
-			if (!applyResult) {
-				applyError = 'No analysis results returned from server.';
-				return;
-			}
-			console.log('[Apply AI] Got proposed values:', applyResult);
-
-			// Populate form fields with proposed AI values
-			const fieldsChanged = new Set<string>();
-
-			requirementAssessmentForm.form.update(
-				(current: Record<string, any>) => {
-					const updated = { ...current };
-
-					if (applyResult.proposed_result && applyResult.proposed_result !== current.result) {
-						updated.result = applyResult.proposed_result;
-						fieldsChanged.add('result');
-					}
-
-					if (applyResult.proposed_status && applyResult.proposed_status !== current.status) {
-						updated.status = applyResult.proposed_status;
-						fieldsChanged.add('status');
-					}
-
-					if (applyResult.proposed_observation && applyResult.proposed_observation !== current.observation) {
-						updated.observation = applyResult.proposed_observation;
-						fieldsChanged.add('observation');
-					}
-
-					if (applyResult.proposed_answers && Object.keys(applyResult.proposed_answers).length > 0) {
-						updated.answers = applyResult.proposed_answers;
-						fieldsChanged.add('answers');
-					}
-
-					return updated;
-				},
-				{ taint: true }
-			);
-
-			aiAppliedFields = fieldsChanged;
-			aiApplyBannerVisible = fieldsChanged.size > 0;
-			console.log('[Apply AI] Fields changed:', [...fieldsChanged]);
-
-			// Close the modal so the user can review the form
-			closeModal();
-
-		} catch (e) {
-			console.error('[Apply AI] Failed:', e);
-			applyError = 'An error occurred while applying analysis results.';
-		} finally {
-			isApplyingAnalysis = false;
-		}
-	}
-
 	function dismissApplyBanner() {
 		aiApplyBannerVisible = false;
 		aiAppliedFields = new Set();
 	}
 
-	// Confirm AI Write — writes AI values via the dedicated service account
-	let isConfirmingAiWrite = $state(false);
-	let confirmWriteError: string | null = $state(null);
-
-	async function confirmAiWrite(analysisId: string) {
-		isConfirmingAiWrite = true;
-		confirmWriteError = null;
+	/**
+	 * Apply AI analysis results: writes via REST API serializer pipeline under
+	 * the AI service account, then refreshes the page to show updated data and
+	 * audit trail.
+	 */
+	async function applyResults(analysisId: string) {
+		isApplyingResults = true;
+		applyError = null;
 
 		try {
 			const formData = new FormData();
@@ -473,25 +390,30 @@
 
 			if (result.type !== 'success' || !result.data) {
 				const errorData = result.type === 'failure' ? (result.data as any) : null;
-				confirmWriteError =
-					errorData?.confirmWriteError || `Failed to write AI values (${result.type})`;
+				applyError =
+					errorData?.confirmWriteError || `Failed to apply results (${result.type})`;
 				return;
 			}
 
 			const writeResult = (result.data as any).confirmWriteResult;
 			if (!writeResult) {
-				confirmWriteError = 'No result returned from server.';
+				applyError = 'No result returned from server.';
 				return;
 			}
 
-			// Close the modal and refresh the page data
+			// Track which fields were changed by AI
+			const changed = new Set<string>(writeResult.changed_fields || []);
+			aiAppliedFields = changed;
+			aiApplyBannerVisible = changed.size > 0;
+
+			// Close the modal and refresh the page data (form + audit trail)
 			closeModal();
 			await invalidateAll();
 		} catch (e) {
-			console.error('[Confirm AI Write] Failed:', e);
-			confirmWriteError = 'An error occurred while writing AI values.';
+			console.error('[Apply Results] Failed:', e);
+			applyError = 'An error occurred while applying results.';
 		} finally {
-			isConfirmingAiWrite = false;
+			isApplyingResults = false;
 		}
 	}
 
@@ -2244,46 +2166,32 @@
 			<div class="flex items-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
-					class="btn bg-[#005FA3] text-white hover:bg-[#004d85] shadow-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-					disabled={isApplyingAnalysis || isConfirmingAiWrite || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+					class="btn bg-[#005FA3] text-white shadow-sm font-semibold
+						disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
+						{isApplyingResults ? 'hover:bg-[#005FA3]' : 'hover:bg-[#004d85]'}"
+					disabled={isApplyingResults || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
 					onclick={() => {
 						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
-						if (id) applyAnalysisResults(id);
+						if (id) applyResults(id);
 					}}
 				>
-					{#if isApplyingAnalysis}
+					{#if isApplyingResults}
 						<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>
 						Applying...
 					{:else}
 						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-						Apply to Form
+						Apply Results
 					{/if}
 				</button>
-				<button
-					type="button"
-					class="btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-					disabled={isConfirmingAiWrite || isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
-					onclick={() => {
-						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
-						if (id) confirmAiWrite(id);
-					}}
-				>
-					{#if isConfirmingAiWrite}
-						<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>
-						Writing...
-					{:else}
-						<i class="fa-solid fa-robot mr-2"></i>
-						Confirm & Write as AI
-					{/if}
-				</button>
-				{#if confirmWriteError}
-					<span class="text-red-600 text-xs">{confirmWriteError}</span>
+				{#if applyError}
+					<span class="text-red-600 text-xs">{applyError}</span>
 				{/if}
 				<div class="flex-1"></div>
 				<button
 					type="button"
-					class="btn preset-filled-surface-200-800"
-					disabled={isApplyingAnalysis || isConfirmingAiWrite}
+					class="btn preset-filled-surface-200-800
+						disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+					disabled={isApplyingResults}
 					onclick={closeModal}
 				>
 					Close
