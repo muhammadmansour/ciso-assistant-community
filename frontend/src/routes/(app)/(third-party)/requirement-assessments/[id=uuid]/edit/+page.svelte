@@ -1179,11 +1179,6 @@
 						{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
 						{@const questionEntries = Object.entries(reqQuestions)}
 						<div class="card bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden relative">
-							{#if aiAppliedFields.has('answers')}
-								<span class="absolute top-3 right-3 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
-									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-								</span>
-							{/if}
 							<button
 								type="button"
 								class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
@@ -1318,11 +1313,6 @@
 
 					<!-- Observation -->
 					<div class="relative bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-						{#if aiAppliedFields.has('observation')}
-							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
-								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-							</span>
-						{/if}
 						<MarkdownField {form} field="observation" label="Observation" />
 					</div>
 
@@ -1422,11 +1412,6 @@
 					<!-- STATUS -->
 					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						<div class="relative">
-							{#if aiAppliedFields.has('status')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
-									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-								</span>
-							{/if}
 							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
 								<i class="fa-regular fa-clock text-[#005FA3]"></i>
 								{m.status()}
@@ -1457,11 +1442,6 @@
 							</span>
 						{:else}
 							<div class="relative">
-								{#if aiAppliedFields.has('result')}
-									<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
-										<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-									</span>
-								{/if}
 								<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
 									<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
 									{m.result()}
