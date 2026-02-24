@@ -1316,7 +1316,7 @@
 					{/if}
 
 					<!-- Observation -->
-					<div class="relative">
+					<div class="relative bg-white rounded-xl border border-gray-100 shadow-sm p-5">
 						{#if aiAppliedFields.has('observation')}
 							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
 								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
