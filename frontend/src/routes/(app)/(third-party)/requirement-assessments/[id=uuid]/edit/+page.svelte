@@ -908,8 +908,8 @@
 						{#if !hideSuggestion}
 							{#if typical_evidence}
 								<div class="mb-3">
-									<p class="font-semibold text-xs uppercase tracking-wider text-teal-700 mb-1.5">
-										<i class="fa-solid fa-clipboard-list mr-1.5 text-teal-600"></i>
+									<p class="font-semibold text-xs uppercase tracking-wider text-[#1D53DA] mb-1.5">
+										<i class="fa-solid fa-clipboard-list mr-1.5 text-[#1D53DA]"></i>
 										{m.typicalEvidence()}
 									</p>
 									<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
