@@ -1035,10 +1035,10 @@
 					>
 						{#snippet list()}
 							{#if !page.data.user.is_third_party}
-								<Tabs.Control value="applied_controls">{m.appliedControls()}</Tabs.Control>
+								<Tabs.Control value="applied_controls" stateActive="border-b-[#1D53DA] opacity-100">{m.appliedControls()}</Tabs.Control>
 							{/if}
-							<Tabs.Control value="evidences">{m.evidences()}</Tabs.Control>
-							<Tabs.Control value="security_exceptions">{m.securityExceptions()}</Tabs.Control>
+							<Tabs.Control value="evidences" stateActive="border-b-[#1D53DA] opacity-100">{m.evidences()}</Tabs.Control>
+							<Tabs.Control value="security_exceptions" stateActive="border-b-[#1D53DA] opacity-100">{m.securityExceptions()}</Tabs.Control>
 						{/snippet}
 						{#snippet content()}
 							<Tabs.Panel value="applied_controls">

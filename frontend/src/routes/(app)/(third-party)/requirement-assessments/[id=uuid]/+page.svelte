@@ -275,9 +275,9 @@
 		>
 			{#snippet list()}
 				{#if !page.data.user.is_third_party}
-					<Tabs.Control value="applied_controls">{m.appliedControls()}</Tabs.Control>
+					<Tabs.Control value="applied_controls" stateActive="border-b-[#1D53DA] opacity-100">{m.appliedControls()}</Tabs.Control>
 				{/if}
-				<Tabs.Control value="evidence">{m.evidences()}</Tabs.Control>
+				<Tabs.Control value="evidence" stateActive="border-b-[#1D53DA] opacity-100">{m.evidences()}</Tabs.Control>
 			{/snippet}
 			{#snippet content()}
 				<Tabs.Panel value="applied_controls">
