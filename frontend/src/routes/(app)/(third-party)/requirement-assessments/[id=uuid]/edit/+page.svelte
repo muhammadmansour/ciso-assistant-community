@@ -291,29 +291,40 @@
 
 	// AI Progress Modal state
 	let showProgressModal = $state(false);
-	let analysisStep = $state(0); // 0=preparing, 1=uploading, 2=analyzing, 3=processing, 4=done
-	let analysisElapsed = $state(0);
+	let analysisStep = $state(0); // 0=scanning, 1=analyzing, 2=preparing, 3=done
+	let analysisPercent = $state(0);
+	let analysisComplete = $state(false);
 	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
+	let pendingAnalysisResult: any = $state(null);
 
 	const analysisSteps = [
-		{ icon: 'fa-folder-open', label: 'Preparing evidence files...' },
-		{ icon: 'fa-cloud-arrow-up', label: 'Uploading to AI engine...' },
-		{ icon: 'fa-brain', label: 'Analyzing requirements & evidence...' },
-		{ icon: 'fa-gears', label: 'Processing results...' },
-		{ icon: 'fa-circle-check', label: 'Analysis complete!' }
+		{ label: 'Scanning attached documents and evidence...' },
+		{ label: 'Analyzing compliance with AI...' },
+		{ label: 'Preparing results and recommendations...' }
 	];
 
 	function startProgressTimer() {
-		analysisElapsed = 0;
+		analysisPercent = 0;
 		analysisStep = 0;
+		analysisComplete = false;
+		pendingAnalysisResult = null;
 		showProgressModal = true;
 		analysisTimer = setInterval(() => {
-			analysisElapsed += 1;
-			// Simulate progress steps based on elapsed time
-			if (analysisElapsed >= 3 && analysisStep < 1) analysisStep = 1;
-			if (analysisElapsed >= 8 && analysisStep < 2) analysisStep = 2;
-			if (analysisElapsed >= 15 && analysisStep < 3) analysisStep = 3;
-		}, 1000);
+			// Smoothly increment percentage up to ~90% max before completion
+			if (analysisPercent < 30 && analysisStep === 0) {
+				analysisPercent += 2;
+			} else if (analysisPercent >= 30 && analysisStep < 1) {
+				analysisStep = 1;
+				analysisPercent += 1;
+			} else if (analysisPercent >= 60 && analysisStep < 2) {
+				analysisStep = 2;
+				analysisPercent += 0.5;
+			} else if (analysisPercent < 90) {
+				analysisPercent += 0.3;
+			}
+			// Cap at 90% until real completion
+			if (analysisPercent > 90 && !analysisComplete) analysisPercent = 90;
+		}, 500);
 	}
 
 	function stopProgressTimer(success: boolean) {
@@ -322,20 +333,21 @@
 			analysisTimer = null;
 		}
 		if (success) {
-			analysisStep = 4; // done
-			// Keep progress modal open briefly to show completion before switching to results
-			setTimeout(() => {
-				showProgressModal = false;
-			}, 800);
+			analysisStep = 3; // all steps done
+			analysisPercent = 100;
+			analysisComplete = true;
 		} else {
 			showProgressModal = false;
 		}
 	}
 
-	function formatElapsed(seconds: number): string {
-		const m = Math.floor(seconds / 60);
-		const s = seconds % 60;
-		return m > 0 ? `${m}m ${s}s` : `${s}s`;
+	function handleViewResults() {
+		showProgressModal = false;
+		if (pendingAnalysisResult) {
+			selectedAnalysis = pendingAnalysisResult;
+			showAnalysisModal = true;
+			pendingAnalysisResult = null;
+		}
 	}
 
 	// AI Apply state — tracks which fields were populated by "Apply Analysis Results"
@@ -600,21 +612,18 @@
 						question_answers: aiData.question_answers,
 					};
 
-					// Stop progress timer — show success briefly
-					stopProgressTimer(true);
+					// Store the result for "View Results" button
+					pendingAnalysisResult = {
+						...newEntry,
+						result: aiData.ai_analysis,
+						question_answers: aiData.question_answers,
+						created_at: aiData.ai_analysis_updated_at,
+						score: newEntry.score,
+						compliance_status: newEntry.compliance_status,
+					};
 
-					// Auto-open results modal with the fresh result (after brief delay for progress completion)
-					setTimeout(() => {
-						selectedAnalysis = {
-							...newEntry,
-							result: aiData.ai_analysis,
-							question_answers: aiData.question_answers,
-							created_at: aiData.ai_analysis_updated_at,
-							score: newEntry.score,
-							compliance_status: newEntry.compliance_status,
-						};
-						showAnalysisModal = true;
-					}, 900);
+					// Show completion state in progress modal
+					stopProgressTimer(true);
 
 					// Refresh server data (updates localAiAnalyses via $effect)
 					await invalidateAll();
@@ -1386,66 +1395,102 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		onkeydown={(e) => e.key === 'Escape' && !isAnalyzing && (showProgressModal = false)}
+		onkeydown={(e) => e.key === 'Escape' && analysisComplete && (showProgressModal = false)}
 	>
-		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+		<div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
 		<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 			<!-- Header -->
-			<div class="bg-gradient-to-r from-[#0A1628] to-[#1a2740] px-6 py-5">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-						<i class="fa-solid fa-wand-magic-sparkles text-white text-lg"></i>
+			<div class="px-6 pt-6 pb-2 flex items-start justify-between">
+				<div>
+					<h3 class="text-lg font-bold text-gray-900">AI Analysis</h3>
+					<p class="text-sm text-gray-500">{data.requirement?.ref_id} - {data.requirement?.name || data.requirementAssessment?.name || ''}</p>
+				</div>
+				{#if analysisComplete}
+					<button
+						type="button"
+						class="text-gray-400 hover:text-gray-600 transition-colors p-1"
+						onclick={() => { showProgressModal = false; }}
+					>
+						<i class="fa-solid fa-xmark text-lg"></i>
+					</button>
+				{/if}
+			</div>
+
+			<!-- Center icon -->
+			<div class="flex justify-center py-6">
+				{#if analysisComplete}
+					<div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+						<i class="fa-solid fa-circle-check text-green-500 text-3xl"></i>
 					</div>
-					<div>
-						<h3 class="text-white font-bold text-lg">AI Analysis in Progress</h3>
-						<p class="text-white/70 text-sm">Elapsed: {formatElapsed(analysisElapsed)}</p>
+				{:else}
+					<div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+						<svg class="w-8 h-8 text-blue-600 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z" opacity="0.3"/>
+							<path d="M12 5.5L13.6 9.5L18 9.87L14.67 12.76L15.77 17L12 14.67L8.23 17L9.33 12.76L6 9.87L10.4 9.5L12 5.5Z"/>
+						</svg>
 					</div>
+				{/if}
+			</div>
+
+			<!-- Progress bar -->
+			<div class="px-6 pb-4">
+				<div class="flex items-center justify-between mb-2">
+					<span class="text-sm font-medium text-gray-700">
+						{#if analysisComplete}
+							Analysis complete
+						{:else}
+							Analyzing...
+						{/if}
+					</span>
+					<span class="text-sm font-medium text-gray-500">{Math.round(analysisPercent)}%</span>
+				</div>
+				<div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+					<div
+						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-green-500' : 'bg-blue-500'}"
+						style="width: {analysisPercent}%"
+					></div>
 				</div>
 			</div>
 
-			<!-- Progress Steps -->
-			<div class="px-6 py-6 space-y-4">
+			<!-- Steps -->
+			<div class="px-6 pb-4 space-y-3">
 				{#each analysisSteps as step, idx}
-					{@const isActive = idx === analysisStep}
-					{@const isDone = idx < analysisStep}
-					{@const isPending = idx > analysisStep}
-					<div class="flex items-center gap-4 transition-all duration-300 {isPending ? 'opacity-40' : 'opacity-100'}">
-						<!-- Step icon -->
-						<div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300
-							{isDone ? 'bg-green-100 text-green-600' : isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}">
-							{#if isDone}
-								<i class="fa-solid fa-check text-sm"></i>
-							{:else if isActive}
-								<i class="fa-solid {step.icon} text-sm fa-pulse"></i>
-							{:else}
-								<i class="fa-solid {step.icon} text-sm"></i>
-							{/if}
-						</div>
-						<!-- Step label -->
-						<span class="text-sm transition-all duration-300
-							{isDone ? 'text-green-700 font-medium' : isActive ? 'text-blue-800 font-semibold' : 'text-gray-400'}">
+					{@const isDone = idx < analysisStep || analysisComplete}
+					{@const isActive = idx === analysisStep && !analysisComplete}
+					{@const isPending = idx > analysisStep && !analysisComplete}
+					<div class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
+						{isDone ? 'bg-green-50' : isActive ? 'bg-blue-50' : 'bg-transparent'}">
+						{#if isDone}
+							<i class="fa-solid fa-check text-green-500 text-sm"></i>
+						{:else if isActive}
+							<i class="fa-solid fa-spinner fa-spin text-blue-500 text-sm"></i>
+						{:else}
+							<i class="fa-regular fa-circle text-gray-300 text-sm"></i>
+						{/if}
+						<span class="text-sm {isDone ? 'text-green-700 font-medium' : isActive ? 'text-blue-700 font-medium' : 'text-gray-400'}">
 							{step.label}
 						</span>
 					</div>
 				{/each}
 			</div>
 
-			<!-- Progress bar -->
-			<div class="px-6 pb-6">
-				<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-					<div
-						class="h-full rounded-full transition-all duration-700 ease-out {analysisStep >= 4 ? 'bg-green-500' : 'bg-blue-500'}"
-						style="width: {Math.min(((analysisStep + 1) / analysisSteps.length) * 100, 100)}%"
-					></div>
+			<!-- Completion section -->
+			{#if analysisComplete}
+				<div class="px-6 pb-6 space-y-4">
+					<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
+						<p class="text-sm text-green-700 font-medium">Analysis completed successfully — results are ready for review</p>
+					</div>
+					<button
+						type="button"
+						class="w-full btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors"
+						onclick={handleViewResults}
+					>
+						View Results
+					</button>
 				</div>
-				<p class="text-xs text-gray-400 mt-2 text-center">
-					{#if analysisStep >= 4}
-						✓ Done — opening results...
-					{:else}
-						Step {analysisStep + 1} of {analysisSteps.length}
-					{/if}
-				</p>
-			</div>
+			{:else}
+				<div class="h-6"></div>
+			{/if}
 		</div>
 	</div>
 {/if}
