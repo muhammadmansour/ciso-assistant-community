@@ -178,7 +178,7 @@
 			<Anchor
 				breadcrumbAction="push"
 				href={detailURL}
-				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
+				class="unstyled cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
 				data-testid="tablerow-detail-button"><i class="fa-solid fa-eye"></i></Anchor
 			>
 		{/if}
@@ -188,7 +188,7 @@
 				label={m.graph()}
 				href={`/operating-modes/${row.meta.id}/graph/`}
 				stopPropagation
-				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
+				class="unstyled cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
 				data-testid="tablerow-edit-button"><i class="fa-solid fa-project-diagram"></i></Anchor
 			>
 		{/if}
@@ -198,7 +198,7 @@
 				label={m.edit()}
 				href={editURL}
 				stopPropagation
-				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
+				class="unstyled cursor-pointer text-gray-400 hover:text-gray-600 transition-colors"
 				data-testid="tablerow-edit-button"><i class="fa-solid fa-pen-to-square"></i></Anchor
 			>
 		{/if}
