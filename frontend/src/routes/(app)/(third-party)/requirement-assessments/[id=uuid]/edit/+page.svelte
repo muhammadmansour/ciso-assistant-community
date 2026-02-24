@@ -289,6 +289,9 @@
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
 
+	// AI Analysis Questions section state
+	let showAiQuestions = $state(true);
+
 	// AI Progress Modal state
 	let showProgressModal = $state(false);
 	let analysisStep = $state(0); // 0=scanning, 1=analyzing, 2=preparing, 3=done
@@ -458,6 +461,57 @@
 		if (data.aiAnalyses) {
 			localAiAnalyses = data.aiAnalyses;
 		}
+	});
+
+	// Derive AI analysis questions from latest completed analysis
+	let latestAnalysisQuestions = $derived.by(() => {
+		if (!localAiAnalyses || localAiAnalyses.length === 0) return [];
+
+		// Get the latest completed analysis
+		const latest = localAiAnalyses.find((a: any) => a.status === 'completed') || localAiAnalyses[0];
+		if (!latest) return [];
+
+		const qa = latest.question_answers || {};
+		const result = latest.result || {};
+
+		// Find question evaluation section in raw result for confidence scores
+		let questionSection: any[] = [];
+		if (result && typeof result === 'object') {
+			for (const key of Object.keys(result)) {
+				const lower = key.toLowerCase().replace(/_/g, '');
+				if (['questionevaluation', 'questionsanswers', 'questionanswers', 'questionsandanswers'].includes(lower)) {
+					const section = result[key];
+					if (Array.isArray(section)) questionSection = section;
+					break;
+				}
+			}
+		}
+
+		// Get question types from requirement definition
+		const reqQuestions = data.requirementAssessment?.requirement?.questions || {};
+		const questionUrns = Object.keys(reqQuestions);
+
+		const entries = Object.values(qa);
+		return entries.map((entry: any, idx: number) => {
+			// Get confidence from raw result item
+			const rawItem = questionSection[idx] || {};
+			const rawConf = rawItem.confidence;
+			const confidenceValue = rawConf !== undefined && rawConf !== null
+				? (Number(rawConf) <= 1 ? Math.round(Number(rawConf) * 100) : Math.round(Number(rawConf)))
+				: null;
+
+			// Get question type from requirement definition
+			const qUrn = questionUrns[idx];
+			const qDef = qUrn ? (reqQuestions as Record<string, any>)[qUrn] : null;
+			const qType = qDef?.type || 'unique_choice';
+
+			return {
+				question: entry.question,
+				answer: entry.answer,
+				type: qType,
+				confidence: confidenceValue,
+			};
+		});
 	});
 
 	// Metadata/scalar keys to exclude from report sections
@@ -1098,6 +1152,61 @@
 						{/if}
 					</div>
 				</div>
+
+				<!-- AI Analysis Questions (read-only from latest AI analysis) -->
+				{#if latestAnalysisQuestions.length > 0}
+					<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
+						<button
+							type="button"
+							class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+							onclick={() => (showAiQuestions = !showAiQuestions)}
+						>
+							<span class="flex items-center gap-2.5">
+								<i class="fa-solid fa-robot text-[#0A1628]"></i>
+								<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
+								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628]">
+									{latestAnalysisQuestions.length}
+								</span>
+							</span>
+							<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
+						</button>
+
+						{#if showAiQuestions}
+							<div class="px-5 pb-5 space-y-3">
+								{#each latestAnalysisQuestions as q, idx}
+									<div class="border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-4">
+										<!-- Question number & type -->
+										<div class="shrink-0 min-w-[60px]">
+											<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
+											<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
+												{q.type === 'unique_choice' ? 'Unique choice' : q.type === 'multiple_choice' ? 'Multiple choice' : q.type.replace(/_/g, ' ')}
+											</div>
+										</div>
+
+										<!-- Question text -->
+										<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
+											{q.question}
+										</div>
+
+										<!-- Answer & Confidence -->
+										<div class="flex items-center gap-4 shrink-0">
+											<span class="text-sm font-semibold
+												{q.answer === 'Yes' ? 'text-green-600' : q.answer === 'No' ? 'text-red-600' : 'text-amber-600'}">
+												{q.answer}
+											</span>
+											{#if q.confidence !== null && q.confidence !== undefined}
+												<span class="text-sm font-semibold
+													{q.confidence >= 80 ? 'text-green-600' : q.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
+													{q.confidence}%
+												</span>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
 						<div class="relative">
