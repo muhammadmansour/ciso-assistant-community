@@ -1260,28 +1260,8 @@
 						{/if}
 					</div>
 
-					<!-- Save / Cancel Buttons -->
-					<div class="flex flex-row justify-between space-x-4">
-						<button
-							class="btn bg-gray-400 text-white font-semibold w-full"
-							type="button"
-							onclick={cancel}>{m.cancel()}</button
-						>
-						<button
-							class="btn preset-filled-secondary-500 font-semibold w-full"
-							data-testid="save-no-continue-button"
-							type="submit"
-							onclick={() =>
-								form.form.update((data) => {
-									return { ...data, noRedirect: true };
-								})}>{m.saveAndContinue()}</button
-						>
-						<button
-							class="btn preset-filled-primary-500 font-semibold w-full"
-							data-testid="save-button"
-							type="submit">{m.save()}</button
-						>
-					</div>
+					<!-- Spacer for fixed bottom bar -->
+					<div class="h-20"></div>
 				</div>
 
 				<!-- ── RIGHT SIDEBAR ── -->
@@ -1476,7 +1456,39 @@
 					</div>
 				</div>
 			</div>
-		{/snippet}
+				<!-- Fixed Bottom Action Bar -->
+			<div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+				<div class="max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between">
+					<button
+						type="button"
+						class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+						onclick={cancel}
+					>
+						Cancel
+					</button>
+					<div class="flex items-center gap-3">
+						<button
+							class="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+							data-testid="save-no-continue-button"
+							type="submit"
+							onclick={() =>
+								form.form.update((data) => {
+									return { ...data, noRedirect: true };
+								})}
+						>
+							Save and Continue
+						</button>
+						<button
+							class="btn bg-blue-500 hover:bg-blue-600 text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm"
+							data-testid="save-button"
+							type="submit"
+						>
+							Save
+						</button>
+					</div>
+				</div>
+			</div>
+	{/snippet}
 	</SuperForm>
 </div>
 
