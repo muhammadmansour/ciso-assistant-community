@@ -505,18 +505,18 @@
 
 	function getStatusColor(status: string): string {
 		const s = (status || '').toLowerCase().replace(/[_\s-]+/g, '');
-		if (s === 'compliant') return 'text-green-700 bg-green-100';
-		if (s === 'partiallycompliant') return 'text-yellow-700 bg-yellow-100';
+		if (s === 'compliant') return 'text-emerald-700 bg-emerald-100';
+		if (s === 'partiallycompliant') return 'text-amber-700 bg-amber-100';
 		if (s === 'noncompliant') return 'text-red-700 bg-red-100';
 		if (s === 'notassessed') return 'text-gray-700 bg-gray-100';
-		if (s === 'notapplicable') return 'text-blue-700 bg-blue-100';
+		if (s === 'notapplicable') return 'text-gray-600 bg-gray-100';
 		return 'text-gray-700 bg-gray-100';
 	}
 
 	function getScoreColor(score: number | null): string {
 		if (score === null || score === undefined) return 'text-gray-500';
-		if (score >= 80) return 'text-green-600';
-		if (score >= 50) return 'text-yellow-600';
+		if (score >= 80) return 'text-emerald-600';
+		if (score >= 50) return 'text-amber-600';
 		return 'text-red-600';
 	}
 
@@ -851,22 +851,21 @@
 
 	<!-- AI Values Applied Banner -->
 	{#if aiApplyBannerVisible}
-		<div class="card p-4 bg-blue-50 border border-blue-200 rounded-lg mt-2">
+		<div class="card p-4 bg-[#0A1628]/5 border border-[#0A1628]/15 rounded-lg mt-2">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
-					<div class="p-2 bg-blue-100 rounded-lg">
-						<i class="fa-solid fa-wand-magic-sparkles text-blue-700"></i>
+					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
+						<i class="fa-solid fa-wand-magic-sparkles text-[#0A1628]"></i>
 					</div>
 					<div>
-						<p class="font-semibold text-blue-800">AI Analysis Results Applied</p>
-						<p class="text-blue-600 text-sm">
-							The following fields have been populated with AI-proposed values:
-							<strong>{[...aiAppliedFields].join(', ')}</strong>.
-							Review the values below and click <strong>Save</strong> to confirm.
+						<p class="font-semibold text-[#0A1628]">AI Results Applied</p>
+						<p class="text-gray-600 text-sm">
+							Fields updated: <strong>{[...aiAppliedFields].join(', ')}</strong>.
+							Review and click <strong>Save</strong> to confirm.
 						</p>
 					</div>
 				</div>
-				<button type="button" class="text-blue-400 hover:text-blue-600" onclick={dismissApplyBanner}>
+				<button type="button" class="text-gray-400 hover:text-gray-600" onclick={dismissApplyBanner}>
 					<i class="fa-solid fa-xmark"></i>
 				</button>
 			</div>
@@ -1034,101 +1033,66 @@
 			<div class="flex flex-col my-8 space-y-6">
 				<!-- AI Analysis Section -->
 				<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
-			<div class="p-6">
-					{#if aiAnalysisError}
-							<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-								<div class="flex items-center gap-2 mb-2">
+					<div class="p-5">
+						{#if aiAnalysisError}
+							<div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+								<div class="flex items-center gap-2 mb-1">
 									<i class="fa-solid fa-circle-exclamation text-red-600"></i>
-									<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
+									<h3 class="font-semibold text-red-800 text-sm">Analysis Failed</h3>
 								</div>
 								<p class="text-red-600 text-sm">{aiAnalysisError}</p>
 							</div>
 						{/if}
 
-						<div class="mb-4 flex items-center justify-between">
-							<h3 class="text-lg font-semibold text-gray-800">
-								<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
-								AI Analysis History
+						<div class="flex items-center justify-between mb-3">
+							<h3 class="text-sm font-semibold text-[#0A1628] flex items-center gap-2">
+								<i class="fa-solid fa-wand-magic-sparkles text-[#0A1628]"></i>
+								AI HISTORY
 							</h3>
-							<span class="text-sm text-gray-500">
-								{localAiAnalyses?.length || 0} analysis(es)
-							</span>
+							{#if localAiAnalyses?.length > 0}
+								<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+									{localAiAnalyses.length}
+								</span>
+							{/if}
 						</div>
 
 						{#if localAiAnalyses?.length > 0}
-							<div class="overflow-x-auto border border-gray-200 rounded-lg">
-								<table class="w-full text-sm">
-									<thead class="bg-gray-50 border-b border-gray-200">
-										<tr>
-											<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-											<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-											<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
-											<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
-											<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
-										</tr>
-									</thead>
-									<tbody class="divide-y divide-gray-100">
-										{#each localAiAnalyses as analysis}
-											<tr class="hover:bg-gray-50 transition-colors">
-												<td class="px-4 py-3 text-gray-700">
-													{formatDate(analysis.created_at)}
-												</td>
-												<td class="px-4 py-3">
-													<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
-														{#if analysis.status === 'completed'}
-															<i class="fa-solid fa-circle-check mr-1"></i>
-														{:else}
-															<i class="fa-solid fa-circle-xmark mr-1"></i>
-														{/if}
-														{analysis.status}
-													</span>
-												</td>
-												<td class="px-4 py-3 text-center text-gray-600">
-													{analysis.gemini_files_count}
-												</td>
-												<td class="px-4 py-3 text-center text-gray-600">
-													{analysis.requirements_count}
-												</td>
-												<td class="px-4 py-3 text-center">
-													<div class="flex items-center justify-center gap-1">
-														<button
-															type="button"
-															class="btn btn-sm preset-tonal-primary"
-															onclick={() => openAnalysisDetail(analysis)}
-															title="View full analysis"
-														>
-															<i class="fa-solid fa-eye mr-1"></i>
-															View
-														</button>
-														<button
-															type="button"
-															class="btn btn-sm preset-tonal-error"
-															title="Delete analysis"
-															disabled={deletingAnalysisId === analysis.id}
-															onclick={() => deleteAnalysis(analysis.id)}
-														>
-															{#if deletingAnalysisId === analysis.id}
-																<i class="fa-solid fa-spinner fa-spin"></i>
-															{:else}
-																<i class="fa-solid fa-trash"></i>
-															{/if}
-														</button>
-													</div>
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
+							<div class="space-y-1">
+								{#each localAiAnalyses as analysis}
+									<button
+										type="button"
+										class="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left group"
+										onclick={() => openAnalysisDetail(analysis)}
+									>
+										<span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 {analysis.status === 'completed' ? 'bg-emerald-500' : 'bg-red-400'}"></span>
+										<div class="flex-1 min-w-0">
+											<p class="text-sm font-medium text-gray-900">{formatDate(analysis.created_at)}</p>
+											<p class="text-xs text-gray-500">{analysis.gemini_files_count || 0} files analyzed</p>
+										</div>
+										<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+											<button
+												type="button"
+												class="p-1 text-gray-400 hover:text-red-500 transition-colors"
+												title="Delete analysis"
+												disabled={deletingAnalysisId === analysis.id}
+												onclick={(e) => { e.stopPropagation(); deleteAnalysis(analysis.id); }}
+											>
+												{#if deletingAnalysisId === analysis.id}
+													<i class="fa-solid fa-spinner fa-spin text-xs"></i>
+												{:else}
+													<i class="fa-solid fa-trash text-xs"></i>
+												{/if}
+											</button>
+										</div>
+									</button>
+								{/each}
 							</div>
 						{:else}
-							<div class="text-center py-8">
-								<div class="inline-block p-4 rounded-full bg-[#0A1628]/10 mb-3">
-									<i class="fa-solid fa-brain text-3xl text-[#0A1628]"></i>
+							<div class="text-center py-6">
+								<div class="inline-block p-3 rounded-full bg-[#0A1628]/5 mb-2">
+									<i class="fa-solid fa-wand-magic-sparkles text-xl text-[#0A1628]/40"></i>
 								</div>
-								<h3 class="text-lg font-semibold text-gray-800 mb-1">No AI Analyses Yet</h3>
-								<p class="text-gray-600 text-sm">
-									Click "Start AI Analysis" above to analyze all associated evidence files.
-								</p>
+								<p class="text-sm text-gray-500">No analyses yet</p>
 							</div>
 						{/if}
 					</div>
@@ -1137,7 +1101,7 @@
 				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
 						<div class="relative">
 							{#if aiAppliedFields.has('answers')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
 									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
 								</span>
 							{/if}
@@ -1150,11 +1114,11 @@
 						</div>
 					{/if}
 					<div class="relative">
-						{#if aiAppliedFields.has('status')}
-							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-							</span>
-						{/if}
+					{#if aiAppliedFields.has('status')}
+						<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+							<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+						</span>
+					{/if}
 						<Select
 							{form}
 							options={page.data.model.selectOptions['status']}
@@ -1177,11 +1141,11 @@
 						</p>
 					{:else}
 						<div class="relative">
-							{#if aiAppliedFields.has('result')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-								</span>
-							{/if}
+						{#if aiAppliedFields.has('result')}
+							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+							</span>
+						{/if}
 							<Select
 								{form}
 								options={page.data.model.selectOptions['result']}
@@ -1260,11 +1224,11 @@
 					{/if}
 
 				<div class="relative">
-					{#if aiAppliedFields.has('observation')}
-						<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-							<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-						</span>
-					{/if}
+				{#if aiAppliedFields.has('observation')}
+					<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+						<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+					</span>
+				{/if}
 					<MarkdownField {form} field="observation" label="Observation" />
 				</div>
 
@@ -1279,7 +1243,7 @@
 							<i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
 							Change History
 							{#if auditEntries.length > 0}
-								<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+								<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
 									{auditEntries.length}
 								</span>
 							{/if}
@@ -1315,7 +1279,7 @@
 														{#if entry.actor}
 															<span class="inline-flex items-center gap-1">
 																{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
-																	<i class="fa-solid fa-robot text-blue-500"></i>
+																	<i class="fa-solid fa-robot text-[#0A1628]"></i>
 																{:else}
 																	<i class="fa-solid fa-user text-gray-400"></i>
 																{/if}
@@ -1327,8 +1291,8 @@
 													</td>
 													<td class="px-3 py-2">
 														<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
-															{entry.action === 'create' ? 'bg-green-100 text-green-700' :
-															 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
+															{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
+															 entry.action === 'update' ? 'bg-[#0A1628]/10 text-[#0A1628]' :
 															 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
 															 'bg-gray-100 text-gray-700'}">
 															{entry.action}
@@ -1424,8 +1388,8 @@
 						<i class="fa-solid fa-circle-check text-green-500 text-3xl"></i>
 					</div>
 				{:else}
-					<div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
-						<svg class="w-8 h-8 text-blue-600 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+					<div class="w-14 h-14 rounded-full bg-[#0A1628]/10 flex items-center justify-center">
+						<svg class="w-8 h-8 text-[#0A1628] animate-pulse" viewBox="0 0 24 24" fill="currentColor">
 							<path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z" opacity="0.3"/>
 							<path d="M12 5.5L13.6 9.5L18 9.87L14.67 12.76L15.77 17L12 14.67L8.23 17L9.33 12.76L6 9.87L10.4 9.5L12 5.5Z"/>
 						</svg>
@@ -1447,7 +1411,7 @@
 				</div>
 				<div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
 					<div
-						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-green-500' : 'bg-blue-500'}"
+						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-emerald-500' : 'bg-[#0A1628]'}"
 						style="width: {analysisPercent}%"
 					></div>
 				</div>
@@ -1460,15 +1424,15 @@
 					{@const isActive = idx === analysisStep && !analysisComplete}
 					{@const isPending = idx > analysisStep && !analysisComplete}
 					<div class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
-						{isDone ? 'bg-green-50' : isActive ? 'bg-blue-50' : 'bg-transparent'}">
+						{isDone ? 'bg-emerald-50' : isActive ? 'bg-[#0A1628]/5' : 'bg-transparent'}">
 						{#if isDone}
-							<i class="fa-solid fa-check text-green-500 text-sm"></i>
+							<i class="fa-solid fa-check text-emerald-500 text-sm"></i>
 						{:else if isActive}
-							<i class="fa-solid fa-spinner fa-spin text-blue-500 text-sm"></i>
+							<i class="fa-solid fa-spinner fa-spin text-[#0A1628] text-sm"></i>
 						{:else}
 							<i class="fa-regular fa-circle text-gray-300 text-sm"></i>
 						{/if}
-						<span class="text-sm {isDone ? 'text-green-700 font-medium' : isActive ? 'text-blue-700 font-medium' : 'text-gray-400'}">
+						<span class="text-sm {isDone ? 'text-emerald-700 font-medium' : isActive ? 'text-[#0A1628] font-medium' : 'text-gray-400'}">
 							{step.label}
 						</span>
 					</div>
@@ -1478,12 +1442,12 @@
 			<!-- Completion section -->
 			{#if analysisComplete}
 				<div class="px-6 pb-6 space-y-4">
-					<div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-center">
-						<p class="text-sm text-green-700 font-medium">Analysis completed successfully — results are ready for review</p>
+					<div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
+						<p class="text-sm text-emerald-700 font-medium">Analysis completed successfully — results are ready for review</p>
 					</div>
 					<button
 						type="button"
-						class="w-full btn bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors"
+						class="w-full btn bg-[#0A1628] hover:bg-[#1a2740] text-white font-semibold py-3 rounded-xl transition-colors"
 						onclick={handleViewResults}
 					>
 						View Results
@@ -1645,8 +1609,8 @@
 						<div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
 							{#each appliedControls as ac}
 								<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-									<div class="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-										<i class="fa-solid fa-shield-halved text-indigo-600 text-sm"></i>
+									<div class="w-9 h-9 rounded-lg bg-[#0A1628]/10 flex items-center justify-center flex-shrink-0">
+										<i class="fa-solid fa-shield-halved text-[#0A1628] text-sm"></i>
 									</div>
 									<div class="flex-1 min-w-0">
 										<p class="font-medium text-gray-800 text-sm truncate">{ac.name}</p>
@@ -1724,7 +1688,7 @@
 							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 								<h4 class="font-semibold text-gray-700 capitalize">
 									{#if sectionKey.toLowerCase().includes('question')}
-										<i class="fa-solid fa-circle-question mr-2 text-indigo-600"></i>
+										<i class="fa-solid fa-circle-question mr-2 text-[#0A1628]"></i>
 									{:else if sectionKey.toLowerCase().includes('gap')}
 										<i class="fa-solid fa-triangle-exclamation mr-2 text-orange-500"></i>
 									{:else if sectionKey.toLowerCase().includes('recommendation')}
@@ -1734,13 +1698,13 @@
 									{:else if sectionKey.toLowerCase().includes('weakness')}
 										<i class="fa-solid fa-circle-xmark mr-2 text-red-500"></i>
 									{:else if sectionKey.toLowerCase().includes('finding')}
-										<i class="fa-solid fa-magnifying-glass mr-2 text-blue-500"></i>
+										<i class="fa-solid fa-magnifying-glass mr-2 text-[#0A1628]"></i>
 									{:else if sectionKey.toLowerCase().includes('evidence')}
-										<i class="fa-solid fa-file-lines mr-2 text-teal-500"></i>
+										<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>
 									{:else if sectionKey.toLowerCase().includes('assessment') || sectionKey.toLowerCase().includes('overall')}
 										<i class="fa-solid fa-gauge mr-2 text-[#0A1628]"></i>
 									{:else if sectionKey.toLowerCase().includes('control') || sectionKey.toLowerCase().includes('breakdown')}
-										<i class="fa-solid fa-shield-halved mr-2 text-violet-500"></i>
+										<i class="fa-solid fa-shield-halved mr-2 text-[#0A1628]"></i>
 									{:else}
 										<i class="fa-solid fa-list mr-2 text-gray-500"></i>
 									{/if}
@@ -1766,8 +1730,8 @@
 												{@const qEvidence = getField(item, 'evidence') || getField(item, 'evidenceFound') || getField(item, 'evidenceFile')}
 												{@const qConfidence = getField(item, 'confidence')}
 												<div class="border border-gray-200 rounded-lg overflow-hidden">
-													<div class="bg-indigo-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-														<span class="font-semibold text-indigo-800 text-sm">
+													<div class="bg-[#0A1628]/5 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+														<span class="font-semibold text-[#0A1628] text-sm">
 															<i class="fa-solid fa-circle-question mr-1"></i>
 															Q{qNum}
 														</span>
@@ -1792,7 +1756,7 @@
 																<div class="flex items-start gap-2">
 																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px]">Source:</span>
 																	<span class="text-gray-800">
-																		<i class="fa-solid fa-shield-halved text-indigo-400 mr-1"></i>
+																		<i class="fa-solid fa-shield-halved text-[#0A1628]/50 mr-1"></i>
 																		{typeof qSource === 'object' ? JSON.stringify(qSource) : qSource}
 																	</span>
 																</div>
@@ -1847,9 +1811,9 @@
 															<p class="text-gray-800 font-medium">{gGap}</p>
 														{/if}
 														{#if gRec}
-															<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
-																<span class="font-medium text-blue-700"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
-																<span class="text-blue-800">{gRec}</span>
+															<div class="bg-[#0A1628]/5 rounded-md p-3 border border-[#0A1628]/10">
+																<span class="font-medium text-[#0A1628]"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
+																<span class="text-gray-800">{gRec}</span>
 															</div>
 														{/if}
 													</div>
@@ -1918,14 +1882,14 @@
 
 					<!-- Note section -->
 					{#if noteText && typeof noteText === 'string'}
-						<div class="mb-6 border border-blue-200 rounded-lg overflow-hidden">
-							<div class="bg-blue-50 px-4 py-3 border-b border-blue-200">
-								<h4 class="font-semibold text-blue-800">
+						<div class="mb-6 border border-[#0A1628]/15 rounded-lg overflow-hidden">
+							<div class="bg-[#0A1628]/5 px-4 py-3 border-b border-[#0A1628]/10">
+								<h4 class="font-semibold text-[#0A1628]">
 									<i class="fa-solid fa-circle-info mr-2"></i>Note
 								</h4>
 							</div>
 							<div class="p-4">
-								<p class="text-blue-700 text-sm whitespace-pre-wrap">{noteText}</p>
+								<p class="text-gray-700 text-sm whitespace-pre-wrap">{noteText}</p>
 							</div>
 						</div>
 					{/if}
