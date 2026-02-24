@@ -12,7 +12,7 @@
 	import MarkdownField from '$lib/components/Forms/MarkdownField.svelte';
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
-	import { getSecureRedirect } from '$lib/utils/helpers';
+	import { getSecureRedirect, isQuestionVisible } from '$lib/utils/helpers';
 	import { ProgressRing, Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	import { complianceResultColorMap } from '$lib/utils/constants';
@@ -21,7 +21,6 @@
 	import { m } from '$paraglide/messages';
 	import { countMasked } from '$lib/utils/related-visibility';
 
-	import Question from '$lib/components/Forms/Question.svelte';
 	import List from '$lib/components/List/List.svelte';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import { zod } from 'sveltekit-superforms/adapters';
@@ -1088,9 +1087,16 @@
 					</Tabs>
 					</div>
 
-					<!-- AI Analysis Questions (read-only from latest AI analysis) -->
-					{#if latestAnalysisQuestions.length > 0}
-						<div class="card bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+					<!-- AI Analysis Questions (interactive) -->
+					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+						{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
+						{@const questionEntries = Object.entries(reqQuestions)}
+						<div class="card bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden relative">
+							{#if aiAppliedFields.has('answers')}
+								<span class="absolute top-3 right-3 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
+								</span>
+							{/if}
 							<button
 								type="button"
 								class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
@@ -1100,7 +1106,7 @@
 									<i class="fa-solid fa-robot text-[#0A1628]"></i>
 									<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
 									<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628]">
-										{latestAnalysisQuestions.length}
+										{questionEntries.length}
 									</span>
 								</span>
 								<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
@@ -1108,50 +1114,118 @@
 
 							{#if showAiQuestions}
 								<div class="px-5 pb-5 space-y-3">
-									{#each latestAnalysisQuestions as q, idx}
-										<div class="border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-4">
-											<div class="shrink-0 min-w-[60px]">
-												<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
-												<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
-													{q.type === 'unique_choice' ? 'Unique choice' : q.type === 'multiple_choice' ? 'Multiple choice' : q.type.replace(/_/g, ' ')}
+									{#each questionEntries as [urn, question], idx}
+										{@const aiQ = latestAnalysisQuestions[idx] || null}
+										{@const currentAnswer = data?.answers?.[urn]}
+										{#if isQuestionVisible(question, data?.answers || {})}
+											<div class="border border-gray-200 rounded-xl px-5 py-4">
+												<!-- Header row: Q number + question text + AI metadata -->
+												<div class="flex items-start gap-4 mb-3">
+													<div class="shrink-0 min-w-[60px]">
+														<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
+														<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
+															{question.type === 'unique_choice' ? 'Unique Choice' : question.type === 'multiple_choice' ? 'Multiple Choice' : question.type?.replace(/_/g, ' ') || ''}
+														</div>
+													</div>
+													<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
+														{question.text}
+													</div>
+													{#if aiQ}
+														<div class="flex items-center gap-3 shrink-0">
+															<span class="text-xs px-2 py-0.5 rounded-full font-semibold
+																{aiQ.answer === 'Yes' ? 'bg-green-100 text-green-700' : aiQ.answer === 'No' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
+																AI: {aiQ.answer}
+															</span>
+															{#if aiQ.confidence !== null && aiQ.confidence !== undefined}
+																<span class="text-xs font-semibold
+																	{aiQ.confidence >= 80 ? 'text-green-600' : aiQ.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
+																	{aiQ.confidence}%
+																</span>
+															{/if}
+														</div>
+													{/if}
 												</div>
-											</div>
-											<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
-												{q.question}
-											</div>
-											<div class="flex items-center gap-4 shrink-0">
-												<span class="text-sm font-semibold
-													{q.answer === 'Yes' ? 'text-green-600' : q.answer === 'No' ? 'text-red-600' : 'text-amber-600'}">
-													{q.answer}
-												</span>
-												{#if q.confidence !== null && q.confidence !== undefined}
-													<span class="text-sm font-semibold
-														{q.confidence >= 80 ? 'text-green-600' : q.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
-														{q.confidence}%
-													</span>
+
+												<!-- Interactive choice buttons -->
+												{#if question.type === 'unique_choice'}
+													<div class="flex flex-row flex-wrap gap-1.5">
+														{#each question.choices as option}
+															{@const selected = currentAnswer === option.urn}
+															<button
+																type="button"
+																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
+																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
+																style={selected ? `background-color: ${option.color || '#0A1628'}; border-color: ${option.color || '#0A1628'};` : ''}
+																onclick={() => {
+																	form.form.update((d) => {
+																		const newAnswers = { ...(d.answers || {}) };
+																		if (newAnswers[urn] === option.urn) {
+																			newAnswers[urn] = null;
+																		} else {
+																			newAnswers[urn] = option.urn;
+																		}
+																		return { ...d, answers: newAnswers };
+																	});
+																}}
+															>
+																{option.value}
+															</button>
+														{/each}
+													</div>
+												{:else if question.type === 'multiple_choice'}
+													<div class="flex flex-row flex-wrap gap-1.5">
+														{#each question.choices as option}
+															{@const selected = Array.isArray(currentAnswer) && currentAnswer.includes(option.urn)}
+															<button
+																type="button"
+																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
+																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
+																style={selected ? `background-color: ${option.color || '#0A1628'}; border-color: ${option.color || '#0A1628'};` : ''}
+																onclick={() => {
+																	form.form.update((d) => {
+																		const newAnswers = { ...(d.answers || {}) };
+																		if (!Array.isArray(newAnswers[urn])) newAnswers[urn] = [];
+																		if (newAnswers[urn].includes(option.urn)) {
+																			newAnswers[urn] = newAnswers[urn].filter((v) => v !== option.urn);
+																		} else {
+																			newAnswers[urn] = [...newAnswers[urn], option.urn];
+																		}
+																		return { ...d, answers: newAnswers };
+																	});
+																}}
+															>
+																{option.value}
+															</button>
+														{/each}
+													</div>
+												{:else if question.type === 'date'}
+													<input
+														type="date"
+														class="input w-fit"
+														value={currentAnswer || ''}
+														onchange={(e) => {
+															form.form.update((d) => {
+																return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
+															});
+														}}
+													/>
+												{:else if question.type === 'text'}
+													<textarea
+														placeholder=""
+														class="input w-full"
+														value={currentAnswer || ''}
+														onchange={(e) => {
+															form.form.update((d) => {
+																return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
+															});
+														}}
+													></textarea>
 												{/if}
 											</div>
-										</div>
+										{/if}
 									{/each}
 								</div>
 							{/if}
-						</div>
-					{/if}
-
-					<!-- Questions Form Field -->
-					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-						<div class="relative">
-							{#if aiAppliedFields.has('answers')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
-									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
-								</span>
-							{/if}
-							<Question
-								{form}
-								field="answers"
-								questions={page.data.requirementAssessment.requirement.questions}
-								label={m.questionSingular()}
-							/>
 						</div>
 					{/if}
 
