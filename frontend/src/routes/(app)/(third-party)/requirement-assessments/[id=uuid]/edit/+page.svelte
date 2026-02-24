@@ -583,6 +583,93 @@
 		return undefined;
 	}
 
+	// ── Change History helpers ──────────────────────────────────
+	const ALLOWED_CHANGE_FIELDS = new Set(['result', 'status', 'observation', 'answers']);
+
+	// Build lookup maps: questionUrn→Q1/Q2, choiceUrn→label
+	const questionUrnToLabel: Record<string, string> = {};
+	const choiceUrnToLabel: Record<string, string> = {};
+	$effect(() => {
+		const reqQ = page.data.requirementAssessment?.requirement?.questions;
+		if (reqQ && typeof reqQ === 'object') {
+			Object.entries(reqQ).forEach(([urn, q]: [string, any], idx: number) => {
+				questionUrnToLabel[urn] = `Q${idx + 1}`;
+				if (Array.isArray(q?.choices)) {
+					q.choices.forEach((c: any) => {
+						if (c.urn && c.value) choiceUrnToLabel[c.urn] = c.value;
+					});
+				}
+			});
+		}
+	});
+
+	function cleanFieldLabel(field: string): string {
+		if (field === 'result') return 'Result';
+		if (field === 'status') return 'Status';
+		if (field === 'observation') return 'Observation';
+		if (field === 'answers') return 'Answers';
+		return field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+	}
+
+	function cleanValue(field: string, val: any): string {
+		if (val === null || val === undefined || val === '' || val === 'None') return '—';
+
+		if (field === 'status' || field === 'result') {
+			return String(val).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+		}
+
+		if (field === 'observation') {
+			let text = String(val);
+			// Strip AI analysis headers like [AI Analysis — 2026-02-24 11:17]
+			text = text.replace(/\[AI\s+An(?:alysis|a)[^\]]*\]\s*/gi, '').trim();
+			// Truncate to reasonable length
+			if (text.length > 120) text = text.substring(0, 120) + '…';
+			return text || '—';
+		}
+
+		if (field === 'answers') {
+			let obj = val;
+			if (typeof obj === 'string') {
+				try { obj = JSON.parse(obj); } catch { return '—'; }
+			}
+			if (typeof obj !== 'object' || obj === null) return '—';
+			const parts: string[] = [];
+			for (const [qUrn, aVal] of Object.entries(obj)) {
+				const qLabel = questionUrnToLabel[qUrn] || qUrn.split(':').pop() || '?';
+				if (aVal === null || aVal === undefined) {
+					parts.push(`${qLabel}: —`);
+				} else if (typeof aVal === 'string') {
+					parts.push(`${qLabel}: ${choiceUrnToLabel[aVal] || aVal.split(':').pop() || aVal}`);
+				} else if (Array.isArray(aVal)) {
+					const labels = aVal.map((v: string) => choiceUrnToLabel[v] || v.split(':').pop() || v);
+					parts.push(`${qLabel}: ${labels.join(', ')}`);
+				} else {
+					parts.push(`${qLabel}: ${String(aVal)}`);
+				}
+			}
+			return parts.join(' · ') || '—';
+		}
+
+		const str = String(val);
+		if (str.length > 120) return str.substring(0, 120) + '…';
+		return str;
+	}
+
+	// Filter and process audit entries to only show relevant fields
+	let filteredAuditEntries = $derived.by(() => {
+		return (auditEntries || []).map((entry: any) => {
+			if (!entry.changes || typeof entry.changes !== 'object') return null;
+			const filtered: Record<string, any> = {};
+			for (const [field, change] of Object.entries(entry.changes)) {
+				if (ALLOWED_CHANGE_FIELDS.has(field)) {
+					filtered[field] = change;
+				}
+			}
+			if (Object.keys(filtered).length === 0) return null;
+			return { ...entry, changes: filtered };
+		}).filter(Boolean);
+	});
+
 	function openAnalysisDetail(analysis: any) {
 		selectedAnalysis = analysis;
 		showAnalysisModal = true;
@@ -1249,9 +1336,9 @@
 							<span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
 								<i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
 								Change History
-								{#if auditEntries.length > 0}
-									<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-										{auditEntries.length}
+								{#if filteredAuditEntries.length > 0}
+									<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+										{filteredAuditEntries.length}
 									</span>
 								{/if}
 							</span>
@@ -1259,75 +1346,67 @@
 						</button>
 						{#if showChangeHistory}
 							<div class="px-4 pb-4">
-								{#if auditEntries.length === 0}
+								{#if filteredAuditEntries.length === 0}
 									<div class="text-center py-6 text-gray-400">
 										<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
 										<p class="text-sm">No changes recorded yet.</p>
 									</div>
 								{:else}
-									<div class="overflow-x-auto mt-3">
-										<table class="w-full text-sm">
-											<thead class="bg-gray-50 border-b border-gray-200">
-												<tr>
-													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Timestamp</th>
-													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Actor</th>
-													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Action</th>
-													<th class="text-left px-3 py-2 font-semibold text-gray-600 text-xs">Changes</th>
-												</tr>
-											</thead>
-											<tbody class="divide-y divide-gray-100">
-												{#each auditEntries as entry}
-													<tr class="hover:bg-gray-50 transition-colors">
-														<td class="px-3 py-2 text-gray-700 whitespace-nowrap text-xs">
-															{new Date(entry.timestamp).toLocaleString()}
-														</td>
-														<td class="px-3 py-2 text-xs">
-															{#if entry.actor}
-																<span class="inline-flex items-center gap-1">
-																	{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
-																		<i class="fa-solid fa-robot text-[#0A1628]"></i>
-																	{:else}
-																		<i class="fa-solid fa-user text-gray-400"></i>
-																	{/if}
-																	<span class="text-gray-700">{entry.actor}</span>
-																</span>
+									<div class="mt-3 space-y-3">
+										{#each filteredAuditEntries as entry}
+											<div class="border border-gray-100 rounded-lg overflow-hidden">
+												<!-- Entry header -->
+												<div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+													<div class="flex items-center gap-2 text-xs text-gray-500">
+														{#if entry.actor}
+															{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
+																<i class="fa-solid fa-robot text-[#0A1628]"></i>
 															{:else}
-																<span class="text-gray-400 italic">System</span>
+																<i class="fa-solid fa-user text-gray-400"></i>
 															{/if}
-														</td>
-														<td class="px-3 py-2">
-															<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium
-																{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
-																 entry.action === 'update' ? 'bg-[#0A1628]/10 text-[#0A1628]' :
-																 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
-																 'bg-gray-100 text-gray-700'}">
-																{entry.action}
+															<span class="font-medium text-gray-700">{entry.actor}</span>
+														{:else}
+															<i class="fa-solid fa-gear text-gray-400"></i>
+															<span class="text-gray-400">System</span>
+														{/if}
+														<span class="text-gray-300">·</span>
+														<span>{new Date(entry.timestamp).toLocaleString()}</span>
+													</div>
+													<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide
+														{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
+														 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
+														 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
+														 'bg-gray-100 text-gray-600'}">
+														{entry.action}
+													</span>
+												</div>
+												<!-- Changed fields -->
+												<div class="divide-y divide-gray-50">
+													{#each Object.entries(entry.changes) as [field, change]}
+														<div class="px-4 py-2.5 flex items-start gap-3">
+															<span class="text-xs font-semibold text-gray-500 min-w-[80px] shrink-0 pt-0.5">
+																{cleanFieldLabel(field)}
 															</span>
-														</td>
-														<td class="px-3 py-2">
-															{#if entry.changes && typeof entry.changes === 'object'}
-																<div class="space-y-1">
-																	{#each Object.entries(entry.changes) as [field, change]}
-																		<div class="text-xs">
-																			<span class="font-medium text-gray-600">{field}:</span>
-																			{#if Array.isArray(change) && change.length >= 2}
-																				<span class="text-red-500 line-through mr-1">{typeof change[0] === 'object' ? JSON.stringify(change[0]) : String(change[0]).substring(0, 80)}{String(change[0]).length > 80 ? '...' : ''}</span>
-																				<i class="fa-solid fa-arrow-right text-gray-400 text-[8px] mx-1"></i>
-																				<span class="text-green-600">{typeof change[1] === 'object' ? JSON.stringify(change[1]) : String(change[1]).substring(0, 80)}{String(change[1]).length > 80 ? '...' : ''}</span>
-																			{:else}
-																				<span class="text-gray-500">{JSON.stringify(change)}</span>
-																			{/if}
-																		</div>
-																	{/each}
-																</div>
-															{:else}
-																<span class="text-gray-400 italic">No details</span>
-															{/if}
-														</td>
-													</tr>
-												{/each}
-											</tbody>
-										</table>
+															<div class="flex-1 text-xs">
+																{#if Array.isArray(change) && change.length >= 2}
+																	<div class="flex items-center gap-2 flex-wrap">
+																		<span class="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-600 line-through">
+																			{cleanValue(field, change[0])}
+																		</span>
+																		<i class="fa-solid fa-arrow-right text-gray-300 text-[8px]"></i>
+																		<span class="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
+																			{cleanValue(field, change[1])}
+																		</span>
+																	</div>
+																{:else}
+																	<span class="text-gray-600">{cleanValue(field, change)}</span>
+																{/if}
+															</div>
+														</div>
+													{/each}
+												</div>
+											</div>
+										{/each}
 									</div>
 								{/if}
 							</div>
