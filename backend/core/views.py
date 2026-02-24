@@ -9917,6 +9917,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         "get_ai_analysis": "view_requirementassessment",
         "delete_ai_analysis": "change_requirementassessment",
         "apply_ai_analysis": "change_requirementassessment",
+        "confirm_ai_write": "change_requirementassessment",
         "audit_log": "view_requirementassessment",
     }
 
