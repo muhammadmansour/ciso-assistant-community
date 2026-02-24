@@ -719,7 +719,7 @@
 	</div>
 {/if}
 <!-- ═══ HEADER ═══ -->
-<div class="flex items-start justify-between mb-6">
+<div class="flex items-start justify-between mb-6 bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-5">
 	<div class="flex items-start gap-3">
 		<a
 			class="mt-1.5 text-gray-400 hover:text-[#005FA3] transition-colors"
