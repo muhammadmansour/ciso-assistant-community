@@ -149,7 +149,7 @@
 </script>
 
 <!-- App Shell -->
-<div class="overflow-x-hidden min-h-screen bg-[#f0f2f5]">
+<div class="overflow-x-hidden min-h-screen bg-[#F9FAFB]">
 	<SideBar bind:open={sidebarOpen} {sideBarVisibleItems} />
 	
 	<!-- Top Header Bar -->
