@@ -457,6 +457,43 @@
 		}
 		return false;
 	});
+
+	// Helper: count assessable requirements in a tree node
+	function countTreeReqs(node: any): number {
+		let count = 0;
+		if (node.assessable) count++;
+		if (node.children) {
+			for (const child of Object.values(node.children)) {
+				count += countTreeReqs(child as any);
+			}
+		}
+		return count;
+	}
+
+	// Compute tree categories for domains coverage
+	let treeCategories = $derived(
+		Object.entries(tree).map(([id, node]: [string, any], index: number) => {
+			const reqCount = countTreeReqs(node);
+			return {
+				id,
+				name: node.name || node.ref_id || `Category ${index + 1}`,
+				reqCount,
+				index: index + 1
+			};
+		})
+	);
+
+	let totalTreeRequirements = $derived(
+		treeCategories.reduce((sum: number, cat: any) => sum + cat.reqCount, 0)
+	);
+
+	// Map status donut values to progress breakdown items
+	const progressStatusMap: Record<string, { label: string; dotColor: string }> = {
+		done: { label: 'Done', dotColor: 'bg-emerald-500' },
+		in_progress: { label: 'In Progress', dotColor: 'bg-sky-500' },
+		in_review: { label: 'Needs Review', dotColor: 'bg-amber-500' },
+		to_do: { label: 'Not Started', dotColor: 'bg-gray-300' }
+	};
 </script>
 
 <div class="space-y-4">
@@ -471,107 +508,174 @@
 	{/if}
 
 	<!-- Assessment title -->
-	<h1 class="text-xl font-semibold text-[#0A1628]">{data.compliance_assessment.name}</h1>
+	<h1 class="text-xl font-semibold text-[#0077CC]">{data.compliance_assessment.name}</h1>
 
 	<!-- Two-column layout -->
 	<div class="flex gap-6">
 		<!-- Left column: Details + Charts + Requirements -->
 		<div class="flex-1 space-y-6 min-w-0">
 			<!-- Details card -->
-			<div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-				<div class="grid grid-cols-2 gap-x-8 gap-y-4">
-					{#each Object.entries(data.compliance_assessment).filter(([key, value]) => {
-						const fieldsToShow = ['ref_id', 'name', 'description', 'version', 'perimeter', 'framework', 'authors', 'reviewers', 'status', 'selected_implementation_groups', 'assets', 'evidences', 'campaign'];
-						if (!fieldsToShow.includes(key)) return false;
-						if (key === 'selected_implementation_groups' && (!data.compliance_assessment.framework.implementation_groups_definition || !Array.isArray(data.compliance_assessment.framework.implementation_groups_definition) || data.compliance_assessment.framework.implementation_groups_definition.length === 0)) return false;
-						return true;
-					}) as [key, value]}
+			<div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+				<div class="grid grid-cols-2 divide-x divide-gray-100">
+					<!-- Left column -->
+					<div class="p-5 space-y-4">
+						<!-- Framework -->
 						<div>
-							<h3
-								class="text-sm font-medium text-gray-500 mb-1 capitalize-first"
-								data-testid={key.replaceAll('_', '-') + '-field-title'}
-							>
-								{safeTranslate(key)}:
-							</h3>
-							<div
-								class="text-sm text-gray-900"
-								data-testid={key.replaceAll('_', '-') + '-field-value'}
-							>
-								{#if value}
-									{#if Array.isArray(value)}
-										{@const hiddenCount = countMasked(value)}
-										{@const visibleValues = value.filter((item) => !isMaskedPlaceholder(item))}
-										{#if visibleValues.length > 0}
-											{#each visibleValues as val}
-												{#if val.str && val.id}
-													{@const itemHref = `/${
-														URL_MODEL_MAP[data.URLModel]['foreignKeyFields']?.find(
-															(item) => item.field === key
-														)?.urlModel
-													}/${val.id}`}
-													{#if !page.data.user.is_third_party}
-														<Anchor href={itemHref} class="text-[#0077CC] hover:underline">{val.str}</Anchor>
-													{:else}
-														<span>{val.str}</span>
-													{/if}
-												{:else if val.str}
-													<span>{val.str}</span>
-												{:else}
-													<span>{safeTranslate(val)}</span>
-												{/if}
-												{#if visibleValues.indexOf(val) < visibleValues.length - 1}
-													<span>, </span>
-												{/if}
-											{/each}
-											{#if hiddenCount > 0}
-												<p class="mt-1 text-xs text-yellow-700">{objectsNotVisibleLabel(hiddenCount)}</p>
-											{/if}
-										{:else if hiddenCount > 0}
-											<p class="text-xs text-yellow-700">{objectsNotVisibleLabel(hiddenCount)}</p>
-										{:else}
-											<span class="text-gray-400">-</span>
-										{/if}
-									{:else if value.str && value.id}
-										{@const itemHref = `/${
-											URL_MODEL_MAP['compliance-assessments']['foreignKeyFields']?.find(
-												(item) => item.field === key
-											)?.urlModel
-										}/${value.id}`}
-										{#if !page.data.user.is_third_party}
-											<Anchor href={itemHref} class="text-[#0077CC] hover:underline">{value.str}</Anchor>
-										{:else}
-											<span>{value.str}</span>
-										{/if}
-									{:else if isMaskedPlaceholder(value)}
-										<p class="text-xs text-yellow-700">{objectsNotVisibleLabel(1)}</p>
-									{:else if key === 'description'}
-										<MarkdownRenderer content={value} />
-									{:else if key === 'status'}
-										{@const statusLabel = safeTranslate(value.str ?? value)}
-										<span class="inline-block px-2.5 py-1 rounded-md text-xs font-medium {
-											value === 'active' || value.str === 'Active' ? 'bg-green-100 text-green-800' :
-											value === 'in_progress' || value.str === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-											value === 'done' || value.str === 'Completed' || value.str === 'Done' ? 'bg-sky-100 text-sky-800' :
-											'bg-gray-100 text-gray-800'
-										}">
-											{statusLabel}
-										</span>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-solid fa-shield-halved text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide" data-testid="framework-field-title">{m.framework()}</span>
+							</div>
+							<p class="text-sm font-medium text-gray-900" data-testid="framework-field-value">
+								{#if data.compliance_assessment.framework?.str && data.compliance_assessment.framework?.id}
+									{#if !page.data.user.is_third_party}
+										<Anchor href="/frameworks/{data.compliance_assessment.framework.id}" class="text-[#0077CC] hover:underline">{data.compliance_assessment.framework.str}</Anchor>
 									{:else}
-										{safeTranslate(value.str ?? value)}
+										{data.compliance_assessment.framework.str}
 									{/if}
 								{:else}
 									<span class="text-gray-400">-</span>
 								{/if}
-							</div>
+							</p>
 						</div>
-					{/each}
-					<div>
-						<h3 class="text-sm font-medium text-gray-500 mb-1">{m.createdAt()}:</h3>
-						<p class="text-sm text-gray-900">{formatDateOrDateTime(data.compliance_assessment.created_at, getLocale())}</p>
+						<!-- Location / Perimeter -->
+						<div>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-solid fa-location-dot text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide" data-testid="perimeter-field-title">{m.perimeter()}</span>
+							</div>
+							<p class="text-sm text-gray-900" data-testid="perimeter-field-value">
+								{#if data.compliance_assessment.perimeter?.str && data.compliance_assessment.perimeter?.id}
+									{#if !page.data.user.is_third_party}
+										<Anchor href="/perimeters/{data.compliance_assessment.perimeter.id}" class="text-[#0077CC] hover:underline">{data.compliance_assessment.perimeter.str}</Anchor>
+									{:else}
+										{data.compliance_assessment.perimeter.str}
+									{/if}
+								{:else if data.compliance_assessment.perimeter?.str}
+									{data.compliance_assessment.perimeter.str}
+								{:else}
+									<span class="text-gray-400">-</span>
+								{/if}
+							</p>
+						</div>
+						<!-- Created -->
+						<div>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-solid fa-clock text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.createdAt()}</span>
+							</div>
+							<p class="text-sm text-gray-900">{formatDateOrDateTime(data.compliance_assessment.created_at, getLocale())}</p>
+						</div>
+					</div>
+
+					<!-- Right column -->
+					<div class="p-5 space-y-4">
+						<!-- Controls -->
+						<div>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-solid fa-bullseye text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.appliedControls()}</span>
+							</div>
+							<p class="text-sm text-gray-900" data-testid="controls-field-value">
+								{#if data.compliance_assessment.framework?.reference_controls?.length > 0}
+									{data.compliance_assessment.framework.reference_controls.length} {m.appliedControls().toLowerCase()}
+								{:else}
+									<span class="text-gray-400">-</span>
+								{/if}
+							</p>
+						</div>
+						<!-- Risk Assessment -->
+						<div>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-solid fa-shield-halved text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.riskAssessment()}</span>
+							</div>
+							<span class="inline-flex items-center gap-1.5 text-sm text-emerald-700">
+								<i class="fa-solid fa-circle-check text-[13px]"></i> {m.enabled()}
+							</span>
+						</div>
+						<!-- Status -->
+						<div>
+							<div class="flex items-center gap-2 mb-1.5">
+								<i class="fa-regular fa-circle text-[13px] text-gray-400"></i>
+								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.status()}</span>
+							</div>
+							{@const statusValue = data.compliance_assessment.status}
+							{@const statusLabel = safeTranslate(statusValue?.str ?? statusValue)}
+							<span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {
+								statusValue === 'active' || statusValue?.str === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+								statusValue === 'in_progress' || statusValue?.str === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+								statusValue === 'done' || statusValue?.str === 'Completed' || statusValue?.str === 'Done' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+								'bg-gray-50 text-gray-600 border border-gray-200'
+							}" data-testid="status-field-value">
+								{statusLabel}
+							</span>
+						</div>
 					</div>
 				</div>
+
+				<!-- Description -->
+				{#if data.compliance_assessment.description}
+					<div class="px-5 pb-5 pt-2 border-t border-gray-100">
+						<p class="text-sm text-gray-600 leading-relaxed">
+							<MarkdownRenderer content={data.compliance_assessment.description} />
+						</p>
+					</div>
+				{/if}
+
+				<!-- Additional fields -->
+				{#if data.compliance_assessment.authors?.length > 0 || data.compliance_assessment.reviewers?.length > 0 || data.compliance_assessment.version}
+					<div class="px-5 pb-5 pt-2 border-t border-gray-100">
+						<div class="grid grid-cols-2 gap-x-8 gap-y-3">
+							{#if data.compliance_assessment.version}
+								<div>
+									<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{safeTranslate('version')}</span>
+									<p class="text-sm text-gray-900 mt-1">{data.compliance_assessment.version}</p>
+								</div>
+							{/if}
+							{#if data.compliance_assessment.authors?.length > 0}
+								<div>
+									<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{safeTranslate('authors')}</span>
+									<p class="text-sm text-gray-900 mt-1">
+										{#each data.compliance_assessment.authors.filter((a) => !isMaskedPlaceholder(a)) as author, i}
+											{#if author.str && author.id}
+												{#if !page.data.user.is_third_party}
+													<Anchor href="/users/{author.id}" class="text-[#0077CC] hover:underline">{author.str}</Anchor>
+												{:else}
+													{author.str}
+												{/if}
+											{:else}
+												{author.str || author}
+											{/if}
+											{#if i < data.compliance_assessment.authors.filter((a) => !isMaskedPlaceholder(a)).length - 1}, {/if}
+										{/each}
+									</p>
+								</div>
+							{/if}
+							{#if data.compliance_assessment.reviewers?.length > 0}
+								<div>
+									<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{safeTranslate('reviewers')}</span>
+									<p class="text-sm text-gray-900 mt-1">
+										{#each data.compliance_assessment.reviewers.filter((r) => !isMaskedPlaceholder(r)) as reviewer, i}
+											{#if reviewer.str && reviewer.id}
+												{#if !page.data.user.is_third_party}
+													<Anchor href="/users/{reviewer.id}" class="text-[#0077CC] hover:underline">{reviewer.str}</Anchor>
+												{:else}
+													{reviewer.str}
+												{/if}
+											{:else}
+												{reviewer.str || reviewer}
+											{/if}
+											{#if i < data.compliance_assessment.reviewers.filter((r) => !isMaskedPlaceholder(r)).length - 1}, {/if}
+										{/each}
+									</p>
+								</div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+
 				{#if page.data?.featureflags?.validation_flows}
-					<div class="mt-4 pt-4 border-t border-gray-100">
+					<div class="px-5 pb-5 pt-2 border-t border-gray-100">
 						{#key compliance_assessment.validation_flows}
 							<ValidationFlowsSection validationFlows={compliance_assessment.validation_flows} />
 						{/key}
@@ -581,7 +685,7 @@
 
 			<!-- Charts row -->
 			{#key compliance_assessment_donut_values}
-				<div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+				<div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
 					<div class="flex items-start gap-6">
 						{#if data.global_score.score >= 0}
 							<div class="flex flex-col justify-center items-center">
@@ -649,16 +753,37 @@
 			{/key}
 
 			<!-- Associated Requirements -->
-			<div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-				<div class="p-6 border-b border-gray-200 flex items-center justify-between">
+			<div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+				<div class="p-5 border-b border-gray-200 flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<h2 class="text-lg font-semibold text-gray-900">{m.associatedRequirements()}</h2>
-						<span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-sm font-medium">
+						<h2 class="text-base font-semibold text-gray-900">{m.associatedRequirements()}</h2>
+						<span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-medium">
 							{#if treeViewNodes}
 								{assessableNodesCount(treeViewNodes)}
 							{/if}
 						</span>
 					</div>
+					<div class="flex items-center gap-3">
+						<button
+							class="text-sm text-[#0077CC] hover:text-[#005FA3] font-medium transition-colors"
+							onclick={() => {
+								if (expandedNodes.length > 0) {
+									expandedNodes = [];
+								} else if (treeViewNodes) {
+									const getAllIds = (nodes) => {
+										let ids = [];
+										for (const n of nodes) {
+											ids.push(n.id);
+											if (n.children) ids = [...ids, ...getAllIds(n.children)];
+										}
+										return ids;
+									};
+									expandedNodes = getAllIds(treeViewNodes);
+								}
+							}}
+						>
+							{expandedNodes.length > 0 ? m.collapseAll() : m.expandAll()}
+						</button>
 					<Popover
 						open={filterPopupOpen}
 						onOpenChange={(e) => (filterPopupOpen = e.open)}
@@ -764,11 +889,12 @@
 									</Switch>
 								</div>
 							</div>
-						{/snippet}
-					</Popover>
+					{/snippet}
+				</Popover>
 				</div>
+			</div>
 
-				<div class="px-6 py-2">
+			<div class="px-5 py-2">
 					<div class="flex items-center text-xs text-gray-400 gap-2 py-2">
 						<i class="fa-solid fa-diagram-project"></i>
 						<p>{m.mappingInferenceTip()}</p>
@@ -787,74 +913,85 @@
 		</div>
 
 		<!-- Right sidebar: Actions + Progress -->
-		<div class="w-72 flex-shrink-0 space-y-3">
-			<!-- Primary actions -->
-			{#if canEditObject}
-				<Anchor
-					breadcrumbAction="push"
-					href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
-					class="unstyled w-full px-4 py-3 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-					data-testid="edit-button"
-				>
-					<i class="fa-solid fa-pen-to-square w-4 h-4"></i>
-					<span>{m.edit()}</span>
-				</Anchor>
-			{/if}
+		<div class="w-72 flex-shrink-0 space-y-4">
+			<!-- Primary action buttons (wathba-style) -->
+			<div class="space-y-2">
+				{#if canEditObject && !data.compliance_assessment.is_locked && page.data?.featureflags?.validation_flows}
+					<button
+						class="w-full px-4 py-3 bg-[#0077CC] text-white rounded-lg hover:bg-[#005FA3] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+						onclick={() => modalRequestValidation()}
+						data-testid="submit-assessment-button"
+					>
+						<i class="fa-solid fa-paper-plane w-4 h-4"></i>
+						{m.requestValidation()}
+					</button>
+				{:else if canEditObject}
+					<Anchor
+						breadcrumbAction="push"
+						href={`${page.url.pathname}/edit?next=${page.url.pathname}`}
+						class="unstyled w-full px-4 py-3 bg-[#0077CC] text-white rounded-lg hover:bg-[#005FA3] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+						data-testid="edit-button"
+					>
+						<i class="fa-solid fa-pen-to-square w-4 h-4"></i>
+						<span>{m.edit()}</span>
+					</Anchor>
+				{/if}
 
-			<Popover
-				open={exportPopupOpen}
-				onOpenChange={(e) => (exportPopupOpen = e.open)}
-				positioning={{ placement: 'bottom' }}
-				triggerBase="w-full px-4 py-3 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium cursor-pointer"
-				contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-lg rounded-xl border border-gray-200"
-				zIndex="1000"
-			>
-				{#snippet trigger()}
-					<span data-testid="export-button" class="flex items-center gap-2">
-						<i class="fa-solid fa-download w-4 h-4"></i>
-						<span>{m.exportButton()}</span>
-					</span>
-				{/snippet}
-				{#snippet content()}
-					<div>
-						<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.complianceAssessment()}</p>
-						{#if !page.data.user.is_third_party}
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/export/word" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asWord()}</a>
-						{/if}
-						<a href="/compliance-assessments/{data.compliance_assessment.id}/export" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asZIP()}</a>
-						{#if !page.data.user.is_third_party}
-							<div class="border-t border-gray-100 my-1"></div>
-							<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.actionPlan()}</p>
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/pdf" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asPDF()}</a>
-						{/if}
-					</div>
-				{/snippet}
-			</Popover>
-
-			{#if !page.data.user.is_third_party}
-				<Anchor
-					href={`${page.url.pathname}/action-plan`}
-					breadcrumbAction="push"
-					class="unstyled w-full px-4 py-3 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-					data-testid="action-plan-button"
+				<Popover
+					open={exportPopupOpen}
+					onOpenChange={(e) => (exportPopupOpen = e.open)}
+					positioning={{ placement: 'bottom' }}
+					triggerBase="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
+					contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-lg rounded-xl border border-gray-200"
+					zIndex="1000"
 				>
-					<i class="fa-solid fa-heart-pulse w-4 h-4"></i>
-					<span>{m.actionPlan()}</span>
-				</Anchor>
+					{#snippet trigger()}
+						<span data-testid="export-button" class="flex items-center gap-2">
+							<i class="fa-solid fa-download w-4 h-4"></i>
+							<span>{m.exportButton()}</span>
+						</span>
+					{/snippet}
+					{#snippet content()}
+						<div>
+							<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.complianceAssessment()}</p>
+							{#if !page.data.user.is_third_party}
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/word" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asWord()}</a>
+							{/if}
+							<a href="/compliance-assessments/{data.compliance_assessment.id}/export" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asZIP()}</a>
+							{#if !page.data.user.is_third_party}
+								<div class="border-t border-gray-100 my-1"></div>
+								<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.actionPlan()}</p>
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
+								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/pdf" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asPDF()}</a>
+							{/if}
+						</div>
+					{/snippet}
+				</Popover>
 
-				<Anchor
-					href={`${page.url.pathname}/evidences-list`}
-					breadcrumbAction="push"
-					class="unstyled w-full px-4 py-3 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-				>
-					<i class="fa-solid fa-file-lines w-4 h-4"></i>
-					<span>{m.evidences()}</span>
-				</Anchor>
-			{/if}
+				{#if !page.data.user.is_third_party}
+					<Anchor
+						href={`${page.url.pathname}/evidences-list`}
+						breadcrumbAction="push"
+						class="unstyled w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm"
+					>
+						<i class="fa-solid fa-paperclip w-4 h-4"></i>
+						<span>{m.evidences()}</span>
+					</Anchor>
+
+					<Anchor
+						href={`${page.url.pathname}/action-plan`}
+						breadcrumbAction="push"
+						class="unstyled w-full px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm"
+						data-testid="action-plan-button"
+					>
+						<i class="fa-solid fa-box-archive w-4 h-4"></i>
+						<span>{m.actionPlan()}</span>
+					</Anchor>
+				{/if}
+			</div>
 
 			<!-- Power-ups section -->
 			<div class="pt-2 space-y-2">
@@ -898,18 +1035,7 @@
 						<i class="fa-solid fa-code-compare w-4"></i>
 						{m.compareToAudit()}
 					</button>
-					{#if page.data?.featureflags?.validation_flows}
-						<button
-							class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-							onclick={() => modalRequestValidation()}
-							data-testid="request-validation-button"
-						>
-							<i class="fa-solid fa-check-circle w-4"></i>
-							{m.requestValidation()}
-						</button>
-					{/if}
 				{/if}
-
 
 				{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && data.compliance_assessment.framework.reference_controls.length > 0 && !data.compliance_assessment.is_locked}
 					<button
@@ -925,7 +1051,7 @@
 						{#if createAppliedControlsLoading}
 							<ProgressRing
 								strokeWidth="16px"
-								meterStroke="stroke-[#0A1628]"
+								meterStroke="stroke-[#0077CC]"
 								size="size-5"
 							/>
 						{:else}
@@ -949,30 +1075,75 @@
 
 			<!-- Progress card -->
 			{#key compliance_assessment_donut_values}
-				{#if data.global_score.score >= 0}
-					<div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-						<h3 class="text-sm font-semibold text-gray-900 mb-4">Progress</h3>
-						<div class="flex items-center justify-center">
-							<div class="relative">
-								<ProgressRing
-									strokeWidth="14px"
-									meterStroke={displayScoreColor(
-										data.global_score.score,
-										data.global_score.max_score
-									)}
-									value={(data.global_score.score * 100) / data.global_score.max_score}
-									size="size-32"
-								>
-									<div class="flex flex-col items-center">
-										<span class="text-xl font-bold text-gray-900">{Math.round((data.global_score.score * 100) / data.global_score.max_score)}%</span>
-										<span class="text-xs text-gray-500">completed</span>
-									</div>
-								</ProgressRing>
+				<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+					<h3 class="text-sm font-semibold text-gray-900 mb-4">{m.progress()}</h3>
+					{#if data.global_score.score >= 0}
+						<div class="flex items-center justify-center mb-4">
+							<div class="relative w-28 h-28">
+								<svg class="transform -rotate-90" viewBox="0 0 120 120">
+									<circle cx="60" cy="60" r="45" fill="none" stroke="#E5E7EB" stroke-width="12" />
+									<circle
+										cx="60"
+										cy="60"
+										r="45"
+										fill="none"
+										stroke="#0891b2"
+										stroke-width="12"
+										stroke-linecap="round"
+										stroke-dasharray={2 * Math.PI * 45}
+										stroke-dashoffset={2 * Math.PI * 45 - ((data.global_score.score * 100 / data.global_score.max_score) / 100) * 2 * Math.PI * 45}
+										class="transition-all duration-700 ease-out"
+									/>
+								</svg>
+								<div class="absolute inset-0 flex flex-col items-center justify-center">
+									<div class="text-2xl font-bold text-gray-900">{Math.round((data.global_score.score * 100) / data.global_score.max_score)}%</div>
+									<div class="text-[10px] text-gray-500 uppercase tracking-wide">completed</div>
+								</div>
 							</div>
 						</div>
-					</div>
-				{/if}
+					{/if}
+					<!-- Status breakdown -->
+					{#if data.compliance_assessment.progress_status_enabled && compliance_assessment_donut_values?.status?.values}
+						<div class="space-y-2.5">
+							{#each compliance_assessment_donut_values.status.values as statusItem}
+								{@const statusKey = statusItem.name}
+								{@const mapped = progressStatusMap[statusKey]}
+								<div class="flex items-center justify-between text-sm">
+									<div class="flex items-center gap-2">
+										<span class="w-2.5 h-2.5 rounded-full {mapped?.dotColor ?? 'bg-gray-300'}"></span>
+										<span class="text-gray-600">{mapped?.label ?? safeTranslate(statusKey)}</span>
+									</div>
+									<span class="font-medium text-gray-900">{statusItem.value}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			{/key}
+
+			<!-- Domains Coverage card -->
+			{#if treeCategories.length > 0}
+				<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+					<h3 class="text-sm font-semibold text-gray-900 mb-3">{m.domainsCoverage()}</h3>
+					<div class="space-y-2">
+						{#each treeCategories as cat}
+							{@const barWidth = totalTreeRequirements > 0 ? (cat.reqCount / totalTreeRequirements) * 100 : 0}
+							<div>
+								<div class="flex items-center justify-between text-xs mb-1">
+									<span class="text-gray-600 truncate mr-2">{cat.index}. {cat.name}</span>
+									<span class="text-gray-400 flex-shrink-0">{cat.reqCount}</span>
+								</div>
+								<div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+									<div
+										class="h-full bg-[#0077CC] rounded-full transition-all duration-500"
+										style="width: {barWidth}%"
+									></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
