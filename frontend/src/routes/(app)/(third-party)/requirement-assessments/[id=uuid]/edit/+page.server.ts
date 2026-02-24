@@ -354,6 +354,41 @@ export const actions: Actions = {
 		const result = await response.json();
 		return { applyResult: result };
 	},
+	confirmAiWrite: async (event) => {
+		// Call the confirm-ai-write endpoint which writes AI values under the
+		// dedicated AI service account, so the audit log shows the AI actor.
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId');
+		if (!analysisId) {
+			return fail(400, { confirmWriteError: 'Missing analysis ID' });
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/confirm-ai-write/`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ analysis_id: analysisId })
+			}
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			return fail(response.status, {
+				confirmWriteError: err.message || `Error ${response.status}`
+			});
+		}
+
+		const result = await response.json();
+		setFlash(
+			{
+				type: 'success',
+				message: `AI values written successfully (${result.changed_fields?.join(', ') || 'no changes'}). Status set to ${result.status}.`
+			},
+			event
+		);
+		return { confirmWriteResult: result };
+	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();
 

@@ -10697,6 +10697,121 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         return Response(results, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"], url_path="confirm-ai-write")
+    def confirm_ai_write(self, request, pk=None):
+        """Write AI-proposed values to the RequirementAssessment via a dedicated
+        service account so that the audit log clearly identifies AI as the actor.
+
+        Accepts { "analysis_id": "<uuid>" }.
+
+        Flow:
+        1. Load the stored AiAnalysisResult
+        2. Derive proposed field values (result, status, observation, answers, score)
+        3. Write them to the RA under the AI service account identity
+        4. Force status to 'in_review' (never regresses)
+        5. Return the updated RA data
+
+        The audit log will record this change as performed by the AI service
+        account (e.g. ai-service@wathbahs.com), clearly distinguishing it
+        from human edits.
+        """
+        from core.models import AiAnalysisResult
+        from core.ai_analysis_helpers import (
+            extract_question_answers,
+            find_compliance_status,
+            derive_compliance_result,
+            build_observation_text,
+            map_answers_to_requirement_choices,
+            compute_proposed_status,
+        )
+        from core.ai_service_account import get_or_create_ai_service_user
+        from auditlog.context import set_actor
+
+        requirement_assessment = self.get_object()
+        analysis_id = request.data.get('analysis_id')
+        if not analysis_id:
+            return Response(
+                {'message': 'analysis_id is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                requirement_assessment=requirement_assessment,
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ai_result = analysis.result
+        if not isinstance(ai_result, dict):
+            return Response(
+                {'message': 'Analysis result is not a valid JSON object'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # --- Derive proposed values ---
+        requirement = requirement_assessment.requirement
+        req_questions = requirement.questions or {}
+        original_questions = [
+            q_def['text']
+            for q_urn, q_def in req_questions.items()
+            if isinstance(q_def, dict) and 'text' in q_def
+        ]
+
+        question_answers = analysis.question_answers
+        if not question_answers:
+            question_answers = extract_question_answers(ai_result, original_questions)
+
+        proposed_result = derive_compliance_result(ai_result, question_answers)
+        existing_observation = requirement_assessment.observation or ''
+        proposed_observation = build_observation_text(ai_result, existing_observation)
+        proposed_status = compute_proposed_status(requirement_assessment.status)
+        proposed_answer_urns = map_answers_to_requirement_choices(question_answers, req_questions)
+        current_answers = dict(requirement_assessment.answers or {})
+        merged_answers = {**current_answers, **proposed_answer_urns}
+
+        overall = ai_result.get('overallAssessment', {}) if isinstance(ai_result, dict) else {}
+        proposed_score = overall.get('score', None) if isinstance(overall, dict) else None
+
+        # --- Collect changes ---
+        changes = {}
+        if proposed_result and proposed_result != requirement_assessment.result:
+            changes['result'] = proposed_result
+        if proposed_status and proposed_status != requirement_assessment.status:
+            changes['status'] = proposed_status
+        if proposed_observation and proposed_observation != existing_observation:
+            changes['observation'] = proposed_observation
+        if merged_answers != current_answers:
+            changes['answers'] = merged_answers
+        if proposed_score is not None and proposed_score != requirement_assessment.score:
+            changes['score'] = proposed_score
+
+        if not changes:
+            return Response(
+                {'message': 'No changes to apply', 'changed_fields': []},
+                status=status.HTTP_200_OK,
+            )
+
+        # --- Write under AI service account identity ---
+        ai_user = get_or_create_ai_service_user()
+
+        with set_actor(ai_user):
+            for field, value in changes.items():
+                setattr(requirement_assessment, field, value)
+            requirement_assessment.save()
+
+        return Response({
+            'message': 'AI analysis values written successfully',
+            'changed_fields': list(changes.keys()),
+            'actor': ai_user.email,
+            'status': requirement_assessment.status,
+            'result': requirement_assessment.result,
+        }, status=status.HTTP_200_OK)
+
 
 class RequirementMappingSetViewSet(BaseModelViewSet):
     model = StoredLibrary

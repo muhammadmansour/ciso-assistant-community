@@ -452,6 +452,49 @@
 		aiAppliedFields = new Set();
 	}
 
+	// Confirm AI Write — writes AI values via the dedicated service account
+	let isConfirmingAiWrite = $state(false);
+	let confirmWriteError: string | null = $state(null);
+
+	async function confirmAiWrite(analysisId: string) {
+		isConfirmingAiWrite = true;
+		confirmWriteError = null;
+
+		try {
+			const formData = new FormData();
+			formData.append('analysisId', analysisId);
+			const response = await fetch('?/confirmAiWrite', {
+				method: 'POST',
+				body: formData
+			});
+
+			const text = await response.text();
+			const result = deserialize(text);
+
+			if (result.type !== 'success' || !result.data) {
+				const errorData = result.type === 'failure' ? (result.data as any) : null;
+				confirmWriteError =
+					errorData?.confirmWriteError || `Failed to write AI values (${result.type})`;
+				return;
+			}
+
+			const writeResult = (result.data as any).confirmWriteResult;
+			if (!writeResult) {
+				confirmWriteError = 'No result returned from server.';
+				return;
+			}
+
+			// Close the modal and refresh the page data
+			closeModal();
+			await invalidateAll();
+		} catch (e) {
+			console.error('[Confirm AI Write] Failed:', e);
+			confirmWriteError = 'An error occurred while writing AI values.';
+		} finally {
+			isConfirmingAiWrite = false;
+		}
+	}
+
 	// Local reactive list of AI analyses — updated immediately on success and synced with server data
 	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
 
@@ -584,7 +627,7 @@
 	}
 
 	// ── Change History helpers ──────────────────────────────────
-	const ALLOWED_CHANGE_FIELDS = new Set(['result', 'status', 'observation', 'answers']);
+	const ALLOWED_CHANGE_FIELDS = new Set(['result', 'status', 'observation', 'answers', 'score']);
 
 	// Build lookup maps: questionUrn→Q1/Q2, choiceUrn→label
 	const questionUrnToLabel: Record<string, string> = {};
@@ -608,6 +651,7 @@
 		if (field === 'status') return 'Status';
 		if (field === 'observation') return 'Observation';
 		if (field === 'answers') return 'Answers';
+		if (field === 'score') return 'Score';
 		return field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 	}
 
@@ -2197,7 +2241,7 @@
 			</div>
 
 			<!-- Modal Footer -->
-			<div class="flex justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+			<div class="flex items-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
 					class="btn bg-[#005FA3] text-white hover:bg-[#1a2740] shadow-sm font-semibold"
@@ -2212,9 +2256,30 @@
 						Applying...
 					{:else}
 						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-						Apply Analysis Results
+						Apply to Form
 					{/if}
 				</button>
+				<button
+					type="button"
+					class="btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold"
+					disabled={isConfirmingAiWrite || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+					onclick={() => {
+						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
+						if (id) confirmAiWrite(id);
+					}}
+				>
+					{#if isConfirmingAiWrite}
+						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						Writing...
+					{:else}
+						<i class="fa-solid fa-robot mr-2"></i>
+						Confirm & Write as AI
+					{/if}
+				</button>
+				{#if confirmWriteError}
+					<span class="text-red-600 text-xs">{confirmWriteError}</span>
+				{/if}
+				<div class="flex-1"></div>
 				<button
 					type="button"
 					class="btn preset-filled-surface-200-800"
