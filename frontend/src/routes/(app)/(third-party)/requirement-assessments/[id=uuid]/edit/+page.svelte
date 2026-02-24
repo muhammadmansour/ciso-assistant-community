@@ -656,6 +656,15 @@
 		return field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 	}
 
+	// Track which change-history values are expanded (key = "entryIdx-field-side")
+	let expandedValues: Record<string, boolean> = $state({});
+
+	function toggleExpand(key: string) {
+		expandedValues[key] = !expandedValues[key];
+	}
+
+	const TRUNCATE_LENGTH = 120;
+
 	function cleanValue(field: string, val: any): string {
 		if (val === null || val === undefined || val === '' || val === 'None') return '—';
 
@@ -667,8 +676,6 @@
 			let text = String(val);
 			// Strip AI analysis headers like [AI Analysis — 2026-02-24 11:17]
 			text = text.replace(/\[AI\s+An(?:alysis|a)[^\]]*\]\s*/gi, '').trim();
-			// Truncate to reasonable length
-			if (text.length > 120) text = text.substring(0, 120) + '…';
 			return text || '—';
 		}
 
@@ -695,9 +702,16 @@
 			return parts.join(' · ') || '—';
 		}
 
-		const str = String(val);
-		if (str.length > 120) return str.substring(0, 120) + '…';
-		return str;
+		return String(val);
+	}
+
+	function truncateText(text: string, maxLen: number = TRUNCATE_LENGTH): string {
+		if (text.length <= maxLen) return text;
+		return text.substring(0, maxLen) + '…';
+	}
+
+	function isLongText(text: string): boolean {
+		return text.length > TRUNCATE_LENGTH;
 	}
 
 	// Filter and process audit entries to only show relevant fields
@@ -1343,7 +1357,7 @@
 									</div>
 								{:else}
 									<div class="mt-3 space-y-3">
-										{#each filteredAuditEntries as entry}
+										{#each filteredAuditEntries as entry, entryIdx}
 											<div class="border border-gray-100 rounded-lg overflow-hidden">
 												<!-- Entry header -->
 												<div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -1379,17 +1393,68 @@
 															</span>
 															<div class="flex-1 text-xs">
 																{#if Array.isArray(change) && change.length >= 2}
-																	<div class="flex items-center gap-2 flex-wrap">
-																		<span class="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-600 line-through">
-																			{cleanValue(field, change[0])}
-																		</span>
-																		<i class="fa-solid fa-arrow-right text-gray-300 text-[8px]"></i>
-																		<span class="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">
-																			{cleanValue(field, change[1])}
-																		</span>
+																	{@const oldText = cleanValue(field, change[0])}
+																	{@const newText = cleanValue(field, change[1])}
+																	<div class="flex flex-col gap-1.5">
+																		<!-- Old value -->
+																		<div class="flex items-start gap-2">
+																			<span class="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-600 line-through whitespace-pre-wrap break-words max-w-full">
+																				{#if isLongText(oldText) && !expandedValues[`${entryIdx}-${field}-old`]}
+																					{truncateText(oldText)}
+																				{:else}
+																					{oldText}
+																				{/if}
+																			</span>
+																		</div>
+																		{#if isLongText(oldText)}
+																			<button
+																				type="button"
+																				class="text-[#005FA3] hover:underline text-[10px] font-medium self-start"
+																				onclick={() => toggleExpand(`${entryIdx}-${field}-old`)}
+																			>
+																				{expandedValues[`${entryIdx}-${field}-old`] ? 'Show less' : 'Read more'}
+																			</button>
+																		{/if}
+																		<!-- Arrow -->
+																		<i class="fa-solid fa-arrow-down text-gray-300 text-[8px] self-start ml-2"></i>
+																		<!-- New value -->
+																		<div class="flex items-start gap-2">
+																			<span class="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium whitespace-pre-wrap break-words max-w-full">
+																				{#if isLongText(newText) && !expandedValues[`${entryIdx}-${field}-new`]}
+																					{truncateText(newText)}
+																				{:else}
+																					{newText}
+																				{/if}
+																			</span>
+																		</div>
+																		{#if isLongText(newText)}
+																			<button
+																				type="button"
+																				class="text-[#005FA3] hover:underline text-[10px] font-medium self-start"
+																				onclick={() => toggleExpand(`${entryIdx}-${field}-new`)}
+																			>
+																				{expandedValues[`${entryIdx}-${field}-new`] ? 'Show less' : 'Read more'}
+																			</button>
+																		{/if}
 																	</div>
 																{:else}
-																	<span class="text-gray-600">{cleanValue(field, change)}</span>
+																	{@const singleText = cleanValue(field, change)}
+																	<span class="text-gray-600 whitespace-pre-wrap break-words">
+																		{#if isLongText(singleText) && !expandedValues[`${entryIdx}-${field}`]}
+																			{truncateText(singleText)}
+																		{:else}
+																			{singleText}
+																		{/if}
+																	</span>
+																	{#if isLongText(singleText)}
+																		<button
+																			type="button"
+																			class="text-[#005FA3] hover:underline text-[10px] font-medium block mt-0.5"
+																			onclick={() => toggleExpand(`${entryIdx}-${field}`)}
+																		>
+																			{expandedValues[`${entryIdx}-${field}`] ? 'Show less' : 'Read more'}
+																		</button>
+																	{/if}
 																{/if}
 															</div>
 														</div>

@@ -10782,17 +10782,18 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         overall = ai_result.get('overallAssessment', {}) if isinstance(ai_result, dict) else {}
         proposed_score = overall.get('score', None) if isinstance(overall, dict) else None
 
-        # --- Collect only fields that actually change ---
+        # --- Always include all AI-proposed fields so the audit log captures
+        #     the full AI decision (even if a value matches the current one). ---
         changes = {}
-        if proposed_result and proposed_result != requirement_assessment.result:
+        if proposed_result:
             changes['result'] = proposed_result
-        if proposed_status and proposed_status != requirement_assessment.status:
+        if proposed_status:
             changes['status'] = proposed_status
-        if proposed_observation and proposed_observation != existing_observation:
+        if proposed_observation:
             changes['observation'] = proposed_observation
-        if merged_answers != current_answers:
+        if merged_answers:
             changes['answers'] = merged_answers
-        if proposed_score is not None and proposed_score != requirement_assessment.score:
+        if proposed_score is not None:
             changes['score'] = proposed_score
 
         if not changes:
