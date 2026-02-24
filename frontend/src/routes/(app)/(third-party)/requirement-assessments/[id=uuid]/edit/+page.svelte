@@ -809,224 +809,223 @@
 	</div>
 {/if}
 
-<div class="space-y-4">
-	{#if data.requirement.description}
-		<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
-			<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900 mb-3">
-				<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
-				{m.description()}
-			</h2>
-			<div class="text-sm text-gray-600 leading-relaxed">
-				<MarkdownRenderer content={data.requirement.description} />
+<!-- Error/Banner blocks (full width above grid) -->
+{#if aiAnalysisError}
+	<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-3">
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-2 text-red-700">
+				<i class="fa-solid fa-circle-exclamation"></i>
+				<span class="font-semibold">AI Analysis Failed</span>
 			</div>
+			<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (aiAnalysisError = null)}>
+				<i class="fa-solid fa-xmark"></i>
+			</button>
 		</div>
-	{/if}
-	{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence}
-		<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5 text-sm">
-			<div class="flex items-center justify-between mb-3">
-				<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900">
-					<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
-					{m.additionalInformation()}
-				</h2>
-				<button type="button" onclick={toggleSuggestions} class="text-gray-400 hover:text-gray-600 transition-colors">
-					{#if !hideSuggestion}
-						<i class="fa-solid fa-eye"></i>
-					{:else}
-						<i class="fa-solid fa-eye-slash"></i>
-					{/if}
-				</button>
+		<p class="text-red-600 text-sm mt-2">{aiAnalysisError}</p>
+	</div>
+{/if}
+{#if applyError}
+	<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-3">
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-2 text-red-700">
+				<i class="fa-solid fa-circle-exclamation"></i>
+				<span class="font-semibold">Apply Failed</span>
 			</div>
-			{#if !hideSuggestion}
-				{#if typical_evidence}
-					<div class="mb-3">
-						<p class="font-semibold text-xs uppercase tracking-wider text-teal-700 mb-1.5">
-							<i class="fa-solid fa-clipboard-list mr-1.5 text-teal-600"></i>
-							{m.typicalEvidence()}
-						</p>
-						<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
-							<MarkdownRenderer content={typical_evidence} />
+			<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (applyError = null)}>
+				<i class="fa-solid fa-xmark"></i>
+			</button>
+		</div>
+		<p class="text-red-600 text-sm mt-2">{applyError}</p>
+	</div>
+{/if}
+{#if aiApplyBannerVisible}
+	<div class="p-4 bg-[#005FA3]/5 border border-[#005FA3]/15 rounded-lg mb-3">
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<div class="p-2 bg-[#005FA3]/10 rounded-lg">
+					<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
+				</div>
+				<div>
+					<p class="font-semibold text-[#005FA3]">AI Results Applied</p>
+					<p class="text-gray-600 text-sm">
+						Fields updated: <strong>{[...aiAppliedFields].join(', ')}</strong>.
+						Review and click <strong>Save</strong> to confirm.
+					</p>
+				</div>
+			</div>
+			<button type="button" class="text-gray-400 hover:text-gray-600" onclick={dismissApplyBanner}>
+				<i class="fa-solid fa-xmark"></i>
+			</button>
+		</div>
+	</div>
+{/if}
+
+<!-- ═══ TWO-COLUMN LAYOUT (grid starts from top so sidebar aligns with Description) ═══ -->
+<SuperForm
+	class="flex flex-col"
+	_form={requirementAssessmentForm}
+	data={data.form}
+	action="?/updateRequirementAssessment"
+	{...rest}
+>
+	{#snippet children({ form, data })}
+		<HiddenInput {form} field="folder" />
+		<HiddenInput {form} field="requirement" />
+		<HiddenInput {form} field="compliance_assessment" />
+
+		<div class="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5">
+			<!-- ── LEFT COLUMN ── -->
+			<div class="space-y-4 min-w-0">
+				<!-- Description -->
+				{#if page.data.requirement.description}
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
+						<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900 mb-3">
+							<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
+							{m.description()}
+						</h2>
+						<div class="text-sm text-gray-600 leading-relaxed">
+							<MarkdownRenderer content={page.data.requirement.description} />
 						</div>
 					</div>
 				{/if}
-				{#if annotation}
-					<div class="text-sm text-gray-600 italic leading-relaxed mb-3" dir="auto">
-						<MarkdownRenderer content={annotation} />
-					</div>
-				{/if}
-				{#if has_threats || has_reference_controls}
-					<div class="my-2 flex flex-col">
-						<div class="flex-1">
-							{#if reference_controls.length > 0}
-								<p class="font-medium">
-									<i class="fa-solid fa-gears"></i>
-									{m.suggestedReferenceControls()}
-								</p>
-								<ul class="list-disc ml-4">
-									{#each reference_controls as func}
+
+				<!-- Additional Information -->
+				{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence}
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5 text-sm">
+						<div class="flex items-center justify-between mb-3">
+							<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900">
+								<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
+								{m.additionalInformation()}
+							</h2>
+							<button type="button" onclick={toggleSuggestions} class="text-gray-400 hover:text-gray-600 transition-colors">
+								{#if !hideSuggestion}
+									<i class="fa-solid fa-eye"></i>
+								{:else}
+									<i class="fa-solid fa-eye-slash"></i>
+								{/if}
+							</button>
+						</div>
+						{#if !hideSuggestion}
+							{#if typical_evidence}
+								<div class="mb-3">
+									<p class="font-semibold text-xs uppercase tracking-wider text-teal-700 mb-1.5">
+										<i class="fa-solid fa-clipboard-list mr-1.5 text-teal-600"></i>
+										{m.typicalEvidence()}
+									</p>
+									<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
+										<MarkdownRenderer content={typical_evidence} />
+									</div>
+								</div>
+							{/if}
+							{#if annotation}
+								<div class="text-sm text-gray-600 italic leading-relaxed mb-3" dir="auto">
+									<MarkdownRenderer content={annotation} />
+								</div>
+							{/if}
+							{#if has_threats || has_reference_controls}
+								<div class="my-2 flex flex-col">
+									<div class="flex-1">
+										{#if reference_controls.length > 0}
+											<p class="font-medium">
+												<i class="fa-solid fa-gears"></i>
+												{m.suggestedReferenceControls()}
+											</p>
+											<ul class="list-disc ml-4">
+												{#each reference_controls as func}
+													<li>
+														{#if func.id}
+															<a class="anchor" href="/reference-controls/{func.id}">
+																{func.str}
+															</a>
+														{:else}
+															<p>{func.str}</p>
+														{/if}
+													</li>
+												{/each}
+											</ul>
+										{/if}
+									</div>
+									<div class="flex-1">
+										{#if threats.length > 0}
+											<p class="font-medium">
+												<i class="fa-solid fa-gears"></i>
+												{m.threatsCovered()}
+											</p>
+											<ul class="list-disc ml-4">
+												{#each threats as threat}
+													<li>
+														{#if threat.id}
+															<a class="anchor" href="/threats/{threat.id}">
+																{threat.str}
+															</a>
+														{:else}
+															<p>{threat.str}</p>
+														{/if}
+													</li>
+												{/each}
+											</ul>
+										{/if}
+									</div>
+								</div>
+							{/if}
+							{#if mappingInference.result}
+								<div class="my-2">
+									<p class="font-medium">
+										<i class="fa-solid fa-link"></i>
+										{m.mappingInference()}
+									</p>
+									<span class="text-xs text-gray-500"
+										><i class="fa-solid fa-circle-info"></i> {m.mappingInferenceHelpText()}</span
+									>
+									<ul class="list-disc ml-4">
 										<li>
-											{#if func.id}
-												<a class="anchor" href="/reference-controls/{func.id}">
-													{func.str}
+											<p>
+												<a
+													class="anchor"
+													href="/requirement-assessments/{mappingInference.sourceRequirementAssessment
+														.id}"
+												>
+													{mappingInference.sourceRequirementAssessment.str}
 												</a>
-											{:else}
-												<p>{func.str}</p>
+											</p>
+											<p class="whitespace-pre-line py-1">
+												<span class="italic">{m.coverageColon()}</span>
+												<span class="badge h-fit">
+													{safeTranslate(mappingInference.sourceRequirementAssessment.coverage)}
+												</span>
+											</p>
+											{#if mappingInference.sourceRequirementAssessment.is_scored}
+												<p class="whitespace-pre-line py-1">
+													<span class="italic">{m.scoreSemiColon()}</span>
+													<span class="badge h-fit">
+														{safeTranslate(mappingInference.sourceRequirementAssessment.score)}
+													</span>
+												</p>
+											{/if}
+											<p class="whitespace-pre-line py-1">
+												<span class="italic">{m.suggestionColon()}</span>
+												<span
+													class="badge {classesText} h-fit"
+													style="background-color: {complianceResultColorMap[mappingInference.result]};"
+												>
+													{safeTranslate(mappingInference.result)}
+												</span>
+											</p>
+											{#if mappingInference.annotation}
+												<p class="whitespace-pre-line py-1">
+													<span class="italic">{m.annotationColon()}</span>
+													{mappingInference.annotation}
+												</p>
 											{/if}
 										</li>
-									{/each}
-								</ul>
+									</ul>
+								</div>
 							{/if}
-						</div>
-						<div class="flex-1">
-							{#if threats.length > 0}
-								<p class="font-medium">
-									<i class="fa-solid fa-gears"></i>
-									{m.threatsCovered()}
-								</p>
-								<ul class="list-disc ml-4">
-									{#each threats as threat}
-										<li>
-											{#if threat.id}
-												<a class="anchor" href="/threats/{threat.id}">
-													{threat.str}
-												</a>
-											{:else}
-												<p>{threat.str}</p>
-											{/if}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-						</div>
+						{/if}
 					</div>
 				{/if}
-				{#if mappingInference.result}
-					<div class="my-2">
-						<p class="font-medium">
-							<i class="fa-solid fa-link"></i>
-							{m.mappingInference()}
-						</p>
-						<span class="text-xs text-gray-500"
-							><i class="fa-solid fa-circle-info"></i> {m.mappingInferenceHelpText()}</span
-						>
-						<ul class="list-disc ml-4">
-							<li>
-								<p>
-									<a
-										class="anchor"
-										href="/requirement-assessments/{mappingInference.sourceRequirementAssessment
-											.id}"
-									>
-										{mappingInference.sourceRequirementAssessment.str}
-									</a>
-								</p>
-								<p class="whitespace-pre-line py-1">
-									<span class="italic">{m.coverageColon()}</span>
-									<span class="badge h-fit">
-										{safeTranslate(mappingInference.sourceRequirementAssessment.coverage)}
-									</span>
-								</p>
-								{#if mappingInference.sourceRequirementAssessment.is_scored}
-									<p class="whitespace-pre-line py-1">
-										<span class="italic">{m.scoreSemiColon()}</span>
-										<span class="badge h-fit">
-											{safeTranslate(mappingInference.sourceRequirementAssessment.score)}
-										</span>
-									</p>
-								{/if}
-								<p class="whitespace-pre-line py-1">
-									<span class="italic">{m.suggestionColon()}</span>
-									<span
-										class="badge {classesText} h-fit"
-										style="background-color: {complianceResultColorMap[mappingInference.result]};"
-									>
-										{safeTranslate(mappingInference.result)}
-									</span>
-								</p>
-								{#if mappingInference.annotation}
-									<p class="whitespace-pre-line py-1">
-										<span class="italic">{m.annotationColon()}</span>
-										{mappingInference.annotation}
-									</p>
-								{/if}
-							</li>
-						</ul>
-					</div>
-				{/if}
-			{/if}
-		</div>
-	{/if}
-	<!-- AI Analysis Error Toast -->
-	{#if aiAnalysisError}
-		<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-2 text-red-700">
-					<i class="fa-solid fa-circle-exclamation"></i>
-					<span class="font-semibold">AI Analysis Failed</span>
-				</div>
-				<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (aiAnalysisError = null)}>
-					<i class="fa-solid fa-xmark"></i>
-				</button>
-			</div>
-			<p class="text-red-600 text-sm mt-2">{aiAnalysisError}</p>
-		</div>
-	{/if}
 
-	<!-- AI Apply Error -->
-	{#if applyError}
-		<div class="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-2 text-red-700">
-					<i class="fa-solid fa-circle-exclamation"></i>
-					<span class="font-semibold">Apply Failed</span>
-				</div>
-				<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (applyError = null)}>
-					<i class="fa-solid fa-xmark"></i>
-				</button>
-			</div>
-			<p class="text-red-600 text-sm mt-2">{applyError}</p>
-		</div>
-	{/if}
-
-	<!-- AI Values Applied Banner -->
-	{#if aiApplyBannerVisible}
-		<div class="p-4 bg-[#005FA3]/5 border border-[#005FA3]/15 rounded-lg mb-4">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<div class="p-2 bg-[#005FA3]/10 rounded-lg">
-						<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
-					</div>
-					<div>
-						<p class="font-semibold text-[#005FA3]">AI Results Applied</p>
-						<p class="text-gray-600 text-sm">
-							Fields updated: <strong>{[...aiAppliedFields].join(', ')}</strong>.
-							Review and click <strong>Save</strong> to confirm.
-						</p>
-					</div>
-				</div>
-				<button type="button" class="text-gray-400 hover:text-gray-600" onclick={dismissApplyBanner}>
-					<i class="fa-solid fa-xmark"></i>
-				</button>
-			</div>
-		</div>
-	{/if}
-
-	<!-- ═══ TWO-COLUMN LAYOUT ═══ -->
-	<SuperForm
-		class="flex flex-col"
-		_form={requirementAssessmentForm}
-		data={data.form}
-		action="?/updateRequirementAssessment"
-		{...rest}
-	>
-		{#snippet children({ form, data })}
-			<HiddenInput {form} field="folder" />
-			<HiddenInput {form} field="requirement" />
-			<HiddenInput {form} field="compliance_assessment" />
-
-			<div class="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-				<!-- ── LEFT COLUMN ── -->
-				<div class="space-y-4 min-w-0">
-					<!-- Tabs Card -->
+				<!-- Tabs Card -->
 					<div class="card shadow-sm bg-white border border-gray-200 rounded-xl">
 						<Tabs
 						value={group}
@@ -1644,8 +1643,7 @@
 				</div>
 			</div>
 	{/snippet}
-	</SuperForm>
-</div>
+</SuperForm>
 
 <!-- AI Analysis Progress Modal -->
 {#if showProgressModal}
