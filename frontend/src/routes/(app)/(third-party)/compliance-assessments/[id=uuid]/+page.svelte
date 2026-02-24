@@ -6,13 +6,11 @@
 
 	import { onMount } from 'svelte';
 
-	import type { ModalComponent, ModalSettings, TreeViewNode } from '@skeletonlabs/skeleton-svelte';
+	import type { TreeViewNode } from '$lib/components/TreeView/types';
 
 	import { Switch, ProgressRing, Popover } from '@skeletonlabs/skeleton-svelte';
 
 	import { goto, invalidateAll } from '$app/navigation';
-
-	import {} from '@skeletonlabs/skeleton-svelte';
 	import type { ActionData, PageData } from './$types';
 	import TreeViewItemContent from './TreeViewItemContent.svelte';
 	import TreeViewItemLead from './TreeViewItemLead.svelte';
@@ -94,7 +92,7 @@
 	}
 
 	import ForceCirclePacking from '$lib/components/DataViz/ForceCirclePacking.svelte';
-	import { getModalStore, type ModalStore } from '$lib/components/Modals/stores';
+	import { getModalStore, type ModalComponent, type ModalSettings, type ModalStore } from '$lib/components/Modals/stores';
 	import CompareAuditModal from '$lib/components/Modals/CompareAuditModal.svelte';
 	import Dropdown from '$lib/components/Dropdown/Dropdown.svelte';
 
