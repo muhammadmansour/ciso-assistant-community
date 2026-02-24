@@ -2244,15 +2244,15 @@
 			<div class="flex items-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
-					class="btn bg-[#005FA3] text-white hover:bg-[#1a2740] shadow-sm font-semibold"
-				disabled={isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
-				onclick={() => {
-					const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
-					if (id) applyAnalysisResults(id);
-				}}
+					class="btn bg-[#005FA3] text-white hover:bg-[#004d85] shadow-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+					disabled={isApplyingAnalysis || isConfirmingAiWrite || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+					onclick={() => {
+						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
+						if (id) applyAnalysisResults(id);
+					}}
 				>
 					{#if isApplyingAnalysis}
-						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>
 						Applying...
 					{:else}
 						<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
@@ -2261,15 +2261,15 @@
 				</button>
 				<button
 					type="button"
-					class="btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold"
-					disabled={isConfirmingAiWrite || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+					class="btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+					disabled={isConfirmingAiWrite || isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
 					onclick={() => {
 						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
 						if (id) confirmAiWrite(id);
 					}}
 				>
 					{#if isConfirmingAiWrite}
-						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+						<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>
 						Writing...
 					{:else}
 						<i class="fa-solid fa-robot mr-2"></i>
@@ -2283,6 +2283,7 @@
 				<button
 					type="button"
 					class="btn preset-filled-surface-200-800"
+					disabled={isApplyingAnalysis || isConfirmingAiWrite}
 					onclick={closeModal}
 				>
 					Close
