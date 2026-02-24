@@ -722,7 +722,7 @@
 <div class="flex items-start justify-between mb-6">
 	<div class="flex items-start gap-3">
 		<a
-			class="mt-1.5 text-gray-400 hover:text-[#0A1628] transition-colors"
+			class="mt-1.5 text-gray-400 hover:text-[#005FA3] transition-colors"
 			href={complianceAssessmentURL}
 			aria-label="Go back"
 		>
@@ -731,7 +731,7 @@
 		<div>
 			<div class="flex items-center gap-3 mb-1">
 				<h1 class="text-2xl font-bold text-gray-900">{data.requirement.ref_id}</h1>
-				<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-white border border-[#0A1628]/20 text-[#0A1628]">
+				<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-white border border-[#005FA3]/20 text-[#005FA3]">
 					{data.requirement.urn}
 				</span>
 			</div>
@@ -811,9 +811,9 @@
 
 <div class="space-y-4">
 	{#if data.requirement.description}
-		<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+		<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 			<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900 mb-3">
-				<i class="fa-solid fa-circle-info text-[#0A1628]"></i>
+				<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
 				{m.description()}
 			</h2>
 			<div class="text-sm text-gray-600 leading-relaxed">
@@ -822,10 +822,10 @@
 		</div>
 	{/if}
 	{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence}
-		<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5 text-sm">
+		<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5 text-sm">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900">
-					<i class="fa-solid fa-circle-info text-[#0A1628]"></i>
+					<i class="fa-solid fa-circle-info text-[#005FA3]"></i>
 					{m.additionalInformation()}
 				</h2>
 				<button type="button" onclick={toggleSuggestions} class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -989,14 +989,14 @@
 
 	<!-- AI Values Applied Banner -->
 	{#if aiApplyBannerVisible}
-		<div class="p-4 bg-[#0A1628]/5 border border-[#0A1628]/15 rounded-lg mb-4">
+		<div class="p-4 bg-[#005FA3]/5 border border-[#005FA3]/15 rounded-lg mb-4">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
-					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
-						<i class="fa-solid fa-wand-magic-sparkles text-[#0A1628]"></i>
+					<div class="p-2 bg-[#005FA3]/10 rounded-lg">
+						<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
 					</div>
 					<div>
-						<p class="font-semibold text-[#0A1628]">AI Results Applied</p>
+						<p class="font-semibold text-[#005FA3]">AI Results Applied</p>
 						<p class="text-gray-600 text-sm">
 							Fields updated: <strong>{[...aiAppliedFields].join(', ')}</strong>.
 							Review and click <strong>Save</strong> to confirm.
@@ -1023,11 +1023,11 @@
 			<HiddenInput {form} field="requirement" />
 			<HiddenInput {form} field="compliance_assessment" />
 
-			<div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+			<div class="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
 				<!-- ── LEFT COLUMN ── -->
 				<div class="space-y-4 min-w-0">
 					<!-- Tabs Card -->
-					<div class="card shadow-sm bg-white border border-gray-200 rounded-lg">
+					<div class="card shadow-sm bg-white border border-gray-200 rounded-xl">
 						<Tabs
 						value={group}
 						onValueChange={(e) => {
@@ -1051,7 +1051,7 @@
 									<span class="flex flex-row justify-end items-center space-x-2">
 										{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && reference_controls.length > 0}
 											<button
-												class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] shadow-sm h-fit whitespace-normal"
+												class="btn bg-[#005FA3] text-white hover:bg-[#1a2740] shadow-sm h-fit whitespace-normal"
 												type="button"
 												onclick={() => {
 													modalConfirmCreateSuggestedControls(
@@ -1178,9 +1178,9 @@
 					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
 						{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
 						{@const questionEntries = Object.entries(reqQuestions)}
-						<div class="card bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden relative">
+						<div class="card bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden relative">
 							{#if aiAppliedFields.has('answers')}
-								<span class="absolute top-3 right-3 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+								<span class="absolute top-3 right-3 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
 									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
 								</span>
 							{/if}
@@ -1190,9 +1190,9 @@
 								onclick={() => (showAiQuestions = !showAiQuestions)}
 							>
 								<span class="flex items-center gap-2.5">
-									<i class="fa-solid fa-robot text-[#0A1628]"></i>
+									<i class="fa-solid fa-robot text-[#005FA3]"></i>
 									<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
-									<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628]">
+									<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3]">
 										{questionEntries.length}
 									</span>
 								</span>
@@ -1242,7 +1242,7 @@
 																type="button"
 																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
 																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
-																style={selected ? `background-color: ${option.color || '#0A1628'}; border-color: ${option.color || '#0A1628'};` : ''}
+																style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
 																onclick={() => {
 																	form.form.update((d) => {
 																		const newAnswers = { ...(d.answers || {}) };
@@ -1267,7 +1267,7 @@
 																type="button"
 																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
 																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
-																style={selected ? `background-color: ${option.color || '#0A1628'}; border-color: ${option.color || '#0A1628'};` : ''}
+																style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
 																onclick={() => {
 																	form.form.update((d) => {
 																		const newAnswers = { ...(d.answers || {}) };
@@ -1319,7 +1319,7 @@
 					<!-- Observation -->
 					<div class="relative">
 						{#if aiAppliedFields.has('observation')}
-							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+							<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
 								<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
 							</span>
 						{/if}
@@ -1360,7 +1360,7 @@
 													<div class="flex items-center gap-2 text-xs text-gray-500">
 														{#if entry.actor}
 															{#if entry.actor.toLowerCase().includes('ai') || entry.actor.toLowerCase().includes('service')}
-																<i class="fa-solid fa-robot text-[#0A1628]"></i>
+																<i class="fa-solid fa-robot text-[#005FA3]"></i>
 															{:else}
 																<i class="fa-solid fa-user text-gray-400"></i>
 															{/if}
@@ -1418,18 +1418,19 @@
 				</div>
 
 				<!-- ── RIGHT SIDEBAR ── -->
-				<div class="space-y-5">
+				<div class="space-y-4">
 					<!-- STATUS -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						<div class="relative">
 							{#if aiAppliedFields.has('status')}
-								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+								<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
 									<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
 								</span>
 							{/if}
-							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-								<i class="fa-regular fa-clock text-gray-400"></i>
+							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+								<i class="fa-regular fa-clock text-[#005FA3]"></i>
 								{m.status()}
+								<span class="text-red-500">*</span>
 							</label>
 							<Select
 								{form}
@@ -1442,28 +1443,29 @@
 					</div>
 
 					<!-- RESULT -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						{#if computedResult}
-							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-								<i class="fa-regular fa-circle-question text-gray-400"></i>
+							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+								<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
 								{m.result()}
 							</label>
 							<span
-								class="badge text-sm font-semibold"
-								style="background-color: {complianceResultColorMap[computedResult || 'not_assessed'] || '#ddd'}"
+								class="inline-flex items-center gap-1.5 mt-1 text-sm font-semibold"
 							>
+								<span class="w-2 h-2 rounded-full" style="background-color: {complianceResultColorMap[computedResult || 'not_assessed'] || '#ddd'}"></span>
 								{safeTranslate(computedResult || 'not_assessed')}
 							</span>
 						{:else}
 							<div class="relative">
 								{#if aiAppliedFields.has('result')}
-									<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0A1628]/10 text-[#0A1628] border border-[#0A1628]/20">
+									<span class="absolute -top-2 -right-2 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3] border border-[#005FA3]/20">
 										<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
 									</span>
 								{/if}
-								<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-									<i class="fa-regular fa-circle-question text-gray-400"></i>
+								<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+									<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
 									{m.result()}
+									<span class="text-red-500">*</span>
 								</label>
 								<Select
 									{form}
@@ -1488,9 +1490,9 @@
 					</div>
 
 					<!-- SCORING -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-							<i class="fa-solid fa-chart-simple text-gray-400"></i>
+							<i class="fa-solid fa-chart-bar text-[#005FA3]"></i>
 							Scoring
 						</label>
 						{#if computedScore !== null}
@@ -1553,10 +1555,10 @@
 					</div>
 
 					<!-- AI HISTORY -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-lg p-5">
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						<div class="flex items-center justify-between mb-3">
 							<h3 class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-								<i class="fa-solid fa-wand-magic-sparkles text-[#0A1628]"></i>
+								<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
 								AI HISTORY
 							</h3>
 							{#if localAiAnalyses?.length > 0}
@@ -1600,8 +1602,8 @@
 							</div>
 						{:else}
 							<div class="text-center py-6">
-								<div class="inline-block p-3 rounded-full bg-[#0A1628]/5 mb-2">
-									<i class="fa-solid fa-wand-magic-sparkles text-xl text-[#0A1628]/40"></i>
+								<div class="inline-block p-3 rounded-full bg-[#005FA3]/5 mb-2">
+									<i class="fa-solid fa-wand-magic-sparkles text-xl text-[#005FA3]/40"></i>
 								</div>
 								<p class="text-sm text-gray-500">No analyses yet</p>
 							</div>
@@ -1678,8 +1680,8 @@
 						<i class="fa-solid fa-circle-check text-green-500 text-3xl"></i>
 					</div>
 				{:else}
-					<div class="w-14 h-14 rounded-full bg-[#0A1628]/10 flex items-center justify-center">
-						<svg class="w-8 h-8 text-[#0A1628] animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+					<div class="w-14 h-14 rounded-full bg-[#005FA3]/10 flex items-center justify-center">
+						<svg class="w-8 h-8 text-[#005FA3] animate-pulse" viewBox="0 0 24 24" fill="currentColor">
 							<path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z" opacity="0.3"/>
 							<path d="M12 5.5L13.6 9.5L18 9.87L14.67 12.76L15.77 17L12 14.67L8.23 17L9.33 12.76L6 9.87L10.4 9.5L12 5.5Z"/>
 						</svg>
@@ -1701,7 +1703,7 @@
 				</div>
 				<div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
 					<div
-						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-emerald-500' : 'bg-[#0A1628]'}"
+						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-emerald-500' : 'bg-[#005FA3]'}"
 						style="width: {analysisPercent}%"
 					></div>
 				</div>
@@ -1714,15 +1716,15 @@
 					{@const isActive = idx === analysisStep && !analysisComplete}
 					{@const isPending = idx > analysisStep && !analysisComplete}
 					<div class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
-						{isDone ? 'bg-emerald-50' : isActive ? 'bg-[#0A1628]/5' : 'bg-transparent'}">
+						{isDone ? 'bg-emerald-50' : isActive ? 'bg-[#005FA3]/5' : 'bg-transparent'}">
 						{#if isDone}
 							<i class="fa-solid fa-check text-emerald-500 text-sm"></i>
 						{:else if isActive}
-							<i class="fa-solid fa-spinner fa-spin text-[#0A1628] text-sm"></i>
+							<i class="fa-solid fa-spinner fa-spin text-[#005FA3] text-sm"></i>
 						{:else}
 							<i class="fa-regular fa-circle text-gray-300 text-sm"></i>
 						{/if}
-						<span class="text-sm {isDone ? 'text-emerald-700 font-medium' : isActive ? 'text-[#0A1628] font-medium' : 'text-gray-400'}">
+						<span class="text-sm {isDone ? 'text-emerald-700 font-medium' : isActive ? 'text-[#005FA3] font-medium' : 'text-gray-400'}">
 							{step.label}
 						</span>
 					</div>
@@ -1737,7 +1739,7 @@
 					</div>
 					<button
 						type="button"
-						class="w-full btn bg-[#0A1628] hover:bg-[#1a2740] text-white font-semibold py-3 rounded-xl transition-colors"
+						class="w-full btn bg-[#005FA3] hover:bg-[#1a2740] text-white font-semibold py-3 rounded-xl transition-colors"
 						onclick={handleViewResults}
 					>
 						View Results
@@ -1814,10 +1816,10 @@
 			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : 'width:95vw;'}
 		>
 			<!-- Modal Header -->
-			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#0A1628]/5 to-white shrink-0">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#005FA3]/5 to-white shrink-0">
 				<div class="flex items-center gap-3">
-					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
-						<i class="fa-solid fa-brain text-[#0A1628] text-lg"></i>
+					<div class="p-2 bg-[#005FA3]/10 rounded-lg">
+						<i class="fa-solid fa-brain text-[#005FA3] text-lg"></i>
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
@@ -1893,14 +1895,14 @@
 					<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 						<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 							<h4 class="font-semibold text-gray-700">
-								<i class="fa-solid fa-layer-group mr-2 text-[#0A1628]"></i>Evidence Sources
+								<i class="fa-solid fa-layer-group mr-2 text-[#005FA3]"></i>Evidence Sources
 							</h4>
 						</div>
 						<div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
 							{#each appliedControls as ac}
 								<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-									<div class="w-9 h-9 rounded-lg bg-[#0A1628]/10 flex items-center justify-center flex-shrink-0">
-										<i class="fa-solid fa-shield-halved text-[#0A1628] text-sm"></i>
+									<div class="w-9 h-9 rounded-lg bg-[#005FA3]/10 flex items-center justify-center flex-shrink-0">
+										<i class="fa-solid fa-shield-halved text-[#005FA3] text-sm"></i>
 									</div>
 									<div class="flex-1 min-w-0">
 										<p class="font-medium text-gray-800 text-sm truncate">{ac.name}</p>
@@ -1930,7 +1932,7 @@
 					<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 						<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 							<h4 class="font-semibold text-gray-700">
-								<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>Analysis Report
+								<i class="fa-solid fa-file-lines mr-2 text-[#005FA3]"></i>Analysis Report
 							</h4>
 						</div>
 						<div class="p-4 prose prose-sm max-w-none text-gray-700">
@@ -1963,7 +1965,7 @@
 						<div class="mb-6 border border-gray-200 rounded-lg overflow-hidden">
 							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 								<h4 class="font-semibold text-gray-700">
-									<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>Detailed Analysis
+									<i class="fa-solid fa-file-lines mr-2 text-[#005FA3]"></i>Detailed Analysis
 								</h4>
 							</div>
 							<div class="p-4">
@@ -1978,7 +1980,7 @@
 							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
 								<h4 class="font-semibold text-gray-700 capitalize">
 									{#if sectionKey.toLowerCase().includes('question')}
-										<i class="fa-solid fa-circle-question mr-2 text-[#0A1628]"></i>
+										<i class="fa-solid fa-circle-question mr-2 text-[#005FA3]"></i>
 									{:else if sectionKey.toLowerCase().includes('gap')}
 										<i class="fa-solid fa-triangle-exclamation mr-2 text-orange-500"></i>
 									{:else if sectionKey.toLowerCase().includes('recommendation')}
@@ -1988,13 +1990,13 @@
 									{:else if sectionKey.toLowerCase().includes('weakness')}
 										<i class="fa-solid fa-circle-xmark mr-2 text-red-500"></i>
 									{:else if sectionKey.toLowerCase().includes('finding')}
-										<i class="fa-solid fa-magnifying-glass mr-2 text-[#0A1628]"></i>
+										<i class="fa-solid fa-magnifying-glass mr-2 text-[#005FA3]"></i>
 									{:else if sectionKey.toLowerCase().includes('evidence')}
-										<i class="fa-solid fa-file-lines mr-2 text-[#0A1628]"></i>
+										<i class="fa-solid fa-file-lines mr-2 text-[#005FA3]"></i>
 									{:else if sectionKey.toLowerCase().includes('assessment') || sectionKey.toLowerCase().includes('overall')}
-										<i class="fa-solid fa-gauge mr-2 text-[#0A1628]"></i>
+										<i class="fa-solid fa-gauge mr-2 text-[#005FA3]"></i>
 									{:else if sectionKey.toLowerCase().includes('control') || sectionKey.toLowerCase().includes('breakdown')}
-										<i class="fa-solid fa-shield-halved mr-2 text-[#0A1628]"></i>
+										<i class="fa-solid fa-shield-halved mr-2 text-[#005FA3]"></i>
 									{:else}
 										<i class="fa-solid fa-list mr-2 text-gray-500"></i>
 									{/if}
@@ -2020,8 +2022,8 @@
 												{@const qEvidence = getField(item, 'evidence') || getField(item, 'evidenceFound') || getField(item, 'evidenceFile')}
 												{@const qConfidence = getField(item, 'confidence')}
 												<div class="border border-gray-200 rounded-lg overflow-hidden">
-													<div class="bg-[#0A1628]/5 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-														<span class="font-semibold text-[#0A1628] text-sm">
+													<div class="bg-[#005FA3]/5 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+														<span class="font-semibold text-[#005FA3] text-sm">
 															<i class="fa-solid fa-circle-question mr-1"></i>
 															Q{qNum}
 														</span>
@@ -2046,7 +2048,7 @@
 																<div class="flex items-start gap-2">
 																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px]">Source:</span>
 																	<span class="text-gray-800">
-																		<i class="fa-solid fa-shield-halved text-[#0A1628]/50 mr-1"></i>
+																		<i class="fa-solid fa-shield-halved text-[#005FA3]/50 mr-1"></i>
 																		{typeof qSource === 'object' ? JSON.stringify(qSource) : qSource}
 																	</span>
 																</div>
@@ -2101,8 +2103,8 @@
 															<p class="text-gray-800 font-medium">{gGap}</p>
 														{/if}
 														{#if gRec}
-															<div class="bg-[#0A1628]/5 rounded-md p-3 border border-[#0A1628]/10">
-																<span class="font-medium text-[#0A1628]"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
+															<div class="bg-[#005FA3]/5 rounded-md p-3 border border-[#005FA3]/10">
+																<span class="font-medium text-[#005FA3]"><i class="fa-solid fa-lightbulb mr-1"></i>Recommendation: </span>
 																<span class="text-gray-800">{gRec}</span>
 															</div>
 														{/if}
@@ -2172,9 +2174,9 @@
 
 					<!-- Note section -->
 					{#if noteText && typeof noteText === 'string'}
-						<div class="mb-6 border border-[#0A1628]/15 rounded-lg overflow-hidden">
-							<div class="bg-[#0A1628]/5 px-4 py-3 border-b border-[#0A1628]/10">
-								<h4 class="font-semibold text-[#0A1628]">
+						<div class="mb-6 border border-[#005FA3]/15 rounded-lg overflow-hidden">
+							<div class="bg-[#005FA3]/5 px-4 py-3 border-b border-[#005FA3]/10">
+								<h4 class="font-semibold text-[#005FA3]">
 									<i class="fa-solid fa-circle-info mr-2"></i>Note
 								</h4>
 							</div>
@@ -2200,7 +2202,7 @@
 			<div class="flex justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
 				<button
 					type="button"
-					class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] shadow-sm font-semibold"
+					class="btn bg-[#005FA3] text-white hover:bg-[#1a2740] shadow-sm font-semibold"
 				disabled={isApplyingAnalysis || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
 				onclick={() => {
 					const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
