@@ -1550,16 +1550,16 @@ export const listViewFields = {
 	},
 	'compliance-assessments': {
 		head: [
+			'ref_id',
 			'name',
-			'framework',
 			'status',
-			'updated_at'
+			'eta'
 		],
 		body: [
+			'ref_id',
 			'name',
-			'framework',
 			'status',
-			'updated_at'
+			'eta'
 		],
 		filters: {
 			folder: DOMAIN_FILTER,
