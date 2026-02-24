@@ -284,11 +284,18 @@
 							onValueChange={(e) => { group = e.value; }}
 						>
 							{#snippet list()}
-								{#if !page.data.user.is_third_party}
-									<Tabs.Control value="applied_controls">{m.appliedControls()}</Tabs.Control>
-								{/if}
-								<Tabs.Control value="evidence">{m.evidences()}</Tabs.Control>
-							{/snippet}
+							{#if !page.data.user.is_third_party}
+								<Tabs.Control value="applied_controls">
+									{m.appliedControls()}
+									{#if data.requirementAssessment.applied_controls?.length > 0}
+										<span class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-[#0077CC]/10 text-[#0077CC] font-medium">
+											{data.requirementAssessment.applied_controls.length}
+										</span>
+									{/if}
+								</Tabs.Control>
+							{/if}
+							<Tabs.Control value="evidence">{m.evidences()}</Tabs.Control>
+						{/snippet}
 							{#snippet content()}
 								<Tabs.Panel value="applied_controls">
 									{#if !page.data.user.is_third_party}
@@ -334,12 +341,12 @@
 								onclick={() => (qaExpanded = !qaExpanded)}
 								class="w-full flex items-center justify-between p-5 hover:bg-gray-50/50 transition-colors"
 							>
-								<div class="flex items-center gap-2.5">
-									<i class="fa-solid fa-robot text-[#0077CC]"></i>
-									<h3 class="text-sm font-semibold text-gray-900">{m.questions()}</h3>
-									<span class="text-xs bg-[#0077CC]/10 text-[#0077CC] px-2 py-0.5 rounded-full font-medium">
-										{Object.keys(data.requirementAssessment.requirement.questions).length}
-									</span>
+							<div class="flex items-center gap-2.5">
+								<i class="fa-solid fa-robot text-[#0077CC]"></i>
+								<h3 class="text-sm font-semibold text-gray-900">AI Analysis Questions</h3>
+								<span class="text-xs bg-[#0077CC]/10 text-[#0077CC] px-2 py-0.5 rounded-full font-medium">
+									{Object.keys(data.requirementAssessment.requirement.questions).length}
+								</span>
 								</div>
 								<i class="fa-solid {qaExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400"></i>
 							</button>

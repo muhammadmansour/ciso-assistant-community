@@ -820,7 +820,14 @@
 								>
 									{#snippet list()}
 										{#if !page.data.user.is_third_party}
-											<Tabs.Control value="applied_controls">{m.appliedControls()}</Tabs.Control>
+											<Tabs.Control value="applied_controls">
+												{m.appliedControls()}
+												{#if page.data.requirementAssessment.applied_controls?.length > 0}
+													<span class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full bg-[#0077CC]/10 text-[#0077CC] font-medium">
+														{page.data.requirementAssessment.applied_controls.length}
+													</span>
+												{/if}
+											</Tabs.Control>
 										{/if}
 										<Tabs.Control value="evidences">{m.evidences()}</Tabs.Control>
 										<Tabs.Control value="security_exceptions">{m.securityExceptions()}</Tabs.Control>
@@ -957,6 +964,7 @@
 
 							<!-- AI Questions Section (collapsible) -->
 							{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+								{@const questionCount = Object.keys(page.data.requirementAssessment.requirement.questions).length}
 								<div class="bg-white rounded-xl border border-gray-200 overflow-hidden mt-6">
 									<button
 										type="button"
@@ -965,7 +973,8 @@
 									>
 										<div class="flex items-center gap-2.5">
 											<i class="fa-solid fa-robot text-[#0077CC]"></i>
-											<h3 class="text-sm font-semibold text-gray-900">{m.questionSingular()}</h3>
+											<h3 class="text-sm font-semibold text-gray-900">AI Analysis Questions</h3>
+											<span class="text-xs bg-[#0077CC]/10 text-[#0077CC] px-2 py-0.5 rounded-full font-medium">{questionCount}</span>
 											{#if aiAppliedFields.has('answers')}
 												<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
 													<i class="fa-solid fa-robot mr-1 text-[10px]"></i>AI
@@ -1084,8 +1093,20 @@
 
 						<!-- Scoring -->
 						<div class="border-t border-gray-100 pt-5">
+							<div class="flex items-center justify-between mb-1">
+								<span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Scoring</span>
+								<Checkbox
+									form={requirementAssessmentForm}
+									field="is_scored"
+									label={''}
+									checkboxComponent="switch"
+									classes="h-full flex flex-row items-center justify-center"
+									classesContainer="h-full flex flex-row items-center"
+								/>
+							</div>
+							<p class="text-xs text-gray-400 mb-3">Enable scoring for this requirement</p>
 							{#if computedScore !== null}
-								<div class="flex items-center gap-3">
+								<div class="flex items-center gap-3 mt-2">
 									<span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{m.score()}</span>
 									<ProgressRing
 										strokeWidth="20px"
@@ -1101,46 +1122,34 @@
 										size="size-10">{computedScore}</ProgressRing
 									>
 								</div>
-							{:else}
-								<Score
-									form={requirementAssessmentForm}
-									min_score={page.data.compliance_assessment_score.min_score}
-									max_score={page.data.compliance_assessment_score.max_score}
-									scores_definition={page.data.compliance_assessment_score.scores_definition}
-									field="score"
-									label={page.data.compliance_assessment_score.show_documentation_score
-										? m.implementationScore()
-										: m.score()}
-									disabled={!data.is_scored || data.result === 'not_applicable'}
-								>
-									{#snippet left()}
-										<div>
-											<Checkbox
+							{:else if data.is_scored}
+								<div class="mt-2">
+									<Score
+										form={requirementAssessmentForm}
+										min_score={page.data.compliance_assessment_score.min_score}
+										max_score={page.data.compliance_assessment_score.max_score}
+										scores_definition={page.data.compliance_assessment_score.scores_definition}
+										field="score"
+										label={page.data.compliance_assessment_score.show_documentation_score
+											? m.implementationScore()
+											: m.score()}
+										disabled={data.result === 'not_applicable'}
+									/>
+									{#if page.data.compliance_assessment_score.show_documentation_score}
+										<div class="mt-3">
+											<Score
 												form={requirementAssessmentForm}
-												field="is_scored"
-												label={''}
-												helpText={m.scoringHelpText()}
-												checkboxComponent="switch"
-												classes="h-full flex flex-row items-center justify-center my-1"
-												classesContainer="h-full flex flex-row items-center space-x-4"
+												min_score={page.data.compliance_assessment_score.min_score}
+												max_score={page.data.compliance_assessment_score.max_score}
+												scores_definition={page.data.compliance_assessment_score.scores_definition}
+												field="documentation_score"
+												label={m.documentationScore()}
+												isDoc={true}
+												disabled={data.result === 'not_applicable'}
 											/>
 										</div>
-									{/snippet}
-								</Score>
-								{#if page.data.compliance_assessment_score.show_documentation_score}
-									<div class="mt-3">
-										<Score
-											form={requirementAssessmentForm}
-											min_score={page.data.compliance_assessment_score.min_score}
-											max_score={page.data.compliance_assessment_score.max_score}
-											scores_definition={page.data.compliance_assessment_score.scores_definition}
-											field="documentation_score"
-											label={m.documentationScore()}
-											isDoc={true}
-											disabled={!data.is_scored || data.result === 'not_applicable'}
-										/>
-									</div>
-								{/if}
+									{/if}
+								</div>
 							{/if}
 						</div>
 					</div>
