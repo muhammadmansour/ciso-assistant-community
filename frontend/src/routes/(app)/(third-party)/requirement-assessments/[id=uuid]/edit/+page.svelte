@@ -784,7 +784,7 @@
 	>
 		<button
 			type="submit"
-			class="btn bg-[#0A1628] text-white hover:bg-[#1a2740] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 rounded-lg px-5 py-2.5"
+			class="btn bg-[#005FA3] text-white hover:bg-[#004d85] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 rounded-lg px-5 py-2.5"
 			disabled={isAnalyzing || data.requirementAssessment.compliance_assessment.is_locked}
 			title="Run AI Analysis on Associated Evidences"
 		>
@@ -1632,7 +1632,7 @@
 							Save and Continue
 						</button>
 						<button
-							class="btn bg-blue-500 hover:bg-blue-600 text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm"
+							class="btn bg-[#005FA3] hover:bg-[#004d85] text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm"
 							data-testid="save-button"
 							type="submit"
 						>
