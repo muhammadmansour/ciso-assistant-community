@@ -660,15 +660,13 @@
 								<i class="fa-solid fa-circle w-3.5 h-3.5 text-gray-400 text-xs"></i>
 								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.status()}</span>
 							</div>
-							{@const statusVal = data.compliance_assessment.status}
-							{@const statusLabel = safeTranslate(statusVal?.str ?? statusVal)}
 							<span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {
-								statusVal === 'active' || statusVal?.str === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-								statusVal === 'in_progress' || statusVal?.str === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-								statusVal === 'done' || statusVal?.str === 'Completed' || statusVal?.str === 'Done' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
+								data.compliance_assessment.status === 'active' || data.compliance_assessment.status?.str === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+								data.compliance_assessment.status === 'in_progress' || data.compliance_assessment.status?.str === 'In Progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+								data.compliance_assessment.status === 'done' || data.compliance_assessment.status?.str === 'Completed' || data.compliance_assessment.status?.str === 'Done' ? 'bg-sky-50 text-sky-700 border border-sky-200' :
 								'bg-gray-50 text-gray-600 border border-gray-200'
 							}">
-								{statusLabel}
+								{safeTranslate(data.compliance_assessment.status?.str ?? data.compliance_assessment.status)}
 							</span>
 						</div>
 
