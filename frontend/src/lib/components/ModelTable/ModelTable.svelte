@@ -569,7 +569,7 @@
 				open={openState}
 				onOpenChange={(e) => (openState = e.open)}
 				positioning={{ placement: 'bottom-start' }}
-				triggerBase="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm rounded-lg self-end relative"
+				triggerBase="btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm rounded-lg self-end relative font-medium"
 				contentBase="card p-3 bg-white max-w-lg shadow-xl space-y-2 border border-gray-200 rounded-xl"
 				zIndex="1000"
 				autoFocus={false}
@@ -758,9 +758,29 @@
 															{:else}
 																--
 															{/if}
-														{:else if value && value.str}
-															{#if value.id}
-																{@const itemHref = `/${model?.foreignKeyFields?.find((item) => item.field === key)?.urlModel}/${value.id}`}
+													{:else if key === 'status' && value && (value.str || typeof value === 'string')}
+														{@const statusStr = value.str ?? value}
+														{@const statusLower = (typeof statusStr === 'string' ? statusStr : '').toLowerCase()}
+														<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {
+															statusLower === 'active' || statusLower === 'in progress' || statusLower === 'in_progress' ? 'bg-green-100 text-green-700' :
+															statusLower === 'planned' ? 'bg-gray-100 text-gray-600' :
+															statusLower === 'done' || statusLower === 'completed' ? 'bg-blue-100 text-blue-700' :
+															statusLower === 'in review' || statusLower === 'in_review' ? 'bg-amber-100 text-amber-700' :
+															statusLower === 'deprecated' || statusLower === 'expired' ? 'bg-red-100 text-red-700' :
+															statusLower === 'draft' ? 'bg-slate-100 text-slate-600' :
+															statusLower === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+															statusLower === 'missing' || statusLower === 'rejected' ? 'bg-rose-100 text-rose-700' :
+															statusLower === 'new' ? 'bg-sky-100 text-sky-700' :
+															statusLower === 'ongoing' ? 'bg-indigo-100 text-indigo-700' :
+															statusLower === 'resolved' || statusLower === 'closed' ? 'bg-teal-100 text-teal-700' :
+															statusLower === 'dismissed' ? 'bg-zinc-100 text-zinc-600' :
+															'bg-gray-100 text-gray-600'
+														}">
+															{safeTranslate(statusStr)}
+														</span>
+													{:else if value && value.str}
+														{#if value.id}
+															{@const itemHref = `/${model?.foreignKeyFields?.find((item) => item.field === key)?.urlModel}/${value.id}`}
 																{#if key === 'ro_to_couple'}
 																	<Anchor breadcrumbAction="push" href={itemHref} class="anchor"
 																		>{safeTranslate(toCamelCase(value.str.split(' - ')[0]))} - {value.str.split(

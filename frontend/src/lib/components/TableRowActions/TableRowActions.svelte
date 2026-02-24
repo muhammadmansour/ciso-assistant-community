@@ -50,7 +50,7 @@
 		identifierField = 'id',
 		preventDelete = false,
 		preventEdit = false,
-		baseClass = 'space-x-2 whitespace-nowrap flex flex-row items-center text-base text-gray-400 justify-end',
+		baseClass = 'space-x-2 whitespace-nowrap flex flex-row items-center text-base justify-end',
 		hasBody = false,
 		head,
 		body,
@@ -178,7 +178,7 @@
 			<Anchor
 				breadcrumbAction="push"
 				href={detailURL}
-				class="unstyled cursor-pointer text-gray-400 hover:text-blue-600 transition-colors"
+				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
 				data-testid="tablerow-detail-button"><i class="fa-solid fa-eye"></i></Anchor
 			>
 		{/if}
@@ -188,7 +188,7 @@
 				label={m.graph()}
 				href={`/operating-modes/${row.meta.id}/graph/`}
 				stopPropagation
-				class="unstyled cursor-pointer text-gray-400 hover:text-blue-600 transition-colors"
+				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
 				data-testid="tablerow-edit-button"><i class="fa-solid fa-project-diagram"></i></Anchor
 			>
 		{/if}
@@ -198,7 +198,7 @@
 				label={m.edit()}
 				href={editURL}
 				stopPropagation
-				class="unstyled cursor-pointer text-gray-400 hover:text-blue-600 transition-colors"
+				class="unstyled cursor-pointer text-[#005FA3] hover:text-[#004d85] transition-colors"
 				data-testid="tablerow-edit-button"><i class="fa-solid fa-pen-to-square"></i></Anchor
 			>
 		{/if}
@@ -214,7 +214,7 @@
 						modalConfirmDelete(row.meta.id, row);
 						stopPropagation(e);
 					}}
-					class="cursor-pointer text-gray-400 hover:text-red-500 transition-colors"
+					class="cursor-pointer text-red-400 hover:text-red-600 transition-colors"
 					aria-label={m.delete()}
 					data-testid="tablerow-delete-button"><i class="fa-solid fa-trash"></i></button
 				>
@@ -229,7 +229,7 @@
 						modalConfirmDelete(row.meta.id, row);
 						stopPropagation(e);
 					}}
-					class="cursor-pointer text-gray-400 hover:text-red-500 transition-colors"
+					class="cursor-pointer text-red-400 hover:text-red-600 transition-colors"
 					aria-label={m.delete()}
 					data-testid="tablerow-delete-button"><i class="fa-solid fa-trash"></i></button
 				>
