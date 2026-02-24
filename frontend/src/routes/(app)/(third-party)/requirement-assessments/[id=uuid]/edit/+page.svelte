@@ -1326,10 +1326,10 @@
 					</div>
 
 					<!-- Change History (inline below observation) -->
-					<div class="border border-gray-200 rounded-lg overflow-hidden">
+					<div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
 						<button
 							type="button"
-							class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+							class="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
 							onclick={() => (showChangeHistory = !showChangeHistory)}
 						>
 							<span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
