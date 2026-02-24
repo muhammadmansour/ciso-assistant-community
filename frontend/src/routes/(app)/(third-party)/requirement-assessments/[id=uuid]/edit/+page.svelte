@@ -289,6 +289,55 @@
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
 
+	// AI Progress Modal state
+	let showProgressModal = $state(false);
+	let analysisStep = $state(0); // 0=preparing, 1=uploading, 2=analyzing, 3=processing, 4=done
+	let analysisElapsed = $state(0);
+	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
+
+	const analysisSteps = [
+		{ icon: 'fa-folder-open', label: 'Preparing evidence files...' },
+		{ icon: 'fa-cloud-arrow-up', label: 'Uploading to AI engine...' },
+		{ icon: 'fa-brain', label: 'Analyzing requirements & evidence...' },
+		{ icon: 'fa-gears', label: 'Processing results...' },
+		{ icon: 'fa-circle-check', label: 'Analysis complete!' }
+	];
+
+	function startProgressTimer() {
+		analysisElapsed = 0;
+		analysisStep = 0;
+		showProgressModal = true;
+		analysisTimer = setInterval(() => {
+			analysisElapsed += 1;
+			// Simulate progress steps based on elapsed time
+			if (analysisElapsed >= 3 && analysisStep < 1) analysisStep = 1;
+			if (analysisElapsed >= 8 && analysisStep < 2) analysisStep = 2;
+			if (analysisElapsed >= 15 && analysisStep < 3) analysisStep = 3;
+		}, 1000);
+	}
+
+	function stopProgressTimer(success: boolean) {
+		if (analysisTimer) {
+			clearInterval(analysisTimer);
+			analysisTimer = null;
+		}
+		if (success) {
+			analysisStep = 4; // done
+			// Keep progress modal open briefly to show completion before switching to results
+			setTimeout(() => {
+				showProgressModal = false;
+			}, 800);
+		} else {
+			showProgressModal = false;
+		}
+	}
+
+	function formatElapsed(seconds: number): string {
+		const m = Math.floor(seconds / 60);
+		const s = seconds % 60;
+		return m > 0 ? `${m}m ${s}s` : `${s}s`;
+	}
+
 	// AI Apply state — tracks which fields were populated by "Apply Analysis Results"
 	let aiAppliedFields: Set<string> = $state(new Set());
 	let aiApplyBannerVisible = $state(false);
@@ -526,31 +575,36 @@
 			<form
 				method="POST"
 				action="?/runAiAnalysis"
-			use:enhance={() => {
-				isAnalyzing = true;
-				aiAnalysisResult = null;
-				aiAnalysisError = null;
-				return async ({ result }) => {
-					isAnalyzing = false;
+		use:enhance={() => {
+			isAnalyzing = true;
+			aiAnalysisResult = null;
+			aiAnalysisError = null;
+			startProgressTimer();
+			return async ({ result }) => {
+				isAnalyzing = false;
 
-					if (result.type === 'success' && result.data?.aiAnalysis) {
-						const aiData = result.data.aiAnalysis;
-						aiAnalysisResult = aiData;
+				if (result.type === 'success' && result.data?.aiAnalysis) {
+					const aiData = result.data.aiAnalysis;
+					aiAnalysisResult = aiData;
 
-						// Build a local entry for the history table
-						const newEntry = {
-							id: aiData.ai_analysis_id,
-							created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
-							status: 'completed',
-							score: aiData.ai_analysis?.overallAssessment?.score ?? null,
-							compliance_status: aiData.proposed_result ?? aiData.ai_analysis?.overallAssessment?.status ?? null,
-							gemini_files_count: 0,
-							requirements_count: 1,
-							result: aiData.ai_analysis,
-							question_answers: aiData.question_answers,
-						};
+					// Build a local entry for the history table
+					const newEntry = {
+						id: aiData.ai_analysis_id,
+						created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
+						status: 'completed',
+						score: aiData.ai_analysis?.overallAssessment?.score ?? null,
+						compliance_status: aiData.proposed_result ?? aiData.ai_analysis?.overallAssessment?.status ?? null,
+						gemini_files_count: 0,
+						requirements_count: 1,
+						result: aiData.ai_analysis,
+						question_answers: aiData.question_answers,
+					};
 
-						// Auto-open modal with the fresh result
+					// Stop progress timer — show success briefly
+					stopProgressTimer(true);
+
+					// Auto-open results modal with the fresh result (after brief delay for progress completion)
+					setTimeout(() => {
 						selectedAnalysis = {
 							...newEntry,
 							result: aiData.ai_analysis,
@@ -560,17 +614,19 @@
 							compliance_status: newEntry.compliance_status,
 						};
 						showAnalysisModal = true;
+					}, 900);
 
-						// Refresh server data (updates localAiAnalyses via $effect)
-						// but do NOT call applyAction — it would corrupt the superform
-						await invalidateAll();
-					} else if (result.type === 'failure' && result.data?.aiError) {
-						aiAnalysisError = result.data.aiError;
-					} else {
-						aiAnalysisError = 'Unexpected response from server';
-					}
-				};
-			}}
+					// Refresh server data (updates localAiAnalyses via $effect)
+					await invalidateAll();
+				} else if (result.type === 'failure' && result.data?.aiError) {
+					stopProgressTimer(false);
+					aiAnalysisError = result.data.aiError;
+				} else {
+					stopProgressTimer(false);
+					aiAnalysisError = 'Unexpected response from server';
+				}
+			};
+		}}
 			>
 				<button
 					type="submit"
@@ -969,16 +1025,8 @@
 			<div class="flex flex-col my-8 space-y-6">
 				<!-- AI Analysis Section -->
 				<div class="card bg-white shadow-lg rounded-lg overflow-hidden">
-					<div class="p-6">
-						{#if isAnalyzing}
-							<div class="text-center py-16">
-								<div class="inline-block mb-6">
-									<i class="fa-solid fa-spinner fa-spin text-5xl text-[#0A1628]"></i>
-								</div>
-								<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
-								<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
-							</div>
-						{:else if aiAnalysisError}
+			<div class="p-6">
+					{#if aiAnalysisError}
 							<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
 								<div class="flex items-center gap-2 mb-2">
 									<i class="fa-solid fa-circle-exclamation text-red-600"></i>
@@ -1332,6 +1380,75 @@
 		</div>
 	{/if}
 </div>
+
+<!-- AI Analysis Progress Modal -->
+{#if showProgressModal}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4"
+		onkeydown={(e) => e.key === 'Escape' && !isAnalyzing && (showProgressModal = false)}
+	>
+		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+		<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+			<!-- Header -->
+			<div class="bg-gradient-to-r from-[#0A1628] to-[#1a2740] px-6 py-5">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+						<i class="fa-solid fa-wand-magic-sparkles text-white text-lg"></i>
+					</div>
+					<div>
+						<h3 class="text-white font-bold text-lg">AI Analysis in Progress</h3>
+						<p class="text-white/70 text-sm">Elapsed: {formatElapsed(analysisElapsed)}</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Progress Steps -->
+			<div class="px-6 py-6 space-y-4">
+				{#each analysisSteps as step, idx}
+					{@const isActive = idx === analysisStep}
+					{@const isDone = idx < analysisStep}
+					{@const isPending = idx > analysisStep}
+					<div class="flex items-center gap-4 transition-all duration-300 {isPending ? 'opacity-40' : 'opacity-100'}">
+						<!-- Step icon -->
+						<div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300
+							{isDone ? 'bg-green-100 text-green-600' : isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}">
+							{#if isDone}
+								<i class="fa-solid fa-check text-sm"></i>
+							{:else if isActive}
+								<i class="fa-solid {step.icon} text-sm fa-pulse"></i>
+							{:else}
+								<i class="fa-solid {step.icon} text-sm"></i>
+							{/if}
+						</div>
+						<!-- Step label -->
+						<span class="text-sm transition-all duration-300
+							{isDone ? 'text-green-700 font-medium' : isActive ? 'text-blue-800 font-semibold' : 'text-gray-400'}">
+							{step.label}
+						</span>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Progress bar -->
+			<div class="px-6 pb-6">
+				<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+					<div
+						class="h-full rounded-full transition-all duration-700 ease-out {analysisStep >= 4 ? 'bg-green-500' : 'bg-blue-500'}"
+						style="width: {Math.min(((analysisStep + 1) / analysisSteps.length) * 100, 100)}%"
+					></div>
+				</div>
+				<p class="text-xs text-gray-400 mt-2 text-center">
+					{#if analysisStep >= 4}
+						✓ Done — opening results...
+					{:else}
+						Step {analysisStep + 1} of {analysisSteps.length}
+					{/if}
+				</p>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- AI Analysis Modal -->
 {#if showAnalysisModal && selectedAnalysis}
