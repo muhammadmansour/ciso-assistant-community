@@ -32,12 +32,27 @@ export const load = (async ({ fetch, params }) => {
 		}
 	}
 
+	// Load audit log entries for change history visibility (PRD 2.2)
+	let auditLogEntries: any[] = [];
+	try {
+		const auditRes = await fetch(
+			`${BASE_API_URL}/requirement-assessments/${params.id}/audit-log/`
+		);
+		if (auditRes.ok) {
+			const data = await auditRes.json();
+			auditLogEntries = Array.isArray(data) ? data : [];
+		}
+	} catch (e) {
+		console.error('[RA-Detail] Failed to fetch audit log:', e);
+	}
+
 	return {
 		requirementAssessment,
 		complianceAssessmentScore,
 		requirement,
 		parent,
 		tables,
+		auditLogEntries,
 		title: requirementAssessment.name
 	};
 }) satisfies PageServerLoad;

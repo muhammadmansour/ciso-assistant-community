@@ -10700,23 +10700,27 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm-ai-write")
     def confirm_ai_write(self, request, pk=None):
-        """Write AI-proposed values to the RequirementAssessment via a dedicated
-        service account so that the audit log clearly identifies AI as the actor.
+        """Write AI-proposed values to the RequirementAssessment via the REST
+        API serializer pipeline (not direct DB writes) under a dedicated AI
+        service account, so that django-auditlog clearly identifies AI as the
+        actor.
 
         Accepts { "analysis_id": "<uuid>" }.
 
         Flow:
         1. Load the stored AiAnalysisResult
         2. Derive proposed field values (result, status, observation, answers, score)
-        3. Write them to the RA under the AI service account identity
-        4. Force status to 'in_review' (never regresses)
-        5. Return the updated RA data
+        3. Validate via RequirementAssessmentWriteSerializer (REST API path)
+        4. Save under the AI service account identity (set_actor)
+        5. Force status to 'in_review' (never regresses)
+        6. Return the updated RA data
 
-        The audit log will record this change as performed by the AI service
+        The audit log records this change as performed by the AI service
         account (e.g. ai-service@wathbahs.com), clearly distinguishing it
         from human edits.
         """
         from core.models import AiAnalysisResult
+        from core.serializers import RequirementAssessmentWriteSerializer
         from core.ai_analysis_helpers import (
             extract_question_answers,
             find_compliance_status,
@@ -10778,7 +10782,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         overall = ai_result.get('overallAssessment', {}) if isinstance(ai_result, dict) else {}
         proposed_score = overall.get('score', None) if isinstance(overall, dict) else None
 
-        # --- Collect changes ---
+        # --- Collect only fields that actually change ---
         changes = {}
         if proposed_result and proposed_result != requirement_assessment.result:
             changes['result'] = proposed_result
@@ -10797,13 +10801,26 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        # --- Write under AI service account identity ---
+        # --- Write via REST API serializer pipeline under AI service account ---
         ai_user = get_or_create_ai_service_user()
 
+        # Use the same serializer the REST API PATCH endpoint uses.
+        # This runs all validation (locked-assessment check, score clamping,
+        # extended_result consistency, etc.) and the custom update() logic
+        # that triggers compute_score_and_result() when needed.
+        serializer = RequirementAssessmentWriteSerializer(
+            instance=requirement_assessment,
+            data=changes,
+            partial=True,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+
         with set_actor(ai_user):
-            for field, value in changes.items():
-                setattr(requirement_assessment, field, value)
-            requirement_assessment.save()
+            serializer.save()
+
+        # Refresh the instance after serializer.save()
+        requirement_assessment.refresh_from_db()
 
         return Response({
             'message': 'AI analysis values written successfully',
