@@ -369,12 +369,29 @@ export const actions: Actions = {
 		return { applyResult: result };
 	},
 	confirmAiWrite: async (event) => {
-		// Call the confirm-ai-write endpoint which writes AI values under the
-		// dedicated AI service account, so the audit log shows the AI actor.
+		// Call the confirm-ai-write endpoint which stores the AI analysis result
+		// and writes AI values under the dedicated AI service account.
+		// The AiAnalysisResult record is only created at this point (not during
+		// run-ai-analysis) so results are persisted only after user confirmation.
 		const formData = await event.request.formData();
 		const analysisId = formData.get('analysisId');
-		if (!analysisId) {
-			return fail(400, { confirmWriteError: 'Missing analysis ID' });
+		const analysisDataStr = formData.get('analysisData');
+
+		if (!analysisId && !analysisDataStr) {
+			return fail(400, { confirmWriteError: 'Missing analysis ID or analysis data' });
+		}
+
+		// Build the request body — either analysis_id (existing record from
+		// AI History) or the full analysis_data (fresh result not yet stored).
+		let body: Record<string, any>;
+		if (analysisDataStr) {
+			try {
+				body = JSON.parse(analysisDataStr as string);
+			} catch {
+				return fail(400, { confirmWriteError: 'Invalid analysis data' });
+			}
+		} else {
+			body = { analysis_id: analysisId };
 		}
 
 		const response = await event.fetch(
@@ -382,7 +399,7 @@ export const actions: Actions = {
 			{
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ analysis_id: analysisId })
+				body: JSON.stringify(body)
 			}
 		);
 

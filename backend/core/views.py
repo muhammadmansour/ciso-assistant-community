@@ -10245,18 +10245,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 timeout=300,
             )
 
-            from core.models import AiAnalysisResult
-
             if not resp.ok:
                 print(f"[RA-AI-ANALYSIS] Muraji API error: {resp.status_code} - {resp.text[:1000]}")
-                AiAnalysisResult.objects.create(
-                    requirement_assessment=requirement_assessment,
-                    result={'error': resp.text[:2000]},
-                    status='failed',
-                    error_message=f'Muraji API error: {resp.status_code}',
-                    gemini_files_count=len(gemini_file_ids),
-                    requirements_count=1,
-                )
                 return Response(
                     {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
                     status=status.HTTP_502_BAD_GATEWAY
@@ -10316,26 +10306,18 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
 
-            # Save to AiAnalysisResult table ONLY (no RA field writes)
-            analysis_record = AiAnalysisResult.objects.create(
-                requirement_assessment=requirement_assessment,
-                result=result,
-                question_answers=question_answers,
-                status='completed',
-                score=score,
-                compliance_status=compliance_status_val,
-                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
-                gemini_files_count=len(gemini_file_ids),
-                requirements_count=1,
-            )
-
-            print(f"[RA-AI-ANALYSIS] Saved AiAnalysisResult {analysis_record.id} (RA fields NOT auto-written)")
+            # NOTE: AiAnalysisResult is NOT saved here.  The record is only
+            # created when the user explicitly confirms via confirm-ai-write.
+            print(f"[RA-AI-ANALYSIS] Analysis complete (NOT saved to DB yet — awaiting user confirmation)")
 
             return Response({
                 'ai_analysis': result,
                 'question_answers': question_answers,
-                'ai_analysis_id': str(analysis_record.id),
-                'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
+                # Metadata that the frontend will send back on confirm
+                'model_used': os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                'gemini_files_count': len(gemini_file_ids),
+                'score': score,
+                'compliance_status': compliance_status_val,
                 # Proposed values for the frontend to populate the form with
                 'proposed_result': ai_result_value,
                 'proposed_status': proposed_status,
@@ -10354,30 +10336,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         except http_requests.exceptions.Timeout:
             print(f"[RA-AI-ANALYSIS] Muraji API timed out")
-            from core.models import AiAnalysisResult
-            AiAnalysisResult.objects.create(
-                requirement_assessment=requirement_assessment,
-                result={'error': 'Muraji API timed out'},
-                status='failed',
-                error_message='Muraji API timed out',
-                gemini_files_count=len(gemini_file_ids),
-                requirements_count=1,
-            )
             return Response(
                 {'message': 'Analysis timed out. Please try again.'},
                 status=status.HTTP_504_GATEWAY_TIMEOUT
             )
         except Exception as e:
             print(f"[RA-AI-ANALYSIS] Error: {e}")
-            from core.models import AiAnalysisResult
-            AiAnalysisResult.objects.create(
-                requirement_assessment=requirement_assessment,
-                result={'error': str(e)},
-                status='failed',
-                error_message=str(e),
-                gemini_files_count=len(gemini_file_ids) if 'gemini_file_ids' in dir() else 0,
-                requirements_count=1,
-            )
             return Response(
                 {'message': f'Analysis failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -10700,25 +10664,34 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="confirm-ai-write")
     def confirm_ai_write(self, request, pk=None):
-        """Write AI-proposed values to the RequirementAssessment via the REST
-        API serializer pipeline (not direct DB writes) under a dedicated AI
-        service account, so that django-auditlog clearly identifies AI as the
-        actor.
+        """Store the AI analysis result *and* write AI-proposed values to the
+        RequirementAssessment.  The AiAnalysisResult record is only created
+        here — i.e. after the user has reviewed the analysis and explicitly
+        confirmed they want to keep / apply it.
 
-        Accepts { "analysis_id": "<uuid>" }.
+        Accepts EITHER:
+          • { "analysis_id": "<uuid>" }       – for an already-stored record
+            (e.g. from AI History sidebar)
+          • { "analysis_data": {…},            – raw JSON from run-ai-analysis
+              "question_answers": {…},
+              "model_used": "…",
+              "gemini_files_count": N,
+              "score": N,
+              "compliance_status": "…" }
 
         Flow:
-        1. Load the stored AiAnalysisResult
-        2. Derive proposed field values (result, status, observation, answers, score)
-        3. Validate via RequirementAssessmentWriteSerializer (REST API path)
-        4. Save under the AI service account identity (set_actor)
-        5. Force status to 'in_review' (never regresses)
+        1. If analysis_data is provided, create a new AiAnalysisResult
+        2. Otherwise load the existing AiAnalysisResult by analysis_id
+        3. Derive proposed field values (result, status, observation, answers, score)
+        4. Validate via RequirementAssessmentWriteSerializer (REST API path)
+        5. Save under the AI service account identity (set_actor)
         6. Return the updated RA data
 
         The audit log records this change as performed by the AI service
         account (e.g. ai-service@wathbahs.com), clearly distinguishing it
         from human edits.
         """
+        import os
         from core.models import AiAnalysisResult
         from core.serializers import RequirementAssessmentWriteSerializer
         from core.ai_analysis_helpers import (
@@ -10733,22 +10706,48 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         from auditlog.context import set_actor
 
         requirement_assessment = self.get_object()
-        analysis_id = request.data.get('analysis_id')
-        if not analysis_id:
-            return Response(
-                {'message': 'analysis_id is required'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
-        try:
-            analysis = AiAnalysisResult.objects.get(
-                id=analysis_id,
+        analysis_id = request.data.get('analysis_id')
+        analysis_data = request.data.get('analysis_data')
+
+        # ── Resolve or create the AiAnalysisResult record ──────────────
+        if analysis_data and isinstance(analysis_data, dict):
+            # Fresh analysis result — create the record now (first time stored)
+            qa = request.data.get('question_answers') or {}
+            score_val = request.data.get('score')
+            compliance_status_val = request.data.get('compliance_status', '')
+            model_used = request.data.get('model_used', os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'))
+            gemini_files_count = request.data.get('gemini_files_count', 0)
+
+            analysis = AiAnalysisResult.objects.create(
                 requirement_assessment=requirement_assessment,
+                result=analysis_data,
+                question_answers=qa,
+                status='completed',
+                score=score_val,
+                compliance_status=compliance_status_val,
+                model_used=model_used,
+                gemini_files_count=gemini_files_count,
+                requirements_count=1,
             )
-        except AiAnalysisResult.DoesNotExist:
+            print(f"[RA-CONFIRM-AI] Created AiAnalysisResult {analysis.id} on user confirmation")
+
+        elif analysis_id:
+            # Existing record (from AI History)
+            try:
+                analysis = AiAnalysisResult.objects.get(
+                    id=analysis_id,
+                    requirement_assessment=requirement_assessment,
+                )
+            except AiAnalysisResult.DoesNotExist:
+                return Response(
+                    {'message': 'Analysis not found'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
             return Response(
-                {'message': 'Analysis not found'},
-                status=status.HTTP_404_NOT_FOUND,
+                {'message': 'Either analysis_id or analysis_data is required'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         ai_result = analysis.result
@@ -10805,10 +10804,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         # --- Write via REST API serializer pipeline under AI service account ---
         ai_user = get_or_create_ai_service_user()
 
-        # Use the same serializer the REST API PATCH endpoint uses.
-        # This runs all validation (locked-assessment check, score clamping,
-        # extended_result consistency, etc.) and the custom update() logic
-        # that triggers compute_score_and_result() when needed.
         serializer = RequirementAssessmentWriteSerializer(
             instance=requirement_assessment,
             data=changes,
@@ -10825,6 +10820,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         return Response({
             'message': 'AI analysis values written successfully',
+            'analysis_id': str(analysis.id),
             'changed_fields': list(changes.keys()),
             'actor': ai_user.email,
             'status': requirement_assessment.status,

@@ -287,6 +287,9 @@
 	let isModalExpanded = $state(false);
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
+	// Holds the raw analysis metadata for a fresh (unsaved) analysis so it can
+	// be sent to confirm-ai-write when the user clicks "Apply Results".
+	let pendingAnalysisRawData: any = $state(null);
 
 	// AI Analysis Questions section state
 	let showAiQuestions = $state(true);
@@ -387,30 +390,37 @@
 			if (result.type === 'success' && (result.data as any)?.aiAnalysis) {
 				const aiData = (result.data as any).aiAnalysis;
 				aiAnalysisResult = aiData;
-				const newEntry = {
-					id: aiData.ai_analysis_id,
-					created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
-					status: 'completed',
-					score: aiData.ai_analysis?.overallAssessment?.score ?? null,
+
+				// Store raw metadata so we can send it to confirm-ai-write later.
+				// The analysis is NOT stored in the DB yet — only after the user
+				// clicks "Apply Results".
+				pendingAnalysisRawData = {
+					analysis_data: aiData.ai_analysis,
+					question_answers: aiData.question_answers,
+					model_used: aiData.model_used || '',
+					gemini_files_count: aiData.gemini_files_count || 0,
+					score: aiData.score ?? aiData.ai_analysis?.overallAssessment?.score ?? null,
 					compliance_status:
+						aiData.compliance_status ??
 						aiData.proposed_result ??
 						aiData.ai_analysis?.overallAssessment?.status ??
-						null,
-					gemini_files_count: 0,
+						''
+				};
+
+				const newEntry = {
+					id: null, // not saved to DB yet
+					created_at: new Date().toISOString(),
+					status: 'completed',
+					score: pendingAnalysisRawData.score,
+					compliance_status: pendingAnalysisRawData.compliance_status,
+					gemini_files_count: pendingAnalysisRawData.gemini_files_count,
 					requirements_count: 1,
 					result: aiData.ai_analysis,
-					question_answers: aiData.question_answers
-				};
-				pendingAnalysisResult = {
-					...newEntry,
-					result: aiData.ai_analysis,
 					question_answers: aiData.question_answers,
-					created_at: aiData.ai_analysis_updated_at,
-					score: newEntry.score,
-					compliance_status: newEntry.compliance_status
+					_unsaved: true // flag: not yet persisted
 				};
+				pendingAnalysisResult = newEntry;
 				stopProgressTimer(true);
-				await invalidateAll();
 			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
 				stopProgressTimer(false);
 				aiAnalysisError = (result.data as any).aiError;
@@ -448,17 +458,34 @@
 	}
 
 	/**
-	 * Apply AI analysis results: writes via REST API serializer pipeline under
+	 * Apply AI analysis results: stores the analysis record (if not already
+	 * persisted) and writes values via the REST API serializer pipeline under
 	 * the AI service account, then refreshes the page to show updated data and
 	 * audit trail.
+	 *
+	 * For fresh (unsaved) analyses, the raw analysis data is sent so the
+	 * backend creates the AiAnalysisResult record on confirmation.
+	 * For existing analyses (from AI History), the analysis_id is sent.
 	 */
-	async function applyResults(analysisId: string) {
+	async function applyResults(analysisId: string | null) {
 		isApplyingResults = true;
 		applyError = null;
 
 		try {
 			const formData = new FormData();
-			formData.append('analysisId', analysisId);
+
+			if (!analysisId && pendingAnalysisRawData) {
+				// Fresh analysis — send the full raw data so the backend creates
+				// the AiAnalysisResult record now (on user confirmation).
+				formData.append('analysisData', JSON.stringify(pendingAnalysisRawData));
+			} else if (analysisId) {
+				// Existing record from AI History
+				formData.append('analysisId', analysisId);
+			} else {
+				applyError = 'No analysis data available to apply.';
+				return;
+			}
+
 			const response = await fetch('?/confirmAiWrite', {
 				method: 'POST',
 				body: formData
@@ -484,6 +511,9 @@
 			const changed = new Set<string>(writeResult.changed_fields || []);
 			aiAppliedFields = changed;
 			aiApplyBannerVisible = changed.size > 0;
+
+			// Clear pending raw data since it's now persisted
+			pendingAnalysisRawData = null;
 
 			// Close the modal and refresh the page data (form + audit trail)
 			closeModal();
@@ -2249,10 +2279,10 @@
 					class="btn bg-[#005FA3] text-white shadow-sm font-semibold
 						disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
 						{isApplyingResults ? 'hover:bg-[#005FA3]' : 'hover:bg-[#004d85]'}"
-					disabled={isApplyingResults || !(selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id)}
+					disabled={isApplyingResults || !(selectedAnalysis?.id || selectedAnalysis?._unsaved)}
 					onclick={() => {
-						const id = selectedAnalysis?.id || selectedAnalysis?.ai_analysis_id;
-						if (id) applyResults(id);
+						const id = selectedAnalysis?.id || null;
+						applyResults(id);
 					}}
 				>
 					{#if isApplyingResults}
