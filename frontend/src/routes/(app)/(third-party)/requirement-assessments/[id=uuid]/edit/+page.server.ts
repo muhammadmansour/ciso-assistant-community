@@ -298,19 +298,33 @@ export const actions: Actions = {
 		return { form: result.form, newSecurityException: result.form.message.object.id };
 	},
 	runAiAnalysis: async (event) => {
-		// Call backend which calls Muraji API directly, wait for result
-		const response = await event.fetch(
-			`${BASE_API_URL}/requirement-assessments/${event.params.id}/run-ai-analysis/`,
-			{ method: 'POST' }
-		);
+		// Call backend which calls Muraji API directly, wait for result.
+		// Wrapped in try/catch because the backend call can take up to 5 min
+		// and may fail with network errors, timeouts, etc.
+		try {
+			const response = await event.fetch(
+				`${BASE_API_URL}/requirement-assessments/${event.params.id}/run-ai-analysis/`,
+				{ method: 'POST' }
+			);
 
-		if (!response.ok) {
-			const err = await response.json().catch(() => ({}));
-			return fail(response.status, { aiError: err.message || `Error ${response.status}` });
+			if (!response.ok) {
+				const err = await response.json().catch(() => ({}));
+				return fail(response.status, {
+					aiError: err.message || err.detail || `Error ${response.status}`
+				});
+			}
+
+			const result = await response.json();
+			return { aiAnalysis: result };
+		} catch (e: any) {
+			console.error('[runAiAnalysis] Server action failed:', e);
+			return fail(502, {
+				aiError:
+					e?.cause?.code === 'ECONNREFUSED'
+						? 'Backend server is not reachable. Please ensure the API server is running.'
+						: `Analysis request failed: ${e?.message || 'Unknown error'}`
+			});
 		}
-
-		const result = await response.json();
-		return { aiAnalysis: result };
 	},
 	deleteAiAnalysis: async (event) => {
 		const formData = await event.request.formData();

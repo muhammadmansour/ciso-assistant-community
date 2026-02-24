@@ -369,7 +369,18 @@
 			});
 
 			const text = await response.text();
-			const result = deserialize(text);
+
+			// Guard against non-JSON / HTML error pages
+			let result: any;
+			try {
+				result = deserialize(text);
+			} catch {
+				console.error('[Run AI Analysis] Could not deserialize response:', text.substring(0, 300));
+				isAnalyzing = false;
+				stopProgressTimer(false);
+				aiAnalysisError = 'Server returned an unexpected response. The backend may be unreachable.';
+				return;
+			}
 
 			isAnalyzing = false;
 
@@ -403,15 +414,20 @@
 			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
 				stopProgressTimer(false);
 				aiAnalysisError = (result.data as any).aiError;
+			} else if (result.type === 'error') {
+				stopProgressTimer(false);
+				aiAnalysisError = (result as any).error?.message || 'Server error during analysis';
 			} else {
 				stopProgressTimer(false);
 				aiAnalysisError = 'Unexpected response from server';
 			}
-		} catch (e) {
+		} catch (e: any) {
 			console.error('[Run AI Analysis] Failed:', e);
 			isAnalyzing = false;
 			stopProgressTimer(false);
-			aiAnalysisError = 'Request failed — please check your connection and try again.';
+			aiAnalysisError = e?.message?.includes('Failed to fetch')
+				? 'Network error — please check your connection and try again.'
+				: `Request failed: ${e?.message || 'Unknown error'}`;
 		}
 	}
 
