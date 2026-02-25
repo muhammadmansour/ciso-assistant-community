@@ -1241,7 +1241,7 @@
 						>
 							<span class="flex items-center gap-2.5">
 								<i class="fa-solid fa-robot text-[#005FA3]"></i>
-								<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
+								<span class="text-sm font-semibold text-gray-800">Assessment Questions</span>
 								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3]">
 									{questionEntries.length}
 								</span>
