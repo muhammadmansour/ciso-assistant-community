@@ -134,7 +134,7 @@
 		}
 		if (node.is_scored && node.assessable && node.result !== 'not_applicable') {
 			resultCounts['scored'] = (resultCounts['scored'] || 0) + 1;
-			const nodeDocumentationScore = data.compliance_assessment.show_documentation_score
+			const nodeDocumentationScore = data.compliance_assessment?.show_documentation_score
 				? node.documentation_score
 				: 0;
 			resultCounts['total_documentation_score'] =
@@ -217,24 +217,24 @@
 					...node,
 					canEditRequirementAssessment,
 					hasParentNode,
-					showDocumentationScore: data.compliance_assessment.show_documentation_score,
-					hidden,
-					selectedStatus
-				},
-				lead: TreeViewItemLead,
-				leadProps: {
-					statusI18n: node.status_i18n,
-					resultI18n: node.result_i18n,
-					assessable: node.assessable,
-					statusColor: complianceStatusColorMap[node.status],
-					resultColor: complianceResultColorMap[node.result],
-					score: node.score,
-					documentationScore: node.documentation_score,
-					isScored: node.is_scored,
-					showDocumentationScore: data.compliance_assessment.show_documentation_score,
-					max_score: node.max_score,
-					progressStatusEnabled: data.compliance_assessment.progress_status_enabled,
-					extendedResultEnabled: data.compliance_assessment.extended_result_enabled,
+				showDocumentationScore: data.compliance_assessment?.show_documentation_score,
+				hidden,
+				selectedStatus
+			},
+			lead: TreeViewItemLead,
+			leadProps: {
+				statusI18n: node.status_i18n,
+				resultI18n: node.result_i18n,
+				assessable: node.assessable,
+				statusColor: complianceStatusColorMap[node.status],
+				resultColor: complianceResultColorMap[node.result],
+				score: node.score,
+				documentationScore: node.documentation_score,
+				isScored: node.is_scored,
+				showDocumentationScore: data.compliance_assessment?.show_documentation_score,
+				max_score: node.max_score,
+				progressStatusEnabled: data.compliance_assessment?.progress_status_enabled,
+				extendedResultEnabled: data.compliance_assessment?.extended_result_enabled,
 					extendedResult: node.extended_result,
 					extendedResultColor: extendedResultColorMap[node.extended_result]
 				},

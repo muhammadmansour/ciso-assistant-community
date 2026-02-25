@@ -25,8 +25,14 @@ export const loadTableData = async ({
 	newParams.forEach((value, key) => params.append(key, value));
 	url.search = params.toString();
 
-	const response = await fetch(url.toString()).then((res) => res.json());
-	state.setTotalRows(response.count);
+	const res = await fetch(url.toString());
+	if (!res.ok) {
+		console.error(`[loadTableData] ${URLModel} fetch failed: ${res.status} ${res.statusText}`);
+		state.setTotalRows(0);
+		return [];
+	}
+	const response = await res.json();
+	state.setTotalRows(response.count ?? 0);
 
 	const baseFields = getListViewFields({ key: URLModel, featureFlags });
 
@@ -39,7 +45,7 @@ export const loadTableData = async ({
 				}
 			: baseFields;
 
-	const bodyData = tableSourceMapper(response.results, fieldsToUse.body);
+	const bodyData = tableSourceMapper(response.results ?? [], fieldsToUse.body);
 
 	const headData: Record<string, string> = fieldsToUse.body.reduce((obj, key, index) => {
 		obj[key] = fieldsToUse.head[index];
