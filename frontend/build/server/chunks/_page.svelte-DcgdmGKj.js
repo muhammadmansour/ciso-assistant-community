@@ -1,0 +1,92 @@
+import { p as push, X as stringify, a as pop, V as escape_html, T as attr } from './index2-9icAqEyj.js';
+import { M as ModelTable } from './ModelTable-D1sEvsmt.js';
+import { s as safeTranslate } from './i18n-CnZlshhm.js';
+import './exports-CA5lG8jS.js';
+import './state.svelte-B6YM-9h0.js';
+import './formData-Dnvf_dKY.js';
+import './utils-FiC4zhrQ.js';
+import { Hk as gobacktoebiosrmstudy5, sg as selectaudit1 } from './_index-BNamVw9A.js';
+import 'marked';
+import './crud-BiYAuEEm.js';
+import './Tooltip.svelte_svelte_type_style_lang-BDvN8aCi.js';
+import { p as page } from './index3-BwfRm5YV.js';
+import './runtime-B_ICGJZJ.js';
+import './constants-B8vm30bZ.js';
+import { A as Anchor } from './Anchor-CCjZl5ir.js';
+import { g as getModalStore } from './stores2-D1NYwn5V.js';
+import './string-BMZjP7XX.js';
+import './stores-CMqbeBUT.js';
+import './schemas-Cmsh2Wi5.js';
+import './breadcrumbs-DdEobqL1.js';
+import { c as canPerformAction } from './access-control-DaLcieub.js';
+import './Popover-PelKNyF8.js';
+import './machine.svelte-CNa8MjEx.js';
+import './index-server-DEEfjxiI.js';
+import './index8-L4CsUepF.js';
+import '@floating-ui/dom';
+import './legacy-server-DMdb6ZTL.js';
+import './Form-D44apvvs.js';
+import './stores3-psVfZSQ7.js';
+import './index-CRjgakYW.js';
+import './html-FW6Ia4bL.js';
+import './datetime-CDLVyquZ.js';
+import './helpers-Bm9n0CNG.js';
+import './related-visibility-ukSq_O7b.js';
+import './zod-BTgf12zS.js';
+import './client-DqP3yP6V.js';
+import './client2-CItqzqlw.js';
+import './DeleteConfirmModal-D06m6CiP.js';
+import './app-Ci0UE2-c.js';
+import './client.svelte-CxCno2aW.js';
+import './MarkdownRenderer-B6VNWr3Z.js';
+import 'sanitize-html';
+import './shared-server-BU2DVf8Q.js';
+
+function _page($$payload, $$props) {
+  push();
+  getModalStore();
+  let { data } = $$props;
+  const URLModel = data.URLModel;
+  const user = page.data.user;
+  const canEditObject = canPerformAction({
+    user,
+    action: "change",
+    model: data.model.name,
+    domain: data.model.name === "folder" ? data.data.id : data.data.folder?.id ?? data.data.folder ?? user.root_folder_id
+  });
+  $$payload.out += `<div class="flex items-center justify-between mb-4">`;
+  Anchor($$payload, {
+    breadcrumbAction: "push",
+    href: `/ebios-rm/${data.data.id}`,
+    class: "flex items-center space-x-2 text-primary-800 hover:text-primary-600",
+    children: ($$payload2) => {
+      $$payload2.out += `<i class="fa-solid fa-arrow-left"></i> <p>${escape_html(gobacktoebiosrmstudy5())}</p>`;
+    },
+    $$slots: { default: true }
+  });
+  $$payload.out += `<!----></div> `;
+  {
+    let selectButton = function($$payload2) {
+      $$payload2.out += `<div><span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"><button class="inline-block p-3 btn-mini-secondary w-12 focus:relative" data-testid="select-button"${attr("title", selectaudit1())}><i class="fa-solid fa-hand-pointer"></i></button></span></div>`;
+    }, addButton = function($$payload2) {
+      $$payload2.out += `<div><span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"><button class="inline-block p-3 btn-mini-primary w-12 focus:relative" data-testid="add-button"${attr("title", safeTranslate("add-" + data.model.localName))}><i class="fa-solid fa-file-circle-plus"></i></button></span></div>`;
+    };
+    ModelTable($$payload, {
+      source: data.table,
+      deleteForm: data.deleteForm,
+      URLModel,
+      forcePreventDelete: true,
+      forcePreventEdit: true,
+      canSelectObject: canEditObject,
+      baseEndpoint: `/compliance-assessments?ebios_rm_studies=${stringify(data.data.id)}`,
+      selectButton,
+      addButton,
+      $$slots: { selectButton: true, addButton: true }
+    });
+  }
+  $$payload.out += `<!---->`;
+  pop();
+}
+
+export { _page as default };
+//# sourceMappingURL=_page.svelte-DcgdmGKj.js.map
