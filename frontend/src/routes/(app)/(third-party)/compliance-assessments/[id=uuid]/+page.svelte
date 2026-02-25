@@ -509,9 +509,6 @@
 		</div>
 	{/if}
 
-	<!-- Assessment title -->
-	<h1 class="text-xl font-semibold text-[#0077CC]">{data.compliance_assessment.name}</h1>
-
 	<!-- Two-column layout -->
 	<div class="flex gap-6">
 		<!-- Left column: Details + Charts + Requirements -->
@@ -999,160 +996,160 @@
 				{/if}
 			</div>
 
-			<!-- Power-ups section -->
-			<div class="pt-2 space-y-2">
-				<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">{m.powerUps()}</p>
-				{#if !page.data.user.is_third_party && !data.compliance_assessment.is_locked}
-					<Anchor
-						breadcrumbAction="push"
-						href={`${page.url.pathname}/flash-mode`}
-						class="unstyled w-full px-4 py-2.5 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors text-sm flex items-center gap-2"
-						data-testid="flash-mode-button"
-					>
-						<i class="fa-solid fa-bolt w-4"></i>
-						{m.flashMode()}
-					</Anchor>
-				{/if}
-				{#if !data.compliance_assessment.is_locked}
-					<Anchor
-						breadcrumbAction="push"
-						href={`${page.url.pathname}/table-mode`}
-						class="unstyled w-full px-4 py-2.5 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors text-sm flex items-center gap-2"
-						data-testid="table-mode-button"
-					>
-						<i class="fa-solid fa-table-list w-4"></i>
-						{m.tableMode()}
-					</Anchor>
-				{/if}
-				{#if !page.data.user.is_third_party}
-					<button
-						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-						onclick={() => modalCreateCloneForm()}
-						data-testid="clone-audit-button"
-					>
-						<i class="fa-solid fa-copy w-4"></i>
-						{m.cloneAudit()}
-					</button>
-					<button
-						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-						onclick={() => modalCompareAudit()}
-						data-testid="compare-audit-button"
-					>
-						<i class="fa-solid fa-code-compare w-4"></i>
-						{m.compareToAudit()}
-					</button>
-				{/if}
-
-				{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && data.compliance_assessment.framework.reference_controls.length > 0 && !data.compliance_assessment.is_locked}
-					<button
-						class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
-						onclick={() => {
-							modalConfirmCreateSuggestedControls(
-								data.compliance_assessment.id,
-								data.compliance_assessment.name,
-								'?/createSuggestedControls'
-							);
-						}}
-					>
-						{#if createAppliedControlsLoading}
-							<ProgressRing
-								strokeWidth="16px"
-								meterStroke="stroke-[#0077CC]"
-								size="size-5"
-							/>
-						{:else}
-							<i class="fa-solid fa-wand-magic-sparkles w-4"></i>
-						{/if}
-						{m.suggestControls()}
-					</button>
-				{/if}
-			</div>
-
-			{#if has_threats && !page.data.user.is_third_party}
-				<button
-					class="w-full px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center justify-center gap-2"
-					onclick={openThreatsDialog}
-				>
-					<i class="fa-solid fa-triangle-exclamation"></i>
-					<span class="font-bold">{data.threats.total_unique_threats}</span>
-					<span>{m.potentialThreats()}</span>
-				</button>
-			{/if}
-
-			<!-- Progress card -->
-			{#key compliance_assessment_donut_values}
-				<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-					<h3 class="text-sm font-semibold text-gray-900 mb-4">{m.progress()}</h3>
-					{#if data.global_score && data.global_score.score >= 0 && data.global_score.max_score > 0}
-						{@const progressPercent = Math.round((data.global_score.score * 100) / data.global_score.max_score)}
-						{@const circumference = 2 * Math.PI * 45}
-						{@const strokeDashoffset = circumference - (progressPercent / 100) * circumference}
-						<div class="flex items-center justify-center mb-4">
-							<div class="relative w-28 h-28">
-								<svg class="transform -rotate-90" viewBox="0 0 120 120">
-									<circle cx="60" cy="60" r="45" fill="none" stroke="#E5E7EB" stroke-width="12" />
-									<circle
-										cx="60"
-										cy="60"
-										r="45"
-										fill="none"
-										stroke="#0891b2"
-										stroke-width="12"
-										stroke-linecap="round"
-										stroke-dasharray={circumference}
-										stroke-dashoffset={strokeDashoffset}
-										class="transition-all duration-700 ease-out"
-									/>
-								</svg>
-								<div class="absolute inset-0 flex flex-col items-center justify-center">
-									<div class="text-2xl font-bold text-gray-900">{progressPercent}%</div>
-									<div class="text-[10px] text-gray-500 uppercase tracking-wide">completed</div>
-								</div>
+		<!-- Progress card -->
+		{#key compliance_assessment_donut_values}
+			<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+				<h3 class="text-sm font-semibold text-gray-900 mb-4">{m.progress()}</h3>
+				{#if data.global_score && data.global_score.score >= 0 && data.global_score.max_score > 0}
+					{@const progressPercent = Math.round((data.global_score.score * 100) / data.global_score.max_score)}
+					{@const circumference = 2 * Math.PI * 45}
+					{@const strokeDashoffset = circumference - (progressPercent / 100) * circumference}
+					<div class="flex items-center justify-center mb-4">
+						<div class="relative w-28 h-28">
+							<svg class="transform -rotate-90" viewBox="0 0 120 120">
+								<circle cx="60" cy="60" r="45" fill="none" stroke="#E5E7EB" stroke-width="12" />
+								<circle
+									cx="60"
+									cy="60"
+									r="45"
+									fill="none"
+									stroke="#0891b2"
+									stroke-width="12"
+									stroke-linecap="round"
+									stroke-dasharray={circumference}
+									stroke-dashoffset={strokeDashoffset}
+									class="transition-all duration-700 ease-out"
+								/>
+							</svg>
+							<div class="absolute inset-0 flex flex-col items-center justify-center">
+								<div class="text-2xl font-bold text-gray-900">{progressPercent}%</div>
+								<div class="text-[10px] text-gray-500 uppercase tracking-wide">completed</div>
 							</div>
 						</div>
-					{/if}
-					<!-- Status breakdown -->
-					{#if data.compliance_assessment.progress_status_enabled && compliance_assessment_donut_values?.status?.values}
-						<div class="space-y-2.5">
-							{#each compliance_assessment_donut_values.status.values as statusItem}
-								{@const statusKey = statusItem.name}
-								{@const mapped = progressStatusMap[statusKey]}
-								<div class="flex items-center justify-between text-sm">
-									<div class="flex items-center gap-2">
-										<span class="w-2.5 h-2.5 rounded-full {mapped?.dotColor ?? 'bg-gray-300'}"></span>
-										<span class="text-gray-600">{mapped?.label ?? safeTranslate(statusKey)}</span>
-									</div>
-									<span class="font-medium text-gray-900">{statusItem.value}</span>
+					</div>
+				{/if}
+				<!-- Status breakdown -->
+				{#if data.compliance_assessment.progress_status_enabled && compliance_assessment_donut_values?.status?.values}
+					<div class="space-y-2.5">
+						{#each compliance_assessment_donut_values.status.values as statusItem}
+							{@const statusKey = statusItem.name}
+							{@const mapped = progressStatusMap[statusKey]}
+							<div class="flex items-center justify-between text-sm">
+								<div class="flex items-center gap-2">
+									<span class="w-2.5 h-2.5 rounded-full {mapped?.dotColor ?? 'bg-gray-300'}"></span>
+									<span class="text-gray-600">{mapped?.label ?? safeTranslate(statusKey)}</span>
 								</div>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			{/key}
-
-			<!-- Domains Coverage card -->
-			{#if treeCategories.length > 0}
-				<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-					<h3 class="text-sm font-semibold text-gray-900 mb-3">{m.domainsCoverage()}</h3>
-					<div class="space-y-2">
-						{#each treeCategories as cat}
-							{@const barWidth = totalTreeRequirements > 0 ? (cat.reqCount / totalTreeRequirements) * 100 : 0}
-							<div>
-								<div class="flex items-center justify-between text-xs mb-1">
-									<span class="text-gray-600 truncate mr-2">{cat.index}. {cat.name}</span>
-									<span class="text-gray-400 flex-shrink-0">{cat.reqCount}</span>
-								</div>
-								<div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-									<div
-										class="h-full bg-[#0077CC] rounded-full transition-all duration-500"
-										style="width: {barWidth}%"
-									></div>
-								</div>
+								<span class="font-medium text-gray-900">{statusItem.value}</span>
 							</div>
 						{/each}
 					</div>
+				{/if}
+			</div>
+		{/key}
+
+		<!-- Domains Coverage card -->
+		{#if treeCategories.length > 0}
+			<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+				<h3 class="text-sm font-semibold text-gray-900 mb-3">{m.domainsCoverage()}</h3>
+				<div class="space-y-2">
+					{#each treeCategories as cat}
+						{@const barWidth = totalTreeRequirements > 0 ? (cat.reqCount / totalTreeRequirements) * 100 : 0}
+						<div>
+							<div class="flex items-center justify-between text-xs mb-1">
+								<span class="text-gray-600 truncate mr-2">{cat.index}. {cat.name}</span>
+								<span class="text-gray-400 flex-shrink-0">{cat.reqCount}</span>
+							</div>
+							<div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+								<div
+									class="h-full bg-[#0077CC] rounded-full transition-all duration-500"
+									style="width: {barWidth}%"
+								></div>
+							</div>
+						</div>
+					{/each}
 				</div>
+			</div>
+		{/if}
+
+		<!-- Power-ups section -->
+		<div class="pt-2 space-y-2">
+			<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1">{m.powerUps()}</p>
+			{#if !page.data.user.is_third_party && !data.compliance_assessment.is_locked}
+				<Anchor
+					breadcrumbAction="push"
+					href={`${page.url.pathname}/flash-mode`}
+					class="unstyled w-full px-4 py-2.5 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors text-sm flex items-center gap-2"
+					data-testid="flash-mode-button"
+				>
+					<i class="fa-solid fa-bolt w-4"></i>
+					{m.flashMode()}
+				</Anchor>
 			{/if}
+			{#if !data.compliance_assessment.is_locked}
+				<Anchor
+					breadcrumbAction="push"
+					href={`${page.url.pathname}/table-mode`}
+					class="unstyled w-full px-4 py-2.5 bg-[#0A1628] text-white rounded-lg hover:bg-[#1a2740] transition-colors text-sm flex items-center gap-2"
+					data-testid="table-mode-button"
+				>
+					<i class="fa-solid fa-table-list w-4"></i>
+					{m.tableMode()}
+				</Anchor>
+			{/if}
+			{#if !page.data.user.is_third_party}
+				<button
+					class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
+					onclick={() => modalCreateCloneForm()}
+					data-testid="clone-audit-button"
+				>
+					<i class="fa-solid fa-copy w-4"></i>
+					{m.cloneAudit()}
+				</button>
+				<button
+					class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
+					onclick={() => modalCompareAudit()}
+					data-testid="compare-audit-button"
+				>
+					<i class="fa-solid fa-code-compare w-4"></i>
+					{m.compareToAudit()}
+				</button>
+			{/if}
+
+			{#if Object.hasOwn(page.data.user.permissions, 'add_appliedcontrol') && data.compliance_assessment.framework.reference_controls.length > 0 && !data.compliance_assessment.is_locked}
+				<button
+					class="w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm flex items-center gap-2"
+					onclick={() => {
+						modalConfirmCreateSuggestedControls(
+							data.compliance_assessment.id,
+							data.compliance_assessment.name,
+							'?/createSuggestedControls'
+						);
+					}}
+				>
+					{#if createAppliedControlsLoading}
+						<ProgressRing
+							strokeWidth="16px"
+							meterStroke="stroke-[#0077CC]"
+							size="size-5"
+						/>
+					{:else}
+						<i class="fa-solid fa-wand-magic-sparkles w-4"></i>
+					{/if}
+					{m.suggestControls()}
+				</button>
+			{/if}
+		</div>
+
+		{#if has_threats && !page.data.user.is_third_party}
+			<button
+				class="w-full px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center justify-center gap-2"
+				onclick={openThreatsDialog}
+			>
+				<i class="fa-solid fa-triangle-exclamation"></i>
+				<span class="font-bold">{data.threats.total_unique_threats}</span>
+				<span>{m.potentialThreats()}</span>
+			</button>
+		{/if}
 		</div>
 	</div>
 </div>

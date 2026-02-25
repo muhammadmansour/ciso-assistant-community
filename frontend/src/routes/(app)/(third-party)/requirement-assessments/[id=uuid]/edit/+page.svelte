@@ -1070,21 +1070,44 @@
 					</div>
 				{/if}
 
-				<!-- Tabs Card -->
-					<div class="card shadow-sm bg-white border border-gray-200 rounded-xl">
-						<Tabs
-						value={group}
-						onValueChange={(e) => {
-							group = e.value;
-						}}
-					>
-						{#snippet list()}
+			<!-- Tabs Card -->
+				<div class="card shadow-sm bg-white border border-gray-200 rounded-xl">
+					<Tabs
+					value={group}
+					onValueChange={(e) => {
+						group = e.value;
+					}}
+				>
+					{#snippet list()}
+						<div class="flex border-b border-gray-200">
 							{#if !page.data.user.is_third_party}
-								<Tabs.Control value="applied_controls" stateActive="border-b-[#1D53DA] opacity-100">{m.appliedControls()}</Tabs.Control>
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'applied_controls' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'applied_controls')}
+								>{m.appliedControls()}</button>
 							{/if}
-							<Tabs.Control value="evidences" stateActive="border-b-[#1D53DA] opacity-100">{m.evidences()}</Tabs.Control>
-							<Tabs.Control value="security_exceptions" stateActive="border-b-[#1D53DA] opacity-100">{m.securityExceptions()}</Tabs.Control>
-						{/snippet}
+							<button type="button"
+								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+								onclick={() => (group = 'evidences')}
+							>{m.evidences()}</button>
+							<button type="button"
+								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+								onclick={() => (group = 'security_exceptions')}
+							>{m.securityExceptions()}</button>
+							{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 {group === 'ai_questions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'ai_questions')}
+								>
+									<i class="fa-solid fa-robot"></i>
+									AI Analysis Questions
+									<span class="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full text-xs font-semibold {group === 'ai_questions' ? 'bg-[#1D53DA]/10 text-[#1D53DA]' : 'bg-gray-200 text-gray-500'}">
+										{Object.keys(page.data.requirementAssessment.requirement.questions).length}
+									</span>
+								</button>
+							{/if}
+						</div>
+					{/snippet}
 						{#snippet content()}
 							<Tabs.Panel value="applied_controls">
 								<div class="flex items-center mb-2 px-2 text-xs space-x-2">
@@ -1185,61 +1208,40 @@
 									/>
 								</div>
 							</Tabs.Panel>
-							<Tabs.Panel value="security_exceptions">
-								<div class="h-full flex flex-col space-y-2 rounded-container p-4">
-									<span class="flex flex-row justify-end items-center">
-										<button
-											class="btn preset-filled-primary-500 self-end"
-											onclick={modalSecurityExceptionCreateForm}
-											type="button"
-											><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
-										>
-									</span>
-									{#key refreshKey}
-										<AutocompleteSelect
-											multiple
-											{form}
-											optionsEndpoint="security-exceptions"
-											optionsExtraFields={[['folder', 'str']]}
-											field="security_exceptions"
-										/>
-									{/key}
-									<ModelTable
-										source={page.data.tables['security-exceptions']}
-										hideFilters={true}
-										URLModel="security-exceptions"
-										expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
-										baseEndpoint="/security-exceptions?requirement_assessments={page.data
-											.requirementAssessment.id}"
-									/>
-								</div>
-							</Tabs.Panel>
-						{/snippet}
-					</Tabs>
-					</div>
-
-					<!-- AI Analysis Questions (interactive) -->
-					{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-						{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
-						{@const questionEntries = Object.entries(reqQuestions)}
-						<div class="card bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden relative">
-							<button
-								type="button"
-								class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-								onclick={() => (showAiQuestions = !showAiQuestions)}
-							>
-								<span class="flex items-center gap-2.5">
-									<i class="fa-solid fa-robot text-[#005FA3]"></i>
-									<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
-									<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3]">
-										{questionEntries.length}
-									</span>
+						<Tabs.Panel value="security_exceptions">
+							<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+								<span class="flex flex-row justify-end items-center">
+									<button
+										class="btn preset-filled-primary-500 self-end"
+										onclick={modalSecurityExceptionCreateForm}
+										type="button"
+										><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
+									>
 								</span>
-								<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
-							</button>
-
-							{#if showAiQuestions}
-								<div class="px-5 pb-5 space-y-3">
+								{#key refreshKey}
+									<AutocompleteSelect
+										multiple
+										{form}
+										optionsEndpoint="security-exceptions"
+										optionsExtraFields={[['folder', 'str']]}
+										field="security_exceptions"
+									/>
+								{/key}
+								<ModelTable
+									source={page.data.tables['security-exceptions']}
+									hideFilters={true}
+									URLModel="security-exceptions"
+									expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
+									baseEndpoint="/security-exceptions?requirement_assessments={page.data
+										.requirementAssessment.id}"
+								/>
+							</div>
+						</Tabs.Panel>
+						{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+							<Tabs.Panel value="ai_questions">
+								{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
+								{@const questionEntries = Object.entries(reqQuestions)}
+								<div class="px-5 pb-5 pt-3 space-y-3">
 									{#each questionEntries as [urn, question], idx}
 										{@const aiQ = latestAnalysisQuestions[idx] || null}
 										{@const currentAnswer = data?.answers?.[urn]}
@@ -1351,9 +1353,11 @@
 										{/if}
 									{/each}
 								</div>
-							{/if}
-						</div>
-					{/if}
+							</Tabs.Panel>
+						{/if}
+					{/snippet}
+				</Tabs>
+				</div>
 
 					<!-- Observation -->
 					<div class="relative bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -1411,8 +1415,8 @@
 														 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
 														 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
 														 'bg-gray-100 text-gray-600'}">
-														{entry.action}
-													</span>
+												{entry.action === 'update' ? 'Info' : entry.action}
+												</span>
 												</div>
 												<!-- Changed fields -->
 												<div class="divide-y divide-gray-50">
@@ -1504,27 +1508,29 @@
 
 				<!-- ── RIGHT SIDEBAR ── -->
 				<div class="space-y-4">
+				<!-- STATUS & RESULT -->
+				<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5 space-y-4">
 					<!-- STATUS -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
-						<div class="relative">
-							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-								<i class="fa-regular fa-clock text-[#005FA3]"></i>
-								{m.status()}
-								<span class="text-red-500">*</span>
-							</label>
-							<Select
-								{form}
-								options={page.data.model.selectOptions['status']}
-								field="status"
-								label=""
-								helpText={m.requirementAssessmentStatusHelpText()}
-							/>
-						</div>
+					<div class="relative">
+						<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+							<i class="fa-regular fa-clock text-[#005FA3]"></i>
+							{m.status()}
+							<span class="text-red-500">*</span>
+						</label>
+						<Select
+							{form}
+							options={page.data.model.selectOptions['status']}
+							field="status"
+							label=""
+							helpText={m.requirementAssessmentStatusHelpText()}
+						/>
 					</div>
 
+					<div class="border-t border-gray-100"></div>
+
 					<!-- RESULT -->
-					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
-						{#if computedResult}
+					{#if computedResult}
+						<div>
 							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
 								<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
 								{m.result()}
@@ -1535,34 +1541,35 @@
 								<span class="w-2 h-2 rounded-full" style="background-color: {complianceResultColorMap[computedResult || 'not_assessed'] || '#ddd'}"></span>
 								{safeTranslate(computedResult || 'not_assessed')}
 							</span>
-						{:else}
-							<div class="relative">
-								<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-									<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
-									{m.result()}
-									<span class="text-red-500">*</span>
-								</label>
-								<Select
-									{form}
-									options={page.data.model.selectOptions['result']}
-									field="result"
-									label=""
-									helpText={m.requirementAssessmentResultHelpText()}
-								/>
-							</div>
-						{/if}
-						{#if page.data.requirementAssessment.compliance_assessment.extended_result_enabled}
-							<div class="mt-3">
-								<Select
-									{form}
-									options={page.data.model.selectOptions['extended_result']}
-									field="extended_result"
-									label={m.extendedResult()}
-									helpText={m.extendedResultHelpText()}
-								/>
-							</div>
-						{/if}
-					</div>
+						</div>
+					{:else}
+						<div class="relative">
+							<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+								<i class="fa-regular fa-circle-check text-[#005FA3]"></i>
+								{m.result()}
+								<span class="text-red-500">*</span>
+							</label>
+							<Select
+								{form}
+								options={page.data.model.selectOptions['result']}
+								field="result"
+								label=""
+								helpText={m.requirementAssessmentResultHelpText()}
+							/>
+						</div>
+					{/if}
+					{#if page.data.requirementAssessment.compliance_assessment.extended_result_enabled}
+						<div class="mt-1">
+							<Select
+								{form}
+								options={page.data.model.selectOptions['extended_result']}
+								field="extended_result"
+								label={m.extendedResult()}
+								helpText={m.extendedResultHelpText()}
+							/>
+						</div>
+					{/if}
+				</div>
 
 					<!-- SCORING -->
 					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
