@@ -84,6 +84,15 @@ export const load = (async ({ fetch, params }) => {
 		targetIds: [params.id]
 	});
 
+	// Fetch applied controls count from the action plan endpoint
+	const appliedControlsRes = await fetch(
+		`${BASE_API_URL}/compliance-assessments/${params.id}/action-plan/`
+	);
+	const appliedControlsList = appliedControlsRes.ok ? await appliedControlsRes.json() : [];
+	const appliedControlsCount = Array.isArray(appliedControlsList)
+		? appliedControlsList.length
+		: appliedControlsList?.count ?? 0;
+
 	return {
 		URLModel,
 		compliance_assessment,
@@ -98,6 +107,7 @@ export const load = (async ({ fetch, params }) => {
 		form,
 		frameworksMappings,
 		validationFlowForm,
+		appliedControlsCount,
 		title: compliance_assessment.name
 	};
 }) satisfies PageServerLoad;

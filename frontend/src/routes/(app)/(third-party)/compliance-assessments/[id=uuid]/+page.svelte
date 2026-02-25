@@ -574,25 +574,15 @@
 								<i class="fa-solid fa-bullseye text-[13px] text-gray-400"></i>
 								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.appliedControls()}</span>
 							</div>
-							<p class="text-sm text-gray-900" data-testid="controls-field-value">
-								{#if data.compliance_assessment.framework?.reference_controls?.length > 0}
-									{data.compliance_assessment.framework.reference_controls.length} {m.appliedControls().toLowerCase()}
-								{:else}
-									<span class="text-gray-400">-</span>
-								{/if}
-							</p>
+						<p class="text-sm text-gray-900" data-testid="controls-field-value">
+							{#if data.appliedControlsCount > 0}
+								{data.appliedControlsCount} {m.appliedControls().toLowerCase()}
+							{:else}
+								<span class="text-gray-400">0</span>
+							{/if}
+						</p>
 						</div>
-						<!-- Risk Assessment -->
-						<div>
-							<div class="flex items-center gap-2 mb-1.5">
-								<i class="fa-solid fa-shield-halved text-[13px] text-gray-400"></i>
-								<span class="text-xs font-medium text-gray-500 uppercase tracking-wide">{m.riskAssessment()}</span>
-							</div>
-							<span class="inline-flex items-center gap-1.5 text-sm text-emerald-700">
-								<i class="fa-solid fa-circle-check text-[13px]"></i> {m.enabled()}
-							</span>
-						</div>
-						<!-- Status -->
+					<!-- Status -->
 						<div>
 							<div class="flex items-center gap-2 mb-1.5">
 								<i class="fa-regular fa-circle text-[13px] text-gray-400"></i>

@@ -1090,23 +1090,11 @@
 								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
 								onclick={() => (group = 'evidences')}
 							>{m.evidences()}</button>
-							<button type="button"
-								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-								onclick={() => (group = 'security_exceptions')}
-							>{m.securityExceptions()}</button>
-							{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-								<button type="button"
-									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 {group === 'ai_questions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-									onclick={() => (group = 'ai_questions')}
-								>
-									<i class="fa-solid fa-robot"></i>
-									AI Analysis Questions
-									<span class="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 rounded-full text-xs font-semibold {group === 'ai_questions' ? 'bg-[#1D53DA]/10 text-[#1D53DA]' : 'bg-gray-200 text-gray-500'}">
-										{Object.keys(page.data.requirementAssessment.requirement.questions).length}
-									</span>
-								</button>
-							{/if}
-						</div>
+						<button type="button"
+							class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+							onclick={() => (group = 'security_exceptions')}
+						>{m.securityExceptions()}</button>
+					</div>
 					{/snippet}
 						{#snippet content()}
 							<Tabs.Panel value="applied_controls">
@@ -1236,130 +1224,149 @@
 										.requirementAssessment.id}"
 								/>
 							</div>
-						</Tabs.Panel>
-						{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
-							<Tabs.Panel value="ai_questions">
-								{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
-								{@const questionEntries = Object.entries(reqQuestions)}
-								<div class="px-5 pb-5 pt-3 space-y-3">
-									{#each questionEntries as [urn, question], idx}
-										{@const aiQ = latestAnalysisQuestions[idx] || null}
-										{@const currentAnswer = data?.answers?.[urn]}
-										{#if isQuestionVisible(question, data?.answers || {})}
-											<div class="border border-gray-200 rounded-xl px-5 py-4">
-												<!-- Header row: Q number + question text + AI metadata -->
-												<div class="flex items-start gap-4 mb-3">
-													<div class="shrink-0 min-w-[60px]">
-														<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
-														<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
-															{question.type === 'unique_choice' ? 'Unique Choice' : question.type === 'multiple_choice' ? 'Multiple Choice' : question.type?.replace(/_/g, ' ') || ''}
-														</div>
-													</div>
-													<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
-														{question.text}
-													</div>
-													{#if aiQ}
-														<div class="flex items-center gap-3 shrink-0">
-															<span class="text-xs px-2 py-0.5 rounded-full font-semibold
-																{aiQ.answer === 'Yes' ? 'bg-green-100 text-green-700' : aiQ.answer === 'No' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
-																AI: {aiQ.answer}
-															</span>
-															{#if aiQ.confidence !== null && aiQ.confidence !== undefined}
-																<span class="text-xs font-semibold
-																	{aiQ.confidence >= 80 ? 'text-green-600' : aiQ.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
-																	{aiQ.confidence}%
-																</span>
-															{/if}
-														</div>
-													{/if}
-												</div>
+					</Tabs.Panel>
+				{/snippet}
+			</Tabs>
+			</div>
 
-												<!-- Interactive choice buttons -->
-												{#if question.type === 'unique_choice'}
-													<div class="flex flex-row flex-wrap gap-1.5">
-														{#each question.choices as option}
-															{@const selected = currentAnswer === option.urn}
-															<button
-																type="button"
-																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
-																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
-																style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
-																onclick={() => {
-																	form.form.update((d) => {
-																		const newAnswers = { ...(d.answers || {}) };
-																		if (newAnswers[urn] === option.urn) {
-																			newAnswers[urn] = null;
-																		} else {
-																			newAnswers[urn] = option.urn;
-																		}
-																		return { ...d, answers: newAnswers };
-																	});
-																}}
-															>
-																{option.value}
-															</button>
-														{/each}
+				<!-- AI Analysis Questions (interactive) -->
+				{#if page.data.requirementAssessment.requirement.questions != null && Object.keys(page.data.requirementAssessment.requirement.questions).length !== 0}
+					{@const reqQuestions = page.data.requirementAssessment.requirement.questions}
+					{@const questionEntries = Object.entries(reqQuestions)}
+					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden relative">
+						<button
+							type="button"
+							class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+							onclick={() => (showAiQuestions = !showAiQuestions)}
+						>
+							<span class="flex items-center gap-2.5">
+								<i class="fa-solid fa-robot text-[#005FA3]"></i>
+								<span class="text-sm font-semibold text-gray-800">AI Analysis Questions</span>
+								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3]">
+									{questionEntries.length}
+								</span>
+							</span>
+							<i class="fa-solid {showAiQuestions ? 'fa-chevron-up' : 'fa-chevron-down'} text-gray-400 text-xs"></i>
+						</button>
+
+						{#if showAiQuestions}
+							<div class="px-5 pb-5 space-y-3">
+								{#each questionEntries as [urn, question], idx}
+									{@const aiQ = latestAnalysisQuestions[idx] || null}
+									{@const currentAnswer = data?.answers?.[urn]}
+									{#if isQuestionVisible(question, data?.answers || {})}
+										<div class="border border-gray-200 rounded-xl px-5 py-4">
+											<!-- Header row: Q number + question text + AI metadata -->
+											<div class="flex items-start gap-4 mb-3">
+												<div class="shrink-0 min-w-[60px]">
+													<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
+													<div class="text-[11px] text-gray-400 capitalize whitespace-nowrap">
+														{question.type === 'unique_choice' ? 'Unique Choice' : question.type === 'multiple_choice' ? 'Multiple Choice' : question.type?.replace(/_/g, ' ') || ''}
 													</div>
-												{:else if question.type === 'multiple_choice'}
-													<div class="flex flex-row flex-wrap gap-1.5">
-														{#each question.choices as option}
-															{@const selected = Array.isArray(currentAnswer) && currentAnswer.includes(option.urn)}
-															<button
-																type="button"
-																class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
-																	{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
-																style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
-																onclick={() => {
-																	form.form.update((d) => {
-																		const newAnswers = { ...(d.answers || {}) };
-																		if (!Array.isArray(newAnswers[urn])) newAnswers[urn] = [];
-																		if (newAnswers[urn].includes(option.urn)) {
-																			newAnswers[urn] = newAnswers[urn].filter((v) => v !== option.urn);
-																		} else {
-																			newAnswers[urn] = [...newAnswers[urn], option.urn];
-																		}
-																		return { ...d, answers: newAnswers };
-																	});
-																}}
-															>
-																{option.value}
-															</button>
-														{/each}
+												</div>
+												<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
+													{question.text}
+												</div>
+												{#if aiQ}
+													<div class="flex items-center gap-3 shrink-0">
+														<span class="text-xs px-2 py-0.5 rounded-full font-semibold
+															{aiQ.answer === 'Yes' ? 'bg-green-100 text-green-700' : aiQ.answer === 'No' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
+															AI: {aiQ.answer}
+														</span>
+														{#if aiQ.confidence !== null && aiQ.confidence !== undefined}
+															<span class="text-xs font-semibold
+																{aiQ.confidence >= 80 ? 'text-green-600' : aiQ.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
+																{aiQ.confidence}%
+															</span>
+														{/if}
 													</div>
-												{:else if question.type === 'date'}
-													<input
-														type="date"
-														class="input w-fit"
-														value={currentAnswer || ''}
-														onchange={(e) => {
-															form.form.update((d) => {
-																return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
-															});
-														}}
-													/>
-												{:else if question.type === 'text'}
-													<textarea
-														placeholder=""
-														class="input w-full"
-														value={currentAnswer || ''}
-														onchange={(e) => {
-															form.form.update((d) => {
-																return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
-															});
-														}}
-													></textarea>
 												{/if}
 											</div>
-										{/if}
-									{/each}
-								</div>
-							</Tabs.Panel>
-						{/if}
-					{/snippet}
-				</Tabs>
-				</div>
 
-					<!-- Observation -->
+											<!-- Interactive choice buttons -->
+											{#if question.type === 'unique_choice'}
+												<div class="flex flex-row flex-wrap gap-1.5">
+													{#each question.choices as option}
+														{@const selected = currentAnswer === option.urn}
+														<button
+															type="button"
+															class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
+																{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
+															style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
+															onclick={() => {
+																form.form.update((d) => {
+																	const newAnswers = { ...(d.answers || {}) };
+																	if (newAnswers[urn] === option.urn) {
+																		newAnswers[urn] = null;
+																	} else {
+																		newAnswers[urn] = option.urn;
+																	}
+																	return { ...d, answers: newAnswers };
+																});
+															}}
+														>
+															{option.value}
+														</button>
+													{/each}
+												</div>
+											{:else if question.type === 'multiple_choice'}
+												<div class="flex flex-row flex-wrap gap-1.5">
+													{#each question.choices as option}
+														{@const selected = Array.isArray(currentAnswer) && currentAnswer.includes(option.urn)}
+														<button
+															type="button"
+															class="px-3 py-1 text-sm rounded-lg border transition-all duration-150
+																{selected ? 'text-white shadow-sm border-transparent' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
+															style={selected ? `background-color: ${option.color || '#005FA3'}; border-color: ${option.color || '#005FA3'};` : ''}
+															onclick={() => {
+																form.form.update((d) => {
+																	const newAnswers = { ...(d.answers || {}) };
+																	if (!Array.isArray(newAnswers[urn])) newAnswers[urn] = [];
+																	if (newAnswers[urn].includes(option.urn)) {
+																		newAnswers[urn] = newAnswers[urn].filter((v) => v !== option.urn);
+																	} else {
+																		newAnswers[urn] = [...newAnswers[urn], option.urn];
+																	}
+																	return { ...d, answers: newAnswers };
+																});
+															}}
+														>
+															{option.value}
+														</button>
+													{/each}
+												</div>
+											{:else if question.type === 'date'}
+												<input
+													type="date"
+													class="input w-fit"
+													value={currentAnswer || ''}
+													onchange={(e) => {
+														form.form.update((d) => {
+															return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
+														});
+													}}
+												/>
+											{:else if question.type === 'text'}
+												<textarea
+													placeholder=""
+													class="input w-full"
+													value={currentAnswer || ''}
+													onchange={(e) => {
+														form.form.update((d) => {
+															return { ...d, answers: { ...(d.answers || {}), [urn]: e.target.value } };
+														});
+													}}
+												></textarea>
+											{/if}
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Observation -->
 					<div class="relative bg-white rounded-xl border border-gray-100 shadow-sm p-5">
 						<MarkdownField {form} field="observation" label="Observation" />
 					</div>
