@@ -10866,11 +10866,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="log-ai-apply")
     def log_ai_apply(self, request, pk=None):
-        """Log an 'info' audit entry when AI results are applied to the form.
+        """Persist AI-proposed values to the RequirementAssessment AND log an
+        'info' audit entry so the change history shows that AI results were
+        applied.
 
-        This does NOT write any values to the RequirementAssessment.
-        It only creates an audit log entry so change history shows that AI
-        results were applied (populated into the form) by the user.
+        Uses QuerySet.update() to bypass Django model signals so only the
+        manual 'info' LogEntry is recorded (no duplicate 'update' entry).
         """
         from auditlog.models import LogEntry
         from django.contrib.contenttypes.models import ContentType
@@ -10882,6 +10883,31 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         applied_fields = request.data.get('applied_fields', [])
         field_changes = request.data.get('field_changes', {})
 
+        # ── Persist the new values to the database ──────────────────────
+        update_kwargs = {}
+        if isinstance(field_changes, dict):
+            FIELD_MAP = {
+                'observation': 'observation',
+                'result': 'result',
+                'status': 'status',
+                'score': 'score',
+                'answers': 'answers',
+            }
+            for field_name, db_field in FIELD_MAP.items():
+                if field_name in field_changes:
+                    pair = field_changes[field_name]
+                    if isinstance(pair, (list, tuple)) and len(pair) == 2:
+                        new_value = pair[1]  # [old, new]
+                        update_kwargs[db_field] = new_value
+
+        if update_kwargs:
+            # Direct SQL UPDATE — no Django signals, no automatic audit log
+            RequirementAssessment.objects.filter(
+                pk=requirement_assessment.pk
+            ).update(**update_kwargs)
+            print(f"[log_ai_apply] Persisted fields to RA {requirement_assessment.pk}: {list(update_kwargs.keys())}")
+
+        # ── Create the 'info' audit log entry ───────────────────────────
         LogEntry.objects.create(
             content_type=ct,
             object_pk=str(requirement_assessment.pk),
