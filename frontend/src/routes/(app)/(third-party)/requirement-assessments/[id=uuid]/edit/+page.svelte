@@ -423,6 +423,8 @@
 					question_answers: aiData.question_answers,
 				};
 				pendingAnalysisResult = newEntry;
+				// Add to local list immediately so it appears in AI History without refresh
+				localAiAnalyses = [newEntry, ...localAiAnalyses];
 				stopProgressTimer(true);
 			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
 				console.warn('[Run AI Analysis] Failure:', (result.data as any).aiError);

@@ -10660,6 +10660,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         """
         from auditlog.models import LogEntry
         from django.contrib.contenttypes.models import ContentType
+        from core.ai_service_account import AI_SERVICE_EMAIL
 
         requirement_assessment = self.get_object()
         ct = ContentType.objects.get_for_model(RequirementAssessment)
@@ -10671,19 +10672,25 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         results = []
         for entry in entries:
+            actor_email = entry.actor.email if entry.actor else (
+                entry.additional_data.get('user_email') if entry.additional_data else None
+            )
+
             # Check additional_data for custom action_type (e.g. 'info' for AI apply)
             action_type = None
             if entry.additional_data and isinstance(entry.additional_data, dict):
                 action_type = entry.additional_data.get('action_type')
             if not action_type:
-                action_type = {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action))
+                # Entries written by the AI service account are always 'info'
+                if actor_email and actor_email.lower() == AI_SERVICE_EMAIL.lower():
+                    action_type = 'info'
+                else:
+                    action_type = {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action))
 
             results.append({
                 'id': entry.pk,
                 'timestamp': entry.timestamp.isoformat(),
-                'actor': entry.actor.email if entry.actor else (
-                    entry.additional_data.get('user_email') if entry.additional_data else None
-                ),
+                'actor': actor_email,
                 'action': action_type,
                 'changes': entry.changes or {},
                 'object_repr': entry.object_repr,
