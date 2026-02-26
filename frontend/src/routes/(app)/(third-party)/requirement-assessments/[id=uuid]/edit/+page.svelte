@@ -40,6 +40,8 @@
 	} from '$lib/utils/helpers';
 
 	import { invalidateAll } from '$app/navigation';
+	import { get } from 'svelte/store';
+	import { tick } from 'svelte';
 
 	interface Props {
 		data: PageData;
@@ -407,6 +409,7 @@
 
 				// Analysis is saved to DB immediately by the backend.
 				// Build the entry for the local list using the returned analysis_id.
+				// Include proposed_* fields so applyResults can read them directly from source.
 				const newEntry = {
 					id: aiData.analysis_id, // saved to DB already
 					created_at: new Date().toISOString(),
@@ -421,6 +424,11 @@
 					requirements_count: 1,
 					result: aiData.ai_analysis,
 					question_answers: aiData.question_answers,
+					// Carry proposed values so applyResults can read them from source
+					proposed_answers: aiData.proposed_answers,
+					proposed_observation: aiData.proposed_observation,
+					proposed_result: aiData.proposed_result,
+					proposed_status: aiData.proposed_status,
 				};
 				pendingAnalysisResult = newEntry;
 				// Add to local list immediately so it appears in AI History without refresh
@@ -484,62 +492,134 @@
 				return;
 			}
 
-			// Extract proposed values — works for both fresh and historical analyses
+			// Extract proposed values — works for both fresh and historical analyses.
+			// For fresh analyses, proposed_* are on the source directly.
+			// For historical analyses, derive them from stored result/question_answers.
 			const aiResult = source.result || source.ai_analysis || {};
 			const overall = aiResult.overallAssessment || {};
-			const proposedAnswers = source.proposed_answers || latestAiData?.proposed_answers || {};
-			const proposedObservation = source.proposed_observation || latestAiData?.proposed_observation || '';
-			const proposedResult = source.proposed_result || latestAiData?.proposed_result || '';
-			const proposedStatus = source.proposed_status || latestAiData?.proposed_status || '';
-			const proposedScore = source.score ?? overall.score ?? null;
 
-			console.log('[Apply Results] source:', JSON.stringify(source, null, 2));
+			let proposedAnswers = source.proposed_answers || latestAiData?.proposed_answers || {};
+			let proposedObservation = source.proposed_observation || latestAiData?.proposed_observation || '';
+			let proposedResult = source.proposed_result || latestAiData?.proposed_result || '';
+			let proposedStatus = source.proposed_status || latestAiData?.proposed_status || '';
+			let proposedScore = source.score ?? overall.score ?? null;
+
+			// ── Fallback: derive proposed values from stored analysis data ──
+			// This covers historical analyses that don't have proposed_* fields.
+			if (!proposedObservation && aiResult && typeof aiResult === 'object') {
+				// Try to extract observation text from the stored result
+				const summary = overall.summary || overall.reasoning || aiResult.summary || '';
+				if (summary) {
+					proposedObservation = `[AI Analysis]\n${summary}`;
+				}
+			}
+			if ((!proposedResult || !proposedResult.trim()) && aiResult && typeof aiResult === 'object') {
+				// Try to extract compliance result from stored result
+				const statusVal = overall.status || aiResult.compliance_status || aiResult.complianceStatus || '';
+				if (statusVal) {
+					const statusLower = statusVal.toLowerCase().replace(/[\s-]/g, '_');
+					const resultMap: Record<string, string> = {
+						compliant: 'compliant',
+						partially_compliant: 'partially_compliant',
+						partial: 'partially_compliant',
+						non_compliant: 'non_compliant',
+						noncompliant: 'non_compliant',
+						not_applicable: 'not_applicable',
+					};
+					proposedResult = resultMap[statusLower] || '';
+				}
+			}
+			if (Object.keys(proposedAnswers).length === 0 && source.question_answers) {
+				// Derive answer URNs from stored question_answers + requirement questions
+				const reqQuestions = data.requirementAssessment?.requirement?.questions || {};
+				const questionUrns = Object.keys(reqQuestions);
+				const qaEntries = Object.values(source.question_answers);
+				qaEntries.forEach((qa: any, idx: number) => {
+					if (idx >= questionUrns.length) return;
+					const qUrn = questionUrns[idx];
+					const qDef = (reqQuestions as Record<string, any>)[qUrn];
+					if (!qDef || !qDef.choices) return;
+					const aiAnswer = (qa.answer || '').toLowerCase();
+					for (const choice of qDef.choices) {
+						if ((choice.value || '').toLowerCase() === aiAnswer) {
+							if (qDef.type === 'multiple_choice') {
+								proposedAnswers[qUrn] = [choice.urn];
+							} else {
+								proposedAnswers[qUrn] = choice.urn;
+							}
+							break;
+						}
+					}
+				});
+			}
+
+			console.log('[Apply Results] source keys:', Object.keys(source));
 			console.log('[Apply Results] proposedAnswers:', JSON.stringify(proposedAnswers, null, 2));
 			console.log('[Apply Results] proposedResult:', proposedResult);
 			console.log('[Apply Results] proposedStatus:', proposedStatus);
-			console.log('[Apply Results] proposedObservation:', proposedObservation?.substring(0, 100));
+			console.log('[Apply Results] proposedObservation:', proposedObservation?.substring(0, 200));
 
-			// Populate the form fields client-side and capture old → new diffs
+			// ── Populate the form using get() + set() for reliable reactivity ──
+			const current = get(requirementAssessmentForm.form);
+			const updated = { ...current };
 			const changedFields: string[] = [];
 			const fieldChanges: Record<string, [any, any]> = {};
 
-			requirementAssessmentForm.form.update(
-				(current: Record<string, any>) => {
-					const updated = { ...current };
-					console.log('[Apply Results] Current form answers BEFORE update:', JSON.stringify(current.answers, null, 2));
+			console.log('[Apply Results] Current form BEFORE:', {
+				result: current.result,
+				status: current.status,
+				observation: (current.observation || '').substring(0, 80),
+				answers: JSON.stringify(current.answers),
+			});
 
-					if (proposedResult && proposedResult !== current.result) {
-						fieldChanges['result'] = [current.result || '', proposedResult];
-						updated.result = proposedResult;
-						changedFields.push('result');
-					}
-					if (proposedStatus && proposedStatus !== current.status) {
-						fieldChanges['status'] = [current.status || '', proposedStatus];
-						updated.status = proposedStatus;
-						changedFields.push('status');
-					}
-					if (proposedObservation && proposedObservation !== current.observation) {
-						fieldChanges['observation'] = [current.observation || '', proposedObservation];
-						updated.observation = proposedObservation;
-						changedFields.push('observation');
-					}
-					if (proposedScore !== null && proposedScore !== current.score) {
-						fieldChanges['score'] = [current.score ?? '', proposedScore];
-						updated.score = proposedScore;
-						changedFields.push('score');
-					}
-					if (proposedAnswers && Object.keys(proposedAnswers).length > 0) {
-						fieldChanges['answers'] = [current.answers || {}, { ...(current.answers || {}), ...proposedAnswers }];
-						updated.answers = { ...(current.answers || {}), ...proposedAnswers };
-						changedFields.push('answers');
-					}
+			if (proposedResult && proposedResult !== current.result) {
+				fieldChanges['result'] = [current.result || '', proposedResult];
+				updated.result = proposedResult;
+				changedFields.push('result');
+			}
+			if (proposedStatus && proposedStatus !== current.status) {
+				fieldChanges['status'] = [current.status || '', proposedStatus];
+				updated.status = proposedStatus;
+				changedFields.push('status');
+			}
+			if (proposedObservation && proposedObservation !== current.observation) {
+				fieldChanges['observation'] = [current.observation || '', proposedObservation];
+				updated.observation = proposedObservation;
+				changedFields.push('observation');
+			}
+			if (proposedScore !== null && proposedScore !== current.score) {
+				fieldChanges['score'] = [current.score ?? '', proposedScore];
+				updated.score = proposedScore;
+				changedFields.push('score');
+			}
+			if (proposedAnswers && Object.keys(proposedAnswers).length > 0) {
+				const mergedAnswers = { ...(current.answers || {}), ...proposedAnswers };
+				fieldChanges['answers'] = [current.answers || {}, mergedAnswers];
+				updated.answers = mergedAnswers;
+				changedFields.push('answers');
+			}
 
-					console.log('[Apply Results] Updated form answers AFTER update:', JSON.stringify(updated.answers, null, 2));
-					console.log('[Apply Results] Changed fields:', changedFields);
-					return updated;
-				},
-				{ taint: true }
-			);
+			console.log('[Apply Results] Updated form AFTER:', {
+				result: updated.result,
+				status: updated.status,
+				observation: (updated.observation || '').substring(0, 80),
+				answers: JSON.stringify(updated.answers),
+				changedFields,
+			});
+
+			// Set the form store directly (more reliable than .update() in Svelte 5)
+			requirementAssessmentForm.form.set(updated);
+
+			// Force a micro-task flush so Svelte picks up the store change
+			await tick();
+
+			// Verify the update took effect
+			const verify = get(requirementAssessmentForm.form);
+			console.log('[Apply Results] VERIFIED form after set():', {
+				result: verify.result,
+				observation: (verify.observation || '').substring(0, 80),
+				answers: JSON.stringify(verify.answers),
+			});
 
 			// Track which fields were populated by AI
 			aiAppliedFields = new Set(changedFields);
