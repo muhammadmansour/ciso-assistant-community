@@ -10872,9 +10872,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         Uses QuerySet.update() to bypass Django model signals so only the
         manual 'info' LogEntry is recorded (no duplicate 'update' entry).
+        The actor is always the AI service account so the entry is clearly
+        distinguishable from user-made changes.
         """
         from auditlog.models import LogEntry
         from django.contrib.contenttypes.models import ContentType
+        from core.ai_service_account import get_or_create_ai_service_user
 
         requirement_assessment = self.get_object()
         ct = ContentType.objects.get_for_model(RequirementAssessment)
@@ -10907,14 +10910,16 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             ).update(**update_kwargs)
             print(f"[log_ai_apply] Persisted fields to RA {requirement_assessment.pk}: {list(update_kwargs.keys())}")
 
-        # ── Create the 'info' audit log entry ───────────────────────────
+        # ── Create the 'info' audit log entry (as AI service account) ───
+        ai_user = get_or_create_ai_service_user()
+
         LogEntry.objects.create(
             content_type=ct,
             object_pk=str(requirement_assessment.pk),
             object_repr=str(requirement_assessment),
             action=1,  # UPDATE action code
             changes=field_changes if isinstance(field_changes, dict) else {},
-            actor=request.user,
+            actor=ai_user,
             additional_data={
                 'action_type': 'info',
                 'description': 'AI analysis results applied to form',
