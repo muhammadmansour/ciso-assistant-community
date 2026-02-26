@@ -1522,28 +1522,31 @@
 																{#if Array.isArray(change) && change.length >= 2}
 																	{@const oldText = cleanValue(field, change[0])}
 																	{@const newText = cleanValue(field, change[1])}
+																	{@const oldIsEmpty = !oldText || oldText === '—' || oldText.trim() === ''}
 																	<div class="flex flex-col gap-1.5">
-																		<!-- Old value -->
-																		<div class="flex items-start gap-2">
-																			<span class="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-600 line-through whitespace-pre-wrap break-words max-w-full">
-																				{#if isLongText(oldText) && !expandedValues[`${entryIdx}-${field}-old`]}
-																					{truncateText(oldText)}
-																				{:else}
-																					{oldText}
-																				{/if}
-																			</span>
-																		</div>
-																		{#if isLongText(oldText)}
-																			<button
-																				type="button"
-																				class="text-[#005FA3] hover:underline text-[10px] font-medium self-start"
-																				onclick={() => toggleExpand(`${entryIdx}-${field}-old`)}
-																			>
-																				{expandedValues[`${entryIdx}-${field}-old`] ? 'Show less' : 'Read more'}
-																			</button>
+																		{#if !oldIsEmpty}
+																			<!-- Old value -->
+																			<div class="flex items-start gap-2">
+																				<span class="inline-flex items-center px-2 py-0.5 rounded bg-red-50 text-red-600 line-through whitespace-pre-wrap break-words max-w-full">
+																					{#if isLongText(oldText) && !expandedValues[`${entryIdx}-${field}-old`]}
+																						{truncateText(oldText)}
+																					{:else}
+																						{oldText}
+																					{/if}
+																				</span>
+																			</div>
+																			{#if isLongText(oldText)}
+																				<button
+																					type="button"
+																					class="text-[#005FA3] hover:underline text-[10px] font-medium self-start"
+																					onclick={() => toggleExpand(`${entryIdx}-${field}-old`)}
+																				>
+																					{expandedValues[`${entryIdx}-${field}-old`] ? 'Show less' : 'Read more'}
+																				</button>
+																			{/if}
+																			<!-- Arrow -->
+																			<i class="fa-solid fa-arrow-down text-gray-300 text-[8px] self-start ml-2"></i>
 																		{/if}
-																		<!-- Arrow -->
-																		<i class="fa-solid fa-arrow-down text-gray-300 text-[8px] self-start ml-2"></i>
 																		<!-- New value -->
 																		<div class="flex items-start gap-2">
 																			<span class="inline-flex items-center px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium whitespace-pre-wrap break-words max-w-full">
