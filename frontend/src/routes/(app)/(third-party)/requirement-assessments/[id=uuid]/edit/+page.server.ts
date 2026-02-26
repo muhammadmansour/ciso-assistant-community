@@ -429,6 +429,36 @@ export const actions: Actions = {
 		);
 		return { confirmWriteResult: result };
 	},
+	logAiApply: async (event) => {
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId')?.toString() || '';
+		const appliedFieldsStr = formData.get('appliedFields')?.toString() || '[]';
+
+		let appliedFields: string[] = [];
+		try {
+			appliedFields = JSON.parse(appliedFieldsStr);
+		} catch {
+			appliedFields = [];
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/log-ai-apply/`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					analysis_id: analysisId,
+					applied_fields: appliedFields,
+				})
+			}
+		);
+
+		if (!response.ok) {
+			return fail(response.status, { logError: 'Failed to log AI apply' });
+		}
+
+		return { logged: true };
+	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();
 

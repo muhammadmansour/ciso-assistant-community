@@ -9918,6 +9918,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         "delete_ai_analysis": "change_requirementassessment",
         "apply_ai_analysis": "change_requirementassessment",
         "confirm_ai_write": "change_requirementassessment",
+        "log_ai_apply": "change_requirementassessment",
         "audit_log": "view_requirementassessment",
     }
 
@@ -10317,15 +10318,27 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
             score = overall.get('score', None) if isinstance(overall, dict) else None
 
-            # NOTE: AiAnalysisResult is NOT saved here.  The record is only
-            # created when the user explicitly confirms via confirm-ai-write.
-            print(f"[RA-AI-ANALYSIS] Analysis complete (NOT saved to DB yet — awaiting user confirmation)")
+            # ── Save AiAnalysisResult immediately ──────────────────────────
+            from core.models import AiAnalysisResult
+            model_used = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+            analysis_record = AiAnalysisResult.objects.create(
+                requirement_assessment=requirement_assessment,
+                result=result,
+                question_answers=question_answers,
+                status='completed',
+                score=score,
+                compliance_status=compliance_status_val,
+                model_used=model_used,
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=1,
+            )
+            print(f"[RA-AI-ANALYSIS] Analysis saved to DB: AiAnalysisResult {analysis_record.id}")
 
             return Response({
                 'ai_analysis': result,
                 'question_answers': question_answers,
-                # Metadata that the frontend will send back on confirm
-                'model_used': os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                'analysis_id': str(analysis_record.id),
+                'model_used': model_used,
                 'gemini_files_count': len(gemini_file_ids),
                 'score': score,
                 'compliance_status': compliance_status_val,
@@ -10339,10 +10352,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'current_status': requirement_assessment.status,
                 'current_observation': existing_observation,
                 'current_answers': current_answers,
-                # Legacy fields for backward compatibility
-                'requirement_assessment_result': requirement_assessment.result,
-                'requirement_assessment_status': requirement_assessment.status,
-                'requirement_assessment_score': requirement_assessment.score,
                 # Debug: include the request body sent to Muraji
                 '_debug_request_body': request_body,
             }, status=status.HTTP_200_OK)
@@ -10662,15 +10671,23 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         results = []
         for entry in entries:
+            # Check additional_data for custom action_type (e.g. 'info' for AI apply)
+            action_type = None
+            if entry.additional_data and isinstance(entry.additional_data, dict):
+                action_type = entry.additional_data.get('action_type')
+            if not action_type:
+                action_type = {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action))
+
             results.append({
                 'id': entry.pk,
                 'timestamp': entry.timestamp.isoformat(),
                 'actor': entry.actor.email if entry.actor else (
                     entry.additional_data.get('user_email') if entry.additional_data else None
                 ),
-                'action': {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action)),
+                'action': action_type,
                 'changes': entry.changes or {},
                 'object_repr': entry.object_repr,
+                'additional_data': entry.additional_data or {},
             })
 
         return Response(results, status=status.HTTP_200_OK)
@@ -10839,6 +10856,40 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'status': requirement_assessment.status,
             'result': requirement_assessment.result,
         }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="log-ai-apply")
+    def log_ai_apply(self, request, pk=None):
+        """Log an 'info' audit entry when AI results are applied to the form.
+
+        This does NOT write any values to the RequirementAssessment.
+        It only creates an audit log entry so change history shows that AI
+        results were applied (populated into the form) by the user.
+        """
+        from auditlog.models import LogEntry
+        from django.contrib.contenttypes.models import ContentType
+
+        requirement_assessment = self.get_object()
+        ct = ContentType.objects.get_for_model(RequirementAssessment)
+
+        analysis_id = request.data.get('analysis_id', '')
+        applied_fields = request.data.get('applied_fields', [])
+
+        LogEntry.objects.create(
+            content_type=ct,
+            object_pk=str(requirement_assessment.pk),
+            object_repr=str(requirement_assessment),
+            action=1,  # UPDATE action code
+            changes={},
+            actor=request.user,
+            additional_data={
+                'action_type': 'info',
+                'description': 'AI analysis results applied to form',
+                'analysis_id': str(analysis_id),
+                'applied_fields': applied_fields,
+            },
+        )
+
+        return Response({'logged': True}, status=status.HTTP_200_OK)
 
 
 class RequirementMappingSetViewSet(BaseModelViewSet):

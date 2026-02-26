@@ -287,9 +287,8 @@
 	let isModalExpanded = $state(false);
 	let deletingAnalysisId: string | null = $state(null);
 	let selectedAnalysis: any = $state(null);
-	// Holds the raw analysis metadata for a fresh (unsaved) analysis so it can
-	// be sent to confirm-ai-write when the user clicks "Apply Results".
-	let pendingAnalysisRawData: any = $state(null);
+	// Stores the latest aiData response so applyResults can read proposed values
+	let latestAiData: any = $state(null);
 
 	// AI Analysis Questions section state
 	let showAiQuestions = $state(true);
@@ -404,34 +403,24 @@
 				}
 				console.log('[Run AI Analysis] Full response body:', JSON.stringify(aiData, null, 2));
 				aiAnalysisResult = aiData;
+				latestAiData = aiData;
 
-				// Store raw metadata so we can send it to confirm-ai-write later.
-				// The analysis is NOT stored in the DB yet — only after the user
-				// clicks "Apply Results".
-				pendingAnalysisRawData = {
-					analysis_data: aiData.ai_analysis,
-					question_answers: aiData.question_answers,
-					model_used: aiData.model_used || '',
-					gemini_files_count: aiData.gemini_files_count || 0,
+				// Analysis is saved to DB immediately by the backend.
+				// Build the entry for the local list using the returned analysis_id.
+				const newEntry = {
+					id: aiData.analysis_id, // saved to DB already
+					created_at: new Date().toISOString(),
+					status: 'completed',
 					score: aiData.score ?? aiData.ai_analysis?.overallAssessment?.score ?? null,
 					compliance_status:
 						aiData.compliance_status ??
 						aiData.proposed_result ??
 						aiData.ai_analysis?.overallAssessment?.status ??
-						''
-				};
-
-				const newEntry = {
-					id: null, // not saved to DB yet
-					created_at: new Date().toISOString(),
-					status: 'completed',
-					score: pendingAnalysisRawData.score,
-					compliance_status: pendingAnalysisRawData.compliance_status,
-					gemini_files_count: pendingAnalysisRawData.gemini_files_count,
+						'',
+					gemini_files_count: aiData.gemini_files_count || 0,
 					requirements_count: 1,
 					result: aiData.ai_analysis,
 					question_answers: aiData.question_answers,
-					_unsaved: true // flag: not yet persisted
 				};
 				pendingAnalysisResult = newEntry;
 				stopProgressTimer(true);
@@ -475,66 +464,86 @@
 	}
 
 	/**
-	 * Apply AI analysis results: stores the analysis record (if not already
-	 * persisted) and writes values via the REST API serializer pipeline under
-	 * the AI service account, then refreshes the page to show updated data and
-	 * audit trail.
-	 *
-	 * For fresh (unsaved) analyses, the raw analysis data is sent so the
-	 * backend creates the AiAnalysisResult record on confirmation.
-	 * For existing analyses (from AI History), the analysis_id is sent.
+	 * Apply AI analysis results: populates the form fields (questions,
+	 * observations, result, status, score) client-side and logs an "info"
+	 * entry in change history. Does NOT save to DB — the user must click
+	 * Save to persist the changes (which creates an "update" audit entry).
 	 */
 	async function applyResults(analysisId: string | null) {
 		isApplyingResults = true;
 		applyError = null;
 
 		try {
-			const formData = new FormData();
-
-			if (!analysisId && pendingAnalysisRawData) {
-				// Fresh analysis — send the full raw data so the backend creates
-				// the AiAnalysisResult record now (on user confirmation).
-				formData.append('analysisData', JSON.stringify(pendingAnalysisRawData));
-			} else if (analysisId) {
-				// Existing record from AI History
-				formData.append('analysisId', analysisId);
-			} else {
+			// Determine the source of proposed values: either from the latest
+			// fresh analysis (latestAiData) or from a selected historical analysis.
+			const source = selectedAnalysis || latestAiData;
+			if (!source) {
 				applyError = 'No analysis data available to apply.';
 				return;
 			}
 
-			const response = await fetch('?/confirmAiWrite', {
-				method: 'POST',
-				body: formData
-			});
+			// Extract proposed values — works for both fresh and historical analyses
+			const aiResult = source.result || source.ai_analysis || {};
+			const overall = aiResult.overallAssessment || {};
+			const proposedAnswers = source.proposed_answers || latestAiData?.proposed_answers || {};
+			const proposedObservation = source.proposed_observation || latestAiData?.proposed_observation || '';
+			const proposedResult = source.proposed_result || latestAiData?.proposed_result || '';
+			const proposedStatus = source.proposed_status || latestAiData?.proposed_status || '';
+			const proposedScore = source.score ?? overall.score ?? null;
 
-			const text = await response.text();
-			const result = deserialize(text);
+			// Populate the form fields client-side
+			const changedFields: string[] = [];
 
-			if (result.type !== 'success' || !result.data) {
-				const errorData = result.type === 'failure' ? (result.data as any) : null;
-				applyError =
-					errorData?.confirmWriteError || `Failed to apply results (${result.type})`;
-				return;
+			requirementAssessmentForm.form.update(
+				(current: Record<string, any>) => {
+					const updated = { ...current };
+
+					if (proposedResult && proposedResult !== current.result) {
+						updated.result = proposedResult;
+						changedFields.push('result');
+					}
+					if (proposedStatus && proposedStatus !== current.status) {
+						updated.status = proposedStatus;
+						changedFields.push('status');
+					}
+					if (proposedObservation && proposedObservation !== current.observation) {
+						updated.observation = proposedObservation;
+						changedFields.push('observation');
+					}
+					if (proposedScore !== null && proposedScore !== current.score) {
+						updated.score = proposedScore;
+						changedFields.push('score');
+					}
+					if (proposedAnswers && Object.keys(proposedAnswers).length > 0) {
+						updated.answers = { ...(current.answers || {}), ...proposedAnswers };
+						changedFields.push('answers');
+					}
+
+					return updated;
+				},
+				{ taint: true }
+			);
+
+			// Track which fields were populated by AI
+			aiAppliedFields = new Set(changedFields);
+			aiApplyBannerVisible = changedFields.length > 0;
+
+			// Log an "info" entry in change history via the backend
+			const effectiveAnalysisId = analysisId || source.id || latestAiData?.analysis_id;
+			if (effectiveAnalysisId) {
+				fetch(`?/logAiApply`, {
+					method: 'POST',
+					body: (() => {
+						const fd = new FormData();
+						fd.append('analysisId', effectiveAnalysisId);
+						fd.append('appliedFields', JSON.stringify(changedFields));
+						return fd;
+					})()
+				}).catch((e) => console.warn('[Apply Results] Failed to log info entry:', e));
 			}
 
-			const writeResult = (result.data as any).confirmWriteResult;
-			if (!writeResult) {
-				applyError = 'No result returned from server.';
-				return;
-			}
-
-			// Track which fields were changed by AI
-			const changed = new Set<string>(writeResult.changed_fields || []);
-			aiAppliedFields = changed;
-			aiApplyBannerVisible = changed.size > 0;
-
-			// Clear pending raw data since it's now persisted
-			pendingAnalysisRawData = null;
-
-			// Close the modal and refresh the page data (form + audit trail)
+			// Close the modal
 			closeModal();
-			await invalidateAll();
 		} catch (e) {
 			console.error('[Apply Results] Failed:', e);
 			applyError = 'An error occurred while applying results.';
@@ -764,6 +773,10 @@
 	// Filter and process audit entries to only show relevant fields
 	let filteredAuditEntries = $derived.by(() => {
 		return (auditEntries || []).map((entry: any) => {
+			// Always keep "info" entries (e.g. AI apply) even if they have no changes
+			if (entry.action === 'info') {
+				return { ...entry, changes: {} };
+			}
 			if (!entry.changes || typeof entry.changes !== 'object') return null;
 			const filtered: Record<string, any> = {};
 			for (const [field, change] of Object.entries(entry.changes)) {
@@ -1446,12 +1459,25 @@
 													</div>
 													<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide
 														{entry.action === 'create' ? 'bg-emerald-100 text-emerald-700' :
+														 entry.action === 'info' ? 'bg-amber-100 text-amber-700' :
 														 entry.action === 'update' ? 'bg-blue-100 text-blue-700' :
 														 entry.action === 'delete' ? 'bg-red-100 text-red-700' :
 														 'bg-gray-100 text-gray-600'}">
-												{entry.action === 'update' ? 'Info' : entry.action}
+												{entry.action}
 												</span>
 												</div>
+												<!-- Info entry (AI apply) — show description instead of changes -->
+												{#if entry.action === 'info' && entry.additional_data?.description}
+													<div class="px-4 py-2.5">
+														<p class="text-xs text-amber-700">
+															<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>
+															{entry.additional_data.description}
+															{#if entry.additional_data.applied_fields?.length}
+																— fields: <strong>{entry.additional_data.applied_fields.join(', ')}</strong>
+															{/if}
+														</p>
+													</div>
+												{/if}
 												<!-- Changed fields -->
 												<div class="divide-y divide-gray-50">
 													{#each Object.entries(entry.changes) as [field, change]}
@@ -2320,8 +2346,8 @@
 					class="btn bg-[#005FA3] text-white shadow-sm font-semibold
 						disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
 						{isApplyingResults ? 'hover:bg-[#005FA3]' : 'hover:bg-[#004d85]'}"
-					disabled={isApplyingResults || !(selectedAnalysis?.id || selectedAnalysis?._unsaved)}
-					onclick={() => {
+				disabled={isApplyingResults}
+				onclick={() => {
 						const id = selectedAnalysis?.id || null;
 						applyResults(id);
 					}}
