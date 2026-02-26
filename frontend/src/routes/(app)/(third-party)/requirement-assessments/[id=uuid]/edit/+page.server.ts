@@ -302,9 +302,18 @@ export const actions: Actions = {
 		// Wrapped in try/catch because the backend call can take up to 5 min
 		// and may fail with network errors, timeouts, etc.
 		try {
+			const formData = await event.request.formData();
+			const additionalPrompt = formData.get('additionalPrompt')?.toString() || '';
+
+			const fetchOptions: RequestInit = {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(additionalPrompt ? { additional_prompt: additionalPrompt } : {})
+			};
+
 			const response = await event.fetch(
 				`${BASE_API_URL}/requirement-assessments/${event.params.id}/run-ai-analysis/`,
-				{ method: 'POST' }
+				fetchOptions
 			);
 
 			if (!response.ok) {

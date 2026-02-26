@@ -19,7 +19,12 @@ export default defineConfig({
 		host: '0.0.0.0',
 		port: 3000,
 		allowedHosts: ['localhost', 'ciso.wathbahs.com', 'grc.wathbahs.com', 'grc.wathbah.dev'],
-		hmr: false
+		hmr: false,
+		headers: {
+			'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+			'Pragma': 'no-cache',
+			'Expires': '0'
+		}
 	},
 	test: {
 		include: ['{src}/**/*.{test,spec}.{js,ts}']

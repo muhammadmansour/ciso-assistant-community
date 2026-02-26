@@ -9977,12 +9977,19 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         from core.models import FileSearchTable
         from core.gemini_file_search import get_gemini_client
 
+        # Extract optional additional prompt from request body
+        additional_prompt = ''
+        if request.data and isinstance(request.data, dict):
+            additional_prompt = request.data.get('additional_prompt', '') or ''
+
         requirement_assessment = self.get_object()
         requirement = requirement_assessment.requirement
 
         print(f"[RA-AI-ANALYSIS] ====== START ======")
         print(f"[RA-AI-ANALYSIS] Requirement Assessment: id={requirement_assessment.id}")
         print(f"[RA-AI-ANALYSIS] Requirement: {requirement.ref_id} - {requirement.name}")
+        if additional_prompt:
+            print(f"[RA-AI-ANALYSIS] Additional prompt: {additional_prompt[:200]}")
 
         # 1. Get all applied controls linked to this requirement assessment
         applied_controls = requirement_assessment.applied_controls.all()
@@ -10223,6 +10230,10 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 ),
             }
         }
+
+        # Include the user's additional prompt if provided (for re-analysis)
+        if additional_prompt:
+            request_body['additional_prompt'] = additional_prompt
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',

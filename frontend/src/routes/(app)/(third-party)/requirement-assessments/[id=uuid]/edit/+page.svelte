@@ -294,6 +294,11 @@
 	// AI Analysis Questions section state
 	let showAiQuestions = $state(true);
 
+	// Re-Analysis state
+	let showReanalysisModal = $state(false);
+	let reanalysisPrompt = $state('');
+	let isReanalyzing = $state(false);
+
 	// AI Progress Modal state
 	let showProgressModal = $state(false);
 	let analysisStep = $state(0); // 0=scanning, 1=analyzing, 2=preparing, 3=done
@@ -358,17 +363,22 @@
 	/**
 	 * Run AI analysis via direct fetch (avoids use:enhance which can fail on
 	 * long-running requests when browser extensions close the message channel).
+	 * @param additionalPrompt Optional extra instructions from the user for re-analysis.
 	 */
-	async function runAiAnalysis() {
+	async function runAiAnalysis(additionalPrompt?: string) {
 		isAnalyzing = true;
 		aiAnalysisResult = null;
 		aiAnalysisError = null;
 		startProgressTimer();
 
 		try {
+			const formData = new FormData();
+			if (additionalPrompt?.trim()) {
+				formData.append('additionalPrompt', additionalPrompt.trim());
+			}
 			const response = await fetch('?/runAiAnalysis', {
 				method: 'POST',
-				body: new FormData()
+				body: formData
 			});
 
 			const text = await response.text();
@@ -768,6 +778,16 @@
 		showAnalysisModal = false;
 		selectedAnalysis = null;
 		isModalExpanded = false;
+	}
+
+	async function runReanalysis() {
+		isReanalyzing = true;
+		showReanalysisModal = false;
+		closeModal();
+		const prompt = reanalysisPrompt;
+		reanalysisPrompt = '';
+		await runAiAnalysis(prompt);
+		isReanalyzing = false;
 	}
 
 	function formatDate(dateStr: string): string {
@@ -2307,6 +2327,19 @@
 						Apply Results
 					{/if}
 				</button>
+				<button
+					type="button"
+					class="btn bg-amber-500 hover:bg-amber-600 text-white shadow-sm font-semibold
+						disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+					disabled={isApplyingResults || isAnalyzing}
+					onclick={() => {
+						reanalysisPrompt = '';
+						showReanalysisModal = true;
+					}}
+				>
+					<i class="fa-solid fa-rotate mr-2"></i>
+					Re-Analyze
+				</button>
 				{#if applyError}
 					<span class="text-red-600 text-xs">{applyError}</span>
 				{/if}
@@ -2319,6 +2352,75 @@
 					onclick={closeModal}
 				>
 					Close
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Re-Analysis Prompt Modal -->
+{#if showReanalysisModal}
+	<div
+		class="fixed inset-0 z-[60] flex items-center justify-center"
+		role="dialog"
+		aria-modal="true"
+		onkeydown={(e) => e.key === 'Escape' && (showReanalysisModal = false)}
+	>
+		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick={() => (showReanalysisModal = false)}></div>
+		<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+			<!-- Header -->
+			<div class="flex items-center gap-3 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-white">
+				<div class="p-2 bg-amber-100 rounded-lg">
+					<i class="fa-solid fa-rotate text-amber-600 text-lg"></i>
+				</div>
+				<div>
+					<h3 class="text-lg font-bold text-gray-800">Re-Analyze</h3>
+					<p class="text-sm text-gray-500">Provide additional instructions for the AI</p>
+				</div>
+				<div class="flex-1"></div>
+				<button
+					type="button"
+					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					onclick={() => (showReanalysisModal = false)}
+				>
+					<i class="fa-solid fa-xmark text-gray-500 text-lg"></i>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="px-6 py-5 space-y-3">
+				<label for="reanalysis-prompt" class="block text-sm font-medium text-gray-700">
+					Additional Instructions
+				</label>
+				<textarea
+					id="reanalysis-prompt"
+					bind:value={reanalysisPrompt}
+					class="w-full h-36 px-4 py-3 border border-gray-300 rounded-xl text-sm text-gray-700
+						placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40
+						focus:border-amber-500 resize-none transition-all"
+					placeholder="e.g. Focus more on the gap analysis, consider the attached policies as partial evidence, be stricter on compliance scoring..."
+				></textarea>
+				<p class="text-xs text-gray-400">
+					These instructions will be appended to the analysis prompt. Leave empty to re-run with default settings.
+				</p>
+			</div>
+
+			<!-- Footer -->
+			<div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+				<button
+					type="button"
+					class="btn preset-filled-surface-200-800 transition-all duration-200"
+					onclick={() => (showReanalysisModal = false)}
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					class="btn bg-amber-500 hover:bg-amber-600 text-white shadow-sm font-semibold transition-all duration-200"
+					onclick={runReanalysis}
+				>
+					<i class="fa-solid fa-play mr-2"></i>
+					Run Analysis
 				</button>
 			</div>
 		</div>
