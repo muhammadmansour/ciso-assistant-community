@@ -15,6 +15,11 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit()
 	],
+	optimizeDeps: {
+		// Force re-bundling on every dev server start so dependency URLs get
+		// fresh ?v= hashes — prevents ERR_CACHE_READ_FAILURE from stale entries.
+		force: true
+	},
 	server: {
 		host: '0.0.0.0',
 		port: 3000,
@@ -23,7 +28,8 @@ export default defineConfig({
 		headers: {
 			'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
 			'Pragma': 'no-cache',
-			'Expires': '0'
+			'Expires': '0',
+			'Clear-Site-Data': '"cache"'
 		}
 	},
 	test: {
