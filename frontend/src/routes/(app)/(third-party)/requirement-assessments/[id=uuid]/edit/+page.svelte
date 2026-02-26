@@ -493,30 +493,36 @@
 			const proposedStatus = source.proposed_status || latestAiData?.proposed_status || '';
 			const proposedScore = source.score ?? overall.score ?? null;
 
-			// Populate the form fields client-side
+			// Populate the form fields client-side and capture old → new diffs
 			const changedFields: string[] = [];
+			const fieldChanges: Record<string, [any, any]> = {};
 
 			requirementAssessmentForm.form.update(
 				(current: Record<string, any>) => {
 					const updated = { ...current };
 
 					if (proposedResult && proposedResult !== current.result) {
+						fieldChanges['result'] = [current.result || '', proposedResult];
 						updated.result = proposedResult;
 						changedFields.push('result');
 					}
 					if (proposedStatus && proposedStatus !== current.status) {
+						fieldChanges['status'] = [current.status || '', proposedStatus];
 						updated.status = proposedStatus;
 						changedFields.push('status');
 					}
 					if (proposedObservation && proposedObservation !== current.observation) {
+						fieldChanges['observation'] = [current.observation || '', proposedObservation];
 						updated.observation = proposedObservation;
 						changedFields.push('observation');
 					}
 					if (proposedScore !== null && proposedScore !== current.score) {
+						fieldChanges['score'] = [current.score ?? '', proposedScore];
 						updated.score = proposedScore;
 						changedFields.push('score');
 					}
 					if (proposedAnswers && Object.keys(proposedAnswers).length > 0) {
+						fieldChanges['answers'] = [current.answers || {}, { ...(current.answers || {}), ...proposedAnswers }];
 						updated.answers = { ...(current.answers || {}), ...proposedAnswers };
 						changedFields.push('answers');
 					}
@@ -537,6 +543,7 @@
 					const fd = new FormData();
 					fd.append('analysisId', effectiveAnalysisId);
 					fd.append('appliedFields', JSON.stringify(changedFields));
+					fd.append('fieldChanges', JSON.stringify(fieldChanges));
 					const logResp = await fetch(`?/logAiApply`, {
 						method: 'POST',
 						body: fd
@@ -552,7 +559,7 @@
 							timestamp: new Date().toISOString(),
 							actor: 'AI Analysis',
 							action: 'info',
-							changes: {},
+							changes: fieldChanges,
 							object_repr: '',
 							additional_data: {
 								action_type: 'info',
@@ -799,16 +806,16 @@
 	// Filter and process audit entries to only show relevant fields
 	let filteredAuditEntries = $derived.by(() => {
 		return (auditEntries || []).map((entry: any) => {
-			// Always keep "info" entries (e.g. AI apply) even if they have no changes
-			if (entry.action === 'info') {
-				return { ...entry, changes: {} };
-			}
-			if (!entry.changes || typeof entry.changes !== 'object') return null;
+			const changes = entry.changes && typeof entry.changes === 'object' ? entry.changes : {};
 			const filtered: Record<string, any> = {};
-			for (const [field, change] of Object.entries(entry.changes)) {
+			for (const [field, change] of Object.entries(changes)) {
 				if (ALLOWED_CHANGE_FIELDS.has(field)) {
 					filtered[field] = change;
 				}
+			}
+			// Always keep "info" entries even if they have no field changes
+			if (entry.action === 'info') {
+				return { ...entry, changes: filtered };
 			}
 			if (Object.keys(filtered).length === 0) return null;
 			return { ...entry, changes: filtered };

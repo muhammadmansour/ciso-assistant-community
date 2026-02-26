@@ -10880,13 +10880,14 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         analysis_id = request.data.get('analysis_id', '')
         applied_fields = request.data.get('applied_fields', [])
+        field_changes = request.data.get('field_changes', {})
 
         LogEntry.objects.create(
             content_type=ct,
             object_pk=str(requirement_assessment.pk),
             object_repr=str(requirement_assessment),
             action=1,  # UPDATE action code
-            changes={},
+            changes=field_changes if isinstance(field_changes, dict) else {},
             actor=request.user,
             additional_data={
                 'action_type': 'info',

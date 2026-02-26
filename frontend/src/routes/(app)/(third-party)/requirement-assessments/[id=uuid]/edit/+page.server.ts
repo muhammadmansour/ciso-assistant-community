@@ -433,12 +433,20 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const analysisId = formData.get('analysisId')?.toString() || '';
 		const appliedFieldsStr = formData.get('appliedFields')?.toString() || '[]';
+		const fieldChangesStr = formData.get('fieldChanges')?.toString() || '{}';
 
 		let appliedFields: string[] = [];
 		try {
 			appliedFields = JSON.parse(appliedFieldsStr);
 		} catch {
 			appliedFields = [];
+		}
+
+		let fieldChanges: Record<string, any> = {};
+		try {
+			fieldChanges = JSON.parse(fieldChangesStr);
+		} catch {
+			fieldChanges = {};
 		}
 
 		const response = await event.fetch(
@@ -449,6 +457,7 @@ export const actions: Actions = {
 				body: JSON.stringify({
 					analysis_id: analysisId,
 					applied_fields: appliedFields,
+					field_changes: fieldChanges,
 				})
 			}
 		);
