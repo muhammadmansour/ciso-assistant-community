@@ -646,7 +646,7 @@
 						const infoEntry = {
 							id: Date.now(),
 							timestamp: new Date().toISOString(),
-							actor: 'AI Analysis',
+							actor: 'AI Service',
 							action: 'info',
 							changes: fieldChanges,
 							object_repr: '',

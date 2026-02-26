@@ -10687,10 +10687,16 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 else:
                     action_type = {0: 'create', 1: 'update', 2: 'delete'}.get(entry.action, str(entry.action))
 
+            # Show a friendly display name for the AI service account
+            if actor_email and actor_email.lower() == AI_SERVICE_EMAIL.lower():
+                display_actor = 'AI Service'
+            else:
+                display_actor = actor_email
+
             results.append({
                 'id': entry.pk,
                 'timestamp': entry.timestamp.isoformat(),
-                'actor': actor_email,
+                'actor': display_actor,
                 'action': action_type,
                 'changes': entry.changes or {},
                 'object_repr': entry.object_repr,
