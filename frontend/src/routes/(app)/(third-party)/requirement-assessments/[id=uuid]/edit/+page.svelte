@@ -493,6 +493,12 @@
 			const proposedStatus = source.proposed_status || latestAiData?.proposed_status || '';
 			const proposedScore = source.score ?? overall.score ?? null;
 
+			console.log('[Apply Results] source:', JSON.stringify(source, null, 2));
+			console.log('[Apply Results] proposedAnswers:', JSON.stringify(proposedAnswers, null, 2));
+			console.log('[Apply Results] proposedResult:', proposedResult);
+			console.log('[Apply Results] proposedStatus:', proposedStatus);
+			console.log('[Apply Results] proposedObservation:', proposedObservation?.substring(0, 100));
+
 			// Populate the form fields client-side and capture old → new diffs
 			const changedFields: string[] = [];
 			const fieldChanges: Record<string, [any, any]> = {};
@@ -500,6 +506,7 @@
 			requirementAssessmentForm.form.update(
 				(current: Record<string, any>) => {
 					const updated = { ...current };
+					console.log('[Apply Results] Current form answers BEFORE update:', JSON.stringify(current.answers, null, 2));
 
 					if (proposedResult && proposedResult !== current.result) {
 						fieldChanges['result'] = [current.result || '', proposedResult];
@@ -527,6 +534,8 @@
 						changedFields.push('answers');
 					}
 
+					console.log('[Apply Results] Updated form answers AFTER update:', JSON.stringify(updated.answers, null, 2));
+					console.log('[Apply Results] Changed fields:', changedFields);
 					return updated;
 				},
 				{ taint: true }
