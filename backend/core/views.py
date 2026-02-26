@@ -10343,6 +10343,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'requirement_assessment_result': requirement_assessment.result,
                 'requirement_assessment_status': requirement_assessment.status,
                 'requirement_assessment_score': requirement_assessment.score,
+                # Debug: include the request body sent to Muraji
+                '_debug_request_body': request_body,
             }, status=status.HTTP_200_OK)
 
         except http_requests.exceptions.Timeout:

@@ -399,6 +399,10 @@
 
 			if (result.type === 'success' && (result.data as any)?.aiAnalysis) {
 				const aiData = (result.data as any).aiAnalysis;
+				if (aiData._debug_request_body) {
+					console.log('[Run AI Analysis] Request body sent to Muraji:', JSON.stringify(aiData._debug_request_body, null, 2));
+				}
+				console.log('[Run AI Analysis] Full response body:', JSON.stringify(aiData, null, 2));
 				aiAnalysisResult = aiData;
 
 				// Store raw metadata so we can send it to confirm-ai-write later.
@@ -432,12 +436,15 @@
 				pendingAnalysisResult = newEntry;
 				stopProgressTimer(true);
 			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
+				console.warn('[Run AI Analysis] Failure:', (result.data as any).aiError);
 				stopProgressTimer(false);
 				aiAnalysisError = (result.data as any).aiError;
 			} else if (result.type === 'error') {
+				console.error('[Run AI Analysis] Error:', result);
 				stopProgressTimer(false);
 				aiAnalysisError = (result as any).error?.message || 'Server error during analysis';
 			} else {
+				console.warn('[Run AI Analysis] Unexpected response:', result);
 				stopProgressTimer(false);
 				aiAnalysisError = 'Unexpected response from server';
 			}
