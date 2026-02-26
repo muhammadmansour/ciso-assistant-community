@@ -684,56 +684,6 @@
 		}
 	});
 
-	// Derive AI analysis questions from latest completed analysis
-	let latestAnalysisQuestions = $derived.by(() => {
-		if (!localAiAnalyses || localAiAnalyses.length === 0) return [];
-
-		// Get the latest completed analysis
-		const latest = localAiAnalyses.find((a: any) => a.status === 'completed') || localAiAnalyses[0];
-		if (!latest) return [];
-
-		const qa = latest.question_answers || {};
-		const result = latest.result || {};
-
-		// Find question evaluation section in raw result for confidence scores
-		let questionSection: any[] = [];
-		if (result && typeof result === 'object') {
-			for (const key of Object.keys(result)) {
-				const lower = key.toLowerCase().replace(/_/g, '');
-				if (['questionevaluation', 'questionsanswers', 'questionanswers', 'questionsandanswers'].includes(lower)) {
-					const section = result[key];
-					if (Array.isArray(section)) questionSection = section;
-					break;
-				}
-			}
-		}
-
-		// Get question types from requirement definition
-		const reqQuestions = data.requirementAssessment?.requirement?.questions || {};
-		const questionUrns = Object.keys(reqQuestions);
-
-		const entries = Object.values(qa);
-		return entries.map((entry: any, idx: number) => {
-			// Get confidence from raw result item
-			const rawItem = questionSection[idx] || {};
-			const rawConf = rawItem.confidence;
-			const confidenceValue = rawConf !== undefined && rawConf !== null
-				? (Number(rawConf) <= 1 ? Math.round(Number(rawConf) * 100) : Math.round(Number(rawConf)))
-				: null;
-
-			// Get question type from requirement definition
-			const qUrn = questionUrns[idx];
-			const qDef = qUrn ? (reqQuestions as Record<string, any>)[qUrn] : null;
-			const qType = qDef?.type || 'unique_choice';
-
-			return {
-				question: entry.question,
-				answer: entry.answer,
-				type: qType,
-				confidence: confidenceValue,
-			};
-		});
-	});
 
 	// Metadata/scalar keys to exclude from report sections
 	const metadataKeys = new Set([
@@ -1414,11 +1364,10 @@
 						{#if showAiQuestions}
 							<div class="px-5 pb-5 space-y-3">
 								{#each questionEntries as [urn, question], idx}
-									{@const aiQ = latestAnalysisQuestions[idx] || null}
 									{@const currentAnswer = data?.answers?.[urn]}
 									{#if isQuestionVisible(question, data?.answers || {})}
 										<div class="border border-gray-200 rounded-xl px-5 py-4">
-											<!-- Header row: Q number + question text + AI metadata -->
+											<!-- Header row: Q number + question text -->
 											<div class="flex items-start gap-4 mb-3">
 												<div class="shrink-0 min-w-[60px]">
 													<div class="text-sm font-bold text-gray-500">Q{idx + 1}</div>
@@ -1429,20 +1378,6 @@
 												<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
 													{question.text}
 												</div>
-												{#if aiQ}
-													<div class="flex items-center gap-3 shrink-0">
-														<span class="text-xs px-2 py-0.5 rounded-full font-semibold
-															{aiQ.answer === 'Yes' ? 'bg-green-100 text-green-700' : aiQ.answer === 'No' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
-															AI: {aiQ.answer}
-														</span>
-														{#if aiQ.confidence !== null && aiQ.confidence !== undefined}
-															<span class="text-xs font-semibold
-																{aiQ.confidence >= 80 ? 'text-green-600' : aiQ.confidence >= 50 ? 'text-amber-600' : 'text-red-600'}">
-																{aiQ.confidence}%
-															</span>
-														{/if}
-													</div>
-												{/if}
 											</div>
 
 											<!-- Interactive choice buttons -->
