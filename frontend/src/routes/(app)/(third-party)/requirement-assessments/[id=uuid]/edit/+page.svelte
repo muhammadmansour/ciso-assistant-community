@@ -533,15 +533,39 @@
 			// Log an "info" entry in change history via the backend
 			const effectiveAnalysisId = analysisId || source.id || latestAiData?.analysis_id;
 			if (effectiveAnalysisId) {
-				fetch(`?/logAiApply`, {
-					method: 'POST',
-					body: (() => {
-						const fd = new FormData();
-						fd.append('analysisId', effectiveAnalysisId);
-						fd.append('appliedFields', JSON.stringify(changedFields));
-						return fd;
-					})()
-				}).catch((e) => console.warn('[Apply Results] Failed to log info entry:', e));
+				try {
+					const fd = new FormData();
+					fd.append('analysisId', effectiveAnalysisId);
+					fd.append('appliedFields', JSON.stringify(changedFields));
+					const logResp = await fetch(`?/logAiApply`, {
+						method: 'POST',
+						body: fd
+					});
+					const logText = await logResp.text();
+					const logResult = deserialize(logText);
+					console.log('[Apply Results] logAiApply response:', logResult);
+
+					if (logResult.type === 'success') {
+						// Add the info entry to local auditEntries so it appears immediately
+						const infoEntry = {
+							id: Date.now(),
+							timestamp: new Date().toISOString(),
+							actor: 'AI Analysis',
+							action: 'info',
+							changes: {},
+							object_repr: '',
+							additional_data: {
+								action_type: 'info',
+								description: 'AI analysis results applied to form',
+								analysis_id: effectiveAnalysisId,
+								applied_fields: changedFields,
+							}
+						};
+						auditEntries = [infoEntry, ...auditEntries];
+					}
+				} catch (e) {
+					console.warn('[Apply Results] Failed to log info entry:', e);
+				}
 			}
 
 			// Close the modal
