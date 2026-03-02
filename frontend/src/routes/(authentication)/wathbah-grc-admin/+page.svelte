@@ -1,5 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import SuperForm from '$lib/components/Forms/Form.svelte';
+	import TextField from '$lib/components/Forms/TextField.svelte';
+	import { loginSchema } from '$lib/utils/schemas';
+	import { zod } from 'sveltekit-superforms/adapters';
+	import type { ActionData, PageData } from './$types';
+
+	interface Props {
+		data: PageData;
+		form: ActionData;
+	}
+
+	let { data, form }: Props = $props();
 
 	const adminFeatures = [
 		{
@@ -25,9 +37,6 @@
 	];
 
 	let activeIndex = $state(0);
-	let email = $state('');
-	let password = $state('');
-	let showPassword = $state(false);
 	let loading = $state(false);
 
 	onMount(() => {
@@ -37,13 +46,11 @@
 		return () => clearInterval(interval);
 	});
 
-	function handleSignIn() {
-		loading = true;
-		// Navigate to admin dashboard — prototype accepts any credentials
-		setTimeout(() => {
-			window.location.href = '/admin';
-		}, 500);
-	}
+	$effect(() => {
+		if (form) {
+			loading = false;
+		}
+	});
 </script>
 
 <div class="min-h-screen flex flex-col lg:flex-row">
@@ -124,7 +131,7 @@
 		<!-- Back link -->
 		<div class="mb-8">
 			<a
-				href="/recap"
+				href="/login"
 				class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
 			>
 				<i class="fa-solid fa-arrow-left text-xs"></i>
@@ -147,9 +154,9 @@
 
 				<!-- Admin Login Card -->
 				<div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-					<div class="flex flex-col w-full items-center space-y-5">
-						<!-- Icon -->
-						<div class="flex items-center gap-3 self-start">
+					<div class="flex flex-col w-full space-y-5">
+						<!-- Header -->
+						<div class="flex items-center gap-3">
 							<div class="w-11 h-11 bg-gradient-to-br from-[#0A1628] to-[#1a2740] rounded-xl flex items-center justify-center shadow-lg">
 								<i class="fa-solid fa-gear text-white text-lg"></i>
 							</div>
@@ -159,77 +166,85 @@
 							</div>
 						</div>
 
-						<!-- Form -->
-						<div class="w-full space-y-4">
-							<!-- Email Field -->
-							<div>
-								<label for="admin-email" class="block text-sm font-semibold text-gray-700 mb-1.5">
-									Admin Email
-								</label>
-								<div class="relative">
-									<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-										<i class="fa-solid fa-envelope text-gray-400 text-sm"></i>
-									</div>
-									<input
-										id="admin-email"
-										type="email"
-										bind:value={email}
-										placeholder="admin@wathbahs.com"
-										class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] transition-all"
-									/>
-								</div>
-							</div>
-
-							<!-- Password Field -->
-							<div>
-								<label for="admin-password" class="block text-sm font-semibold text-gray-700 mb-1.5">
-									Password
-								</label>
-								<div class="relative">
-									<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-										<i class="fa-solid fa-lock text-gray-400 text-sm"></i>
-									</div>
-									<input
-										id="admin-password"
-										type={showPassword ? 'text' : 'password'}
-										bind:value={password}
-										placeholder="••••••••••"
-										class="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] transition-all"
-									/>
-									<button
-										type="button"
-										onclick={() => (showPassword = !showPassword)}
-										class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-									>
-										<i class="fa-solid {showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm"></i>
-									</button>
-								</div>
-							</div>
-
-							<!-- Sign In Button -->
-							<button
-								onclick={handleSignIn}
-								disabled={loading}
-								class="w-full bg-[#0A1628] text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-[#1a2740] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+						<!-- Form using same login endpoint -->
+						<div class="w-full">
+							<SuperForm
+								class="flex flex-col space-y-4"
+								data={data?.form}
+								dataType="form"
+								validators={zod(loginSchema)}
+								taintedMessage={null}
+								action="?/login"
+								onSubmit={({ cancel, formElement }) => {
+									loading = true;
+									cancel();
+									formElement.submit();
+								}}
 							>
-								{#if loading}
-									<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-										<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" />
-										<path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75" />
-									</svg>
-									Signing in...
-								{:else}
-									Sign in to Admin
-								{/if}
-							</button>
-						</div>
+								{#snippet children({ form: formInstance })}
+									<div>
+										<label for="admin-email" class="block text-sm font-semibold text-gray-700 mb-1.5">
+											Admin Email
+										</label>
+										<div class="relative">
+											<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
+												<i class="fa-solid fa-envelope text-gray-400 text-sm"></i>
+											</div>
+											<div class="admin-field-wrapper">
+												<TextField
+													type="email"
+													form={formInstance}
+													field="username"
+													label=""
+												/>
+											</div>
+										</div>
+									</div>
 
-						<!-- Prototype note -->
-						<p class="text-xs text-gray-400">
-							Prototype — accepts any credentials
-						</p>
+									<div>
+										<label for="admin-password" class="block text-sm font-semibold text-gray-700 mb-1.5">
+											Password
+										</label>
+										<div class="relative">
+											<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none z-10">
+												<i class="fa-solid fa-lock text-gray-400 text-sm"></i>
+											</div>
+											<div class="admin-field-wrapper">
+												<TextField
+													type="password"
+													form={formInstance}
+													field="password"
+													label=""
+												/>
+											</div>
+										</div>
+									</div>
+
+									<button
+										class="btn w-full bg-[#0A1628] text-white font-semibold py-3 rounded-xl shadow-sm hover:bg-[#1a2740] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+										type="submit"
+										disabled={loading}
+									>
+										{#if loading}
+											<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+												<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" />
+												<path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" class="opacity-75" />
+											</svg>
+											Signing in...
+										{:else}
+											Sign in to Admin
+										{/if}
+									</button>
+								{/snippet}
+							</SuperForm>
+						</div>
 					</div>
 				</div>
+
+				<!-- Security note -->
+				<p class="text-center text-xs text-gray-400 mt-6">
+					Protected by enterprise-grade security
+				</p>
 
 				<!-- Powered by Wathbah -->
 				<div class="mt-8 flex flex-col items-center gap-1.5">
@@ -246,3 +261,10 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Style the TextField inputs within the admin form to have padding for icons */
+	:global(.admin-field-wrapper input) {
+		padding-left: 2.5rem !important;
+	}
+</style>
