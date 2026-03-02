@@ -13628,3 +13628,32 @@ class TerminologyViewSet(BaseModelViewSet):
     @action(detail=False, name="Get class name choices")
     def field_path(self, request):
         return Response(dict(Terminology.FieldPath.choices))
+
+
+class OrganizationContextViewSet(BaseModelViewSet):
+    """API endpoint for Organization Context / profiles."""
+
+    model = OrganizationContext
+    filterset_fields = ["folder", "sector", "size", "maturity_level", "geographic_scope"]
+    search_fields = ["name", "name_ar", "notes"]
+    ordering = ["name"]
+
+    @method_decorator(cache_page(60 * LONG_CACHE_TTL))
+    @action(detail=False, name="Get sector choices")
+    def sector(self, request):
+        return Response(dict(OrganizationContext.Sector.choices))
+
+    @method_decorator(cache_page(60 * LONG_CACHE_TTL))
+    @action(detail=False, name="Get size choices")
+    def size(self, request):
+        return Response(dict(OrganizationContext.Size.choices))
+
+    @method_decorator(cache_page(60 * LONG_CACHE_TTL))
+    @action(detail=False, name="Get maturity level choices")
+    def maturity_level(self, request):
+        return Response(dict(OrganizationContext.MaturityLevel.choices))
+
+    @method_decorator(cache_page(60 * LONG_CACHE_TTL))
+    @action(detail=False, name="Get geographic scope choices")
+    def geographic_scope(self, request):
+        return Response(dict(OrganizationContext.GeoScope.choices))

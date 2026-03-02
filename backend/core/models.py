@@ -8274,4 +8274,94 @@ auditlog.register(
     TaskTemplate,
     exclude_fields=common_exclude,
 )
+
+
+class OrganizationContext(AbstractBaseModel, FolderMixin, PublishInRootFolderMixin):
+    """
+    Organization context / profile used for AI-contextualized control suggestions.
+    """
+
+    class Sector(models.TextChoices):
+        FINANCIAL = "financial", _("Financial")
+        GOVERNMENT = "government", _("Government")
+        HEALTHCARE = "healthcare", _("Healthcare")
+        ENERGY = "energy", _("Energy")
+        TELECOMMUNICATIONS = "telecommunications", _("Telecommunications")
+        EDUCATION = "education", _("Education")
+        RETAIL = "retail", _("Retail")
+        TECHNOLOGY = "technology", _("Technology")
+        MANUFACTURING = "manufacturing", _("Manufacturing")
+        OTHER = "other", _("Other")
+
+    class Size(models.TextChoices):
+        SMALL = "small", _("Small")
+        MEDIUM = "medium", _("Medium")
+        LARGE = "large", _("Large")
+        ENTERPRISE = "enterprise", _("Enterprise")
+
+    class MaturityLevel(models.TextChoices):
+        INITIAL = "initial", _("Initial")
+        DEVELOPING = "developing", _("Developing")
+        DEFINED = "defined", _("Defined")
+        MANAGED = "managed", _("Managed")
+        OPTIMIZING = "optimizing", _("Optimizing")
+
+    class GeoScope(models.TextChoices):
+        SAUDI_ARABIA = "saudi_arabia", _("Saudi Arabia")
+        GCC = "gcc", _("GCC")
+        MIDDLE_EAST_AFRICA = "middle_east_africa", _("Middle East & Africa")
+        GLOBAL = "global", _("Global")
+        REGIONAL = "regional", _("Regional")
+        LOCAL = "local", _("Local")
+
+    name = models.CharField(max_length=200, verbose_name=_("Name (EN)"))
+    name_ar = models.CharField(
+        max_length=200, blank=True, default="", verbose_name=_("Name (AR)")
+    )
+    sector = models.CharField(
+        max_length=50,
+        choices=Sector.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Sector"),
+    )
+    size = models.CharField(
+        max_length=20,
+        choices=Size.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Size"),
+    )
+    geographic_scope = models.CharField(
+        max_length=50,
+        choices=GeoScope.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Geographic Scope"),
+    )
+    maturity_level = models.CharField(
+        max_length=20,
+        choices=MaturityLevel.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Maturity Level"),
+    )
+    regulatory_obligations = models.JSONField(
+        default=list, blank=True, verbose_name=_("Regulatory Obligations")
+    )
+    notes = models.TextField(blank=True, default="", verbose_name=_("Notes"))
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = _("Organization Context")
+        verbose_name_plural = _("Organization Contexts")
+
+    def __str__(self) -> str:
+        return self.name
+
+
+auditlog.register(
+    OrganizationContext,
+    exclude_fields=common_exclude,
+)
 # actions - 0: create, 1: update, 2: delete

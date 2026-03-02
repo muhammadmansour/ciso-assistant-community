@@ -3196,3 +3196,17 @@ class ComplianceAssessmentEvidenceSerializer(BaseModelSerializer):
             "size",
             "requirement_assessments",
         ]
+
+
+class OrganizationContextReadSerializer(BaseModelSerializer):
+    folder = FieldsRelatedField()
+
+    class Meta:
+        model = OrganizationContext
+        fields = "__all__"
+
+
+class OrganizationContextWriteSerializer(BaseModelSerializer):
+    class Meta:
+        model = OrganizationContext
+        fields = "__all__"
