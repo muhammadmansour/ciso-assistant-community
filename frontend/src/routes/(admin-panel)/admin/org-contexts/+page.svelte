@@ -12,6 +12,11 @@
 	let showModal = $state(false);
 	let dragOver = $state(false);
 	let saving = $state(false);
+	let expandedId = $state<string | null>(null);
+
+	function toggleExpand(id: string) {
+		expandedId = expandedId === id ? null : id;
+	}
 
 	// Form state
 	let formData = $state({
@@ -108,6 +113,19 @@
 			val
 		);
 	}
+
+	function getGeoScopeLabel(val: string): string {
+		return (
+			data.geoScopeChoices?.[val] ||
+			geoScopeOptions.find((o) => o.value === val)?.label ||
+			val
+		);
+	}
+
+	// Mock documents per context (will be replaced with real data later)
+	const mockDocuments: Record<string, Array<{ name: string; size: string; type: string }>> = {
+		// These will be filled when document upload is wired to the backend
+	};
 
 	function toggleObligation(name: string) {
 		if (formData.regulatory_obligations.includes(name)) {
@@ -283,10 +301,19 @@
 	<!-- Context List -->
 	<div class="space-y-3">
 		{#each filteredContexts as ctx (ctx.id)}
+			{@const isExpanded = expandedId === ctx.id}
+			{@const docs = mockDocuments[ctx.id] ?? []}
 			<div
-				class="bg-white rounded-xl border border-gray-200 px-5 py-4 hover:border-blue-200 hover:shadow-sm transition-all group"
+				class="bg-white rounded-xl border transition-all group {isExpanded
+					? 'border-l-[3px] border-l-red-400 border-gray-200 shadow-sm'
+					: 'border-gray-200 hover:border-blue-200 hover:shadow-sm'}"
 			>
-				<div class="flex items-center justify-between">
+				<!-- Card Header -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="flex items-center justify-between px-5 py-4 cursor-pointer"
+					onclick={() => toggleExpand(ctx.id)}
+				>
 					<!-- Left: Info -->
 					<div class="flex items-center gap-4">
 						<div
@@ -351,10 +378,18 @@
 							</div>
 						{/if}
 
+						<!-- Docs count -->
+						{#if docs.length > 0}
+							<span class="text-xs text-gray-400">{docs.length} docs</span>
+						{/if}
+
 						<!-- Action buttons -->
-						<div
-							class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-						>
+						<div class="flex items-center gap-1" onclick={(e) => e.stopPropagation()}>
+							<button
+								class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+							>
+								<i class="fa-solid fa-pen-to-square text-xs"></i>
+							</button>
 							<button
 								onclick={() => deleteContext(ctx.id)}
 								class="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
@@ -363,12 +398,83 @@
 							</button>
 						</div>
 
-						<!-- Chevron -->
+						<!-- Chevron (rotates on expand) -->
 						<i
-							class="fa-solid fa-chevron-right text-[10px] text-gray-300 group-hover:text-gray-500 transition-colors"
+							class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200 {isExpanded
+								? 'text-gray-500'
+								: 'text-gray-300 -rotate-90 group-hover:text-gray-500'}"
 						></i>
 					</div>
 				</div>
+
+				<!-- Expanded Content -->
+				{#if isExpanded}
+					<div class="border-t border-gray-100 px-5 py-5">
+						<div class="grid grid-cols-2 gap-8">
+							<!-- Left: Details -->
+							<div class="space-y-4">
+								<h4 class="text-sm font-semibold text-gray-900">Details</h4>
+
+								{#if ctx.geographic_scope}
+									<div class="flex items-start gap-2.5">
+										<i class="fa-solid fa-location-dot text-gray-400 text-sm mt-0.5 w-4 text-center"></i>
+										<span class="text-sm text-gray-700">{getGeoScopeLabel(ctx.geographic_scope)}</span>
+									</div>
+								{/if}
+
+								{#if Array.isArray(ctx.regulatory_obligations) && ctx.regulatory_obligations.length > 0}
+									<div class="flex items-start gap-2.5">
+										<i class="fa-solid fa-shield-halved text-gray-400 text-sm mt-0.5 w-4 text-center"></i>
+										<div>
+											<span class="text-xs font-medium text-gray-500 block mb-1">Regulatory:</span>
+											<span class="text-sm text-gray-700">{ctx.regulatory_obligations.join(', ')}</span>
+										</div>
+									</div>
+								{/if}
+
+								{#if ctx.notes}
+									<div class="mt-3">
+										<h4 class="text-sm font-semibold text-gray-900 mb-1.5">Notes</h4>
+										<p class="text-sm text-gray-600 leading-relaxed">{ctx.notes}</p>
+									</div>
+								{/if}
+							</div>
+
+							<!-- Right: Documents -->
+							<div class="space-y-3">
+								<h4 class="text-sm font-semibold text-gray-900">Documents ({docs.length})</h4>
+
+								{#if docs.length > 0}
+									<div class="space-y-2">
+										{#each docs as doc}
+											{@const ext = doc.name.split('.').pop()?.toLowerCase()}
+											{@const iconClass =
+												ext === 'pdf'
+													? 'fa-solid fa-file-pdf text-red-400'
+													: ext === 'xlsx' || ext === 'xls'
+														? 'fa-solid fa-file-excel text-green-500'
+														: ext === 'docx' || ext === 'doc'
+															? 'fa-solid fa-file-word text-blue-500'
+															: 'fa-regular fa-file text-gray-400'}
+											<div class="flex items-center justify-between py-1.5">
+												<div class="flex items-center gap-2.5 min-w-0">
+													<i class="{iconClass} text-base w-5 text-center flex-shrink-0"></i>
+													<span class="text-sm text-blue-600 hover:underline cursor-pointer truncate">{doc.name}</span>
+												</div>
+												<span class="text-xs text-gray-400 flex-shrink-0 ml-3">{doc.size}</span>
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<div class="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+										<i class="fa-regular fa-folder-open text-2xl text-gray-300 mb-2"></i>
+										<p class="text-xs text-gray-400">No documents uploaded yet</p>
+									</div>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/each}
 
