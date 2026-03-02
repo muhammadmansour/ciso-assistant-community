@@ -8,9 +8,9 @@
 			desc: 'Build context sessions with requirements and queries'
 		},
 		{
-			icon: 'fa-solid fa-robot',
-			title: 'AI Prompt Manager',
-			desc: 'Configure and tune AI analysis prompts'
+			icon: 'fa-solid fa-wand-magic-sparkles',
+			title: 'Prompt Management',
+			desc: 'Configure and tune AI prompt templates'
 		},
 		{
 			icon: 'fa-solid fa-folder-tree',
