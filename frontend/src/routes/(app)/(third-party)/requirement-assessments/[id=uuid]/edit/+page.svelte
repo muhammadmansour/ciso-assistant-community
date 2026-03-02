@@ -852,11 +852,10 @@
 					filtered[field] = change;
 				}
 			}
-		// Only keep "info" entries if they have confirmed results (actual field changes)
-		if (entry.action === 'info') {
-			if (Object.keys(filtered).length === 0) return null;
-			return { ...entry, changes: filtered };
-		}
+			// Always keep "info" entries even if they have no field changes
+			if (entry.action === 'info') {
+				return { ...entry, changes: filtered };
+			}
 			if (Object.keys(filtered).length === 0) return null;
 			return { ...entry, changes: filtered };
 		}).filter(Boolean);

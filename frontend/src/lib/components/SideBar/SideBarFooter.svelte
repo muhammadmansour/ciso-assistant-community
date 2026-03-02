@@ -43,7 +43,18 @@
 	let openState = $state(false);
 </script>
 
-<div class="border-t border-white/10 pt-3 mt-auto">
+<div class="border-t border-white/10 pt-3 mt-auto space-y-3">
+	{#if page.data.user?.is_admin}
+		<a
+			href="/admin"
+			class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-white/15 text-white/80 hover:bg-white/8 hover:text-white transition-all duration-150 group"
+		>
+			<div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center group-hover:bg-white/15 transition-colors">
+				<i class="fa-solid fa-gear text-xs text-white/70 group-hover:text-white"></i>
+			</div>
+			<span class="text-[13px] font-medium tracking-wide">WathbahGRC Admin</span>
+		</a>
+	{/if}
 	<div class="flex flex-row items-center justify-between">
 		<div class="flex flex-col w-3/4 min-w-0">
 			{#if page.data.user}
