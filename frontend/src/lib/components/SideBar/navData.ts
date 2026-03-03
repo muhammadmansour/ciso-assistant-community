@@ -174,61 +174,61 @@ export const navData = {
 		// 		}
 		// 	]
 		// },
-		// {
-		// 	name: 'governance',
-		// 	items: [
-		// 		{
-		// 			name: 'libraries',
-		// 			fa_icon: 'fa-solid fa-folder-plus',
-		// 			href: '/libraries',
-		// 			permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
-		// 		},
-		// 		{
-		// 			name: 'policies',
-		// 			fa_icon: 'fa-solid fa-file-alt',
-		// 			href: '/policies',
-		// 			permissions: ['view_appliedcontrol']
-		// 		},
-		// 		{
-		// 			name: 'organisationIssues',
-		// 			fa_icon: 'fa-solid fa-briefcase',
-		// 			href: '/organisation-issues',
-		// 			permissions: ['view_organisationissue']
-		// 		},
-		// 		{
-		// 			name: 'organisationObjectives',
-		// 			fa_icon: 'fa-solid fa-bullseye',
-		// 			href: '/organisation-objectives',
-		// 			permissions: ['view_organisationobjective']
-		// 		},
-		// 		{
-		// 			name: 'riskAcceptances',
-		// 			fa_icon: 'fa-solid fa-signature',
-		// 			href: '/risk-acceptances'
-		// 		},
-		// 		{
-		// 			name: 'validationFlows',
-		// 			fa_icon: 'fa-solid fa-clipboard-check',
-		// 			href: '/validation-flows',
-		// 			permissions: ['view_validationflow']
-		// 		},
-		// 		{
-		// 			name: 'securityExceptions',
-		// 			fa_icon: 'fa-solid fa-circle-exclamation',
-		// 			href: '/security-exceptions'
-		// 		},
-		// 		{
-		// 			name: 'followUp',
-		// 			fa_icon: 'fa-solid fa-clipboard-list',
-		// 			href: '/findings-assessments'
-		// 		},
-		// 		{
-		// 			name: 'roleAssignments',
-		// 			fa_icon: 'fa-solid fa-user-tag',
-		// 			href: '/role-assignments'
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'governance',
+			items: [
+				{
+					name: 'libraries',
+					fa_icon: 'fa-solid fa-folder-plus',
+					href: '/libraries',
+					permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
+				},
+				{
+					name: 'policies',
+					fa_icon: 'fa-solid fa-file-alt',
+					href: '/policies',
+					permissions: ['view_appliedcontrol']
+				},
+				{
+					name: 'organisationIssues',
+					fa_icon: 'fa-solid fa-briefcase',
+					href: '/organisation-issues',
+					permissions: ['view_organisationissue']
+				},
+				{
+					name: 'organisationObjectives',
+					fa_icon: 'fa-solid fa-bullseye',
+					href: '/organisation-objectives',
+					permissions: ['view_organisationobjective']
+				},
+				{
+					name: 'riskAcceptances',
+					fa_icon: 'fa-solid fa-signature',
+					href: '/risk-acceptances'
+				},
+				{
+					name: 'validationFlows',
+					fa_icon: 'fa-solid fa-clipboard-check',
+					href: '/validation-flows',
+					permissions: ['view_validationflow']
+				},
+				{
+					name: 'securityExceptions',
+					fa_icon: 'fa-solid fa-circle-exclamation',
+					href: '/security-exceptions'
+				},
+				{
+					name: 'followUp',
+					fa_icon: 'fa-solid fa-clipboard-list',
+					href: '/findings-assessments'
+				},
+				{
+					name: 'roleAssignments',
+					fa_icon: 'fa-solid fa-user-tag',
+					href: '/role-assignments'
+				}
+			]
+		},
 		// {
 		// 	name: 'risk',
 		// 	items: [
