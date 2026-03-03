@@ -62,7 +62,7 @@ export const navData = {
 					href: '/user-groups'
 				}
 			]
-		}
+		},
 		// {
 		// 	name: 'overview',
 		// 	items: [
