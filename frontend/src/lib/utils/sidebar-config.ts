@@ -58,8 +58,8 @@ export function getSidebarVisibleItems(
 		incidents: featureFlags?.incidents ?? false,
 		tasks: featureFlags?.tasks ?? false,
 		riskAcceptances: featureFlags?.risk_acceptances ?? false,
-		securityExceptions: featureFlags?.exceptions ?? false,
-		followUp: featureFlags?.follow_up ?? false,
+		securityExceptions: true,
+		followUp: true,
 		ebiosRM: featureFlags?.ebiosrm ?? false,
 		scoringAssistant: featureFlags?.scoring_assistant ?? false,
 		vulnerabilities: featureFlags?.vulnerabilities ?? false,
@@ -75,7 +75,7 @@ export function getSidebarVisibleItems(
 		projectManagement: featureFlags?.project_management ?? false,
 		contracts: featureFlags?.contracts ?? false,
 		reports: featureFlags?.reports ?? false,
-		validationFlows: featureFlags?.validation_flows ?? true,
+		validationFlows: true,
 		metrology: featureFlags?.metrology ?? true
 	};
 }
