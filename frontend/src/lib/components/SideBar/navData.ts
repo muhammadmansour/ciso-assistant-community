@@ -190,23 +190,6 @@ export const navData = {
 					permissions: ['view_appliedcontrol']
 				},
 				{
-					name: 'organisationIssues',
-					fa_icon: 'fa-solid fa-briefcase',
-					href: '/organisation-issues',
-					permissions: ['view_organisationissue']
-				},
-				{
-					name: 'organisationObjectives',
-					fa_icon: 'fa-solid fa-bullseye',
-					href: '/organisation-objectives',
-					permissions: ['view_organisationobjective']
-				},
-				{
-					name: 'riskAcceptances',
-					fa_icon: 'fa-solid fa-signature',
-					href: '/risk-acceptances'
-				},
-				{
 					name: 'validationFlows',
 					fa_icon: 'fa-solid fa-clipboard-check',
 					href: '/validation-flows',
@@ -218,14 +201,9 @@ export const navData = {
 					href: '/security-exceptions'
 				},
 				{
-					name: 'followUp',
+					name: 'findingsTracking',
 					fa_icon: 'fa-solid fa-clipboard-list',
 					href: '/findings-assessments'
-				},
-				{
-					name: 'roleAssignments',
-					fa_icon: 'fa-solid fa-user-tag',
-					href: '/role-assignments'
 				}
 			]
 		},

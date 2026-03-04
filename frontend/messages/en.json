@@ -1740,6 +1740,7 @@
 	"addQuantitativeRiskScenario": "Add scenario",
 	"addQuantitativeRiskHypothesis": "New hypothesis",
 	"followUp": "Findings tracking",
+	"findingsTracking": "Findings Tracking",
 	"pentest": "Pentest",
 	"audit": "Audit",
 	"selfIdentified": "Self-identified",
