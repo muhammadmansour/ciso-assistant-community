@@ -181,29 +181,31 @@ export const navData = {
 					name: 'libraries',
 					fa_icon: 'fa-solid fa-folder-plus',
 					href: '/libraries',
-					permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
+					alwaysShow: true
 				},
 				{
 					name: 'policies',
 					fa_icon: 'fa-solid fa-file-alt',
 					href: '/policies',
-					permissions: ['view_appliedcontrol']
+					alwaysShow: true
 				},
 				{
 					name: 'validationFlows',
 					fa_icon: 'fa-solid fa-clipboard-check',
 					href: '/validation-flows',
-					permissions: ['view_validationflow']
+					alwaysShow: true
 				},
 				{
 					name: 'securityExceptions',
 					fa_icon: 'fa-solid fa-circle-exclamation',
-					href: '/security-exceptions'
+					href: '/security-exceptions',
+					alwaysShow: true
 				},
 				{
 					name: 'findingsTracking',
 					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/findings-assessments'
+					href: '/findings-assessments',
+					alwaysShow: true
 				}
 			]
 		},

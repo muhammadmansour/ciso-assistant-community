@@ -15,10 +15,12 @@
 	const items = navData.items
 		.map((item) => {
 			// Check and filter the sub-items based on user permissions
-			const filteredSubItems = item.items.filter((subItem) => {
-				if (subItem.exclude) {
-					return subItem.exclude.some((role) => user?.roles && !user.roles.includes(role));
-				} else if (subItem.permissions) {
+		const filteredSubItems = item.items.filter((subItem) => {
+			if (subItem.alwaysShow) {
+				return true;
+			} else if (subItem.exclude) {
+				return subItem.exclude.some((role) => user?.roles && !user.roles.includes(role));
+			} else if (subItem.permissions) {
 					return subItem.permissions?.some(
 						(permission) => user?.permissions && Object.hasOwn(user.permissions, permission)
 					);
