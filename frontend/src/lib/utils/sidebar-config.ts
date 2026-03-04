@@ -75,7 +75,7 @@ export function getSidebarVisibleItems(
 		projectManagement: featureFlags?.project_management ?? false,
 		contracts: featureFlags?.contracts ?? false,
 		reports: featureFlags?.reports ?? false,
-		validationFlows: featureFlags?.validation_flows ?? false,
+		validationFlows: featureFlags?.validation_flows ?? true,
 		metrology: featureFlags?.metrology ?? true
 	};
 }
