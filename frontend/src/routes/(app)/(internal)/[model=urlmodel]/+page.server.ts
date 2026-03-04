@@ -89,6 +89,106 @@ export const actions: Actions = {
 		setFlash({ type: 'success', message: result.message || `All ${urlModel} deleted successfully` }, event);
 		return { status: 200 };
 	},
+	fetchMuraji: async (event) => {
+		const MURAJI_API_URL = 'https://muraji-api.wathbahs.com/api/libraries';
+		
+		try {
+			const murajiResponse = await fetch(MURAJI_API_URL);
+			
+			if (!murajiResponse.ok) {
+				console.error('Failed to fetch from Muraji API:', murajiResponse.status);
+				setFlash({ type: 'error', message: 'فشل في جلب المكتبات من مراجع' }, event);
+				return fail(500);
+			}
+			
+			const murajiData = await murajiResponse.json();
+			
+			if (!murajiData.success || !murajiData.data || murajiData.data.length === 0) {
+				setFlash({ type: 'warning', message: 'لا توجد مكتبات متاحة في مراجع' }, event);
+				return;
+			}
+			
+			let successCount = 0;
+			let updateCount = 0;
+			let errorCount = 0;
+			
+			for (const library of murajiData.data) {
+				try {
+					const deleteEndpoint = `${BASE_API_URL}/stored-libraries/${encodeURIComponent(library.urn)}/`;
+					const deleteResponse = await event.fetch(deleteEndpoint, { method: 'DELETE' });
+					const wasExisting = deleteResponse.ok;
+					
+					const libraryData: Record<string, any> = {
+						urn: library.urn,
+						locale: library.locale || 'en',
+						ref_id: library.ref_id,
+						name: library.name,
+						description: library.description || undefined,
+						copyright: library.copyright || undefined,
+						version: library.version,
+						provider: library.provider || undefined,
+						packager: library.packager || undefined,
+						publication_date: library.publication_date ? library.publication_date.split('T')[0] : undefined,
+						objects: library.content
+					};
+
+					Object.keys(libraryData).forEach(key => {
+						if (libraryData[key] === undefined) delete libraryData[key];
+					});
+
+					const jsonString = JSON.stringify(libraryData, null, 2);
+					const filename = `${library.ref_id || 'library'}.yaml`;
+					const file = new Blob([jsonString], { type: 'application/x-yaml' });
+					
+					const uploadEndpoint = `${BASE_API_URL}/stored-libraries/upload/`;
+					
+					const uploadResponse = await event.fetch(uploadEndpoint, {
+						method: 'POST',
+						headers: {
+							'Content-Disposition': `attachment; filename=${filename}`
+						},
+						body: file
+					});
+					
+					if (uploadResponse.ok) {
+						if (wasExisting) {
+							updateCount++;
+						} else {
+							successCount++;
+						}
+					} else {
+						const errorData = await uploadResponse.json().catch(() => ({}));
+						console.error(`Failed to upload library ${library.name}:`, errorData);
+						errorCount++;
+					}
+				} catch (libError) {
+					console.error(`Error processing library ${library.name}:`, libError);
+					errorCount++;
+				}
+			}
+			
+			const totalProcessed = successCount + updateCount;
+			if (totalProcessed > 0) {
+				let message = `تم مزامنة ${totalProcessed} مكتبة من مراجع`;
+				if (updateCount > 0 && successCount > 0) {
+					message = `تم مزامنة ${totalProcessed} مكتبة (${successCount} جديدة، ${updateCount} محدثة)`;
+				} else if (updateCount > 0) {
+					message = `تم تحديث ${updateCount} مكتبة من مراجع`;
+				} else {
+					message = `تم إضافة ${successCount} مكتبة جديدة من مراجع`;
+				}
+				setFlash({ type: 'success', message }, event);
+			} else if (errorCount > 0) {
+				setFlash({ type: 'error', message: `فشل في المزامنة. الأخطاء: ${errorCount}` }, event);
+			} else {
+				setFlash({ type: 'info', message: 'لا توجد مكتبات للمزامنة' }, event);
+			}
+		} catch (error) {
+			console.error('Error fetching from Muraji:', error);
+			setFlash({ type: 'error', message: 'خطأ في الاتصال بمراجع API' }, event);
+			return fail(500);
+		}
+	},
 	importFolder: async (event) => {
 		const formData = await event.request.formData();
 		if (!formData) return fail(400, { error: 'No form data' });

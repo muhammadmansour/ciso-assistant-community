@@ -10,11 +10,8 @@
 	} from '$lib/components/Modals/stores';
 
 	import { safeTranslate } from '$lib/utils/i18n';
-	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
-	let isFetchingMuraji = $state(false);
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -212,37 +209,7 @@
 			</div>
 		{/snippet}
 		{#snippet addButton()}
-			<div class="flex gap-2">
-				<!-- Fetch from Muraji Button -->
-				<form
-					method="POST"
-					action="?/fetchMuraji"
-					use:enhance={() => {
-						isFetchingMuraji = true;
-						return async ({ result, update }) => {
-							isFetchingMuraji = false;
-							await update();
-							await invalidateAll();
-						};
-					}}
-				>
-					<button
-						type="submit"
-						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-medium text-sm shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-						disabled={isFetchingMuraji}
-						title="مزامنة مع مراجع"
-					>
-						{#if isFetchingMuraji}
-							<i class="fa-solid fa-spinner fa-spin"></i>
-							<span>جاري المزامنة...</span>
-						{:else}
-							<i class="fa-solid fa-cloud-arrow-down"></i>
-							<span>مزامنة مع مراجع</span>
-						{/if}
-					</button>
-				</form>
-
-				<!-- Upload Library Button -->
+			<div>
 				<span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
 					<button
 						class="inline-block p-3 btn-mini-primary w-12 focus:relative"

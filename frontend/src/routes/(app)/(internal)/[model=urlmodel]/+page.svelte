@@ -32,6 +32,7 @@
 	let URLModel = $derived(data.URLModel);
 	let exportPopupOpen = $state(false);
 	let isDeletingAll = $state(false);
+	let isFetchingMuraji = $state(false);
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -312,6 +313,33 @@
 								{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
 							>
 							{#if URLModel === 'frameworks'}
+								<form
+									method="POST"
+									action="?/fetchMuraji"
+									use:enhance={() => {
+										isFetchingMuraji = true;
+										return async ({ result, update }) => {
+											isFetchingMuraji = false;
+											await update();
+											await invalidateAll();
+										};
+									}}
+								>
+									<button
+										type="submit"
+										class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-medium text-sm shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+										disabled={isFetchingMuraji}
+										title="مزامنة مع مراجع"
+									>
+										{#if isFetchingMuraji}
+											<i class="fa-solid fa-spinner fa-spin"></i>
+											<span>جاري المزامنة...</span>
+										{:else}
+											<i class="fa-solid fa-cloud-arrow-down"></i>
+											<span>مزامنة مع مراجع</span>
+										{/if}
+									</button>
+								</form>
 								<form
 									method="POST"
 									action="?/deleteAll"
