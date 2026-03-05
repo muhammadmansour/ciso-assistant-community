@@ -6263,6 +6263,19 @@ class FolderViewSet(BaseModelViewSet):
     model = Folder
     filterset_class = FolderFilter
     search_fields = ["name"]
+
+    def get_permissions(self):
+        if self.action == "list":
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            # Return all domain folders for unauthenticated requests
+            return Folder.objects.filter(
+                content_type=Folder.ContentType.DOMAIN
+            )
+        return super().get_queryset()
     batch_size = 100  # Configurable batch size for processing domain import
 
     def perform_create(self, serializer):
