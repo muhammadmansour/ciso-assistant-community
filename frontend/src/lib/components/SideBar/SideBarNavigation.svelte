@@ -41,6 +41,12 @@
 		.filter((item) => item.items.length > 0); // Filter out items with no sub-items
 
 	import { lastAccordionItem } from '$lib/utils/stores';
+
+	// Ensure governance is always expanded (persisted store may have old value without it)
+	if (!$lastAccordionItem.includes('governance')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'governance'];
+	}
+
 	interface Props {
 		sideBarVisibleItems: Record<string, boolean>;
 	}
