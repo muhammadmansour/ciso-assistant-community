@@ -123,11 +123,11 @@ logger.info("DEBUG mode: %s", DEBUG)
 logger.info("CISO_ASSISTANT_URL: %s", CISO_ASSISTANT_URL)
 # ALLOWED_HOSTS should contain the backend address
 ALLOWED_HOSTS = os.environ.get(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1,host.docker.internal"
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,host.docker.internal,grc.wathbah.dev,grc-admin.wathbahs.com"
 ).split(",")
 logger.info("ALLOWED_HOSTS: %s", ALLOWED_HOSTS)
 CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "CSRF_TRUSTED_ORIGINS", CISO_ASSISTANT_URL
+    "CSRF_TRUSTED_ORIGINS", f"{CISO_ASSISTANT_URL},http://localhost:5555,https://grc.wathbah.dev,https://grc-admin.wathbahs.com"
 ).split(",")
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
 LOCAL_STORAGE_DIRECTORY = os.environ.get(
