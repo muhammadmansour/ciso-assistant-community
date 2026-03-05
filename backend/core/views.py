@@ -3941,6 +3941,11 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     filterset_class = AppliedControlFilterSet
     search_fields = ["name", "description", "ref_id"]
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     @staticmethod
     def _extract_cost_field(control, *path):
         """Helper to safely extract nested cost fields."""
