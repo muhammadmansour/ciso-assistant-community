@@ -5,7 +5,8 @@ services:
     pull_policy: always
     restart: always
     environment:
-      - ALLOWED_HOSTS=backend,localhost
+      - ALLOWED_HOSTS=backend,localhost,grc.wathbah.dev
+      - CSRF_TRUSTED_ORIGINS=https://localhost:9443,http://localhost:5555,https://grc.wathbah.dev
       - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
@@ -36,7 +37,8 @@ services:
         condition: service_healthy
     restart: always
     environment:
-      - ALLOWED_HOSTS=backend,localhost
+      - ALLOWED_HOSTS=backend,localhost,grc.wathbah.dev
+      - CSRF_TRUSTED_ORIGINS=https://localhost:9443,http://localhost:5555,https://grc.wathbah.dev
       - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
