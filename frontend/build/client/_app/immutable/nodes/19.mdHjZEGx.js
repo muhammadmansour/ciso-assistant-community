@@ -1,1 +1,0 @@
-import"../chunks/Bzak7iHL.js";import{f as t,a as i,c as n,n as p,r as d}from"../chunks/2pWo5_dW.js";import{s as e}from"../chunks/Ck4BDG7B.js";var m=t('<div class="card bg-white shadow-lg"><!></div>');function f(a,r){var o=m(),s=n(o);e(s,()=>r.children??p),d(o),i(a,o)}export{f as component};

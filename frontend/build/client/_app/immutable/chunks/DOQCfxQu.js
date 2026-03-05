@@ -1,1 +1,0 @@
-const i=r=>typeof r=="object"&&r!==null&&!Array.isArray(r),s=r=>{if(!i(r))return!1;const t=Object.keys(r);return t.length===0?!0:t.every(n=>{const e=r[n];return e==null?!0:Array.isArray(e)?e.every(c=>s(c)):i(e)?Object.keys(e).length===0:!1})},y=r=>Array.isArray(r)?r.reduce((t,n)=>t+(s(n)?1:0),0):s(r)?1:0;export{y as c,s as i};

@@ -1,1 +1,0 @@
-import"../chunks/Bzak7iHL.js";import{D as r}from"../chunks/DiZmzRIK.js";import"../chunks/YAPe4s4R.js";import"../chunks/IOhIIUSe.js";import"../chunks/Cokhj0i6.js";function n(t,o){r(t,{get data(){return o.data}})}export{n as component};

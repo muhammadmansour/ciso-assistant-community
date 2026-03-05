@@ -27,7 +27,7 @@ export const showAllEvents = persisted('showAllEvents', true, {
 	storage: 'session'
 });
 
-export const lastAccordionItem = persisted('lastAccordionItem', ['compliance', 'organization']);
+export const lastAccordionItem = persisted('lastAccordionItem', ['compliance', 'organization', 'governance']);
 
 const expandedNodes: TreeViewNode[] = [];
 
