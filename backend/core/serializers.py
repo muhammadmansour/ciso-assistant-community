@@ -863,6 +863,7 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
         # Pop M2M fields before super().create() - DRF handles them after object creation
         owner_data = validated_data.pop("owner", [])
         findings = validated_data.pop("findings", [])
+        requirement_assessments = validated_data.pop("requirement_assessments", [])
 
         # For unauthenticated requests (e.g. external export from WathbahGRC Admin),
         # skip the RBAC permission check in BaseModelSerializer.create() and create directly
@@ -884,6 +885,8 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
             applied_control.owner.set(owner_data)
         if findings:
             applied_control.findings.set(findings)
+        if requirement_assessments:
+            applied_control.requirement_assessments.set(requirement_assessments)
 
         # Send notification to newly assigned owners
         logger.info(f"AppliedControl created: {applied_control.id}, owner_data: {owner_data}")

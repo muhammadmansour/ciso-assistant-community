@@ -1839,6 +1839,10 @@
 							class="btn bg-[#005FA3] hover:bg-[#004d85] text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm"
 							data-testid="save-button"
 							type="submit"
+							onclick={() =>
+								form.form.update((data) => {
+									return { ...data, noRedirect: false };
+								})}
 						>
 							Save
 						</button>
