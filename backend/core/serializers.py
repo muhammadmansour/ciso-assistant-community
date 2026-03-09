@@ -878,7 +878,7 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
                 raise serializers.ValidationError(str(e))
         else:
             applied_control = super().create(validated_data)
-        
+
         # Set M2M relationships manually
         if owner_data:
             applied_control.owner.set(owner_data)
