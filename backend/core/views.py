@@ -3946,11 +3946,6 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             return [permissions.AllowAny()]
         return super().get_permissions()
 
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return AppliedControl.objects.all()
-        return super().get_queryset()
-
     def list(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             queryset = self.filter_queryset(self.get_queryset())
@@ -4089,9 +4084,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     def get_queryset(self):
         """Optimize queries by prefetching related objects used in the table view and serializer"""
+        if not self.request.user.is_authenticated:
+            base_qs = AppliedControl.objects.all()
+        else:
+            base_qs = super().get_queryset()
         return (
-            super()
-            .get_queryset()
+            base_qs
             .select_related(
                 "folder",
                 "folder__parent_folder",  # For get_folder_full_path() optimization
