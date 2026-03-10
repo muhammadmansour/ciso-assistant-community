@@ -3942,9 +3942,32 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     search_fields = ["name", "description", "ref_id"]
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action in ("create", "list", "retrieve", "partial_update", "update"):
             return [permissions.AllowAny()]
         return super().get_permissions()
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return AppliedControl.objects.all()
+        return super().get_queryset()
+
+    def list(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            objects = page if page is not None else queryset
+            serializer = self.get_serializer(objects, many=True)
+            if page is not None:
+                return self.get_paginated_response(serializer.data)
+            return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        return super().retrieve(request, *args, **kwargs)
 
     @staticmethod
     def _extract_cost_field(control, *path):
