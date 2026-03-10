@@ -8528,8 +8528,55 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
     ]
     search_fields = ["name", "description", "ref_id", "framework__name"]
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
         """Optimize queries for table view and serializer, with conditional annotations for sorting"""
+        if not self.request.user.is_authenticated:
+            qs = (
+                ComplianceAssessment.objects.all()
+                .select_related(
+                    "folder",
+                    "folder__parent_folder",
+                    "framework",
+                    "perimeter",
+                    "perimeter__folder",
+                    "campaign",
+                )
+                .prefetch_related(
+                    "assets",
+                    "evidences",
+                    "authors",
+                    "reviewers",
+                )
+            )
+            qs = qs.annotate(
+                total_requirements=Count(
+                    "requirement_assessments",
+                    filter=Q(requirement_assessments__requirement__assessable=True),
+                    distinct=True,
+                ),
+                assessed_requirements=Count(
+                    "requirement_assessments",
+                    filter=Q(
+                        ~Q(
+                            requirement_assessments__result=RequirementAssessment.Result.NOT_ASSESSED
+                        ),
+                        requirement_assessments__requirement__assessable=True,
+                    ),
+                    distinct=True,
+                ),
+                progress=ExpressionWrapper(
+                    F("assessed_requirements")
+                    * 100
+                    / Greatest(Coalesce(F("total_requirements"), Value(0)), Value(1)),
+                    output_field=IntegerField(),
+                ),
+            )
+            return qs
         qs = (
             super()
             .get_queryset()
@@ -8574,6 +8621,24 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         )
 
         return qs
+
+    def list(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            objects = page if page is not None else queryset
+            serializer = self.get_serializer(objects, many=True)
+            if page is not None:
+                return self.get_paginated_response(serializer.data)
+            return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        return super().retrieve(request, *args, **kwargs)
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get status choices")
