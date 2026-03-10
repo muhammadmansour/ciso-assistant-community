@@ -3969,6 +3969,24 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             return Response(serializer.data)
         return super().retrieve(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        return super().partial_update(request, *args, **kwargs)
+
     @staticmethod
     def _extract_cost_field(control, *path):
         """Helper to safely extract nested cost fields."""
@@ -10165,9 +10183,26 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         return super().retrieve(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            cache.clear()
+            return Response(serializer.data)
         response = super().update(request, *args, **kwargs)
         cache.clear()
         return response
+
+    def partial_update(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            cache.clear()
+            return Response(serializer.data)
+        return super().partial_update(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
