@@ -1,0 +1,643 @@
+urn: urn:wathba:risk:library:access-control-policy-fintech-v1
+locale: en
+ref_id: ACP-FINTECH-001
+name: Access Control Policy — FinTech Test Ltd.
+description: >
+  Organizational Access Control Policy for FinTech Test Ltd., aligned with
+  SAMA Cyber Security Framework (CSF) Domain 3.4 — Identity and Access Management.
+  Establishes requirements for least privilege, user lifecycle, authentication,
+  privileged access, RBAC, access reviews, remote access, and third-party access.
+copyright: FinTech Test Ltd. — Confidential. For use within WathbaGRC platform.
+version: 1
+provider: FinTech Test Ltd.
+packager: wathba
+objects:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # REFERENCE CONTROLS — reusable control catalog entries derived from the
+  # policy statements. These can be linked across multiple frameworks.
+  # ──────────────────────────────────────────────────────────────────────────
+  reference_controls:
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-least-privilege
+      ref_id: RC-ACP-01
+      name: Principle of Least Privilege
+      description: >
+        Access to information systems shall be granted based on the principle of
+        least privilege. Users receive only the minimum permissions required to
+        perform assigned duties. Default access for new accounts is set to no
+        access, and permissions are added incrementally based on approved requests.
+        Access rights shall be reviewed on any role, department, or employment
+        status change.
+      category: policy
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+      ref_id: RC-ACP-02
+      name: User Registration and De-registration
+      description: >
+        A formal user registration process shall be implemented. Each request
+        requires manager and system owner approval. Unique user IDs are mandatory;
+        shared or generic accounts are prohibited except for documented service
+        accounts. Access shall be revoked or modified within 4 business hours of
+        termination for standard accounts and immediately for privileged accounts.
+        HR must notify IT Security of all terminations and role changes within 24 hours.
+      category: process
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+      ref_id: RC-ACP-03
+      name: Authentication Requirements
+      description: >
+        MFA shall be enforced for all access to production systems, cloud consoles,
+        VPN, and administrative interfaces. Passwords require minimum 12 characters
+        with mixed complexity, expiring every 90 days. API authentication must use
+        OAuth 2.0 with tokens valid for a maximum of 1 hour. Accounts lock after
+        5 consecutive failed attempts.
+      category: technical
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-pam
+      ref_id: RC-ACP-04
+      name: Privileged Access Management (PAM)
+      description: >
+        Privileged accounts (admin, root, DBA) shall be managed through a dedicated
+        PAM solution. All privileged sessions shall be logged and retained for a
+        minimum of 12 months. Just-in-time (JIT) access is required for privileged
+        operations; permanent standing privileges are prohibited. Emergency
+        (break-glass) procedures shall be documented, tested quarterly, and all
+        usage reviewed within 24 hours.
+      category: technical
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-rbac
+      ref_id: RC-ACP-05
+      name: Role-Based Access Control (RBAC)
+      description: >
+        Standard and custom roles are defined for all FinTech Test systems.
+        Custom roles require CISO approval and must be documented in the RBAC
+        matrix. All roles shall be reviewed quarterly.
+      category: process
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+      ref_id: RC-ACP-06
+      name: Access Reviews and Recertification
+      description: >
+        Quarterly access reviews are required for all systems processing financial
+        data or personal information. Monthly reviews are required for privileged
+        and service accounts. Unjustified access shall be revoked within 48 hours.
+        CISO shall present review findings to senior management semi-annually.
+      category: process
+      csf_function: detect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-remote-access
+      ref_id: RC-ACP-07
+      name: Remote Access Controls
+      description: >
+        Remote access is permitted only through the approved VPN solution with MFA.
+        Sessions automatically terminate after 30 minutes of inactivity. Access
+        from personal (BYOD) devices is prohibited for production and financial
+        systems; corporate-managed devices are required.
+      category: technical
+      csf_function: protect
+
+    - urn: urn:wathba:risk:reference_control:acp-fintech:rc-third-party-access
+      ref_id: RC-ACP-08
+      name: Third-Party Access Management
+      description: >
+        Third-party access requires a signed NDA and valid business justification
+        approved by the system owner and CISO. Access is time-limited to a maximum
+        of 90 days and does not auto-renew; extensions require re-approval.
+        Third-party activities shall be monitored in real-time and session
+        recordings retained for 6 months.
+      category: process
+      csf_function: protect
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # FRAMEWORK — the policy itself as a compliance framework, enabling
+  # compliance assessments against policy requirements in WathbaGRC
+  # ──────────────────────────────────────────────────────────────────────────
+  framework:
+    urn: urn:wathba:risk:framework:acp-fintech-v1
+    ref_id: ACP-FINTECH-001
+    name: Access Control Policy — FinTech Test Ltd.
+    description: >
+      SAMA CSF Domain 3.4-aligned access control policy framework for FinTech Test Ltd.
+      Used to assess internal compliance with organizational access management requirements.
+    min_score: 0
+    max_score: 100
+    scores_definition:
+      - score: 0
+        name: Non-Compliant
+        description: The requirement is not implemented or does not exist.
+      - score: 25
+        name: Partially Compliant
+        description: The requirement is partially addressed but significant gaps remain.
+      - score: 75
+        name: Largely Compliant
+        description: The requirement is mostly implemented with minor gaps.
+      - score: 100
+        name: Fully Compliant
+        description: The requirement is fully implemented and operating effectively.
+    requirement_nodes:
+      # ── ROOT ─────────────────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:root
+        assessable: false
+        depth: 1
+        ref_id: ACP-FINTECH-001
+        name: Access Control Policy
+        description: >
+          Organizational access control policy for FinTech Test Ltd., aligned with
+          SAMA CSF Domain 3.4 — Identity and Access Management.
+
+      # ── SECTION 1: PURPOSE ───────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s1
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "1"
+        name: Purpose
+        description: >
+          Establishes access control requirements to protect information assets,
+          customer data, and financial systems from unauthorized access. Implements
+          the principle of least privilege as mandated by SAMA CSF Domain 3.4.
+
+      # ── SECTION 2: SCOPE ─────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s2
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "2"
+        name: Scope
+        description: >
+          Applies to all employees, contractors, and third-party personnel; all
+          information systems including core banking APIs, payment platforms, and
+          customer-facing applications; cloud infrastructure (GCP), SaaS, and
+          development environments; remote access and VPN; physical access to
+          server rooms.
+
+      # ── SECTION 3: REGULATORY ALIGNMENT ─────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s3
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "3"
+        name: Regulatory Alignment
+        description: >
+          This policy is designed to satisfy requirements under SAMA Cyber Security
+          Framework (CSF) Domain 3.4, NCA ECC, and PDPL.
+
+      # ── SECTION 5: POLICY STATEMENTS ─────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "5"
+        name: Policy Statements
+
+      # ── 5.1 LEAST PRIVILEGE ───────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.1
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.1"
+        name: Principle of Least Privilege
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.1.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.1
+        ref_id: 5.1.a
+        name: Least Privilege — Access Granting
+        description: >
+          All access to information systems shall be granted based on the principle
+          of least privilege. Users shall receive only the minimum access necessary
+          to perform their assigned duties.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-least-privilege
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.1.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.1
+        ref_id: 5.1.b
+        name: Least Privilege — Default No-Access
+        description: >
+          Default access for new accounts shall be set to no access. Permissions
+          are added incrementally based on approved access requests.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-least-privilege
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.1.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.1
+        ref_id: 5.1.c
+        name: Least Privilege — Role-Change Review
+        description: >
+          Access rights shall be reviewed whenever there is a change in role,
+          department, or employment status.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-least-privilege
+          - urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+
+      # ── 5.2 USER REGISTRATION ─────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.2
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.2"
+        name: User Registration and De-registration
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.2.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.2
+        ref_id: 5.2.a
+        name: Formal Registration Process
+        description: >
+          A formal user registration process shall be implemented for granting
+          access to all systems. Each request must be approved by the user's direct
+          manager and the system owner.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.2.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.2
+        ref_id: 5.2.b
+        name: Unique User IDs — No Shared Accounts
+        description: >
+          Each user shall be assigned a unique user ID. Shared or generic accounts
+          are prohibited except for documented service accounts.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.2.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.2
+        ref_id: 5.2.c
+        name: Timely Access Revocation
+        description: >
+          Upon termination or role change, access shall be revoked or modified
+          within 4 business hours for standard accounts and immediately for
+          privileged accounts.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.2.d
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.2
+        ref_id: 5.2.d
+        name: HR Notification Procedure
+        description: >
+          HR shall notify IT Security of all terminations, resignations, and role
+          changes within 24 hours.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-user-registration
+
+      # ── 5.3 AUTHENTICATION ────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.3
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.3"
+        name: Authentication Requirements
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.3.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.3
+        ref_id: 5.3.a
+        name: Multi-Factor Authentication (MFA)
+        description: >
+          MFA shall be enforced for all access to production systems, cloud
+          consoles, VPN, and administrative interfaces.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.3.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.3
+        ref_id: 5.3.b
+        name: Password Complexity and Expiry
+        description: >
+          Passwords shall meet minimum requirements: 12 characters, combination of
+          uppercase, lowercase, numbers, and special characters. Password expiry: 90 days.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.3.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.3
+        ref_id: 5.3.c
+        name: API Authentication Standard
+        description: >
+          API authentication shall use OAuth 2.0 with short-lived tokens (maximum
+          1-hour validity). API keys are prohibited for production systems.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.3.d
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.3
+        ref_id: 5.3.d
+        name: Account Lockout Policy
+        description: >
+          Accounts shall be locked after 5 consecutive failed authentication
+          attempts. Unlock requires IT Security intervention or a 30-minute
+          automatic cooldown.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+
+      # ── 5.4 PRIVILEGED ACCESS ─────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.4
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.4"
+        name: Privileged Access Management
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.4.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.4
+        ref_id: 5.4.a
+        name: PAM Solution Requirement
+        description: >
+          Privileged accounts (admin, root, database admin) shall be managed
+          through a dedicated Privileged Access Management (PAM) solution.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-pam
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.4.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.4
+        ref_id: 5.4.b
+        name: Privileged Session Logging
+        description: >
+          All privileged sessions shall be logged and recorded. Logs shall be
+          retained for a minimum of 12 months per SAMA requirements.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-pam
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.4.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.4
+        ref_id: 5.4.c
+        name: Just-In-Time (JIT) Privileged Access
+        description: >
+          Just-in-time access shall be implemented for privileged operations.
+          Permanent standing privileges are prohibited except where technically
+          infeasible.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-pam
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.4.d
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.4
+        ref_id: 5.4.d
+        name: Emergency (Break-Glass) Access Procedures
+        description: >
+          Emergency access procedures shall be documented and tested quarterly.
+          All emergency access usage shall be reviewed within 24 hours.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-pam
+
+      # ── 5.5 RBAC ──────────────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.5
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.5"
+        name: Role-Based Access Control (RBAC)
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.5.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.5
+        ref_id: 5.5.a
+        name: Standard Role Definitions
+        description: >
+          Standard roles shall be defined and documented for all FinTech Test
+          systems. Role definitions must align with business functions and the
+          principle of least privilege.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-rbac
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.5.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.5
+        ref_id: 5.5.b
+        name: Custom Role Governance
+        description: >
+          Custom roles may be created with CISO approval only. All custom roles
+          shall be documented in the RBAC matrix and reviewed quarterly.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-rbac
+
+      # ── 5.6 ACCESS REVIEWS ────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.6
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.6"
+        name: Access Reviews and Recertification
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.6.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.6
+        ref_id: 5.6.a
+        name: Quarterly Access Reviews — Financial/PII Systems
+        description: >
+          Quarterly access reviews shall be conducted for all systems processing
+          financial data or personal information.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.6.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.6
+        ref_id: 5.6.b
+        name: Monthly Access Reviews — Privileged and Service Accounts
+        description: >
+          Monthly access reviews shall be conducted for privileged accounts and
+          service accounts.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+          - urn:wathba:risk:reference_control:acp-fintech:rc-pam
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.6.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.6
+        ref_id: 5.6.c
+        name: Access Review Documentation and Revocation
+        description: >
+          Access review results shall be documented and retained. Any access that
+          cannot be justified shall be revoked within 48 hours.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.6.d
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.6
+        ref_id: 5.6.d
+        name: Senior Management Reporting
+        description: >
+          The CISO shall present access review findings to senior management
+          semi-annually.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+
+      # ── 5.7 REMOTE ACCESS ─────────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.7
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.7"
+        name: Remote Access
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.7.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.7
+        ref_id: 5.7.a
+        name: VPN with MFA for Remote Access
+        description: >
+          Remote access to internal systems shall be permitted only through the
+          approved VPN solution with MFA enabled.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-remote-access
+          - urn:wathba:risk:reference_control:acp-fintech:rc-authentication
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.7.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.7
+        ref_id: 5.7.b
+        name: Session Inactivity Timeout
+        description: >
+          Remote access sessions shall automatically terminate after 30 minutes
+          of inactivity.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-remote-access
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.7.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.7
+        ref_id: 5.7.c
+        name: BYOD Prohibition for Production Systems
+        description: >
+          Access from personal (BYOD) devices is prohibited for production and
+          financial systems. Corporate-managed devices are required.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-remote-access
+
+      # ── 5.8 THIRD-PARTY ACCESS ────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.8
+        assessable: false
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5
+        ref_id: "5.8"
+        name: Third-Party Access
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.8.a
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.8
+        ref_id: 5.8.a
+        name: NDA and Business Justification for Third-Party Access
+        description: >
+          Third-party access shall be granted only with a signed NDA and a valid
+          business justification approved by the system owner and CISO.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-third-party-access
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.8.b
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.8
+        ref_id: 5.8.b
+        name: Time-Limited Third-Party Access
+        description: >
+          All third-party access shall be time-limited (maximum 90 days) and
+          shall not auto-renew. Extensions require re-approval.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-third-party-access
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s5.8.c
+        assessable: true
+        depth: 4
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s5.8
+        ref_id: 5.8.c
+        name: Third-Party Session Monitoring and Recording
+        description: >
+          Third-party activities shall be monitored in real-time, and session
+          recordings shall be retained for a minimum of 6 months.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-third-party-access
+
+      # ── SECTION 6: ENFORCEMENT ────────────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s6
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "6"
+        name: Enforcement and Compliance Monitoring
+        description: >
+          Compliance is monitored through automated access monitoring and anomaly
+          detection, quarterly access recertification campaigns, annual internal
+          audit, and annual penetration testing focused on access control bypass.
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s6.a
+        assessable: true
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s6
+        ref_id: 6.a
+        name: Automated Access Monitoring
+        description: >
+          Automated access monitoring and anomaly detection shall be in place
+          to identify unauthorized access attempts and anomalous access patterns.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+
+      - urn: urn:wathba:risk:req_node:acp-fintech:s6.b
+        assessable: true
+        depth: 3
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:s6
+        ref_id: 6.b
+        name: Annual Internal Audit of Access Controls
+        description: >
+          An annual internal audit of access control effectiveness shall be conducted
+          and findings documented.
+        reference_controls:
+          - urn:wathba:risk:reference_control:acp-fintech:rc-access-review
+
+      # ── SECTION 7: REVIEW SCHEDULE ───────────────────────────────────────
+      - urn: urn:wathba:risk:req_node:acp-fintech:s7
+        assessable: false
+        depth: 2
+        parent_urn: urn:wathba:risk:req_node:acp-fintech:root
+        ref_id: "7"
+        name: Review and Update Schedule
+        description: >
+          This policy shall be reviewed every 6 months, upon significant changes
+          to SAMA CSF / NCA ECC / PDPL, after any significant access control
+          security incident, and when new systems requiring access management
+          are introduced.

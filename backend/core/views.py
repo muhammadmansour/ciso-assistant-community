@@ -7634,7 +7634,23 @@ class FrameworkViewSet(BaseModelViewSet):
     filterset_class = FrameworkFilter
     search_fields = ["name", "description"]
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve", "tree", "names"):
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            qs = Framework.objects.all().prefetch_related("requirement_nodes")
+            qs = qs.annotate(
+                is_dynamic=Exists(
+                    RequirementNode.objects.filter(
+                        framework=OuterRef("pk"),
+                        questions__icontains="select_implementation_groups",
+                    )
+                )
+            )
+            return qs
         qs = super().get_queryset().prefetch_related("requirement_nodes")
 
         # Annotate if the framework is dynamic (any question uses implementation groups)
@@ -7648,6 +7664,24 @@ class FrameworkViewSet(BaseModelViewSet):
         )
 
         return qs
+
+    def list(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            objects = page if page is not None else queryset
+            serializer = self.get_serializer(objects, many=True)
+            if page is not None:
+                return self.get_paginated_response(serializer.data)
+            return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        return super().retrieve(request, *args, **kwargs)
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @method_decorator(vary_on_cookie)
@@ -7845,7 +7879,25 @@ class RequirementViewSet(BaseModelViewSet):
     filterset_fields = ["framework", "urn"]
     search_fields = ["name"]
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return RequirementNode.objects.all()
+        return super().get_queryset()
+
     def list(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            queryset = self.filter_queryset(self.get_queryset())
+            page = self.paginate_queryset(queryset)
+            objects = page if page is not None else queryset
+            serializer = self.get_serializer(objects, many=True)
+            if page is not None:
+                return self.get_paginated_response(serializer.data)
+            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"], name="Inspect specific requirements")
