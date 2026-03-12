@@ -96,8 +96,9 @@ module.exports = {
     {
       name: '${PM2_BACKEND}',
       cwd: '${BACKEND_DIR}',
-      script: '$(which $POETRY_CMD)',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} --keep-alive ${GUNICORN_KEEPALIVE} --access-logfile ${LOG_DIR}/gunicorn-access.log --error-logfile ${LOG_DIR}/gunicorn-error.log --capture-output ciso_assistant.wsgi:application',
+      script: 'bash',
+      args: '-c "$(which $POETRY_CMD) run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} --keep-alive ${GUNICORN_KEEPALIVE} --access-logfile ${LOG_DIR}/gunicorn-access.log --error-logfile ${LOG_DIR}/gunicorn-error.log --capture-output ciso_assistant.wsgi:application"',
+      interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
         CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
@@ -109,6 +110,7 @@ module.exports = {
         DB_PORT: '${DB_PORT}',
         DEFAULT_FROM_EMAIL: '${DEFAULT_FROM_EMAIL}',
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
+        PATH: '${PATH}',
       },
       error_file: '${LOG_DIR}/pm2-backend-error.log',
       out_file: '${LOG_DIR}/pm2-backend-out.log',
@@ -120,8 +122,9 @@ module.exports = {
     {
       name: '${PM2_HUEY}',
       cwd: '${BACKEND_DIR}',
-      script: '$(which $POETRY_CMD)',
-      args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
+      script: 'bash',
+      args: '-c "$(which $POETRY_CMD) run python manage.py run_huey -w 2 --scheduler-interval 60"',
+      interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
         CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
@@ -133,6 +136,7 @@ module.exports = {
         DB_PORT: '${DB_PORT}',
         DEFAULT_FROM_EMAIL: '${DEFAULT_FROM_EMAIL}',
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
+        PATH: '${PATH}',
       },
       error_file: '${LOG_DIR}/pm2-huey-error.log',
       out_file: '${LOG_DIR}/pm2-huey-out.log',
