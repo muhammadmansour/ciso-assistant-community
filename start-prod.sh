@@ -41,10 +41,15 @@ fi
 # PRODUCTION Environment variables
 # ============================================
 export DJANGO_DEBUG=False
-export CISO_ASSISTANT_URL=https://ciso.wathbahs.com
-export ALLOWED_HOSTS=localhost,127.0.0.1,ciso.wathbahs.com
+export CISO_ASSISTANT_URL=https://grc.wathbahs.com
+export ALLOWED_HOSTS=localhost,127.0.0.1,grc.wathbahs.com
 export PUBLIC_BACKEND_API_URL=http://localhost:8000/api
-export PUBLIC_BACKEND_API_EXPOSED_URL=https://ciso.wathbahs.com/api
+export PUBLIC_BACKEND_API_EXPOSED_URL=https://grc.wathbahs.com/api
+
+# SvelteKit adapter-node production settings
+export ORIGIN=https://grc.wathbahs.com
+export PROTOCOL_HEADER=x-forwarded-proto
+export HOST_HEADER=host
 
 # Database
 export POSTGRES_NAME=wathbah_grc

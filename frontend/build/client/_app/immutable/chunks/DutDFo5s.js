@@ -1,0 +1,1 @@
+import{p}from"./DYotTY_m.js";const o=p;export{o as p};
