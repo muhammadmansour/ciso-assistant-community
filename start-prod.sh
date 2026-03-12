@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# CISO Assistant Production Startup Script for GCP
-# Usage: ./start-prod.sh [start|stop|restart|status]
+# CISO Assistant Production Startup Script for GCP (PM2 managed)
+# Usage: ./start-prod.sh [start|stop|restart|status|rebuild|logs]
 
 set -e
 
@@ -72,6 +72,11 @@ export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}  # 2 * num_cores + 1
 export GUNICORN_TIMEOUT=120
 export GUNICORN_KEEPALIVE=30
 
+# PM2 process names
+PM2_BACKEND="ciso-backend"
+PM2_HUEY="ciso-huey"
+PM2_FRONTEND="ciso-frontend"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,13 +86,88 @@ NC='\033[0m' # No Color
 # Create log directory
 mkdir -p "$LOG_DIR"
 
-# PID files
-BACKEND_PID_FILE="$LOG_DIR/backend.jobid"
-FRONTEND_PID_FILE="$LOG_DIR/frontend.jobid"
-HUEY_PID_FILE="$LOG_DIR/huey.jobid"
+# ============================================
+# PM2 ecosystem config (generated dynamically)
+# ============================================
+generate_ecosystem() {
+    cat > "$PROJECT_DIR/ecosystem.config.cjs" << ECOSYSTEM
+module.exports = {
+  apps: [
+    {
+      name: '${PM2_BACKEND}',
+      cwd: '${BACKEND_DIR}',
+      script: '$(which $POETRY_CMD)',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS} --timeout ${GUNICORN_TIMEOUT} --keep-alive ${GUNICORN_KEEPALIVE} --access-logfile ${LOG_DIR}/gunicorn-access.log --error-logfile ${LOG_DIR}/gunicorn-error.log --capture-output ciso_assistant.wsgi:application',
+      env: {
+        DJANGO_DEBUG: 'False',
+        CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
+        ALLOWED_HOSTS: '${ALLOWED_HOSTS}',
+        POSTGRES_NAME: '${POSTGRES_NAME}',
+        POSTGRES_USER: '${POSTGRES_USER}',
+        POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
+        DB_HOST: '${DB_HOST}',
+        DB_PORT: '${DB_PORT}',
+        DEFAULT_FROM_EMAIL: '${DEFAULT_FROM_EMAIL}',
+        GEMINI_API_KEY: '${GEMINI_API_KEY}',
+      },
+      error_file: '${LOG_DIR}/pm2-backend-error.log',
+      out_file: '${LOG_DIR}/pm2-backend-out.log',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+    },
+    {
+      name: '${PM2_HUEY}',
+      cwd: '${BACKEND_DIR}',
+      script: '$(which $POETRY_CMD)',
+      args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
+      env: {
+        DJANGO_DEBUG: 'False',
+        CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
+        ALLOWED_HOSTS: '${ALLOWED_HOSTS}',
+        POSTGRES_NAME: '${POSTGRES_NAME}',
+        POSTGRES_USER: '${POSTGRES_USER}',
+        POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
+        DB_HOST: '${DB_HOST}',
+        DB_PORT: '${DB_PORT}',
+        DEFAULT_FROM_EMAIL: '${DEFAULT_FROM_EMAIL}',
+        GEMINI_API_KEY: '${GEMINI_API_KEY}',
+      },
+      error_file: '${LOG_DIR}/pm2-huey-error.log',
+      out_file: '${LOG_DIR}/pm2-huey-out.log',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+    },
+    {
+      name: '${PM2_FRONTEND}',
+      cwd: '${FRONTEND_DIR}',
+      script: 'build/index.js',
+      env: {
+        PORT: 3000,
+        ORIGIN: '${ORIGIN}',
+        PROTOCOL_HEADER: '${PROTOCOL_HEADER}',
+        HOST_HEADER: '${HOST_HEADER}',
+        PUBLIC_BACKEND_API_URL: '${PUBLIC_BACKEND_API_URL}',
+        PUBLIC_BACKEND_API_EXPOSED_URL: '${PUBLIC_BACKEND_API_EXPOSED_URL}',
+      },
+      error_file: '${LOG_DIR}/pm2-frontend-error.log',
+      out_file: '${LOG_DIR}/pm2-frontend-out.log',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 3000,
+    }
+  ]
+};
+ECOSYSTEM
+    echo -e "${GREEN}PM2 ecosystem config generated${NC}"
+}
 
-start_backend() {
-    echo -e "${GREEN}Starting backend (Production Mode with Gunicorn)...${NC}"
+run_migrations() {
+    echo -e "${YELLOW}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
     
     # Install dependencies if needed
@@ -96,33 +176,9 @@ start_backend() {
         $POETRY_CMD install --without dev
     fi
     
-    # Run migrations first
     $POETRY_CMD run python manage.py migrate --noinput
-    
-    # Store libraries if needed
     $POETRY_CMD run python manage.py storelibraries
-    
-    # Start with Gunicorn (production server)
-    nohup $POETRY_CMD run gunicorn \
-        --chdir ciso_assistant \
-        --bind 0.0.0.0:8000 \
-        --workers $GUNICORN_WORKERS \
-        --timeout $GUNICORN_TIMEOUT \
-        --keep-alive $GUNICORN_KEEPALIVE \
-        --access-logfile "$LOG_DIR/gunicorn-access.log" \
-        --error-logfile "$LOG_DIR/gunicorn-error.log" \
-        --capture-output \
-        ciso_assistant.wsgi:application > "$LOG_DIR/backend.log" 2>&1 &
-    echo $! > "$BACKEND_PID_FILE"
-    echo -e "${GREEN}Backend started with Gunicorn (PID: $(cat $BACKEND_PID_FILE), Workers: $GUNICORN_WORKERS)${NC}"
-}
-
-start_huey() {
-    echo -e "${GREEN}Starting Huey task queue...${NC}"
-    cd "$BACKEND_DIR"
-    nohup $POETRY_CMD run python manage.py run_huey -w 2 --scheduler-interval 60 > "$LOG_DIR/huey.log" 2>&1 &
-    echo $! > "$HUEY_PID_FILE"
-    echo -e "${GREEN}Huey started (PID: $(cat $HUEY_PID_FILE))${NC}"
+    echo -e "${GREEN}Migrations complete${NC}"
 }
 
 build_frontend() {
@@ -136,67 +192,58 @@ build_frontend() {
     fi
     
     # Build for production
-    echo -e "${YELLOW}Building frontend (this may take a minute)...${NC}"
-    $PNPM_CMD run build
-}
-
-start_frontend() {
-    echo -e "${GREEN}Starting frontend (Production Mode)...${NC}"
-    cd "$FRONTEND_DIR"
-    
-    # Check if build exists
-    if [ ! -d "build" ]; then
-        build_frontend
-    fi
-    
-    # Start with Node adapter (production)
-    nohup node build/index.js > "$LOG_DIR/frontend.log" 2>&1 &
-    echo $! > "$FRONTEND_PID_FILE"
-    echo -e "${GREEN}Frontend started (PID: $(cat $FRONTEND_PID_FILE))${NC}"
-}
-
-stop_service() {
-    local pid_file=$1
-    local service_name=$2
-    
-    if [ -f "$pid_file" ]; then
-        local pid=$(cat "$pid_file")
-        if kill -0 "$pid" 2>/dev/null; then
-            echo -e "${YELLOW}Stopping $service_name (PID: $pid)...${NC}"
-            kill "$pid" 2>/dev/null || true
-            sleep 2
-            kill -9 "$pid" 2>/dev/null || true
-            echo -e "${GREEN}$service_name stopped${NC}"
-        fi
-        rm -f "$pid_file"
-    fi
+    echo -e "${YELLOW}Building frontend (this may take a few minutes)...${NC}"
+    NODE_OPTIONS="--max-old-space-size=8192" $PNPM_CMD run build
+    echo -e "${GREEN}Frontend build complete${NC}"
 }
 
 start() {
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}  Starting CISO Assistant (PRODUCTION)  ${NC}"
+    echo -e "${GREEN}  Managed by PM2                        ${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo -e "${YELLOW}  Debug Mode: OFF${NC}"
     echo -e "${YELLOW}  Gunicorn Workers: $GUNICORN_WORKERS${NC}"
     echo ""
     
-    start_backend
-    sleep 5  # Wait for backend to initialize
-    start_huey
-    start_frontend
+    # Run migrations before starting services
+    run_migrations
+    
+    # Ensure frontend build exists
+    if [ ! -d "$FRONTEND_DIR/build" ]; then
+        build_frontend
+    fi
+    
+    # Generate ecosystem config
+    generate_ecosystem
+    
+    # Kill any rogue processes on our ports
+    fuser -k 8000/tcp 2>/dev/null || true
+    fuser -k 3000/tcp 2>/dev/null || true
+    sleep 2
+    
+    # Start all services via PM2
+    cd "$PROJECT_DIR"
+    pm2 start ecosystem.config.cjs
+    
+    # Save PM2 state for auto-restart on reboot
+    pm2 save
     
     echo ""
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}  All services started in PRODUCTION!  ${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
-    echo -e "  Backend:  ${YELLOW}http://localhost:8000${NC} (Gunicorn)"
-    echo -e "  Frontend: ${YELLOW}http://localhost:3000${NC} (Production build)"
+    echo -e "  Backend:  ${YELLOW}http://localhost:8000${NC} (Gunicorn via PM2)"
+    echo -e "  Frontend: ${YELLOW}http://localhost:3000${NC} (Production build via PM2)"
     echo -e "  Logs:     ${YELLOW}$LOG_DIR/${NC}"
     echo ""
-    echo -e "  Use '${YELLOW}./start-prod.sh status${NC}' to check status"
-    echo -e "  Use '${YELLOW}./start-prod.sh stop${NC}' to stop all services"
+    echo -e "  ${YELLOW}pm2 list${NC}         - view all processes"
+    echo -e "  ${YELLOW}pm2 logs${NC}         - view all logs"
+    echo -e "  ${YELLOW}pm2 monit${NC}        - monitor dashboard"
     echo ""
+    
+    pm2 list
 }
 
 stop() {
@@ -204,13 +251,19 @@ stop() {
     echo -e "${RED}  Stopping CISO Assistant               ${NC}"
     echo -e "${RED}========================================${NC}"
     
-    stop_service "$FRONTEND_PID_FILE" "Frontend"
-    stop_service "$HUEY_PID_FILE" "Huey"
-    stop_service "$BACKEND_PID_FILE" "Backend"
+    pm2 stop $PM2_FRONTEND 2>/dev/null || true
+    pm2 stop $PM2_HUEY 2>/dev/null || true
+    pm2 stop $PM2_BACKEND 2>/dev/null || true
+    
+    pm2 delete $PM2_FRONTEND 2>/dev/null || true
+    pm2 delete $PM2_HUEY 2>/dev/null || true
+    pm2 delete $PM2_BACKEND 2>/dev/null || true
     
     # Kill any remaining processes on the ports
     fuser -k 8000/tcp 2>/dev/null || true
     fuser -k 3000/tcp 2>/dev/null || true
+    
+    pm2 save
     
     echo -e "${GREEN}All services stopped${NC}"
 }
@@ -219,29 +272,31 @@ status() {
     echo -e "${GREEN}========================================${NC}"
     echo -e "${GREEN}  CISO Assistant Status (Production)    ${NC}"
     echo -e "${GREEN}========================================${NC}"
+    echo ""
+    pm2 list
+    echo ""
     
-    check_service() {
-        local pid_file=$1
-        local service_name=$2
-        local port=$3
-        
-        if [ -f "$pid_file" ] && kill -0 "$(cat $pid_file)" 2>/dev/null; then
-            echo -e "  $service_name: ${GREEN}Running${NC} (PID: $(cat $pid_file), Port: $port)"
-        else
-            echo -e "  $service_name: ${RED}Stopped${NC}"
-        fi
-    }
+    # Quick port check
+    echo -e "  Port 8000 (Backend):"
+    if lsof -i :8000 -P -n 2>/dev/null | grep -q LISTEN; then
+        echo -e "    ${GREEN}● Listening${NC}"
+    else
+        echo -e "    ${RED}● Not listening${NC}"
+    fi
     
-    check_service "$BACKEND_PID_FILE" "Backend " "8000"
-    check_service "$HUEY_PID_FILE" "Huey    " "N/A"
-    check_service "$FRONTEND_PID_FILE" "Frontend" "3000"
+    echo -e "  Port 3000 (Frontend):"
+    if lsof -i :3000 -P -n 2>/dev/null | grep -q LISTEN; then
+        echo -e "    ${GREEN}● Listening${NC}"
+    else
+        echo -e "    ${RED}● Not listening${NC}"
+    fi
     echo ""
 }
 
 rebuild() {
     echo -e "${YELLOW}Rebuilding frontend...${NC}"
     build_frontend
-    echo -e "${GREEN}Frontend rebuilt. Restart to apply changes.${NC}"
+    echo -e "${GREEN}Frontend rebuilt. Run './start-prod.sh restart' to apply changes.${NC}"
 }
 
 logs() {
@@ -249,18 +304,31 @@ logs() {
     
     case $service in
         backend)
-            tail -f "$LOG_DIR/backend.log" "$LOG_DIR/gunicorn-access.log"
+            pm2 logs $PM2_BACKEND
             ;;
         frontend)
-            tail -f "$LOG_DIR/frontend.log"
+            pm2 logs $PM2_FRONTEND
             ;;
         huey)
-            tail -f "$LOG_DIR/huey.log"
+            pm2 logs $PM2_HUEY
             ;;
         all|*)
-            tail -f "$LOG_DIR"/*.log
+            pm2 logs
             ;;
     esac
+}
+
+setup() {
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}  PM2 Startup Setup                     ${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "${YELLOW}Setting up PM2 to auto-start on reboot...${NC}"
+    pm2 startup
+    echo ""
+    echo -e "${GREEN}Follow the command above if prompted, then run:${NC}"
+    echo -e "  ${YELLOW}./start-prod.sh start${NC}"
+    echo -e "  ${YELLOW}pm2 save${NC}"
 }
 
 # Main script
@@ -285,8 +353,11 @@ case "${1:-start}" in
     logs)
         logs "$@"
         ;;
+    setup)
+        setup
+        ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|rebuild|logs [backend|frontend|huey|all]}"
+        echo "Usage: $0 {start|stop|restart|status|rebuild|logs [backend|frontend|huey|all]|setup}"
         exit 1
         ;;
 esac
