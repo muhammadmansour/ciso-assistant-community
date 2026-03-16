@@ -3941,47 +3941,6 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     filterset_class = AppliedControlFilterSet
     search_fields = ["name", "description", "ref_id"]
 
-    def get_permissions(self):
-        if self.action in ("create", "list", "retrieve", "partial_update", "update"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        return super().retrieve(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        return super().partial_update(request, *args, **kwargs)
-
     @staticmethod
     def _extract_cost_field(control, *path):
         """Helper to safely extract nested cost fields."""
@@ -4084,12 +4043,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
     def get_queryset(self):
         """Optimize queries by prefetching related objects used in the table view and serializer"""
-        if not self.request.user.is_authenticated:
-            base_qs = AppliedControl.objects.all()
-        else:
-            base_qs = super().get_queryset()
         return (
-            base_qs
+            super()
+            .get_queryset()
             .select_related(
                 "folder",
                 "folder__parent_folder",  # For get_folder_full_path() optimization
@@ -6302,19 +6258,6 @@ class FolderViewSet(BaseModelViewSet):
     model = Folder
     filterset_class = FolderFilter
     search_fields = ["name"]
-
-    def get_permissions(self):
-        if self.action == "list":
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            # Return all domain folders for unauthenticated requests
-            return Folder.objects.filter(
-                content_type=Folder.ContentType.DOMAIN
-            )
-        return super().get_queryset()
     batch_size = 100  # Configurable batch size for processing domain import
 
     def perform_create(self, serializer):
@@ -7673,23 +7616,7 @@ class FrameworkViewSet(BaseModelViewSet):
     filterset_class = FrameworkFilter
     search_fields = ["name", "description"]
 
-    def get_permissions(self):
-        if self.action in ("list", "retrieve", "tree", "names"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            qs = Framework.objects.all().prefetch_related("requirement_nodes")
-            qs = qs.annotate(
-                is_dynamic=Exists(
-                    RequirementNode.objects.filter(
-                        framework=OuterRef("pk"),
-                        questions__icontains="select_implementation_groups",
-                    )
-                )
-            )
-            return qs
         qs = super().get_queryset().prefetch_related("requirement_nodes")
 
         # Annotate if the framework is dynamic (any question uses implementation groups)
@@ -7703,24 +7630,6 @@ class FrameworkViewSet(BaseModelViewSet):
         )
 
         return qs
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        return super().retrieve(request, *args, **kwargs)
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @method_decorator(vary_on_cookie)
@@ -7918,25 +7827,7 @@ class RequirementViewSet(BaseModelViewSet):
     filterset_fields = ["framework", "urn"]
     search_fields = ["name"]
 
-    def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return RequirementNode.objects.all()
-        return super().get_queryset()
-
     def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"], name="Inspect specific requirements")
@@ -8518,60 +8409,6 @@ class OrganisationObjectiveViewSet(BaseModelViewSet):
     filterset_fields = ["folder", "status", "health", "issues", "assigned_to"]
     search_fields = ["name", "description"]
 
-    def get_permissions(self):
-        if self.action in ("create", "list", "retrieve", "partial_update", "update"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return OrganisationObjective.objects.all()
-        return super().get_queryset()
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        return super().retrieve(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return super().create(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        return super().partial_update(request, *args, **kwargs)
-
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get status choices")
     def status(self, request):
@@ -8673,55 +8510,8 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
     ]
     search_fields = ["name", "description", "ref_id", "framework__name"]
 
-    def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
-
     def get_queryset(self):
         """Optimize queries for table view and serializer, with conditional annotations for sorting"""
-        if not self.request.user.is_authenticated:
-            qs = (
-                ComplianceAssessment.objects.all()
-                .select_related(
-                    "folder",
-                    "folder__parent_folder",
-                    "framework",
-                    "perimeter",
-                    "perimeter__folder",
-                    "campaign",
-                )
-                .prefetch_related(
-                    "assets",
-                    "evidences",
-                    "authors",
-                    "reviewers",
-                )
-            )
-            qs = qs.annotate(
-                total_requirements=Count(
-                    "requirement_assessments",
-                    filter=Q(requirement_assessments__requirement__assessable=True),
-                    distinct=True,
-                ),
-                assessed_requirements=Count(
-                    "requirement_assessments",
-                    filter=Q(
-                        ~Q(
-                            requirement_assessments__result=RequirementAssessment.Result.NOT_ASSESSED
-                        ),
-                        requirement_assessments__requirement__assessable=True,
-                    ),
-                    distinct=True,
-                ),
-                progress=ExpressionWrapper(
-                    F("assessed_requirements")
-                    * 100
-                    / Greatest(Coalesce(F("total_requirements"), Value(0)), Value(1)),
-                    output_field=IntegerField(),
-                ),
-            )
-            return qs
         qs = (
             super()
             .get_queryset()
@@ -8766,24 +8556,6 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         )
 
         return qs
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        return super().retrieve(request, *args, **kwargs)
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get status choices")
@@ -10151,11 +9923,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
     }
 
     model = RequirementAssessment
-
-    def get_permissions(self):
-        if self.action in ("list", "retrieve", "partial_update", "update"):
-            return [permissions.AllowAny()]
-        return super().get_permissions()
     filterset_fields = [
         "folder",
         "folder__name",
@@ -10180,24 +9947,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         """Optimize queries for table view and serializer - high-impact due to many nested relationships"""
-        if not self.request.user.is_authenticated:
-            # For unauthenticated requests, return all requirement assessments (no RBAC filtering)
-            return (
-                RequirementAssessment.objects.all()
-                .select_related(
-                    "folder",
-                    "folder__parent_folder",
-                    "compliance_assessment",
-                    "compliance_assessment__perimeter",
-                    "compliance_assessment__perimeter__folder",
-                    "requirement",
-                )
-                .prefetch_related(
-                    "evidences",
-                    "applied_controls",
-                    "security_exceptions",
-                )
-            )
         return (
             super()
             .get_queryset()
@@ -10216,45 +9965,10 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             )
         )
 
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            queryset = self.filter_queryset(self.get_queryset())
-            page = self.paginate_queryset(queryset)
-            objects = page if page is not None else queryset
-            serializer = self.get_serializer(objects, many=True)
-            if page is not None:
-                return self.get_paginated_response(serializer.data)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        return super().retrieve(request, *args, **kwargs)
-
     def update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            cache.clear()
-            return Response(serializer.data)
         response = super().update(request, *args, **kwargs)
         cache.clear()
         return response
-
-    def partial_update(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            cache.clear()
-            return Response(serializer.data)
-        return super().partial_update(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], url_path="run-ai-analysis")
     def run_ai_analysis(self, request, pk=None):
