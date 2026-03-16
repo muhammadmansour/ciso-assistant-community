@@ -42,9 +42,12 @@
 
 	import { lastAccordionItem } from '$lib/utils/stores';
 
-	// Ensure governance is always expanded (persisted store may have old value without it)
+	// Ensure governance and metrology are always expanded (persisted store may have old value without them)
 	if (!$lastAccordionItem.includes('governance')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'governance'];
+	}
+	if (!$lastAccordionItem.includes('metrology')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'metrology'];
 	}
 
 	interface Props {
