@@ -190,6 +190,12 @@ export const navData = {
 					alwaysShow: true
 				},
 				{
+					name: 'organisationObjectives',
+					fa_icon: 'fa-solid fa-bullseye',
+					href: '/organisation-objectives',
+					permissions: ['view_organisationobjective']
+				},
+				{
 					name: 'validationFlows',
 					fa_icon: 'fa-solid fa-clipboard-check',
 					href: '/validation-flows',
@@ -246,29 +252,29 @@ export const navData = {
 		// 		}
 		// 	]
 		// },
-		// {
-		// 	name: 'metrology',
-		// 	items: [
-		// 		{
-		// 			name: 'metricDefinitions',
-		// 			fa_icon: 'fa-solid fa-ruler',
-		// 			href: '/metric-definitions',
-		// 			permissions: ['view_metricdefinition']
-		// 		},
-		// 		{
-		// 			name: 'metricInstances',
-		// 			fa_icon: 'fa-solid fa-chart-line',
-		// 			href: '/metric-instances',
-		// 			permissions: ['view_metricinstance']
-		// 		},
-		// 		{
-		// 			name: 'dashboards',
-		// 			fa_icon: 'fa-solid fa-chart-bar',
-		// 			href: '/dashboards',
-		// 			permissions: ['view_dashboard']
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'metrology',
+			items: [
+				{
+					name: 'metricDefinitions',
+					fa_icon: 'fa-solid fa-ruler',
+					href: '/metric-definitions',
+					permissions: ['view_metricdefinition']
+				},
+				{
+					name: 'metricInstances',
+					fa_icon: 'fa-solid fa-chart-line',
+					href: '/metric-instances',
+					permissions: ['view_metricinstance']
+				},
+				{
+					name: 'dashboards',
+					fa_icon: 'fa-solid fa-chart-bar',
+					href: '/dashboards',
+					permissions: ['view_dashboard']
+				}
+			]
+		},
 		// {
 		// 	name: 'thirdPartyCategory',
 		// 	items: [

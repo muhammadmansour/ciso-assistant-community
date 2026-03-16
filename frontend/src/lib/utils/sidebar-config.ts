@@ -67,7 +67,7 @@ export function getSidebarVisibleItems(
 		thirdPartyCategory: featureFlags?.tprm ?? false,
 		privacy: featureFlags?.privacy ?? false,
 		experimental: featureFlags?.experimental ?? false,
-		organisationObjectives: featureFlags?.organisation_objectives ?? false,
+		organisationObjectives: featureFlags?.organisation_objectives ?? true,
 		organisationIssues: featureFlags?.organisation_issues ?? false,
 		quantitativeRiskStudies: featureFlags?.quantitative_risk_studies ?? false,
 		terminologies: featureFlags?.terminologies ?? true,
