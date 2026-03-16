@@ -8523,6 +8523,11 @@ class OrganisationObjectiveViewSet(BaseModelViewSet):
             return [permissions.AllowAny()]
         return super().get_permissions()
 
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return OrganisationObjective.objects.all()
+        return super().get_queryset()
+
     def list(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             queryset = self.filter_queryset(self.get_queryset())
