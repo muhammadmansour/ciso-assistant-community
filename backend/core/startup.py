@@ -1102,7 +1102,7 @@ def startup(sender: AppConfig, **kwargs):
     """
     from django.contrib.auth.models import Permission
 
-    from core.models import AssetCapability, AssetClass, Terminology
+    from core.models import AssetCapability, AssetClass, StoredLibrary, LoadedLibrary, Terminology
     from iam.models import Folder, Role, RoleAssignment, User, UserGroup
     from tprm.models import Entity
     from privacy.models import ProcessingNature
@@ -1303,6 +1303,24 @@ def startup(sender: AppConfig, **kwargs):
         call_command("autoloadlibraries")
     else:
         logger.info("Skipping storelibraries/autoloadlibraries (SKIP_STORE_LIBRARIES=true)")
+
+    # Load default risk matrix libraries
+    DEFAULT_RISK_MATRIX_URNS = [
+        "urn:intuitem:risk:library:critical_risk_matrix_3x3",
+        "urn:intuitem:risk:library:risk-matrix-4x4-with-5-levels",
+        "urn:intuitem:risk:library:critical_risk_matrix_5x5",
+    ]
+    for urn in DEFAULT_RISK_MATRIX_URNS:
+        try:
+            if not LoadedLibrary.objects.filter(urn=urn).exists():
+                stored_lib = StoredLibrary.objects.filter(urn=urn).first()
+                if stored_lib:
+                    stored_lib.load()
+                    logger.info("Loaded default risk matrix library", urn=urn)
+                else:
+                    logger.warning("Default risk matrix library not found in store", urn=urn)
+        except Exception as e:
+            logger.error("Error loading default risk matrix library", urn=urn, exc_info=True)
     call_command("sync_event_types")
 
     try:
