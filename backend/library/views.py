@@ -141,6 +141,12 @@ class StoredLibraryViewSet(BaseModelViewSet):
 
     search_fields = ["name", "description", "urn", "ref_id"]
 
+    def get_parsers(self):
+        # Use JSONParser for the store-policy endpoint, FileUploadParser otherwise
+        if getattr(self, 'action', None) == 'store_policy':
+            return [JSONParser()]
+        return super().get_parsers()
+
     def get_queryset(self) -> models.query.QuerySet:
         return super().get_queryset().prefetch_related("filtering_labels")
 
@@ -352,7 +358,7 @@ class StoredLibraryViewSet(BaseModelViewSet):
                 status=HTTP_400_BAD_REQUEST,
             )
 
-    @action(detail=False, methods=["post"], url_path="store-policy", parser_classes=[JSONParser])
+    @action(detail=False, methods=["post"], url_path="store-policy")
     def store_policy(self, request):
         """
         Accept AI-generated policy JSON and store + load it as a library.
