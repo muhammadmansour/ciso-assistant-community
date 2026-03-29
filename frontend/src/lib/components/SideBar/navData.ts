@@ -215,43 +215,43 @@ export const navData = {
 				}
 			]
 		},
-		// {
-		// 	name: 'risk',
-		// 	items: [
-		// 		{
-		// 			name: 'riskAssessments',
-		// 			fa_icon: 'fa-solid fa-magnifying-glass-chart',
-		// 			href: '/risk-assessments'
-		// 		},
-		// 		{
-		// 			name: 'ebiosRM',
-		// 			fa_icon: 'fa-solid fa-gopuram',
-		// 			href: '/ebios-rm'
-		// 		},
-		// 		{
-		// 			name: 'quantitativeRiskStudies',
-		// 			fa_icon: 'fa-solid fa-calculator',
-		// 			href: '/quantitative-risk-studies',
-		// 			permissions: ['view_quantitativeriskstudy']
-		// 		},
-		// 		{
-		// 			name: 'riskScenarios',
-		// 			fa_icon: 'fa-solid fa-clone',
-		// 			href: '/risk-scenarios'
-		// 		},
-		// 		{
-		// 			name: 'scoringAssistant',
-		// 			fa_icon: 'fa-solid fa-star-half-stroke',
-		// 			href: '/scoring-assistant',
-		// 			permissions: ['view_riskmatrix']
-		// 		},
-		// 		{
-		// 			name: 'vulnerabilities',
-		// 			fa_icon: 'fa-solid fa-triangle-exclamation',
-		// 			href: '/vulnerabilities'
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'risk',
+			items: [
+				{
+					name: 'riskAssessments',
+					fa_icon: 'fa-solid fa-magnifying-glass-chart',
+					href: '/risk-assessments'
+				},
+				// {
+				// 	name: 'ebiosRM',
+				// 	fa_icon: 'fa-solid fa-gopuram',
+				// 	href: '/ebios-rm'
+				// },
+				// {
+				// 	name: 'quantitativeRiskStudies',
+				// 	fa_icon: 'fa-solid fa-calculator',
+				// 	href: '/quantitative-risk-studies',
+				// 	permissions: ['view_quantitativeriskstudy']
+				// },
+				{
+					name: 'riskScenarios',
+					fa_icon: 'fa-solid fa-clone',
+					href: '/risk-scenarios'
+				},
+				{
+					name: 'scoringAssistant',
+					fa_icon: 'fa-solid fa-star-half-stroke',
+					href: '/scoring-assistant',
+					permissions: ['view_riskmatrix']
+				},
+				{
+					name: 'vulnerabilities',
+					fa_icon: 'fa-solid fa-triangle-exclamation',
+					href: '/vulnerabilities'
+				}
+			]
+		},
 		{
 			name: 'metrology',
 			items: [
