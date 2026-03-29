@@ -42,9 +42,12 @@
 
 	import { lastAccordionItem } from '$lib/utils/stores';
 
-	// Ensure governance and metrology are always expanded (persisted store may have old value without them)
+	// Ensure governance, risk and metrology are always expanded (persisted store may have old value without them)
 	if (!$lastAccordionItem.includes('governance')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'governance'];
+	}
+	if (!$lastAccordionItem.includes('risk')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'risk'];
 	}
 	if (!$lastAccordionItem.includes('metrology')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'metrology'];
