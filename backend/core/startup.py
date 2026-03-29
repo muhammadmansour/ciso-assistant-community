@@ -1304,7 +1304,26 @@ def startup(sender: AppConfig, **kwargs):
     else:
         logger.info("Skipping storelibraries/autoloadlibraries (SKIP_STORE_LIBRARIES=true)")
 
-    # Load default risk matrix libraries
+    # Store and load default risk matrix libraries
+    from ciso_assistant.settings import LIBRARIES_PATH
+
+    DEFAULT_RISK_MATRIX_FILES = [
+        "critical_risk_matrix_3x3.yaml",
+        "risk-matrix-4x4-with-5-levels.yaml",
+        "critical_risk_matrix_5x5.yaml",
+    ]
+    for filename in DEFAULT_RISK_MATRIX_FILES:
+        try:
+            filepath = LIBRARIES_PATH / filename
+            if not filepath.exists():
+                logger.warning("Default risk matrix file not found", filename=filename)
+                continue
+            stored_lib = StoredLibrary.store_library_file(filepath, builtin=True)
+            if stored_lib:
+                logger.info("Stored default risk matrix library", filename=filename)
+        except Exception as e:
+            logger.error("Error storing default risk matrix library", filename=filename, exc_info=True)
+
     DEFAULT_RISK_MATRIX_URNS = [
         "urn:intuitem:risk:library:critical_risk_matrix_3x3",
         "urn:intuitem:risk:library:risk-matrix-4x4-with-5-levels",
