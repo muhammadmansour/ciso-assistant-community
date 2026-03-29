@@ -1,6 +1,5 @@
 from itertools import chain
 import json
-import yaml
 from django.db import IntegrityError
 from django.db.models import F, Q, IntegerField, OuterRef, Subquery, Exists
 from django.db import models
@@ -17,7 +16,7 @@ from rest_framework.status import (
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
-from rest_framework.parsers import FileUploadParser, JSONParser
+from rest_framework.parsers import FileUploadParser
 
 from django.http import HttpResponse
 
@@ -140,12 +139,6 @@ class StoredLibraryViewSet(BaseModelViewSet):
     queryset = StoredLibrary.objects.all()
 
     search_fields = ["name", "description", "urn", "ref_id"]
-
-    def get_parsers(self):
-        # Use JSONParser for the store-policy endpoint, FileUploadParser otherwise
-        if getattr(self, 'action', None) == 'store_policy':
-            return [JSONParser()]
-        return super().get_parsers()
 
     def get_queryset(self) -> models.query.QuerySet:
         return super().get_queryset().prefetch_related("filtering_labels")
@@ -355,92 +348,6 @@ class StoredLibraryViewSet(BaseModelViewSet):
         except:
             return HttpResponse(
                 json.dumps({"error": "invalidLibraryFileError"}),
-                status=HTTP_400_BAD_REQUEST,
-            )
-
-    @action(detail=False, methods=["post"], url_path="store-policy")
-    def store_policy(self, request):
-        """
-        Accept AI-generated policy JSON and store + load it as a library.
-
-        POST /api/stored-libraries/store-policy/
-        {
-            "urn": "urn:acme:risk:library:access-control-v1",
-            "locale": "en",
-            "ref_id": "ACP-001",
-            "name": "Access Control Policy",
-            "description": "Organizational access control policy.",
-            "copyright": "© Acme Corp 2026",
-            "version": 1,
-            "provider": "Acme Corp",
-            "packager": "wathba",
-            "objects": {
-                "reference_controls": [ ... ],
-                "framework": { ... }
-            }
-        }
-        """
-        if not RoleAssignment.is_access_allowed(
-            user=request.user,
-            perm=Permission.objects.get(codename="add_loadedlibrary"),
-            folder=Folder.get_root_folder(),
-        ):
-            return Response(status=HTTP_403_FORBIDDEN)
-
-        data = request.data
-        required_fields = {"urn", "name", "version", "objects"}
-        missing = required_fields - set(data.keys())
-        if missing:
-            return Response(
-                {"error": f"Missing required fields: {', '.join(missing)}"},
-                status=HTTP_400_BAD_REQUEST,
-            )
-
-        objects = data.get("objects", {})
-        if not objects.get("reference_controls") and not objects.get("framework"):
-            return Response(
-                {"error": "objects must contain at least reference_controls or framework"},
-                status=HTTP_400_BAD_REQUEST,
-            )
-
-        # Build the full library dict identical to a YAML file
-        library_data = {
-            "urn": data["urn"],
-            "locale": data.get("locale", "en"),
-            "ref_id": data.get("ref_id", ""),
-            "name": data["name"],
-            "description": data.get("description", ""),
-            "copyright": data.get("copyright", ""),
-            "version": data["version"],
-            "provider": data.get("provider", ""),
-            "packager": data.get("packager", "wathba"),
-            "objects": objects,
-        }
-
-        try:
-            yaml_content = yaml.dump(library_data, sort_keys=False, allow_unicode=True).encode("utf-8")
-            library = StoredLibrary.store_library_content(yaml_content)
-            if library is not None:
-                error_msg = library.load()
-                if error_msg is not None:
-                    return Response(
-                        {"status": "error", "error": error_msg},
-                        status=HTTP_422_UNPROCESSABLE_ENTITY,
-                    )
-            return Response(
-                StoredLibrarySerializer(library).data if library else {"status": "already_stored"},
-                status=HTTP_201_CREATED,
-            )
-        except ValueError as e:
-            logger.error("Failed to store policy library", error=e)
-            return Response(
-                {"error": str(e)},
-                status=HTTP_422_UNPROCESSABLE_ENTITY,
-            )
-        except Exception as e:
-            logger.error("Unexpected error storing policy library", error=e)
-            return Response(
-                {"error": "Failed to store policy library."},
                 status=HTTP_400_BAD_REQUEST,
             )
 
