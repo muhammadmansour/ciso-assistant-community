@@ -275,42 +275,42 @@ export const navData = {
 				}
 			]
 		},
-		// {
-		// 	name: 'thirdPartyCategory',
-		// 	items: [
-		// 		{
-		// 			name: 'tprmOverview',
-		// 			fa_icon: 'fa-solid fa-gauge',
-		// 			href: '/analytics/tprm',
-		// 			permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
-		// 		},
-		// 		{
-		// 			name: 'entities',
-		// 			fa_icon: 'fa-solid fa-building',
-		// 			href: '/entities'
-		// 		},
-		// 		{
-		// 			name: 'representatives',
-		// 			fa_icon: 'fa-solid fa-user-tie',
-		// 			href: '/representatives'
-		// 		},
-		// 		{
-		// 			name: 'solutions',
-		// 			fa_icon: 'fa-solid fa-box',
-		// 			href: '/solutions'
-		// 		},
-		// 		{
-		// 			name: 'contracts',
-		// 			fa_icon: 'fa-solid fa-file-contract',
-		// 			href: '/contracts'
-		// 		},
-		// 		{
-		// 			name: 'entityAssessments',
-		// 			fa_icon: 'fa-solid fa-clipboard-list',
-		// 			href: '/entity-assessments'
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'thirdPartyCategory',
+			items: [
+				{
+					name: 'tprmOverview',
+					fa_icon: 'fa-solid fa-gauge',
+					href: '/analytics/tprm',
+					permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
+				},
+				{
+					name: 'entities',
+					fa_icon: 'fa-solid fa-building',
+					href: '/entities'
+				},
+				{
+					name: 'representatives',
+					fa_icon: 'fa-solid fa-user-tie',
+					href: '/representatives'
+				},
+				{
+					name: 'solutions',
+					fa_icon: 'fa-solid fa-box',
+					href: '/solutions'
+				},
+				{
+					name: 'contracts',
+					fa_icon: 'fa-solid fa-file-contract',
+					href: '/contracts'
+				},
+				{
+					name: 'entityAssessments',
+					fa_icon: 'fa-solid fa-clipboard-list',
+					href: '/entity-assessments'
+				}
+			]
+		},
 		// {
 		// 	name: 'privacy',
 		// 	items: [
