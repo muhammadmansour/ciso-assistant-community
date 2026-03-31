@@ -52,6 +52,9 @@
 	if (!$lastAccordionItem.includes('metrology')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'metrology'];
 	}
+	if (!$lastAccordionItem.includes('thirdPartyCategory')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'thirdPartyCategory'];
+	}
 
 	interface Props {
 		sideBarVisibleItems: Record<string, boolean>;
