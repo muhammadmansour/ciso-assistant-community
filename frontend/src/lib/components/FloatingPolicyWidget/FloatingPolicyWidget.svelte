@@ -439,9 +439,7 @@
 							{#each collections as collection}
 								{@const isSelected = selectedCollectionIds.has(collection.id)}
 								{@const fileCount = collection.fileCount ?? collection.files.length}
-								{@const isReady = collection.status === 'ready'}
-
-								<div
+									<div
 									class="rounded-xl border overflow-hidden transition-all {isSelected
 										? 'border-[#0077CC] bg-[#0077CC]/5'
 										: 'border-gray-200'}"
@@ -482,9 +480,6 @@
 											</p>
 											<p class="text-xs text-gray-400 mt-0.5">
 												{fileCount} file{fileCount !== 1 ? 's' : ''}
-												{#if !isReady}
-													· <span class="text-amber-500">Processing</span>
-												{/if}
 												{#if collection.lastUpdated}
 													· {collection.lastUpdated}
 												{/if}
