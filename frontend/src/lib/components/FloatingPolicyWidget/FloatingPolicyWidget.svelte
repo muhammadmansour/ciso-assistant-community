@@ -67,7 +67,8 @@
 			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections');
 			const json = await res.json();
 			if (json.success) {
-				collections = json.data;
+				// Handle both array and single object response
+				collections = Array.isArray(json.data) ? json.data : [json.data];
 				// Auto-expand all collections
 				expandedCollections = new Set(collections.map((c) => c.id));
 			} else {
@@ -195,9 +196,19 @@
 		chatLoading = true;
 
 		try {
+			const storeIds = getSelectedStoreIds();
+			if (storeIds.length === 0) {
+				chatMessages = [
+					...chatMessages,
+					{ role: 'assistant', content: 'No valid collections selected. Please go back and select files from a collection that has been processed.' }
+				];
+				chatLoading = false;
+				return;
+			}
+
 			const body: Record<string, any> = {
 				message: userMessage,
-				storeIds: getSelectedStoreIds()
+				storeIds
 			};
 
 			// Include sessionId for follow-up messages in the same conversation
@@ -210,6 +221,16 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
 			});
+
+			if (!res.ok) {
+				const errorText = await res.text();
+				chatMessages = [
+					...chatMessages,
+					{ role: 'assistant', content: `Server error (${res.status}): ${errorText || 'Please try again.'}` }
+				];
+				chatLoading = false;
+				return;
+			}
 
 			const json = await res.json();
 
@@ -230,13 +251,13 @@
 			} else {
 				chatMessages = [
 					...chatMessages,
-					{ role: 'assistant', content: json.message || 'Something went wrong.' }
+					{ role: 'assistant', content: json.message || json.error || 'Something went wrong.' }
 				];
 			}
-		} catch {
+		} catch (e: any) {
 			chatMessages = [
 				...chatMessages,
-				{ role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }
+				{ role: 'assistant', content: `Connection error: ${e?.message || 'Failed to reach the server. Please try again.'}` }
 			];
 		} finally {
 			chatLoading = false;
@@ -420,7 +441,13 @@
 					{:else if collections.length === 0}
 						<div class="flex flex-col items-center justify-center py-12 px-4">
 							<i class="fa-solid fa-folder-open text-gray-300 text-3xl mb-2"></i>
-							<p class="text-gray-400 text-sm">No collections found</p>
+							<p class="text-gray-400 text-sm text-center">No collections found</p>
+							<button
+								onclick={fetchCollections}
+								class="mt-3 text-[#7C3AED] text-sm font-medium hover:underline"
+							>
+								Refresh
+							</button>
 						</div>
 					{:else}
 						<div class="p-3 space-y-2">
