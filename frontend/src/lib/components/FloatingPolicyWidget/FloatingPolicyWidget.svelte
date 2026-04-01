@@ -37,9 +37,23 @@
 
 	// Chat state
 	let chatMode = $state(false);
-	let chatMessages = $state<{ role: 'user' | 'assistant'; content: string }[]>([]);
+	let chatMessages = $state<
+		{
+			role: 'user' | 'assistant';
+			content: string;
+			sources?: { title: string; uri: string }[];
+		}[]
+	>([]);
 	let chatInput = $state('');
 	let chatLoading = $state(false);
+	let chatSessionId = $state<string | null>(null);
+
+	// Fullscreen state
+	let isFullscreen = $state(false);
+
+	function toggleFullscreen() {
+		isFullscreen = !isFullscreen;
+	}
 
 	onMount(() => {
 		fetchCollections();
@@ -68,6 +82,9 @@
 
 	function toggleWidget() {
 		isOpen = !isOpen;
+		if (!isOpen) {
+			isFullscreen = false;
+		}
 		if (isOpen && collections.length === 0 && !loading) {
 			fetchCollections();
 		}
@@ -139,13 +156,23 @@
 		return result;
 	}
 
+	function getSelectedStoreIds(): string[] {
+		const storeIds = new Set<string>();
+		for (const collection of collections) {
+			if (collection.files.some((f) => selectedFileIds.has(f.id))) {
+				storeIds.add(collection.storeId);
+			}
+		}
+		return Array.from(storeIds);
+	}
+
 	function startChat() {
 		if (selectedFileIds.size === 0) return;
 		chatMode = true;
 		chatMessages = [];
+		chatSessionId = null;
 
 		const selectedFiles = getSelectedFiles();
-		const fileNames = selectedFiles.map((sf) => sf.file.name).join(', ');
 		chatMessages = [
 			{
 				role: 'assistant',
@@ -156,6 +183,7 @@
 
 	function goBack() {
 		chatMode = false;
+		chatSessionId = null;
 	}
 
 	async function sendMessage() {
@@ -167,32 +195,44 @@
 		chatLoading = true;
 
 		try {
-			const selectedFiles = getSelectedFiles();
+			const body: Record<string, any> = {
+				message: userMessage,
+				storeIds: getSelectedStoreIds()
+			};
+
+			// Include sessionId for follow-up messages in the same conversation
+			if (chatSessionId) {
+				body.sessionId = chatSessionId;
+			}
 
 			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections/chat', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					message: userMessage,
-					fileIds: Array.from(selectedFileIds),
-					collectionIds: [
-						...new Set(
-							selectedFiles.map((sf) => {
-								const col = collections.find((c) =>
-									c.files.some((f) => f.id === sf.file.id)
-								);
-								return col?.id;
-							})
-						)
-					].filter(Boolean)
-				})
+				body: JSON.stringify(body)
 			});
 
 			const json = await res.json();
-			chatMessages = [
-				...chatMessages,
-				{ role: 'assistant', content: json.data?.response || json.message || 'No response' }
-			];
+
+			if (json.success) {
+				// Persist session ID for multi-turn conversation
+				if (json.sessionId) {
+					chatSessionId = json.sessionId;
+				}
+
+				chatMessages = [
+					...chatMessages,
+					{
+						role: 'assistant',
+						content: json.message || 'No response',
+						sources: json.sources
+					}
+				];
+			} else {
+				chatMessages = [
+					...chatMessages,
+					{ role: 'assistant', content: json.message || 'Something went wrong.' }
+				];
+			}
 		} catch {
 			chatMessages = [
 				...chatMessages,
@@ -217,13 +257,25 @@
 	}
 </script>
 
+<!-- Fullscreen overlay -->
+{#if isOpen && isFullscreen}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 bg-black/40 z-40"
+		onclick={toggleFullscreen}
+		onkeydown={() => {}}
+	></div>
+{/if}
+
 <!-- Floating Widget Button -->
 <div class="fixed bottom-6 right-6 z-50">
 	<!-- Widget Panel -->
 	{#if isOpen}
 		<div
-			class="absolute bottom-16 right-0 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-slide-up"
-			style="max-height: 520px;"
+			class="bg-white shadow-2xl border border-gray-200 overflow-hidden animate-slide-up transition-all duration-300 {isFullscreen
+				? 'fixed inset-4 z-50 rounded-2xl'
+				: 'absolute bottom-16 right-0 rounded-2xl'}"
+			style="{isFullscreen ? '' : 'width: 480px; max-height: 620px;'}"
 		>
 			<!-- Header -->
 			<div
@@ -248,31 +300,56 @@
 						<p class="text-white/60 text-xs">Select documents to chat with</p>
 					</div>
 				{/if}
-				<button
-					onclick={toggleWidget}
-					class="text-white/70 hover:text-white transition-colors"
-				>
-					<i class="fa-solid fa-xmark text-lg"></i>
-				</button>
+				<div class="flex items-center gap-2">
+					<button
+						onclick={toggleFullscreen}
+						class="text-white/70 hover:text-white transition-colors"
+						title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+					>
+						<i class="fa-solid {isFullscreen ? 'fa-compress' : 'fa-expand'} text-sm"></i>
+					</button>
+					<button
+						onclick={toggleWidget}
+						class="text-white/70 hover:text-white transition-colors"
+					>
+						<i class="fa-solid fa-xmark text-lg"></i>
+					</button>
+				</div>
 			</div>
 
-			{#if chatMode}
-				<!-- Chat View -->
-				<div class="flex flex-col" style="height: 420px;">
+		{#if chatMode}
+			<!-- Chat View -->
+			<div class="flex flex-col" style="{isFullscreen ? 'height: calc(100vh - 8rem);' : 'height: 520px;'}">
 					<!-- Messages -->
 					<div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-						{#each chatMessages as msg}
-							<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-								<div
-									class="max-w-[80%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed {msg.role ===
-									'user'
-										? 'bg-[#7C3AED] text-white rounded-br-md'
-										: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
-								>
-									{msg.content}
-								</div>
+					{#each chatMessages as msg}
+						<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+							<div
+								class="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed {msg.role ===
+								'user'
+									? 'bg-[#7C3AED] text-white rounded-br-md'
+									: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
+							>
+								<div class="whitespace-pre-wrap">{msg.content}</div>
+								{#if msg.sources && msg.sources.length > 0}
+									<div class="mt-2 pt-2 border-t border-gray-100">
+										<p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Sources</p>
+										{#each msg.sources as source}
+											<a
+												href={source.uri}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:underline py-0.5"
+											>
+												<i class="fa-solid fa-file-lines text-[10px]"></i>
+												<span class="truncate">{source.title}</span>
+											</a>
+										{/each}
+									</div>
+								{/if}
 							</div>
-						{/each}
+						</div>
+					{/each}
 						{#if chatLoading}
 							<div class="flex justify-start">
 								<div
@@ -318,8 +395,8 @@
 					</div>
 				</div>
 			{:else}
-				<!-- Collection List View -->
-				<div class="overflow-y-auto" style="max-height: 380px;">
+			<!-- Collection List View -->
+			<div class="overflow-y-auto" style="{isFullscreen ? 'max-height: calc(100vh - 12rem);' : 'max-height: 470px;'}">
 					{#if loading}
 						<div class="flex items-center justify-center py-12">
 							<div class="flex flex-col items-center gap-3">
