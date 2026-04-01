@@ -8,9 +8,6 @@
 		type: string;
 		mimeType: string;
 		size: string;
-		geminiFileName: string;
-		geminiFileUri: string;
-		storeDocName: string;
 		uploadedAt: string;
 	}
 
@@ -21,6 +18,7 @@
 		storeId: string;
 		status: string;
 		files: PolicyFile[];
+		fileCount?: number;
 		lastUpdated: string;
 	}
 
@@ -29,10 +27,10 @@
 	let loading = $state(false);
 	let error = $state('');
 
-	// Track selected file IDs
-	let selectedFileIds = $state<Set<string>>(new Set());
+	// Track selected collection IDs
+	let selectedCollectionIds = $state<Set<string>>(new Set());
 
-	// Track expanded collections
+	// Track expanded collections (to show files preview)
 	let expandedCollections = $state<Set<string>>(new Set());
 
 	// Chat state
@@ -67,9 +65,7 @@
 			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections');
 			const json = await res.json();
 			if (json.success) {
-				// Handle both array and single object response
 				collections = Array.isArray(json.data) ? json.data : [json.data];
-				// Auto-expand all collections
 				expandedCollections = new Set(collections.map((c) => c.id));
 			} else {
 				error = 'Failed to load collections';
@@ -92,29 +88,13 @@
 	}
 
 	function toggleCollection(collectionId: string) {
-		const collection = collections.find((c) => c.id === collectionId);
-		if (!collection) return;
-
-		const allFileIds = collection.files.map((f) => f.id);
-		const allSelected = allFileIds.every((id) => selectedFileIds.has(id));
-
-		const newSet = new Set(selectedFileIds);
-		if (allSelected) {
-			allFileIds.forEach((id) => newSet.delete(id));
+		const newSet = new Set(selectedCollectionIds);
+		if (newSet.has(collectionId)) {
+			newSet.delete(collectionId);
 		} else {
-			allFileIds.forEach((id) => newSet.add(id));
+			newSet.add(collectionId);
 		}
-		selectedFileIds = newSet;
-	}
-
-	function toggleFile(fileId: string) {
-		const newSet = new Set(selectedFileIds);
-		if (newSet.has(fileId)) {
-			newSet.delete(fileId);
-		} else {
-			newSet.add(fileId);
-		}
-		selectedFileIds = newSet;
+		selectedCollectionIds = newSet;
 	}
 
 	function toggleExpand(collectionId: string) {
@@ -127,57 +107,34 @@
 		expandedCollections = newSet;
 	}
 
-	function isCollectionFullySelected(collectionId: string): boolean {
-		const collection = collections.find((c) => c.id === collectionId);
-		if (!collection || collection.files.length === 0) return false;
-		return collection.files.every((f) => selectedFileIds.has(f.id));
-	}
-
-	function isCollectionPartiallySelected(collectionId: string): boolean {
-		const collection = collections.find((c) => c.id === collectionId);
-		if (!collection || collection.files.length === 0) return false;
-		const someSelected = collection.files.some((f) => selectedFileIds.has(f.id));
-		const allSelected = collection.files.every((f) => selectedFileIds.has(f.id));
-		return someSelected && !allSelected;
-	}
-
-	function getSelectedCount(): number {
-		return selectedFileIds.size;
-	}
-
-	function getSelectedFiles(): { file: PolicyFile; collectionName: string }[] {
-		const result: { file: PolicyFile; collectionName: string }[] = [];
-		for (const collection of collections) {
-			for (const file of collection.files) {
-				if (selectedFileIds.has(file.id)) {
-					result.push({ file, collectionName: collection.name });
-				}
-			}
-		}
-		return result;
-	}
-
 	function getSelectedStoreIds(): string[] {
-		const storeIds = new Set<string>();
-		for (const collection of collections) {
-			if (collection.files.some((f) => selectedFileIds.has(f.id))) {
-				storeIds.add(collection.storeId);
-			}
-		}
-		return Array.from(storeIds);
+		return collections
+			.filter((c) => selectedCollectionIds.has(c.id))
+			.map((c) => c.storeId);
+	}
+
+	function getSelectedCollectionCount(): number {
+		return selectedCollectionIds.size;
+	}
+
+	function getTotalFileCount(): number {
+		return collections
+			.filter((c) => selectedCollectionIds.has(c.id))
+			.reduce((sum, c) => sum + (c.fileCount ?? c.files.length), 0);
 	}
 
 	function startChat() {
-		if (selectedFileIds.size === 0) return;
+		if (selectedCollectionIds.size === 0) return;
 		chatMode = true;
 		chatMessages = [];
 		chatSessionId = null;
 
-		const selectedFiles = getSelectedFiles();
+		const count = getSelectedCollectionCount();
+		const fileCount = getTotalFileCount();
 		chatMessages = [
 			{
 				role: 'assistant',
-				content: `I'm ready to help you with ${selectedFiles.length} selected document${selectedFiles.length > 1 ? 's' : ''}. Ask me anything about them!`
+				content: `I'm ready to help you with ${count} collection${count > 1 ? 's' : ''}${fileCount > 0 ? ` (${fileCount} file${fileCount > 1 ? 's' : ''})` : ''}. Ask me anything about the documents!`
 			}
 		];
 	}
@@ -200,7 +157,10 @@
 			if (storeIds.length === 0) {
 				chatMessages = [
 					...chatMessages,
-					{ role: 'assistant', content: 'No valid collections selected. Please go back and select files from a collection that has been processed.' }
+					{
+						role: 'assistant',
+						content: 'No collections selected. Please go back and select a collection.'
+					}
 				];
 				chatLoading = false;
 				return;
@@ -211,7 +171,6 @@
 				storeIds
 			};
 
-			// Include sessionId for follow-up messages in the same conversation
 			if (chatSessionId) {
 				body.sessionId = chatSessionId;
 			}
@@ -226,7 +185,10 @@
 				const errorText = await res.text();
 				chatMessages = [
 					...chatMessages,
-					{ role: 'assistant', content: `Server error (${res.status}): ${errorText || 'Please try again.'}` }
+					{
+						role: 'assistant',
+						content: `Server error (${res.status}): ${errorText || 'Please try again.'}`
+					}
 				];
 				chatLoading = false;
 				return;
@@ -235,7 +197,6 @@
 			const json = await res.json();
 
 			if (json.success) {
-				// Persist session ID for multi-turn conversation
 				if (json.sessionId) {
 					chatSessionId = json.sessionId;
 				}
@@ -251,13 +212,19 @@
 			} else {
 				chatMessages = [
 					...chatMessages,
-					{ role: 'assistant', content: json.message || json.error || 'Something went wrong.' }
+					{
+						role: 'assistant',
+						content: json.message || json.error || 'Something went wrong.'
+					}
 				];
 			}
 		} catch (e: any) {
 			chatMessages = [
 				...chatMessages,
-				{ role: 'assistant', content: `Connection error: ${e?.message || 'Failed to reach the server. Please try again.'}` }
+				{
+					role: 'assistant',
+					content: `Connection error: ${e?.message || 'Failed to reach the server. Please try again.'}`
+				}
 			];
 		} finally {
 			chatLoading = false;
@@ -271,7 +238,7 @@
 		}
 	}
 
-	function truncateFileName(name: string, maxLen = 40): string {
+	function truncateFileName(name: string, maxLen = 45): string {
 		if (name.length <= maxLen) return name;
 		const ext = name.split('.').pop();
 		return name.substring(0, maxLen - 4 - (ext?.length || 0)) + '...' + (ext ? '.' + ext : '');
@@ -312,13 +279,15 @@
 						</button>
 						<div>
 							<h3 class="text-white font-semibold text-sm">Policy Assistant</h3>
-							<p class="text-white/60 text-xs">{getSelectedCount()} files selected</p>
+							<p class="text-white/60 text-xs">
+								{getSelectedCollectionCount()} collection{getSelectedCollectionCount() > 1 ? 's' : ''} selected
+							</p>
 						</div>
 					</div>
 				{:else}
 					<div>
 						<h3 class="text-white font-semibold text-sm">Policy Collections</h3>
-						<p class="text-white/60 text-xs">Select documents to chat with</p>
+						<p class="text-white/60 text-xs">Select collections to chat with</p>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
@@ -338,39 +307,48 @@
 				</div>
 			</div>
 
-		{#if chatMode}
-			<!-- Chat View -->
-			<div class="flex flex-col" style="{isFullscreen ? 'height: calc(100vh - 8rem);' : 'height: 520px;'}">
+			{#if chatMode}
+				<!-- Chat View -->
+				<div
+					class="flex flex-col"
+					style="{isFullscreen ? 'height: calc(100vh - 8rem);' : 'height: 520px;'}"
+				>
 					<!-- Messages -->
 					<div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-					{#each chatMessages as msg}
-						<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+						{#each chatMessages as msg}
 							<div
-								class="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed {msg.role ===
-								'user'
-									? 'bg-[#7C3AED] text-white rounded-br-md'
-									: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
+								class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
 							>
-								<div class="whitespace-pre-wrap">{msg.content}</div>
-								{#if msg.sources && msg.sources.length > 0}
-									<div class="mt-2 pt-2 border-t border-gray-100">
-										<p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Sources</p>
-										{#each msg.sources as source}
-											<a
-												href={source.uri}
-												target="_blank"
-												rel="noopener noreferrer"
-												class="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:underline py-0.5"
+								<div
+									class="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed {msg.role ===
+									'user'
+										? 'bg-[#7C3AED] text-white rounded-br-md'
+										: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
+								>
+									<div class="whitespace-pre-wrap">{msg.content}</div>
+									{#if msg.sources && msg.sources.length > 0}
+										<div class="mt-2 pt-2 border-t border-gray-100">
+											<p
+												class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1"
 											>
-												<i class="fa-solid fa-file-lines text-[10px]"></i>
-												<span class="truncate">{source.title}</span>
-											</a>
-										{/each}
-									</div>
-								{/if}
+												Sources
+											</p>
+											{#each msg.sources as source}
+												<a
+													href={source.uri}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:underline py-0.5"
+												>
+													<i class="fa-solid fa-file-lines text-[10px]"></i>
+													<span class="truncate">{source.title}</span>
+												</a>
+											{/each}
+										</div>
+									{/if}
+								</div>
 							</div>
-						</div>
-					{/each}
+						{/each}
 						{#if chatLoading}
 							<div class="flex justify-start">
 								<div
@@ -416,8 +394,13 @@
 					</div>
 				</div>
 			{:else}
-			<!-- Collection List View -->
-			<div class="overflow-y-auto" style="{isFullscreen ? 'max-height: calc(100vh - 12rem);' : 'max-height: 470px;'}">
+				<!-- Collection List View -->
+				<div
+					class="overflow-y-auto"
+					style="{isFullscreen
+						? 'max-height: calc(100vh - 12rem);'
+						: 'max-height: 470px;'}"
+				>
 					{#if loading}
 						<div class="flex items-center justify-center py-12">
 							<div class="flex flex-col items-center gap-3">
@@ -429,7 +412,9 @@
 						</div>
 					{:else if error}
 						<div class="flex flex-col items-center justify-center py-12 px-4">
-							<i class="fa-solid fa-circle-exclamation text-red-400 text-2xl mb-2"></i>
+							<i
+								class="fa-solid fa-circle-exclamation text-red-400 text-2xl mb-2"
+							></i>
 							<p class="text-gray-500 text-sm text-center">{error}</p>
 							<button
 								onclick={fetchCollections}
@@ -452,72 +437,88 @@
 					{:else}
 						<div class="p-3 space-y-2">
 							{#each collections as collection}
-								<div class="rounded-xl border border-gray-200 overflow-hidden">
-									<!-- Collection Header -->
-									<div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors">
-										<button
-											onclick={() => toggleExpand(collection.id)}
-											class="text-gray-400 hover:text-gray-600 transition-colors w-5 h-5 flex items-center justify-center"
+								{@const isSelected = selectedCollectionIds.has(collection.id)}
+								{@const fileCount = collection.fileCount ?? collection.files.length}
+								{@const isReady = collection.status === 'ready'}
+
+								<div
+									class="rounded-xl border overflow-hidden transition-all {isSelected
+										? 'border-[#7C3AED] bg-[#7C3AED]/5'
+										: 'border-gray-200'}"
+								>
+									<!-- Collection Row -->
+									<button
+										onclick={() => toggleCollection(collection.id)}
+										class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+									>
+										<!-- Checkbox -->
+										<div
+											class="w-5 h-5 rounded flex items-center justify-center border-2 transition-all flex-shrink-0 {isSelected
+												? 'bg-[#7C3AED] border-[#7C3AED]'
+												: 'border-gray-300 hover:border-[#7C3AED]'}"
+										>
+											{#if isSelected}
+												<i class="fa-solid fa-check text-white text-[10px]"></i
+												>
+											{/if}
+										</div>
+
+										<!-- Collection icon -->
+										<div
+											class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 {isSelected
+												? 'bg-[#7C3AED]/15'
+												: 'bg-gray-100'}"
 										>
 											<i
-												class="fa-solid fa-chevron-right text-xs transition-transform duration-200 {expandedCollections.has(
-													collection.id
-												)
-													? 'rotate-90'
-													: ''}"
+												class="fa-solid fa-folder text-sm {isSelected
+													? 'text-[#7C3AED]'
+													: 'text-gray-400'}"
 											></i>
-										</button>
+										</div>
 
-										<button
-											onclick={() => toggleCollection(collection.id)}
-											class="w-4.5 h-4.5 rounded flex items-center justify-center border-2 transition-all {isCollectionFullySelected(
-												collection.id
-											)
-												? 'bg-[#7C3AED] border-[#7C3AED]'
-												: isCollectionPartiallySelected(collection.id)
-													? 'bg-[#7C3AED]/30 border-[#7C3AED]'
-													: 'border-gray-300 hover:border-[#7C3AED]'}"
-										>
-											{#if isCollectionFullySelected(collection.id)}
-												<i class="fa-solid fa-check text-white text-[9px]"></i>
-											{:else if isCollectionPartiallySelected(collection.id)}
-												<i class="fa-solid fa-minus text-white text-[9px]"></i>
-											{/if}
-										</button>
+										<!-- Collection info -->
+										<div class="flex-1 min-w-0">
+											<p class="text-sm font-medium text-gray-800 truncate">
+												{collection.name}
+											</p>
+											<p class="text-xs text-gray-400 mt-0.5">
+												{fileCount} file{fileCount !== 1 ? 's' : ''}
+												{#if !isReady}
+													· <span class="text-amber-500">Processing</span>
+												{/if}
+												{#if collection.lastUpdated}
+													· {collection.lastUpdated}
+												{/if}
+											</p>
+										</div>
 
-										<button
-											onclick={() => toggleExpand(collection.id)}
-											class="flex-1 text-left"
-										>
-											<span class="text-sm font-medium text-gray-700"
-												>{collection.name}</span
+										<!-- Expand toggle -->
+										{#if fileCount > 0}
+											<button
+												onclick={(e) => {
+													e.stopPropagation();
+													toggleExpand(collection.id);
+												}}
+												class="text-gray-400 hover:text-gray-600 transition-colors p-1"
 											>
-											<span class="text-xs text-gray-400 ml-2"
-												>({collection.files.length})</span
-											>
-										</button>
-									</div>
+												<i
+													class="fa-solid fa-chevron-down text-xs transition-transform duration-200 {expandedCollections.has(
+														collection.id
+													)
+														? 'rotate-180'
+														: ''}"
+												></i>
+											</button>
+										{/if}
+									</button>
 
-									<!-- Files List -->
-									{#if expandedCollections.has(collection.id)}
-										<div class="border-t border-gray-100">
+									<!-- Expandable files preview (read-only, no selection) -->
+									{#if expandedCollections.has(collection.id) && collection.files.length > 0}
+										<div class="border-t border-gray-100 bg-gray-50/50">
 											{#each collection.files as file}
-												<button
-													onclick={() => toggleFile(file.id)}
-													class="w-full flex items-center gap-2.5 px-3 py-2 pl-10 hover:bg-[#7C3AED]/5 transition-colors text-left"
+												<div
+													class="flex items-center gap-2.5 px-4 py-2 pl-12"
 												>
-													<div
-														class="w-4 h-4 rounded flex items-center justify-center border-2 transition-all flex-shrink-0 {selectedFileIds.has(
-															file.id
-														)
-															? 'bg-[#7C3AED] border-[#7C3AED]'
-															: 'border-gray-300 hover:border-[#7C3AED]'}"
-													>
-														{#if selectedFileIds.has(file.id)}
-															<i class="fa-solid fa-check text-white text-[9px]"></i>
-														{/if}
-													</div>
-
 													<i
 														class="fa-solid {file.type === 'pdf'
 															? 'fa-file-pdf text-red-400'
@@ -525,10 +526,9 @@
 																? 'fa-file-word text-blue-400'
 																: 'fa-file text-gray-400'} text-sm flex-shrink-0"
 													></i>
-
 													<div class="flex-1 min-w-0">
 														<p
-															class="text-xs text-gray-600 truncate"
+															class="text-xs text-gray-500 truncate"
 															title={file.name}
 														>
 															{truncateFileName(file.name)}
@@ -537,7 +537,7 @@
 															{file.size} · {file.uploadedAt}
 														</p>
 													</div>
-												</button>
+												</div>
 											{/each}
 										</div>
 									{/if}
@@ -552,17 +552,20 @@
 					<div class="border-t border-gray-200 px-4 py-3 bg-white">
 						<button
 							onclick={startChat}
-							disabled={selectedFileIds.size === 0}
-							class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 {selectedFileIds.size >
+							disabled={selectedCollectionIds.size === 0}
+							class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 {selectedCollectionIds.size >
 							0
 								? 'bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white hover:from-[#6D28D9] hover:to-[#5B21B6] shadow-md hover:shadow-lg'
 								: 'bg-gray-100 text-gray-400 cursor-not-allowed'}"
 						>
-							{#if selectedFileIds.size > 0}
+							{#if selectedCollectionIds.size > 0}
 								<i class="fa-solid fa-comments mr-2"></i>
-								Chat with {selectedFileIds.size} file{selectedFileIds.size > 1 ? 's' : ''}
+								Chat with {selectedCollectionIds.size} collection{selectedCollectionIds.size >
+								1
+									? 's'
+									: ''}
 							{:else}
-								Select files to start chatting
+								Select a collection to start chatting
 							{/if}
 						</button>
 					</div>
@@ -586,11 +589,11 @@
 	</button>
 
 	<!-- Notification Badge -->
-	{#if !isOpen && selectedFileIds.size > 0}
+	{#if !isOpen && selectedCollectionIds.size > 0}
 		<div
 			class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
 		>
-			{selectedFileIds.size}
+			{selectedCollectionIds.size}
 		</div>
 	{/if}
 </div>
