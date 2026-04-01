@@ -267,7 +267,7 @@
 		>
 			<!-- Header -->
 			<div
-				class="bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] px-5 py-4 flex items-center justify-between"
+				class="bg-gradient-to-r from-[#0A1628] to-[#1a2740] px-5 py-4 flex items-center justify-between"
 			>
 				{#if chatMode}
 					<div class="flex items-center gap-3">
@@ -279,7 +279,7 @@
 						</button>
 						<div>
 							<h3 class="text-white font-semibold text-sm">Policy Assistant</h3>
-							<p class="text-white/60 text-xs">
+							<p class="text-white/50 text-xs">
 								{getSelectedCollectionCount()} collection{getSelectedCollectionCount() > 1 ? 's' : ''} selected
 							</p>
 						</div>
@@ -287,20 +287,20 @@
 				{:else}
 					<div>
 						<h3 class="text-white font-semibold text-sm">Policy Collections</h3>
-						<p class="text-white/60 text-xs">Select collections to chat with</p>
+						<p class="text-white/50 text-xs">Select collections to chat with</p>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
 					<button
 						onclick={toggleFullscreen}
-						class="text-white/70 hover:text-white transition-colors"
+						class="text-white/60 hover:text-white transition-colors"
 						title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
 					>
 						<i class="fa-solid {isFullscreen ? 'fa-compress' : 'fa-expand'} text-sm"></i>
 					</button>
 					<button
 						onclick={toggleWidget}
-						class="text-white/70 hover:text-white transition-colors"
+						class="text-white/60 hover:text-white transition-colors"
 					>
 						<i class="fa-solid fa-xmark text-lg"></i>
 					</button>
@@ -314,7 +314,7 @@
 					style="{isFullscreen ? 'height: calc(100vh - 8rem);' : 'height: 520px;'}"
 				>
 					<!-- Messages -->
-					<div class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+					<div class="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F9FAFB]">
 						{#each chatMessages as msg}
 							<div
 								class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
@@ -322,7 +322,7 @@
 								<div
 									class="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed {msg.role ===
 									'user'
-										? 'bg-[#7C3AED] text-white rounded-br-md'
+										? 'bg-[#0077CC] text-white rounded-br-md'
 										: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
 								>
 									<div class="whitespace-pre-wrap">{msg.content}</div>
@@ -338,7 +338,7 @@
 													href={source.uri}
 													target="_blank"
 													rel="noopener noreferrer"
-													class="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:underline py-0.5"
+													class="flex items-center gap-1.5 text-xs text-[#0077CC] hover:underline py-0.5"
 												>
 													<i class="fa-solid fa-file-lines text-[10px]"></i>
 													<span class="truncate">{source.title}</span>
@@ -381,12 +381,12 @@
 								bind:value={chatInput}
 								onkeydown={handleChatKeydown}
 								placeholder="Ask about your policies..."
-								class="flex-1 px-3.5 py-2 bg-gray-100 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:bg-white transition-all"
+								class="flex-1 px-3.5 py-2 bg-[#f4f6f9] border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
 							/>
 							<button
 								onclick={sendMessage}
 								disabled={!chatInput.trim() || chatLoading}
-								class="w-9 h-9 flex items-center justify-center bg-[#7C3AED] text-white rounded-xl hover:bg-[#6D28D9] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+								class="w-9 h-9 flex items-center justify-center bg-[#0077CC] text-white rounded-xl hover:bg-[#005FA3] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
 							>
 								<i class="fa-solid fa-paper-plane text-xs"></i>
 							</button>
@@ -405,7 +405,7 @@
 						<div class="flex items-center justify-center py-12">
 							<div class="flex flex-col items-center gap-3">
 								<div
-									class="w-8 h-8 border-3 border-[#7C3AED]/30 border-t-[#7C3AED] rounded-full animate-spin"
+									class="w-8 h-8 border-3 border-[#0077CC]/30 border-t-[#0077CC] rounded-full animate-spin"
 								></div>
 								<p class="text-gray-400 text-sm">Loading collections...</p>
 							</div>
@@ -418,7 +418,7 @@
 							<p class="text-gray-500 text-sm text-center">{error}</p>
 							<button
 								onclick={fetchCollections}
-								class="mt-3 text-[#7C3AED] text-sm font-medium hover:underline"
+								class="mt-3 text-[#0077CC] text-sm font-medium hover:underline"
 							>
 								Try again
 							</button>
@@ -429,7 +429,7 @@
 							<p class="text-gray-400 text-sm text-center">No collections found</p>
 							<button
 								onclick={fetchCollections}
-								class="mt-3 text-[#7C3AED] text-sm font-medium hover:underline"
+								class="mt-3 text-[#0077CC] text-sm font-medium hover:underline"
 							>
 								Refresh
 							</button>
@@ -443,7 +443,7 @@
 
 								<div
 									class="rounded-xl border overflow-hidden transition-all {isSelected
-										? 'border-[#7C3AED] bg-[#7C3AED]/5'
+										? 'border-[#0077CC] bg-[#0077CC]/5'
 										: 'border-gray-200'}"
 								>
 									<!-- Collection Row -->
@@ -454,24 +454,23 @@
 										<!-- Checkbox -->
 										<div
 											class="w-5 h-5 rounded flex items-center justify-center border-2 transition-all flex-shrink-0 {isSelected
-												? 'bg-[#7C3AED] border-[#7C3AED]'
-												: 'border-gray-300 hover:border-[#7C3AED]'}"
+												? 'bg-[#0077CC] border-[#0077CC]'
+												: 'border-gray-300 hover:border-[#0077CC]'}"
 										>
 											{#if isSelected}
-												<i class="fa-solid fa-check text-white text-[10px]"></i
-												>
+												<i class="fa-solid fa-check text-white text-[10px]"></i>
 											{/if}
 										</div>
 
 										<!-- Collection icon -->
 										<div
 											class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 {isSelected
-												? 'bg-[#7C3AED]/15'
+												? 'bg-[#0077CC]/15'
 												: 'bg-gray-100'}"
 										>
 											<i
 												class="fa-solid fa-folder text-sm {isSelected
-													? 'text-[#7C3AED]'
+													? 'text-[#0077CC]'
 													: 'text-gray-400'}"
 											></i>
 										</div>
@@ -514,7 +513,7 @@
 
 									<!-- Expandable files preview (read-only, no selection) -->
 									{#if expandedCollections.has(collection.id) && collection.files.length > 0}
-										<div class="border-t border-gray-100 bg-gray-50/50">
+										<div class="border-t border-gray-100 bg-[#F9FAFB]">
 											{#each collection.files as file}
 												<div
 													class="flex items-center gap-2.5 px-4 py-2 pl-12"
@@ -555,7 +554,7 @@
 							disabled={selectedCollectionIds.size === 0}
 							class="w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 {selectedCollectionIds.size >
 							0
-								? 'bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white hover:from-[#6D28D9] hover:to-[#5B21B6] shadow-md hover:shadow-lg'
+								? 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-md hover:shadow-lg'
 								: 'bg-gray-100 text-gray-400 cursor-not-allowed'}"
 						>
 							{#if selectedCollectionIds.size > 0}
@@ -579,7 +578,7 @@
 		onclick={toggleWidget}
 		class="w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 {isOpen
 			? 'bg-gray-700 hover:bg-gray-800'
-			: 'bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] hover:from-[#6D28D9] hover:to-[#5B21B6]'}"
+			: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] hover:from-[#1a2740] hover:to-[#2a3a66]'}"
 	>
 		{#if isOpen}
 			<i class="fa-solid fa-xmark text-white text-xl"></i>
@@ -591,7 +590,7 @@
 	<!-- Notification Badge -->
 	{#if !isOpen && selectedCollectionIds.size > 0}
 		<div
-			class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+			class="absolute -top-1 -right-1 w-5 h-5 bg-[#0077CC] text-white text-[10px] font-bold rounded-full flex items-center justify-center"
 		>
 			{selectedCollectionIds.size}
 		</div>
