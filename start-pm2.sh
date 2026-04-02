@@ -10,9 +10,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-DOMAIN="wathbah.dev"
+DOMAIN="grc.wathbah.dev"
 BACKEND_PORT=8001
 FRONTEND_PORT=3001
+
+# CISO PM2 process names (only restart these, not all PM2 services)
+CISO_APPS="dev-backend dev-frontend dev-huey"
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
@@ -91,8 +94,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://wathbah.dev/api',
-        ORIGIN: 'https://wathbah.dev',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc.wathbah.dev/api',
+        ORIGIN: 'https://grc.wathbah.dev',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         PORT: '3001',
         HOST: '0.0.0.0'
@@ -156,14 +159,19 @@ case "${1:-start}" in
         pm2 status
         ;;
     stop)
-        echo -e "${YELLOW}Stopping all services...${NC}"
-        pm2 stop all
+        echo -e "${YELLOW}Stopping CISO services only...${NC}"
+        for app in $CISO_APPS; do
+            pm2 stop "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running${NC}"
+        done
         pm2 status
         ;;
     restart)
-        echo -e "${YELLOW}Restarting all services...${NC}"
+        echo -e "${YELLOW}Restarting CISO services only...${NC}"
         run_migrations
-        pm2 restart all
+        for app in $CISO_APPS; do
+            pm2 restart "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running, starting...${NC}" && pm2 start ecosystem.config.js --only "$app" 2>/dev/null
+        done
+        pm2 save
         pm2 status
         ;;
     status)
@@ -173,12 +181,16 @@ case "${1:-start}" in
         if [ -n "$2" ]; then
             pm2 logs "dev-$2"
         else
-            pm2 logs
+            # Show only CISO logs
+            pm2 logs dev-backend dev-frontend dev-huey
         fi
         ;;
     delete)
-        echo -e "${RED}Deleting all PM2 processes...${NC}"
-        pm2 delete all
+        echo -e "${RED}Deleting CISO PM2 processes only...${NC}"
+        for app in $CISO_APPS; do
+            pm2 delete "$app" 2>/dev/null || echo -e "${YELLOW}  $app not found${NC}"
+        done
+        pm2 save
         ;;
     startup)
         echo -e "${GREEN}Setting up PM2 startup script...${NC}"
@@ -190,12 +202,12 @@ case "${1:-start}" in
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start all services (production mode)"
-        echo "  stop    - Stop all services"
-        echo "  restart - Restart all services"
-        echo "  status  - Show service status"
-        echo "  logs    - Show logs (use 'logs backend', 'logs frontend', 'logs huey')"
-        echo "  delete  - Remove all PM2 processes"
+        echo "  start   - Start CISO services (production mode)"
+        echo "  stop    - Stop CISO services only (other PM2 apps unaffected)"
+        echo "  restart - Restart CISO services only"
+        echo "  status  - Show all PM2 service status"
+        echo "  logs    - Show CISO logs (use 'logs backend', 'logs frontend', 'logs huey')"
+        echo "  delete  - Remove CISO PM2 processes only"
         echo "  startup - Enable auto-start on boot"
         exit 1
         ;;
