@@ -86,11 +86,11 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - Running in dev mode
+      // FRONTEND - Production build (node build/index.js)
       name: 'dev-frontend',
       cwd: './frontend',
-      script: 'pnpm',
-      args: 'run dev',
+      script: 'node',
+      args: 'build/index.js',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
@@ -98,10 +98,11 @@ module.exports = {
         ORIGIN: 'https://grc.wathbah.dev',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         PORT: '3001',
-        HOST: '0.0.0.0'
+        HOST: '0.0.0.0',
+        NODE_ENV: 'production'
       },
       watch: false,
-      max_memory_restart: '4G',
+      max_memory_restart: '2G',
       error_file: './logs/frontend-error.log',
       out_file: './logs/frontend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
