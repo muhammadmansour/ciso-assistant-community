@@ -1,0 +1,1 @@
+import"./Bzak7iHL.js";import"./69_IOA4Y.js";import{f as e,b as o}from"./M_q2dmUf.js";var t=e('<div class="flex items-center justify-center h-full"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div></div>');function p(r){var i=t();o(r,i)}export{p as L};
