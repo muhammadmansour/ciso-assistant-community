@@ -256,13 +256,13 @@
 {/if}
 
 <!-- Floating Widget Button -->
-<div class="fixed bottom-6 ltr:left-6 rtl:right-6 z-50">
+<div class="fixed bottom-6 ltr:right-6 rtl:left-6 z-50">
 	<!-- Widget Panel -->
 	{#if isOpen}
 		<div
 			class="bg-white shadow-2xl border border-gray-200 overflow-hidden animate-slide-up transition-all duration-300 {isFullscreen
 				? 'fixed inset-4 z-50 rounded-2xl'
-				: 'absolute bottom-16 ltr:left-0 rtl:right-0 rounded-2xl'}"
+				: 'absolute bottom-16 ltr:right-0 rtl:left-0 rounded-2xl'}"
 			style="{isFullscreen ? '' : 'width: 480px; max-height: 620px;'}"
 		>
 			<!-- Header -->
@@ -585,7 +585,7 @@
 	<!-- Notification Badge -->
 	{#if !isOpen && selectedCollectionIds.size > 0}
 		<div
-			class="absolute -top-1 ltr:-left-1 rtl:-right-1 w-5 h-5 bg-[#0077CC] text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+			class="absolute -top-1 ltr:-right-1 rtl:-left-1 w-5 h-5 bg-[#0077CC] text-white text-[10px] font-bold rounded-full flex items-center justify-center"
 		>
 			{selectedCollectionIds.size}
 		</div>
