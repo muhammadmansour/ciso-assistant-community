@@ -82,11 +82,11 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - Running in dev mode
+      // FRONTEND - Production build served via node
       name: 'ciso-frontend',
       cwd: './frontend',
-      script: 'pnpm',
-      args: 'run dev',
+      script: 'node',
+      args: 'build',
       interpreter: 'none',
       env: {
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
@@ -134,35 +134,64 @@ ensure_gunicorn() {
     cd "$SCRIPT_DIR"
 }
 
+# CISO service names (only manage these, leave other PM2 processes untouched)
+CISO_SERVICES=("ciso-backend" "ciso-huey" "ciso-frontend")
+
+stop_ciso_services() {
+    for svc in "${CISO_SERVICES[@]}"; do
+        pm2 stop "$svc" 2>/dev/null || true
+    done
+}
+
+restart_ciso_services() {
+    for svc in "${CISO_SERVICES[@]}"; do
+        pm2 restart "$svc" 2>/dev/null || true
+    done
+}
+
+delete_ciso_services() {
+    for svc in "${CISO_SERVICES[@]}"; do
+        pm2 delete "$svc" 2>/dev/null || true
+    done
+}
+
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services (PRODUCTION MODE)...${NC}"
+        echo -e "${GREEN}Starting CISO services (PRODUCTION MODE)...${NC}"
         ensure_gunicorn
         run_migrations
+
+        # Build frontend for production
+        echo -e "${GREEN}Building frontend...${NC}"
+        cd "$FRONTEND_DIR"
+        pnpm run build
         cd "$SCRIPT_DIR"
+
+        # Remove old CISO services before starting fresh
+        delete_ciso_services
         pm2 start ecosystem.config.js
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  All services started in PRODUCTION!  ${NC}"
+        echo -e "${GREEN}  CISO services started in PRODUCTION! ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn (4 workers)"
-        echo -e "  Frontend: Dev mode (Vite)"
+        echo -e "  Frontend: Production build (node)"
         echo -e "  Access:   https://${DOMAIN}"
         echo ""
         pm2 status
         ;;
     stop)
-        echo -e "${YELLOW}Stopping all services...${NC}"
-        pm2 stop all
+        echo -e "${YELLOW}Stopping CISO services...${NC}"
+        stop_ciso_services
         pm2 status
         ;;
     restart)
-        echo -e "${YELLOW}Restarting all services...${NC}"
+        echo -e "${YELLOW}Restarting CISO services...${NC}"
         run_migrations
-        pm2 restart all
+        restart_ciso_services
         pm2 status
         ;;
     status)
@@ -172,12 +201,14 @@ case "${1:-start}" in
         if [ -n "$2" ]; then
             pm2 logs "ciso-$2"
         else
-            pm2 logs
+            pm2 logs --lines 50
         fi
         ;;
     delete)
-        echo -e "${RED}Deleting all PM2 processes...${NC}"
-        pm2 delete all
+        echo -e "${RED}Deleting CISO PM2 processes only...${NC}"
+        delete_ciso_services
+        pm2 save
+        pm2 status
         ;;
     startup)
         echo -e "${GREEN}Setting up PM2 startup script...${NC}"
@@ -189,12 +220,12 @@ case "${1:-start}" in
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start all services (production mode)"
-        echo "  stop    - Stop all services"
-        echo "  restart - Restart all services"
+        echo "  start   - Start CISO services (production mode)"
+        echo "  stop    - Stop CISO services"
+        echo "  restart - Restart CISO services"
         echo "  status  - Show service status"
         echo "  logs    - Show logs (use 'logs backend', 'logs frontend', 'logs huey')"
-        echo "  delete  - Remove all PM2 processes"
+        echo "  delete  - Remove CISO PM2 processes"
         echo "  startup - Enable auto-start on boot"
         exit 1
         ;;
