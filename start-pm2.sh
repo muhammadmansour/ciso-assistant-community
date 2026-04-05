@@ -110,7 +110,7 @@ EOF
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$BACKEND_DIR/logs"
 
-# Function to run migrations
+# Function to run migrations (without loading/updating frameworks)
 run_migrations() {
     echo -e "${GREEN}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
@@ -118,6 +118,7 @@ run_migrations() {
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,grc.wathbahs.com"
     export CISO_ASSISTANT_URL="https://grc.wathbahs.com"
+    export SKIP_STORE_LIBRARIES=true
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
