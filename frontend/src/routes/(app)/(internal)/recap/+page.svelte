@@ -36,10 +36,45 @@
 			domain: perimeter.folder?.id
 		});
 
-	// Calculate summary stats from data
+	// Calculate summary stats from real data
 	const totalAssessments = $derived(
 		data.perimeters.reduce((sum, p) => sum + p.compliance_assessments.length, 0)
 	);
+
+	// Aggregate all compliance assessment statuses
+	const allAssessments = $derived(data.perimeters.flatMap((p) => p.compliance_assessments));
+
+	const statusCounts = $derived({
+		notStarted: allAssessments.filter(
+			(a) => !a.status || a.status === 'planned'
+		).length,
+		inProgress: allAssessments.filter((a) => a.status === 'in_progress').length,
+		completed: allAssessments.filter((a) => a.status === 'done').length,
+		needsReview: allAssessments.filter((a) => a.status === 'in_review').length
+	});
+
+	// Aggregate requirement assessment statuses from donut data for overall progress
+	const requirementStats = $derived.by(() => {
+		let total = 0;
+		let completed = 0;
+
+		for (const perimeter of data.perimeters) {
+			for (const assessment of perimeter.compliance_assessments) {
+				if (assessment.donut?.result?.values) {
+					for (const item of assessment.donut.result.values) {
+						total += item.value;
+						if (item.name === 'compliant') {
+							completed += item.value;
+						}
+					}
+				}
+			}
+		}
+
+		const remaining = total - completed;
+		const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+		return { total, completed, remaining, percentage };
+	});
 
 	let group = $derived(page.url.searchParams.get('tab') || 'summary');
 
@@ -75,7 +110,7 @@
 									</div>
 								</div>
 								<span class="text-xs text-gray-500 font-medium">Not Started</span>
-								<span class="wgrc-stat-number text-gray-700">0</span>
+								<span class="wgrc-stat-number text-gray-700">{statusCounts.notStarted}</span>
 							</div>
 							<div class="wgrc-stat-card">
 								<div class="flex items-center gap-2 mb-2">
@@ -84,7 +119,7 @@
 									</div>
 								</div>
 								<span class="text-xs text-gray-500 font-medium">In Progress</span>
-								<span class="wgrc-stat-number text-blue-600">{totalAssessments}</span>
+								<span class="wgrc-stat-number text-blue-600">{statusCounts.inProgress}</span>
 							</div>
 							<div class="wgrc-stat-card">
 								<div class="flex items-center gap-2 mb-2">
@@ -93,7 +128,7 @@
 									</div>
 								</div>
 								<span class="text-xs text-gray-500 font-medium">Completed</span>
-								<span class="wgrc-stat-number text-green-600">0</span>
+								<span class="wgrc-stat-number text-green-600">{statusCounts.completed}</span>
 							</div>
 							<div class="wgrc-stat-card">
 								<div class="flex items-center gap-2 mb-2">
@@ -102,7 +137,7 @@
 									</div>
 								</div>
 								<span class="text-xs text-gray-500 font-medium">Needs Review</span>
-								<span class="wgrc-stat-number text-red-500">0</span>
+								<span class="wgrc-stat-number text-red-500">{statusCounts.needsReview}</span>
 							</div>
 						</div>
 
@@ -116,24 +151,24 @@
 										<ProgressRing
 											strokeWidth="12px"
 											meterStroke="stroke-green-200"
-											value={0}
+											value={requirementStats.percentage}
 											size="size-32"
 										>
-											<p class="font-bold text-2xl text-gray-700">0%</p>
+											<p class="font-bold text-2xl text-gray-700">{requirementStats.percentage}%</p>
 										</ProgressRing>
 									</div>
 									<div class="space-y-3">
 										<div class="flex items-center justify-between gap-8">
-											<span class="text-sm text-gray-500">Total Controls</span>
-											<span class="font-semibold text-gray-900">{totalAssessments}</span>
+											<span class="text-sm text-gray-500">Total Requirements</span>
+											<span class="font-semibold text-gray-900">{requirementStats.total}</span>
 										</div>
 										<div class="flex items-center justify-between gap-8">
-											<span class="text-sm text-gray-500">Completed</span>
-											<span class="font-semibold text-green-600">0</span>
+											<span class="text-sm text-gray-500">Compliant</span>
+											<span class="font-semibold text-green-600">{requirementStats.completed}</span>
 										</div>
 										<div class="flex items-center justify-between gap-8">
 											<span class="text-sm text-gray-500">Remaining</span>
-											<span class="font-semibold text-gray-900">{totalAssessments}</span>
+											<span class="font-semibold text-gray-900">{requirementStats.remaining}</span>
 										</div>
 									</div>
 								</div>
@@ -145,15 +180,15 @@
 								<div class="space-y-4">
 									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
 										<span class="text-sm text-gray-600">Total Evidences</span>
-										<span class="font-bold text-gray-900 text-lg">0</span>
+										<span class="font-bold text-gray-900 text-lg">{data.evidences.total}</span>
 									</div>
 									<div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-100">
 										<span class="text-sm text-yellow-700">Pending Review</span>
-										<span class="font-bold text-yellow-700 text-lg">0</span>
+										<span class="font-bold text-yellow-700 text-lg">{data.evidences.pending}</span>
 									</div>
 									<div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
 										<span class="text-sm text-green-700">Approved</span>
-										<span class="font-bold text-green-700 text-lg">0</span>
+										<span class="font-bold text-green-700 text-lg">{data.evidences.approved}</span>
 									</div>
 								</div>
 							</div>
