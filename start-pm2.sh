@@ -161,12 +161,13 @@ case "${1:-start}" in
         echo -e "${GREEN}Starting CISO services (PRODUCTION MODE)...${NC}"
         ensure_gunicorn
         run_migrations
-
-        # Build frontend for production
-        echo -e "${GREEN}Building frontend...${NC}"
-        cd "$FRONTEND_DIR"
-        pnpm run build
         cd "$SCRIPT_DIR"
+
+        # Verify frontend build exists
+        if [ ! -f "$FRONTEND_DIR/build/index.js" ]; then
+            echo -e "${RED}Frontend build not found! Run '$0 build' first.${NC}"
+            exit 1
+        fi
 
         # Remove old CISO services before starting fresh
         delete_ciso_services
@@ -210,6 +211,14 @@ case "${1:-start}" in
         pm2 save
         pm2 status
         ;;
+    build)
+        echo -e "${GREEN}Building frontend for production...${NC}"
+        cd "$FRONTEND_DIR"
+        export NODE_OPTIONS="--max-old-space-size=16384"
+        pnpm run build
+        cd "$SCRIPT_DIR"
+        echo -e "${GREEN}Frontend build complete!${NC}"
+        ;;
     startup)
         echo -e "${GREEN}Setting up PM2 startup script...${NC}"
         pm2 startup
@@ -217,12 +226,13 @@ case "${1:-start}" in
         echo "PM2 will now auto-start on system boot"
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
+        echo "Usage: $0 {start|stop|restart|build|status|logs|delete|startup}"
         echo ""
         echo "Commands:"
-        echo "  start   - Start CISO services (production mode)"
+        echo "  start   - Start CISO services (uses existing build)"
         echo "  stop    - Stop CISO services"
         echo "  restart - Restart CISO services"
+        echo "  build   - Build frontend for production"
         echo "  status  - Show service status"
         echo "  logs    - Show logs (use 'logs backend', 'logs frontend', 'logs huey')"
         echo "  delete  - Remove CISO PM2 processes"
