@@ -31,18 +31,20 @@ VALID_ANSWERS = {'yes': 'Yes', 'no': 'No', 'partial': 'Partial'}
 def normalize_answer(raw_answer):
     """Normalize an answer string to exactly Yes, No, or Partial."""
     if raw_answer is None:
-        return 'Partial'
+        return 'No'  # No answer provided = no evidence of compliance
     val = str(raw_answer).strip().lower()
     if val in VALID_ANSWERS:
         return VALID_ANSWERS[val]
     # Try common variations
     if val in ('true', 'compliant', 'met', 'full', 'fully'):
         return 'Yes'
-    if val in ('false', 'non-compliant', 'noncompliant', 'not met', 'none', 'not_met'):
+    if val in ('false', 'non-compliant', 'noncompliant', 'not met', 'none', 'not_met',
+               'not found', 'not provided', 'missing', 'absent', 'غير موجود', 'لا'):
         return 'No'
-    if val in ('partially', 'partially compliant', 'partially_compliant', 'partial', 'partly'):
+    if val in ('partially', 'partially compliant', 'partially_compliant', 'partial', 'partly',
+               'incomplete', 'in progress', 'in_progress'):
         return 'Partial'
-    return 'Partial'  # Default to Partial if answer is ambiguous
+    return 'No'  # Unknown/ambiguous answer = no evidence of compliance (fail-safe)
 
 
 def extract_question_answers(ai_result, original_questions):
