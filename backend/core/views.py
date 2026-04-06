@@ -4217,6 +4217,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         # Build request body matching Muraji /api/audit/analyze format
         request_body = {
+            'assessment_type': 'control',
             'applied_control': {
                 'id': str(applied_control.id),
                 'ref_id': applied_control.ref_id,
@@ -4235,10 +4236,13 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             'questions': questions,
             'typical_evidence': typical_evidence,
             'analysis_config': {
-                'include_entity_extraction': True,
-                'include_compliance_check': True,
+                'return_compliance_result': True,
                 'include_gap_analysis': True,
-                'include_recommendations': True
+                'include_typical_evidence_check': True,
+                'include_recommendations': True,
+                'include_entity_extraction': False,
+                'include_compliance_check': False,
+                'response_language': 'English',
             }
         }
 
@@ -10191,6 +10195,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         # Send questions as plain strings — the Muraji API expects a string array, not objects
         request_body = {
+            'assessment_type': 'requirement',
             'applied_control': {
                 'id': str(first_ac.id) if first_ac else str(requirement_assessment.id),
                 'ref_id': (first_ac.ref_id if first_ac else '') or requirement.ref_id or '',
@@ -10209,55 +10214,13 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'questions': questions,
             'typical_evidence': typical_evidence,
             'analysis_config': {
-                'include_entity_extraction': True,
-                'include_compliance_check': True,
-                'include_gap_analysis': True,
-                'include_recommendations': True,
-                'question_answer_values': ['Yes', 'No', 'Partial'],
-                'question_answer_instruction': (
-                    'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". '
-                    'Do not use any other values. '
-                    '\n\n'
-                    'EVALUATION CRITERIA — apply these strictly:\n'
-                    '- "Yes": The submitted evidence DIRECTLY and CLEARLY satisfies this question. '
-                    'The required document, policy, process, or proof is present, relevant, and sufficient.\n'
-                    '- "No": The submitted evidence does NOT address this question AT ALL. '
-                    'Either no relevant evidence was provided, the evidence is entirely unrelated to what the question asks, '
-                    'or the evidence covers a completely different topic/domain than what is required. '
-                    'If the justification states the evidence "does not represent", "is not related to", '
-                    '"does not meet", or "was not provided" for what the question asks — the answer MUST be "No", not "Partial".\n'
-                    '- "Partial": The submitted evidence PARTIALLY addresses this question — some relevant information '
-                    'is present and directly related to the topic, but it is incomplete, outdated, lacks detail, '
-                    'or does not fully satisfy all aspects of the requirement. '
-                    'Do NOT use "Partial" when the evidence is entirely irrelevant or unrelated to the question.\n'
-                    '\n'
-                    'CRITICAL RULE: If your justification says the evidence "does not represent", "is not related to", '
-                    '"does not meet", or "was not provided" for what the question asks, you MUST answer "No". '
-                    '"Partial" should ONLY be used when the evidence is on the right topic but incomplete.\n'
-                    '\n'
-                    'You MUST answer the EXACT questions provided in the "questions" array. '
-                    'Do NOT rephrase, rewrite, or generate your own questions. '
-                    'Return the questions in the same order as provided, using the exact same text.'
-                ),
                 'return_compliance_result': True,
-                'compliance_result_values': ['compliant', 'partially_compliant', 'non_compliant', 'not_applicable'],
-                'compliance_result_instruction': (
-                    'IMPORTANT: You MUST include an overall compliance assessment in your response. '
-                    'Add a top-level field called "overallAssessment" with a "status" field that is '
-                    'exactly one of: "compliant", "partially_compliant", "non_compliant", or "not_applicable". '
-                    'Also include a "score" field (0-100) and a "summary" field with a brief explanation.\n'
-                    '\n'
-                    'COMPLIANCE CRITERIA:\n'
-                    '- "compliant": ALL questions are answered "Yes" and all required evidence is present and sufficient.\n'
-                    '- "partially_compliant": SOME questions are answered "Yes" or "Partial", showing the organization '
-                    'has made progress but has gaps. At least some evidence is relevant to the requirement.\n'
-                    '- "non_compliant": ALL or most questions are answered "No", meaning the submitted evidence '
-                    'does not address the requirement at all, or is entirely irrelevant.\n'
-                    '- "not_applicable": The requirement does not apply to this organization or context.\n'
-                    '\n'
-                    'CRITICAL: If all questions are answered "No" because the evidence is unrelated to the requirement, '
-                    'the overall status MUST be "non_compliant", NOT "partially_compliant".'
-                ),
+                'include_gap_analysis': True,
+                'include_typical_evidence_check': True,
+                'include_recommendations': False,
+                'include_entity_extraction': False,
+                'include_compliance_check': False,
+                'response_language': 'auto',
             }
         }
 
