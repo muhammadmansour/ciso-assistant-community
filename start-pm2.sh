@@ -171,8 +171,9 @@ case "${1:-start}" in
         echo -e "${YELLOW}Restarting CISO services only...${NC}"
         run_migrations
         for app in $CISO_APPS; do
-            pm2 restart "$app" --update-env 2>/dev/null || { echo -e "${YELLOW}  $app not running, starting...${NC}"; pm2 start ecosystem.config.js --only "$app" 2>/dev/null; }
+            pm2 delete "$app" 2>/dev/null || true
         done
+        pm2 start ecosystem.config.js
         pm2 save
         pm2 status
         ;;
