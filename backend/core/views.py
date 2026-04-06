@@ -4243,6 +4243,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'include_entity_extraction': False,
                 'include_compliance_check': False,
                 'response_language': 'English',
+                'model': os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
             }
         }
 
@@ -4299,7 +4300,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 status='completed',
                 score=score,
                 compliance_status=compliance_status,
-                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
                 gemini_files_count=len(gemini_file_ids),
                 requirements_count=len(requirements_context),
             )
@@ -10221,6 +10222,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'include_entity_extraction': False,
                 'include_compliance_check': False,
                 'response_language': 'auto',
+                'model': os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
             }
         }
 
@@ -10312,7 +10314,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
             # ── Save AiAnalysisResult immediately ──────────────────────────
             from core.models import AiAnalysisResult
-            model_used = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+            model_used = os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro')
             analysis_record = AiAnalysisResult.objects.create(
                 requirement_assessment=requirement_assessment,
                 result=result,
@@ -10751,7 +10753,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             qa = request.data.get('question_answers') or {}
             score_val = request.data.get('score')
             compliance_status_val = request.data.get('compliance_status', '')
-            model_used = request.data.get('model_used', os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'))
+            model_used = request.data.get('model_used', os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'))
             gemini_files_count = request.data.get('gemini_files_count', 0)
 
             analysis = AiAnalysisResult.objects.create(
