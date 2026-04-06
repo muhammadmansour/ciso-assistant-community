@@ -495,14 +495,17 @@
 										{/if}
 
 									<!-- gaps: structured cards -->
-									{:else if sectionKey.toLowerCase() === 'gaps' && Array.isArray(sectionValue)}
-										{#if sectionValue.length === 0}
+									{:else if sectionKey.toLowerCase().includes('gap') && (Array.isArray(sectionValue) || (typeof sectionValue === 'object' && sectionValue !== null && Array.isArray(sectionValue.gaps)))}
+										{@const gapItems = Array.isArray(sectionValue) ? sectionValue : (sectionValue.gaps || [])}
+										{#if gapItems.length === 0}
 											<p class="text-gray-400 italic">No gaps identified</p>
 										{:else}
 											<div class="space-y-3">
-												{#each sectionValue as item, idx}
-													{@const gGap = getField(item, 'gap')}
-													{@const gRec = getField(item, 'recommendation')}
+												{#each gapItems as item, idx}
+													{@const gRequirement = getField(item, 'requirement') || getField(item, 'requirement_text')}
+													{@const gCurrentState = getField(item, 'currentState') || getField(item, 'current_state') || getField(item, 'currentStatus')}
+													{@const gGap = getField(item, 'gap') || getField(item, 'description') || getField(item, 'text')}
+													{@const gRec = getField(item, 'recommendation') || getField(item, 'action')}
 													<div class="border border-orange-200 rounded-lg overflow-hidden">
 														<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
 															<span class="font-semibold text-orange-800 text-sm">
@@ -510,9 +513,24 @@
 																Gap {idx + 1}
 															</span>
 														</div>
-														<div class="p-4 space-y-2 text-sm">
+														<div class="p-4 space-y-3 text-sm">
+															{#if gRequirement}
+																<div>
+																	<span class="font-medium text-gray-500">Requirement:</span>
+																	<p class="text-gray-800 mt-0.5">{gRequirement}</p>
+																</div>
+															{/if}
+															{#if gCurrentState}
+																<div>
+																	<span class="font-medium text-gray-500">Current State:</span>
+																	<p class="text-gray-800 mt-0.5">{gCurrentState}</p>
+																</div>
+															{/if}
 															{#if gGap}
-																<p class="text-gray-800 font-medium">{gGap}</p>
+																<div>
+																	<span class="font-medium text-orange-700">Gap:</span>
+																	<p class="text-gray-800 font-medium mt-0.5">{gGap}</p>
+																</div>
 															{/if}
 															{#if gRec}
 																<div class="bg-blue-50 rounded-md p-3 border border-blue-100">
