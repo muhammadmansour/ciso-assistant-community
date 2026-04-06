@@ -93,6 +93,7 @@ module.exports = {
         PUBLIC_BACKEND_API_EXPOSED_URL: 'http://localhost:8000/api',
         ORIGIN: 'https://ciso.wathbahs.com',
         NODE_ENV: 'development',
+        BODY_SIZE_LIMIT: '104857600',
       },
       watch: false,
       max_memory_restart: '1G',
