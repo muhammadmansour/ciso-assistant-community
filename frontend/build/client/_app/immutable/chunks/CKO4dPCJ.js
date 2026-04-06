@@ -1,0 +1,1 @@
+import{p as r}from"./DbIb9Ju9.js";import{s as t}from"./BGK2LtGf.js";const s={get data(){return r.data},get error(){return r.error},get form(){return r.form},get params(){return r.params},get status(){return r.status},get url(){return r.url}};t.updated.check;export{s as p};
