@@ -1301,45 +1301,45 @@ def startup(sender: AppConfig, **kwargs):
     if os.environ.get("SKIP_STORE_LIBRARIES", "").lower() not in ("true", "1", "yes"):
         call_command("storelibraries")
         call_command("autoloadlibraries")
-    else:
-        logger.info("Skipping storelibraries/autoloadlibraries (SKIP_STORE_LIBRARIES=true)")
 
-    # Store and load default risk matrix libraries
-    from ciso_assistant.settings import LIBRARIES_PATH
+        # Store and load default risk matrix libraries
+        from ciso_assistant.settings import LIBRARIES_PATH
 
-    DEFAULT_RISK_MATRIX_FILES = [
-        "critical_risk_matrix_3x3.yaml",
-        "risk-matrix-4x4-with-5-levels.yaml",
-        "critical_risk_matrix_5x5.yaml",
-    ]
-    for filename in DEFAULT_RISK_MATRIX_FILES:
-        try:
-            filepath = LIBRARIES_PATH / filename
-            if not filepath.exists():
-                logger.warning("Default risk matrix file not found", filename=filename)
-                continue
-            stored_lib = StoredLibrary.store_library_file(filepath, builtin=True)
-            if stored_lib:
-                logger.info("Stored default risk matrix library", filename=filename)
-        except Exception as e:
-            logger.error("Error storing default risk matrix library", filename=filename, exc_info=True)
-
-    DEFAULT_RISK_MATRIX_URNS = [
-        "urn:intuitem:risk:library:critical_risk_matrix_3x3",
-        "urn:intuitem:risk:library:risk-matrix-4x4-with-5-levels",
-        "urn:intuitem:risk:library:critical_risk_matrix_5x5",
-    ]
-    for urn in DEFAULT_RISK_MATRIX_URNS:
-        try:
-            if not LoadedLibrary.objects.filter(urn=urn).exists():
-                stored_lib = StoredLibrary.objects.filter(urn=urn).first()
+        DEFAULT_RISK_MATRIX_FILES = [
+            "critical_risk_matrix_3x3.yaml",
+            "risk-matrix-4x4-with-5-levels.yaml",
+            "critical_risk_matrix_5x5.yaml",
+        ]
+        for filename in DEFAULT_RISK_MATRIX_FILES:
+            try:
+                filepath = LIBRARIES_PATH / filename
+                if not filepath.exists():
+                    logger.warning("Default risk matrix file not found", filename=filename)
+                    continue
+                stored_lib = StoredLibrary.store_library_file(filepath, builtin=True)
                 if stored_lib:
-                    stored_lib.load()
-                    logger.info("Loaded default risk matrix library", urn=urn)
-                else:
-                    logger.warning("Default risk matrix library not found in store", urn=urn)
-        except Exception as e:
-            logger.error("Error loading default risk matrix library", urn=urn, exc_info=True)
+                    logger.info("Stored default risk matrix library", filename=filename)
+            except Exception as e:
+                logger.error("Error storing default risk matrix library", filename=filename, exc_info=True)
+
+        DEFAULT_RISK_MATRIX_URNS = [
+            "urn:intuitem:risk:library:critical_risk_matrix_3x3",
+            "urn:intuitem:risk:library:risk-matrix-4x4-with-5-levels",
+            "urn:intuitem:risk:library:critical_risk_matrix_5x5",
+        ]
+        for urn in DEFAULT_RISK_MATRIX_URNS:
+            try:
+                if not LoadedLibrary.objects.filter(urn=urn).exists():
+                    stored_lib = StoredLibrary.objects.filter(urn=urn).first()
+                    if stored_lib:
+                        stored_lib.load()
+                        logger.info("Loaded default risk matrix library", urn=urn)
+                    else:
+                        logger.warning("Default risk matrix library not found in store", urn=urn)
+            except Exception as e:
+                logger.error("Error loading default risk matrix library", urn=urn, exc_info=True)
+    else:
+        logger.info("Skipping storelibraries/autoloadlibraries/risk matrices (SKIP_STORE_LIBRARIES=true)")
     call_command("sync_event_types")
 
     try:

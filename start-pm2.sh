@@ -59,6 +59,7 @@ module.exports = {
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
+        SKIP_STORE_LIBRARIES: 'true',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
@@ -77,6 +78,7 @@ module.exports = {
         DJANGO_DEBUG: 'False',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev',
         CISO_ASSISTANT_URL: 'https://grc.wathbah.dev',
+        SKIP_STORE_LIBRARIES: 'true',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
@@ -116,7 +118,7 @@ EOF
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$BACKEND_DIR/logs"
 
-# Function to run migrations and load libraries
+# Function to run migrations
 run_migrations() {
     echo -e "${GREEN}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
@@ -124,12 +126,9 @@ run_migrations() {
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev"
     export CISO_ASSISTANT_URL="https://grc.wathbah.dev"
+    export SKIP_STORE_LIBRARIES=true
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
-
-    # Store/load CISO libraries (frameworks, controls, threats, etc.)
-    echo -e "${GREEN}Loading CISO libraries...${NC}"
-    poetry run python manage.py storelibraries
     cd "$SCRIPT_DIR"
 }
 
