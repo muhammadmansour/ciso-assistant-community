@@ -116,7 +116,7 @@ EOF
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$BACKEND_DIR/logs"
 
-# Function to run migrations
+# Function to run migrations and load libraries
 run_migrations() {
     echo -e "${GREEN}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
@@ -126,6 +126,10 @@ run_migrations() {
     export CISO_ASSISTANT_URL="https://grc.wathbah.dev"
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
+
+    # Store/load CISO libraries (frameworks, controls, threats, etc.)
+    echo -e "${GREEN}Loading CISO libraries...${NC}"
+    poetry run python manage.py storelibraries
     cd "$SCRIPT_DIR"
 }
 
