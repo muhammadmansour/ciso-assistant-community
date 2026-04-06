@@ -99,7 +99,8 @@ module.exports = {
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         PORT: '3001',
         HOST: '0.0.0.0',
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        BODY_SIZE_LIMIT: '104857600'
       },
       watch: false,
       max_memory_restart: '2G',
@@ -170,7 +171,7 @@ case "${1:-start}" in
         echo -e "${YELLOW}Restarting CISO services only...${NC}"
         run_migrations
         for app in $CISO_APPS; do
-            pm2 restart "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running, starting...${NC}" && pm2 start ecosystem.config.js --only "$app" 2>/dev/null
+            pm2 restart "$app" --update-env 2>/dev/null || { echo -e "${YELLOW}  $app not running, starting...${NC}"; pm2 start ecosystem.config.js --only "$app" 2>/dev/null; }
         done
         pm2 save
         pm2 status
