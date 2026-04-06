@@ -11,6 +11,11 @@
 
 	let searchInput = $state(data.searchQuery || '');
 
+	// Build baseEndpoint with search query so ModelTable refetches preserve the search filter
+	const searchSuffix = data.searchQuery
+		? `?search=${encodeURIComponent(data.searchQuery)}`
+		: '';
+
 	function handleSearch() {
 		const q = searchInput.trim();
 		if (q && browser) {
@@ -60,6 +65,20 @@
 	</div>
 
 	{#if data.searchQuery}
+		<!-- Error Banner -->
+		{#if data.searchError}
+			<div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+				<i class="fa-solid fa-circle-exclamation text-red-500 text-lg mt-0.5"></i>
+				<div>
+					<h4 class="text-sm font-semibold text-red-800">Search encountered an error</h4>
+					<p class="text-sm text-red-600 mt-1">
+						Some results may be incomplete or unavailable. Please try again later.
+					</p>
+					<p class="text-xs text-red-400 mt-1">{data.searchError}</p>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Assessments -->
 		<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 			<div class="flex items-center gap-2 mb-4">
@@ -70,8 +89,10 @@
 			<ModelTable
 				source={data.assessmentsTable}
 				URLModel="compliance-assessments"
+				baseEndpoint={`/compliance-assessments${searchSuffix}`}
 				hideFilters={true}
 				displayActions={false}
+				search={false}
 			/>
 		</div>
 
@@ -85,8 +106,10 @@
 			<ModelTable
 				source={data.controlsTable}
 				URLModel="applied-controls"
+				baseEndpoint={`/applied-controls${searchSuffix}`}
 				hideFilters={true}
 				displayActions={false}
+				search={false}
 			/>
 		</div>
 
@@ -100,8 +123,10 @@
 			<ModelTable
 				source={data.evidenceTable}
 				URLModel="evidences"
+				baseEndpoint={`/evidences${searchSuffix}`}
 				hideFilters={true}
 				displayActions={false}
+				search={false}
 			/>
 		</div>
 	{:else}

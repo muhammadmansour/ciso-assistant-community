@@ -17,70 +17,89 @@ export const load = (async ({ url, fetch }) => {
 		);
 	};
 
+	const emptyTable = (model: keyof typeof listViewFields) => ({
+		head: buildHead(model),
+		body: [],
+		meta: { count: 0, results: [] }
+	});
+
 	if (!query) {
 		return {
 			searchQuery: query,
-			assessmentsTable: {
-				head: buildHead('compliance-assessments'),
-				body: [],
-				meta: { count: 0, results: [] }
-			},
-			controlsTable: {
-				head: buildHead('applied-controls'),
-				body: [],
-				meta: { count: 0, results: [] }
-			},
-			evidenceTable: {
-				head: buildHead('evidences'),
-				body: [],
-				meta: { count: 0, results: [] }
-			},
+			searchError: null,
+			assessmentsTable: emptyTable('compliance-assessments'),
+			controlsTable: emptyTable('applied-controls'),
+			evidenceTable: emptyTable('evidences'),
 			title: 'Search'
 		};
 	}
 
 	const searchParam = `search=${encodeURIComponent(query)}`;
 
-	const [assessmentsRes, controlsRes, evidenceRes] = await Promise.all([
-		fetch(`${BASE_API_URL}/compliance-assessments/?${searchParam}`),
-		fetch(`${BASE_API_URL}/applied-controls/?${searchParam}`),
-		fetch(`${BASE_API_URL}/evidences/?${searchParam}`)
+	// Helper to safely fetch and parse a search endpoint
+	const safeFetch = async (endpoint: string, label: string) => {
+		try {
+			const res = await fetch(endpoint);
+			if (!res.ok) {
+				console.error(`[Search] ${label} API returned ${res.status}: ${res.statusText}`);
+				return { ok: false, error: `${label}: server returned ${res.status}`, data: null };
+			}
+			const data = await res.json();
+			return { ok: true, error: null, data };
+		} catch (err) {
+			console.error(`[Search] ${label} fetch failed:`, err);
+			return {
+				ok: false,
+				error: `${label}: ${err instanceof Error ? err.message : 'request failed'}`,
+				data: null
+			};
+		}
+	};
+
+	const [assessmentsResult, controlsResult, evidenceResult] = await Promise.all([
+		safeFetch(`${BASE_API_URL}/compliance-assessments/?${searchParam}`, 'Assessments'),
+		safeFetch(`${BASE_API_URL}/applied-controls/?${searchParam}`, 'Controls'),
+		safeFetch(`${BASE_API_URL}/evidences/?${searchParam}`, 'Evidence')
 	]);
 
-	const assessmentsData = await assessmentsRes.json();
-	const controlsData = await controlsRes.json();
-	const evidenceData = await evidenceRes.json();
+	// Collect any errors to surface to the user
+	const errors = [assessmentsResult, controlsResult, evidenceResult]
+		.filter((r) => !r.ok)
+		.map((r) => r.error);
+	const searchError = errors.length > 0 ? errors.join('; ') : null;
 
-	// Build table sources the same way the regular pages do
-	const assessmentsBody = tableSourceMapper(
-		assessmentsData.results || [],
-		listViewFields['compliance-assessments'].body
-	);
-	const controlsBody = tableSourceMapper(
-		controlsData.results || [],
-		listViewFields['applied-controls'].body
-	);
-	const evidenceBody = tableSourceMapper(
-		evidenceData.results || [],
-		listViewFields['evidences'].body
-	);
+	// Build table sources — use empty data if the fetch failed
+	const assessmentsData = assessmentsResult.data;
+	const controlsData = controlsResult.data;
+	const evidenceData = evidenceResult.data;
+
+	const assessmentsBody = assessmentsData
+		? tableSourceMapper(assessmentsData.results || [], listViewFields['compliance-assessments'].body)
+		: [];
+	const controlsBody = controlsData
+		? tableSourceMapper(controlsData.results || [], listViewFields['applied-controls'].body)
+		: [];
+	const evidenceBody = evidenceData
+		? tableSourceMapper(evidenceData.results || [], listViewFields['evidences'].body)
+		: [];
 
 	return {
 		searchQuery: query,
+		searchError,
 		assessmentsTable: {
 			head: buildHead('compliance-assessments'),
 			body: assessmentsBody,
-			meta: assessmentsData
+			meta: assessmentsData ?? { count: 0, results: [] }
 		},
 		controlsTable: {
 			head: buildHead('applied-controls'),
 			body: controlsBody,
-			meta: controlsData
+			meta: controlsData ?? { count: 0, results: [] }
 		},
 		evidenceTable: {
 			head: buildHead('evidences'),
 			body: evidenceBody,
-			meta: evidenceData
+			meta: evidenceData ?? { count: 0, results: [] }
 		},
 		title: query ? `Search: ${query}` : 'Search'
 	};
