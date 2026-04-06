@@ -1,4 +1,7 @@
-import { server } from '../build/index.js';
+// Set body size limit to 100MB for evidence uploads (must be set before importing the build)
+process.env.BODY_SIZE_LIMIT = process.env.BODY_SIZE_LIMIT || '104857600';
+
+const { server } = await import('../build/index.js');
 
 process.on('SIGINT', () => {
 	console.log('Got SIGINT. Starting graceful shutdown.');
