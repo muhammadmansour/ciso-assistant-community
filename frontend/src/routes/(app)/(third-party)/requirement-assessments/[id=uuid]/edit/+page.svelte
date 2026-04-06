@@ -2337,6 +2337,54 @@
 										</div>
 									{/if}
 
+								<!-- typicalEvidenceCheck: structured cards -->
+								{:else if sectionKey.toLowerCase() === 'typicalevidencecheck' && Array.isArray(sectionValue)}
+									{#if sectionValue.length === 0}
+										<p class="text-gray-400 italic">No evidence items checked</p>
+									{:else}
+										<div class="space-y-3">
+											{#each sectionValue as item, idx}
+												{@const eItem = getField(item, 'typicalEvidence') || getField(item, 'evidenceItem') || getField(item, 'evidence_item') || getField(item, 'typical_evidence') || getField(item, 'name')}
+												{@const eStatus = getField(item, 'status')}
+												{@const eFoundIn = getField(item, 'foundIn')}
+												{@const eDetails = getField(item, 'details')}
+												{@const statusLower = (eStatus || '').toLowerCase()}
+												{@const isFound = statusLower === 'found' || statusLower === 'موجود'}
+												{@const isPartial = statusLower === 'partial' || statusLower === 'جزئي' || statusLower.includes('partial') || statusLower.includes('جزئ')}
+												<div class="border border-gray-200 rounded-lg overflow-hidden">
+													<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {isFound ? 'bg-green-50' : isPartial ? 'bg-yellow-50' : 'bg-red-50'}">
+														<span class="font-semibold text-sm text-gray-800">
+															<i class="fa-solid fa-file-lines mr-1"></i>
+															E{idx + 1}
+														</span>
+														{#if eStatus}
+															<span class="text-xs font-medium px-2 py-0.5 rounded-full {isFound ? 'bg-green-100 text-green-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+																{eStatus}
+															</span>
+														{/if}
+													</div>
+													<div class="p-4 space-y-2 text-sm">
+														{#if eItem}
+															<p class="text-gray-800 font-medium">{eItem}</p>
+														{/if}
+														{#if eFoundIn}
+															<div class="flex items-start gap-2">
+																<span class="font-medium text-gray-500 shrink-0">Found In:</span>
+																<span class="text-gray-800">{eFoundIn}</span>
+															</div>
+														{/if}
+														{#if eDetails}
+															<div class="bg-gray-50 rounded-md p-3">
+																<span class="font-medium text-gray-500">Details: </span>
+																<span class="text-gray-700">{eDetails}</span>
+															</div>
+														{/if}
+													</div>
+												</div>
+											{/each}
+										</div>
+									{/if}
+
 								<!-- Strengths / Weaknesses / Recommendations / Findings (string arrays) -->
 								{:else if Array.isArray(sectionValue)}
 									{#if sectionValue.length === 0}

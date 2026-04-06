@@ -453,7 +453,7 @@
 										{:else}
 											<div class="space-y-3">
 												{#each sectionValue as item, idx}
-													{@const eItem = getField(item, 'evidenceItem')}
+													{@const eItem = getField(item, 'typicalEvidence') || getField(item, 'evidenceItem') || getField(item, 'evidence_item') || getField(item, 'typical_evidence') || getField(item, 'name')}
 													{@const eStatus = getField(item, 'status')}
 													{@const eFoundIn = getField(item, 'foundIn')}
 													{@const eDetails = getField(item, 'details')}
