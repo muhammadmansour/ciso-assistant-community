@@ -1,0 +1,164 @@
+import { d as defaultDeleteFormAction, b as defaultWriteFormAction } from './actions-CPCXZ_SN.js';
+import { B as BASE_API_URL } from './constants-B8vm30bZ.js';
+import { g as getModelInfo, b as urlParamModelSelectFields } from './crud-DvwwKulO.js';
+import { m as modelSchema } from './schemas-QFT6TgyO.js';
+import './utils-FiC4zhrQ.js';
+import './exports-CA5lG8jS.js';
+import './state.svelte-B6YM-9h0.js';
+import './formData-Dnvf_dKY.js';
+import { f as fail, s as superValidate, w as withFiles, a as setError, m as message } from './superValidate-BmtJFExL.js';
+import { o as objectType, s as stringType } from './string-BMZjP7XX.js';
+import { z as zod } from './zod-BTgf12zS.js';
+import { s as setFlash } from './server-C682bpHT.js';
+import { b5 as successfullyimportedfolder2, b6 as missinglibrariesinimport3 } from './_index-DZs3gE-i.js';
+import { s as safeTranslate } from './i18n-MfjzxjGF.js';
+import './index-BWA_9C9m.js';
+import './helpers-Bm9n0CNG.js';
+import './shared-server-BU2DVf8Q.js';
+import './runtime-B_ICGJZJ.js';
+import './index2-9icAqEyj.js';
+import './legacy-server-DMdb6ZTL.js';
+import './index3-BwfRm5YV.js';
+import './client-DqP3yP6V.js';
+import './client2-CItqzqlw.js';
+import './index-CRjgakYW.js';
+import './stores-CMqbeBUT.js';
+import './stores2-D1NYwn5V.js';
+import './Tooltip.svelte_svelte_type_style_lang-BDvN8aCi.js';
+import './index-server-DEEfjxiI.js';
+import './html-FW6Ia4bL.js';
+import './client.svelte-CxCno2aW.js';
+import './stores3-psVfZSQ7.js';
+import '@floating-ui/dom';
+import './MarkdownRenderer-B6VNWr3Z.js';
+import 'marked';
+import 'sanitize-html';
+import './app-Ci0UE2-c.js';
+
+const load = async ({ params, fetch }) => {
+  const schema = objectType({ id: stringType().uuid() });
+  const deleteForm = await superValidate(zod(schema));
+  const URLModel = params.model;
+  const createSchema = modelSchema(params.model);
+  const createForm = await superValidate(zod(createSchema));
+  const model = getModelInfo(params.model);
+  const selectFields = urlParamModelSelectFields(params.model);
+  const selectOptions = {};
+  for (const selectField of selectFields) {
+    if (selectField.detail) continue;
+    const url = model.endpointUrl ? `${BASE_API_URL}/${model.endpointUrl}/${selectField.field}/` : `${BASE_API_URL}/${params.model}/${selectField.field}/`;
+    const response = await fetch(url);
+    if (response.ok) {
+      selectOptions[selectField.field] = await response.json().then(
+        (data) => Object.entries(data).map(([key, value]) => ({
+          label: value,
+          value: selectField.valueType === "number" ? parseInt(key) : key
+        }))
+      );
+    } else {
+      console.error(`Failed to fetch data for ${selectField.field}: ${response.statusText}`);
+    }
+  }
+  model["selectOptions"] = selectOptions;
+  if (model.urlModel === "folders") {
+    const folderImportForm = await superValidate(zod(modelSchema("folders-import")), {
+      errors: false
+    });
+    model["folderImportForm"] = folderImportForm;
+    model["folderImportModel"] = { urlModel: "folders-import" };
+  }
+  return { createForm, deleteForm, model, URLModel };
+};
+const actions = {
+  create: async (event) => {
+    const redirectToWrittenObject = Boolean(
+      event.params.model === "entity-assessments" || event.params.model === "quantitative-risk-hypotheses" || event.params.model === "quantitative-risk-studies" || event.params.model === "quantitative-risk-scenarios"
+    );
+    return defaultWriteFormAction({
+      event,
+      urlModel: event.params.model,
+      action: "create",
+      redirectToWrittenObject
+    });
+  },
+  delete: async (event) => {
+    return defaultDeleteFormAction({ event, urlModel: event.params.model });
+  },
+  deleteAll: async (event) => {
+    const urlModel = event.params.model;
+    const endpoint = `${BASE_API_URL}/${urlModel}/delete-all/`;
+    const response = await event.fetch(endpoint, { method: "DELETE" });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      setFlash({ type: "error", message: errorData.message || `Failed to delete all ${urlModel}` }, event);
+      return fail(response.status);
+    }
+    const result = await response.json().catch(() => ({}));
+    setFlash({ type: "success", message: result.message || `All ${urlModel} deleted successfully` }, event);
+    return { status: 200 };
+  },
+  importFolder: async (event) => {
+    const formData = await event.request.formData();
+    if (!formData) return fail(400, { error: "No form data" });
+    const form = await superValidate(formData, zod(modelSchema("folders-import")));
+    if (!form.valid) {
+      return fail(400, withFiles({ form }));
+    }
+    const { file } = Object.fromEntries(formData);
+    const endpoint = `${BASE_API_URL}/folders/import/${form.data.load_missing_libraries ? "?load_missing_libraries=true" : ""}`;
+    const response = await event.fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Disposition": `attachment; filename="${file.name}"`,
+        "Content-Type": file.type,
+        "X-CISOAssistantDomainName": form.data.name
+      },
+      body: file
+    });
+    const res = await response.json();
+    if (!response.ok && res.missing_libraries) {
+      setError(form, "file", missinglibrariesinimport3());
+      for (let i = 0; i < res.missing_libraries.length; i += 2) {
+        const urn = res.missing_libraries[i];
+        const version = res.missing_libraries[i + 1];
+        setError(form, "non_field_errors", `${urn} v${version}`);
+      }
+      return message(form, { status: response.status });
+    }
+    if (!response.ok) {
+      if (res.error) {
+        setFlash({ type: "error", message: safeTranslate(res.error) }, event);
+        return withFiles({ form });
+      }
+      Object.entries(res).forEach(([key, value]) => {
+        setError(form, key, safeTranslate(value));
+      });
+      return fail(400, withFiles({ form }));
+    }
+    setFlash(
+      {
+        type: "success",
+        message: successfullyimportedfolder2()
+      },
+      event
+    );
+    return withFiles({ form });
+  }
+};
+
+var _page_server_ts = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  actions: actions,
+  load: load
+});
+
+const index = 132;
+let component_cache;
+const component = async () => component_cache ??= (await import('./_page.svelte-BSUpbGRL.js')).default;
+const server_id = "src/routes/(app)/(internal)/[model=urlmodel]/+page.server.ts";
+const imports = ["_app/immutable/nodes/132.BNe8Uziu.js","_app/immutable/chunks/Bzak7iHL.js","_app/immutable/chunks/Bik8CDZR.js","_app/immutable/chunks/2pWo5_dW.js","_app/immutable/chunks/DIeogL5L.js","_app/immutable/chunks/C2HK-5eJ.js","_app/immutable/chunks/Ck4BDG7B.js","_app/immutable/chunks/CWz7oro_.js","_app/immutable/chunks/vLHVOpPe.js","_app/immutable/chunks/GPqFdkZn.js","_app/immutable/chunks/BNmjC1ss.js","_app/immutable/chunks/MSPxrDcO.js","_app/immutable/chunks/B1TJtPpf.js","_app/immutable/chunks/DkXIEkz8.js","_app/immutable/chunks/DMjP-jzq.js","_app/immutable/chunks/DaFf4ri-.js","_app/immutable/chunks/CWLnyJ9Y.js","_app/immutable/chunks/DZ5Tj7L0.js","_app/immutable/chunks/CELL7CsF.js","_app/immutable/chunks/C27n3hTy.js","_app/immutable/chunks/C0F604xr.js","_app/immutable/chunks/69_IOA4Y.js","_app/immutable/chunks/7QhI6BBg.js","_app/immutable/chunks/BNMuJmHr.js","_app/immutable/chunks/BKGi4-1R.js","_app/immutable/chunks/Bi-WFMHF.js","_app/immutable/chunks/94V-AE2z.js","_app/immutable/chunks/DVvhCpGc.js","_app/immutable/chunks/Dcl9JJPO.js","_app/immutable/chunks/I45z91Uz.js","_app/immutable/chunks/DvxHSXZr.js","_app/immutable/chunks/QiiJKCdK.js","_app/immutable/chunks/nhcCvQES.js","_app/immutable/chunks/7yfh3D8G.js","_app/immutable/chunks/Cokhj0i6.js","_app/immutable/chunks/Bq_Ags-p.js","_app/immutable/chunks/DYGjK4nM.js","_app/immutable/chunks/CPdqmNzT.js","_app/immutable/chunks/B0YStVru.js","_app/immutable/chunks/CjH7Vkj0.js","_app/immutable/chunks/BosuxZz1.js","_app/immutable/chunks/Cs4kK__g.js","_app/immutable/chunks/BEk_uquL.js","_app/immutable/chunks/B-n4eeAc.js","_app/immutable/chunks/CUj5Yekk.js","_app/immutable/chunks/COWXugUk.js","_app/immutable/chunks/CyEYdE44.js","_app/immutable/chunks/COJRffFo.js","_app/immutable/chunks/R6PLPTc0.js","_app/immutable/chunks/DCI0CEYj.js","_app/immutable/chunks/CZxxuQXT.js","_app/immutable/chunks/CVPAKgDb.js","_app/immutable/chunks/q10t23Jn.js","_app/immutable/chunks/DktzCmbB.js","_app/immutable/chunks/C1FmrZbK.js","_app/immutable/chunks/D_hqV0xj.js","_app/immutable/chunks/CK5vqDQa.js","_app/immutable/chunks/lBJREKab.js","_app/immutable/chunks/UiKbey2w.js","_app/immutable/chunks/96BN_8Oi.js","_app/immutable/chunks/DXX2oVrC.js","_app/immutable/chunks/DunesMes.js","_app/immutable/chunks/Dh9-OhBV.js","_app/immutable/chunks/BppZ2EeA.js","_app/immutable/chunks/Cau80cIz.js","_app/immutable/chunks/BfFLuDP9.js","_app/immutable/chunks/CEskAMGU.js","_app/immutable/chunks/eKzdkxk1.js","_app/immutable/chunks/hqNPRCvp.js","_app/immutable/chunks/Bc6Xdwc7.js","_app/immutable/chunks/BM1KVRaL.js","_app/immutable/chunks/DxfjJhi7.js","_app/immutable/chunks/I0kP_jQg.js","_app/immutable/chunks/BOk_ozZZ.js","_app/immutable/chunks/G4f472Dc.js","_app/immutable/chunks/DOQCfxQu.js"];
+const stylesheets = ["_app/immutable/assets/Tooltip.DXh0bXFJ.css","_app/immutable/assets/stores.CinladYX.css","_app/immutable/assets/table.CekrWxJS.css","_app/immutable/assets/CreateModal.tcW1Vve_.css","_app/immutable/assets/ModelTable.QcXBTdDg.css"];
+const fonts = [];
+
+export { component, fonts, imports, index, _page_server_ts as server, server_id, stylesheets };
+//# sourceMappingURL=132-C3WQ4Vib.js.map
