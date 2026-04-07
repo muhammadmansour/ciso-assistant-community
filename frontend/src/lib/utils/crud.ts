@@ -1,7 +1,6 @@
 // define the content of forms
 
 import EvidenceFilePreview from '$lib/components/ModelTable/EvidenceFilePreview.svelte';
-import GeminiFileIdDisplay from '$lib/components/ModelTable/GeminiFileIdDisplay.svelte';
 import LanguageDisplay from '$lib/components/ModelTable/LanguageDisplay.svelte';
 import LibraryActions from '$lib/components/ModelTable/LibraryActions.svelte';
 import UserGroupNameDisplay from '$lib/components/ModelTable/UserGroupNameDisplay.svelte';
@@ -2380,8 +2379,7 @@ const FIELD_COMPONENT_MAP = {
 		attachment: EvidenceFilePreview
 	},
 	'evidence-revisions': {
-		attachment: EvidenceFilePreview,
-		file_search: GeminiFileIdDisplay
+		attachment: EvidenceFilePreview
 	},
 	'stored-libraries': {
 		locales: LanguageDisplay,
