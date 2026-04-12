@@ -25,10 +25,15 @@ jobs:
         with:
           version: latest
 
+      - name: Create frontend .env
+        run: echo "${{ secrets.FRONTEND_ENV }}" > ./frontend/.env
+
       - name: Install dependencies
+        working-directory: frontend
         run: pnpm install
 
       - name: Build staging
+        working-directory: frontend
         run: pnpm run build:staging
 
       - name: Setup SSH key
