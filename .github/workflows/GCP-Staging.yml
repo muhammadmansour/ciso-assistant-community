@@ -34,7 +34,7 @@ jobs:
 
       - name: Build staging
         working-directory: frontend
-        run: pnpm run build:staging
+        run: pnpm run build
 
       - name: Setup SSH key
         run: |
