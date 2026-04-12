@@ -16,6 +16,13 @@ PUBLIC_URL="https://${DOMAIN}"
 BACKEND_PORT=8020
 FRONTEND_PORT=3020
 
+# PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
+POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
+POSTGRES_USER="${POSTGRES_USER:-grc-stage}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
 
@@ -42,9 +49,10 @@ if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
 fi
 
-# Create PM2 ecosystem config (Gunicorn + adapter-node; ports must match BACKEND_PORT / FRONTEND_PORT above)
-# Quoted EOF so bash does not expand $ inside process.env.HOME
-cat > "$SCRIPT_DIR/ecosystem.config.js" << 'EOF'
+# Create PM2 ecosystem config (Gunicorn + adapter-node).
+# Unquoted EOF: substitute POSTGRES_* / DB_*; PATH uses require('os') so bash does not expand $PATH.
+cat > "$SCRIPT_DIR/ecosystem.config.js" << EOF
+const os = require('os');
 module.exports = {
   apps: [
     {
@@ -62,7 +70,12 @@ module.exports = {
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
-        PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
+        POSTGRES_NAME: '${POSTGRES_NAME}',
+        POSTGRES_USER: '${POSTGRES_USER}',
+        POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
+        DB_HOST: '${DB_HOST}',
+        DB_PORT: '${DB_PORT}',
+        PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
       max_memory_restart: '2G',
@@ -80,7 +93,12 @@ module.exports = {
         DJANGO_DEBUG: 'False',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
-        PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
+        POSTGRES_NAME: '${POSTGRES_NAME}',
+        POSTGRES_USER: '${POSTGRES_USER}',
+        POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
+        DB_HOST: '${DB_HOST}',
+        DB_PORT: '${DB_PORT}',
+        PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
       max_memory_restart: '500M',
@@ -128,8 +146,17 @@ run_migrations() {
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
+    export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
+    cd "$SCRIPT_DIR"
+}
+
+# Install Python deps into the Poetry env (required before migrate / gunicorn)
+ensure_poetry_install() {
+    echo -e "${GREEN}Installing backend dependencies (poetry install)...${NC}"
+    cd "$BACKEND_DIR"
+    poetry install --no-interaction
     cd "$SCRIPT_DIR"
 }
 
@@ -153,6 +180,7 @@ case "${1:-start}" in
             echo -e "  cd frontend && pnpm run build:staging"
             exit 1
         fi
+        ensure_poetry_install
         ensure_gunicorn
         run_migrations
         cd "$SCRIPT_DIR"
@@ -178,6 +206,7 @@ case "${1:-start}" in
         ;;
     restart)
         echo -e "${YELLOW}Restarting CISO staging services only...${NC}"
+        ensure_poetry_install
         run_migrations
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || true
@@ -213,6 +242,7 @@ case "${1:-start}" in
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
         echo "Staging: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
+        echo "PostgreSQL: POSTGRES_NAME=${POSTGRES_NAME} DB_HOST=${DB_HOST} (override via env)"
         echo "Build frontend first: cd frontend && pnpm run build:staging"
         echo ""
         echo "Commands:"

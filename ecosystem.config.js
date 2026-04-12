@@ -33,11 +33,11 @@ module.exports = {
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
         // Database
-        POSTGRES_NAME: 'wathbah_grc',
-        POSTGRES_USER: 'wathbah_grc',
-        POSTGRES_PASSWORD: 'wathbah_grc',
-        DB_HOST: 'localhost',
-        DB_PORT: '5432',
+        POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',
+        POSTGRES_USER: process.env.POSTGRES_USER || 'grc-stage',
+        POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || 'grc-stage',
+        DB_HOST: process.env.DB_HOST || 'localhost',
+        DB_PORT: process.env.DB_PORT || '5432',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
@@ -66,11 +66,11 @@ module.exports = {
           'localhost,127.0.0.1,grc.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: STAGE_PUBLIC_URL,
         // Database
-        POSTGRES_NAME: 'wathbah_grc',
-        POSTGRES_USER: 'wathbah_grc',
-        POSTGRES_PASSWORD: 'wathbah_grc',
-        DB_HOST: 'localhost',
-        DB_PORT: '5432',
+        POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',
+        POSTGRES_USER: process.env.POSTGRES_USER || 'grc-stage',
+        POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || 'grc-stage',
+        DB_HOST: process.env.DB_HOST || 'localhost',
+        DB_PORT: process.env.DB_PORT || '5432',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
