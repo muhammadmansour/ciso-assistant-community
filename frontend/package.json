@@ -6,6 +6,7 @@
 		"prepare": "svelte-kit sync",
 		"dev": "vite dev",
 		"build": "paraglide-js compile --project ./project.inlang && vite build",
+		"build:staging": "paraglide-js compile --project ./project.inlang && vite build --mode staging",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
