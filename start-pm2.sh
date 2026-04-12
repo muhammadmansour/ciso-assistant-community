@@ -3,11 +3,6 @@
 # Public URL: https://grc-stage.wathbahs.com
 # Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
 # Before start: cd frontend && pnpm run build:staging
-#
-# One-time PostgreSQL (if migrate fails with "permission denied for schema public"):
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS grc_stage AUTHORIZATION "grc-stage";'
-# This script defaults POSTGRES_SEARCH_PATH=grc_stage so Django uses that schema first.
-# To use only "public" after fixing grants: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
 
 set -e
 
@@ -27,8 +22,6 @@ POSTGRES_USER="${POSTGRES_USER:-grc-stage}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
-# Default grc_stage if unset; use POSTGRES_SEARCH_PATH= to disable (hyphen expansion: empty stays empty)
-POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc_stage}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
@@ -82,7 +75,6 @@ module.exports = {
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
         DB_HOST: '${DB_HOST}',
         DB_PORT: '${DB_PORT}',
-        POSTGRES_SEARCH_PATH: '${POSTGRES_SEARCH_PATH}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -106,7 +98,6 @@ module.exports = {
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
         DB_HOST: '${DB_HOST}',
         DB_PORT: '${DB_PORT}',
-        POSTGRES_SEARCH_PATH: '${POSTGRES_SEARCH_PATH}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -155,7 +146,7 @@ run_migrations() {
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
-    export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
+    export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
