@@ -38,6 +38,11 @@ module.exports = {
         POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || 'grc-stage',
         DB_HOST: process.env.DB_HOST || 'localhost',
         DB_PORT: process.env.DB_PORT || '5432',
+        // Avoid "permission denied for schema public" (PG15+): own schema first; empty = off
+        POSTGRES_SEARCH_PATH:
+          process.env.POSTGRES_SEARCH_PATH !== undefined
+            ? process.env.POSTGRES_SEARCH_PATH
+            : 'grc_stage',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
@@ -71,6 +76,10 @@ module.exports = {
         POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || 'grc-stage',
         DB_HOST: process.env.DB_HOST || 'localhost',
         DB_PORT: process.env.DB_PORT || '5432',
+        POSTGRES_SEARCH_PATH:
+          process.env.POSTGRES_SEARCH_PATH !== undefined
+            ? process.env.POSTGRES_SEARCH_PATH
+            : 'grc_stage',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',

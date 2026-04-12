@@ -5,12 +5,15 @@ CORS are not managed by backend, so CORS library is not used
 
 if "POSTGRES_NAME" environment variable defined, the database engine is posgresql
 and the other env variables are POSTGRES_USER, POSTGRES_PASSWORD, DB_HOST, DB_PORT
+Optional: POSTGRES_SEARCH_PATH (single identifier, e.g. grc_stage) sets connection search_path
+before public — use when the DB role cannot CREATE in schema public (see PostgreSQL 15+).
 else it is sqlite, and no env variable is required
 
 """
 
 from pathlib import Path
 import os
+import re
 from dotenv import load_dotenv
 from datetime import timedelta
 import logging.config
@@ -454,17 +457,25 @@ SQLITE_FILE = os.environ.get("SQLITE_FILE", BASE_DIR / "db/ciso-assistant.sqlite
 LIBRARIES_PATH = library_path = BASE_DIR / "library/libraries"
 
 if "POSTGRES_NAME" in os.environ:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql_psycopg2",
-            "NAME": os.environ["POSTGRES_NAME"],
-            "USER": os.environ["POSTGRES_USER"],
-            "PASSWORD": os.environ["POSTGRES_PASSWORD"],
-            "HOST": os.environ["DB_HOST"],
-            "PORT": os.environ.get("DB_PORT", "5432"),
-            "CONN_MAX_AGE": os.environ.get("CONN_MAX_AGE", 300),
-        }
+    _pg = {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.environ["POSTGRES_NAME"],
+        "USER": os.environ["POSTGRES_USER"],
+        "PASSWORD": os.environ["POSTGRES_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "CONN_MAX_AGE": os.environ.get("CONN_MAX_AGE", 300),
     }
+    _search_path = os.environ.get("POSTGRES_SEARCH_PATH", "").strip()
+    if _search_path:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _search_path):
+            logger.error(
+                "POSTGRES_SEARCH_PATH must be a single PostgreSQL identifier (letters, digits, underscore)"
+            )
+            exit(1)
+        _pg["OPTIONS"] = {"options": f"-c search_path={_search_path},public"}
+        logger.info("PostgreSQL search_path first schema: %s", _search_path)
+    DATABASES = {"default": _pg}
 else:
     DATABASES = {
         "default": {
