@@ -49,13 +49,12 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "which rsync || sudo apt install -y rsync"
-
       - name: Rsync build to server
         run: |
-          rsync -avz --no-perms --no-owner --no-group \
+          rsync -avz --no-perms --no-owner --no-group --omit-dir-times \
             -e "ssh -i ~/.ssh/id_rsa" \
             ./frontend/build/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-stage/ciso-assistant-community/frontend/
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-stage/ciso-assistant-community/frontend/ || true
 
       - name: Run remote start script
         run: |
