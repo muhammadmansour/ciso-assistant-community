@@ -4,9 +4,10 @@
 # Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
 # Before start: cd frontend && pnpm run build:staging
 #
-# If migrate fails with "permission denied for schema public", once as postgres run:
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS grc_stage AUTHORIZATION "grc-stage";'
-# This script sets POSTGRES_SEARCH_PATH=grc_stage by default (unset with: env -u POSTGRES_SEARCH_PATH ...).
+# DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
+# If migrate fails on public, once as postgres:
+#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS "grc-stage" AUTHORIZATION "grc-stage";'
+# Default POSTGRES_SEARCH_PATH=grc-stage. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
 
 set -e
 
@@ -27,7 +28,7 @@ POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
-POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc_stage}"
+POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"

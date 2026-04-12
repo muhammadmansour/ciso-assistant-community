@@ -41,7 +41,7 @@ module.exports = {
         POSTGRES_SEARCH_PATH:
           process.env.POSTGRES_SEARCH_PATH !== undefined
             ? process.env.POSTGRES_SEARCH_PATH
-            : 'grc_stage',
+            : 'grc-stage',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
@@ -78,7 +78,7 @@ module.exports = {
         POSTGRES_SEARCH_PATH:
           process.env.POSTGRES_SEARCH_PATH !== undefined
             ? process.env.POSTGRES_SEARCH_PATH
-            : 'grc_stage',
+            : 'grc-stage',
         // Microsoft Graph API email configuration (set in .env on server)
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',

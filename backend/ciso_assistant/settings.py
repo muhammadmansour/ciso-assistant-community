@@ -5,7 +5,9 @@ CORS are not managed by backend, so CORS library is not used
 
 if "POSTGRES_NAME" environment variable defined, the database engine is posgresql
 and the other env variables are POSTGRES_USER, POSTGRES_PASSWORD, DB_HOST, DB_PORT
-Optional: POSTGRES_SEARCH_PATH (e.g. grc_stage) — use when the DB user cannot CREATE in public (PG15+).
+Optional: POSTGRES_SEARCH_PATH — PostgreSQL *schema* (namespace) inside the DB, not the database name.
+  POSTGRES_NAME=grc-stage  → database name (can use a hyphen).
+  POSTGRES_SEARCH_PATH=grc-stage  → schema inside that DB (hyphen allowed; must exist before migrate).
 else it is sqlite, and no env variable is required
 
 """
@@ -460,6 +462,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SQLITE_FILE = os.environ.get("SQLITE_FILE", BASE_DIR / "db/ciso-assistant.sqlite3")
 LIBRARIES_PATH = library_path = BASE_DIR / "library/libraries"
 
+
+def _postgres_schema_sql_ident(name: str) -> str:
+    """Validated schema name → SQL fragment for search_path / SET (quoted if hyphen etc.)."""
+    if len(name) > 63:
+        raise ValueError("PostgreSQL identifier too long")
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        return name
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_\-]*", name):
+        return '"' + name.replace("\\", "\\\\").replace('"', '""') + '"'
+    raise ValueError("invalid POSTGRES_SEARCH_PATH")
+
+
+_PG_SEARCH_PATH_SQL_FRAGMENT = None
+
 if "POSTGRES_NAME" in os.environ:
     _pg = {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
@@ -472,18 +488,24 @@ if "POSTGRES_NAME" in os.environ:
     }
     _search_path = (os.environ.get("POSTGRES_SEARCH_PATH") or "").strip().strip("'\"")
     if _search_path:
-        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _search_path):
-            logger.error(
-                "POSTGRES_SEARCH_PATH must be a single PostgreSQL identifier (letters, digits, underscore)"
-            )
+        try:
+            _sp_sql = _postgres_schema_sql_ident(_search_path)
+        except ValueError as e:
+            logger.error("POSTGRES_SEARCH_PATH: %s", e)
             exit(1)
-        _pg["OPTIONS"] = {"options": f"-c search_path={_search_path},public"}
+        _pg["OPTIONS"] = {"options": f"-c search_path={_sp_sql},public"}
+        _PG_SEARCH_PATH_SQL_FRAGMENT = _sp_sql
         # If this schema does not exist, PostgreSQL skips it and uses public — same permission errors.
+        _db_name = os.environ["POSTGRES_NAME"]
+        _role_sql = _postgres_schema_sql_ident(os.environ["POSTGRES_USER"])
         logger.warning(
-            "PostgreSQL search_path starts with %r. Schema must exist or migrations hit public. "
-            'As postgres: psql -d "grc-stage" -c \'CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION "grc-stage";\'',
+            "PostgreSQL: database %r, first search_path schema %r (not the same thing). "
+            "Schema must exist. As postgres: psql -d %r -c 'CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION %s;'",
+            _db_name,
             _search_path,
-            _search_path,
+            _db_name,
+            _sp_sql,
+            _role_sql,
         )
     DATABASES = {"default": _pg}
 else:
@@ -499,6 +521,19 @@ else:
     logger.info("SQLITE_FILE: %s", SQLITE_FILE)
 
 logger.info("DATABASE ENGINE: %s", DATABASES["default"]["ENGINE"])
+
+if _PG_SEARCH_PATH_SQL_FRAGMENT is not None:
+    from django.db.backends.signals import connection_created
+
+    _frag = _PG_SEARCH_PATH_SQL_FRAGMENT
+
+    def _apply_pg_search_path(sender, connection, **kwargs):
+        if connection.vendor != "postgresql" or connection.alias != "default":
+            return
+        with connection.cursor() as cursor:
+            cursor.execute(f"SET search_path TO {_frag}, public")
+
+    connection_created.connect(_apply_pg_search_path)
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
