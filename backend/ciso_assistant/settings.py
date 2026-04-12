@@ -13,7 +13,7 @@ else it is sqlite, and no env variable is required
 from pathlib import Path
 import os
 import re
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from datetime import timedelta
 import logging.config
 import structlog
@@ -25,6 +25,11 @@ from . import meta
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".meta")
 load_dotenv(BASE_DIR / ".env", override=True)  # Load local .env for GEMINI keys etc.
+# Some shells omit vars from .env; merge file values for this key if still empty
+if not (os.environ.get("POSTGRES_SEARCH_PATH") or "").strip():
+    _from_file = (dotenv_values(BASE_DIR / ".env") or {}).get("POSTGRES_SEARCH_PATH")
+    if _from_file and str(_from_file).strip():
+        os.environ["POSTGRES_SEARCH_PATH"] = str(_from_file).strip()
 
 
 VERSION = os.getenv("CISO_ASSISTANT_VERSION", "unset")
@@ -465,7 +470,7 @@ if "POSTGRES_NAME" in os.environ:
         "PORT": os.environ.get("DB_PORT", "5432"),
         "CONN_MAX_AGE": os.environ.get("CONN_MAX_AGE", 300),
     }
-    _search_path = os.environ.get("POSTGRES_SEARCH_PATH", "").strip()
+    _search_path = (os.environ.get("POSTGRES_SEARCH_PATH") or "").strip().strip("'\"")
     if _search_path:
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _search_path):
             logger.error(
@@ -473,7 +478,13 @@ if "POSTGRES_NAME" in os.environ:
             )
             exit(1)
         _pg["OPTIONS"] = {"options": f"-c search_path={_search_path},public"}
-        logger.info("PostgreSQL search_path first schema: %s", _search_path)
+        # If this schema does not exist, PostgreSQL skips it and uses public — same permission errors.
+        logger.warning(
+            "PostgreSQL search_path starts with %r. Schema must exist or migrations hit public. "
+            'As postgres: psql -d "grc-stage" -c \'CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION "grc-stage";\'',
+            _search_path,
+            _search_path,
+        )
     DATABASES = {"default": _pg}
 else:
     DATABASES = {
