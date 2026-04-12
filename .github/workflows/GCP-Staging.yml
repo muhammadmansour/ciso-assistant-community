@@ -34,7 +34,7 @@ jobs:
 
       - name: Build staging
         working-directory: frontend
-        run: pnpm run build:staging
+        run: pnpm run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
