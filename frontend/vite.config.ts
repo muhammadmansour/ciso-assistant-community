@@ -23,7 +23,13 @@ export default defineConfig({
 	server: {
 		host: '0.0.0.0',
 		port: 3000,
-		allowedHosts: ['localhost', 'ciso.wathbahs.com', 'grc.wathbahs.com', 'grc.wathbah.dev'],
+		allowedHosts: [
+			'localhost',
+			'ciso.wathbahs.com',
+			'grc.wathbahs.com',
+			'grc-stage.wathbahs.com',
+			'grc.wathbah.dev'
+		],
 		hmr: false,
 		headers: {
 			'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',

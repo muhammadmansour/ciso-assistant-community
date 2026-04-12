@@ -126,7 +126,13 @@ ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS", "localhost,127.0.0.1,host.docker.internal"
 ).split(",")
 # Always ensure these hosts are allowed regardless of env var
-for _host in ["grc.wathbah.dev", "grc-admin.wathbahs.com", "localhost"]:
+for _host in [
+    "grc.wathbah.dev",
+    "grc.wathbahs.com",
+    "grc-stage.wathbahs.com",
+    "grc-admin.wathbahs.com",
+    "localhost",
+]:
     if _host not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_host)
 logger.info("ALLOWED_HOSTS: %s", ALLOWED_HOSTS)
@@ -134,7 +140,13 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
     "CSRF_TRUSTED_ORIGINS", CISO_ASSISTANT_URL
 ).split(",")
 # Always ensure these origins are trusted regardless of env var
-for _origin in ["http://localhost:5555", "https://grc.wathbah.dev", "https://grc-admin.wathbahs.com"]:
+for _origin in [
+    "http://localhost:5555",
+    "https://grc.wathbah.dev",
+    "https://grc.wathbahs.com",
+    "https://grc-stage.wathbahs.com",
+    "https://grc-admin.wathbahs.com",
+]:
     if _origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_origin)
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
