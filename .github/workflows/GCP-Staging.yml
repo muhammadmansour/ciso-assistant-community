@@ -52,7 +52,7 @@ jobs:
 
       - name: Rsync build to server
         run: |
-          rsync -avz --delete \
+          rsync -avz --no-perms --no-owner --no-group \
             -e "ssh -i ~/.ssh/id_rsa" \
             ./frontend/build/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-stage/ciso-assistant-community/frontend/
