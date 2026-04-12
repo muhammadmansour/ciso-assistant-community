@@ -1,7 +1,8 @@
 #!/bin/bash
-# CISO Assistant - PM2 Dev Version Script
-# Domain: wathbah.dev
-# Uses PM2 for process management
+# CISO Assistant - PM2 staging (Linux)
+# Public URL: https://grc-stage.wathbahs.com
+# Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
+# Before start: cd frontend && pnpm run build:staging
 
 set -e
 
@@ -10,12 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Configuration
-DOMAIN="grc.wathbah.dev"
-BACKEND_PORT=8001
-FRONTEND_PORT=3001
+DOMAIN="grc-stage.wathbahs.com"
+PUBLIC_URL="https://${DOMAIN}"
+BACKEND_PORT=8020
+FRONTEND_PORT=3020
 
 # CISO PM2 process names (only restart these, not all PM2 services)
-CISO_APPS="dev-backend dev-frontend dev-huey"
+CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
@@ -31,7 +33,7 @@ NC='\033[0m'
 export PATH="$HOME/.local/bin:$PATH"
 
 echo -e "${GREEN}========================================"
-echo "  CISO Assistant - PM2 Dev Version"
+echo "  CISO Assistant - PM2 Staging (${DOMAIN})"
 echo -e "========================================${NC}"
 
 # Check if PM2 is installed
@@ -40,74 +42,74 @@ if ! command -v pm2 &> /dev/null; then
     sudo npm install -g pm2
 fi
 
-# Create PM2 ecosystem config - PRODUCTION MODE
+# Create PM2 ecosystem config (Gunicorn + adapter-node; ports must match BACKEND_PORT / FRONTEND_PORT above)
+# Quoted EOF so bash does not expand $ inside process.env.HOME
 cat > "$SCRIPT_DIR/ecosystem.config.js" << 'EOF'
 module.exports = {
   apps: [
     {
-      // BACKEND - Using Gunicorn (production server, not runserver!)
-      name: 'dev-backend',
+      // BACKEND - Gunicorn on staging port 8020
+      name: 'ciso-stage-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8001 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev,backend',
-        CISO_ASSISTANT_URL: 'https://grc.wathbah.dev',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbah.dev,https://wathbah.dev',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-stage.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '100',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
-        SKIP_STORE_LIBRARIES: 'true',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/backend-error.log',
-      out_file: './logs/backend-out.log',
+      error_file: './logs/stage-backend-error.log',
+      out_file: './logs/stage-backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      name: 'dev-huey',
+      name: 'ciso-stage-huey',
       cwd: './backend',
       script: 'poetry',
       args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev',
-        CISO_ASSISTANT_URL: 'https://grc.wathbah.dev',
-        SKIP_STORE_LIBRARIES: 'true',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
         PATH: process.env.HOME + '/.local/bin:' + process.env.PATH
       },
       watch: false,
       max_memory_restart: '500M',
-      error_file: './logs/huey-error.log',
-      out_file: './logs/huey-out.log',
+      error_file: './logs/stage-huey-error.log',
+      out_file: './logs/stage-huey-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - Production build (node build/index.js)
-      name: 'dev-frontend',
+      // FRONTEND - adapter-node (run: pnpm run build:staging)
+      name: 'ciso-stage-frontend',
       cwd: './frontend',
       script: 'node',
       args: 'build/index.js',
       interpreter: 'none',
       env: {
-        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc.wathbah.dev/api',
-        ORIGIN: 'https://grc.wathbah.dev',
-        PUBLIC_DEFAULT_LANGUAGE: 'en',
-        PORT: '3001',
         HOST: '0.0.0.0',
+        PORT: '3020',
         NODE_ENV: 'production',
+        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
+        ORIGIN: 'https://grc-stage.wathbahs.com',
+        PROTOCOL_HEADER: 'x-forwarded-proto',
+        PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600'
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/frontend-error.log',
-      out_file: './logs/frontend-out.log',
+      error_file: './logs/stage-frontend-error.log',
+      out_file: './logs/stage-frontend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     }
   ]
@@ -124,9 +126,8 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,wathbah.dev,grc.wathbah.dev"
-    export CISO_ASSISTANT_URL="https://grc.wathbah.dev"
-    export SKIP_STORE_LIBRARIES=true
+    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com"
+    export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
@@ -146,7 +147,12 @@ ensure_gunicorn() {
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services (PRODUCTION MODE)...${NC}"
+        echo -e "${GREEN}Starting all services (staging)...${NC}"
+        if [ ! -f "$FRONTEND_DIR/build/index.js" ]; then
+            echo -e "${YELLOW}Warning: frontend/build/index.js missing. Run:${NC}"
+            echo -e "  cd frontend && pnpm run build:staging"
+            exit 1
+        fi
         ensure_gunicorn
         run_migrations
         cd "$SCRIPT_DIR"
@@ -154,24 +160,24 @@ case "${1:-start}" in
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  All services started (DEV VERSION)!  ${NC}"
+        echo -e "${GREEN}  Staging services started                 ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
-        echo -e "  Backend:  Gunicorn (4 workers)"
-        echo -e "  Frontend: Dev mode (Vite)"
-        echo -e "  Access:   https://${DOMAIN}"
+        echo -e "  Backend:  Gunicorn on port ${BACKEND_PORT} (4 workers)"
+        echo -e "  Frontend: Node adapter-node on port ${FRONTEND_PORT}"
+        echo -e "  Access:   ${PUBLIC_URL} (via reverse proxy)"
         echo ""
         pm2 status
         ;;
     stop)
-        echo -e "${YELLOW}Stopping CISO services only...${NC}"
+        echo -e "${YELLOW}Stopping CISO staging services only...${NC}"
         for app in $CISO_APPS; do
             pm2 stop "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running${NC}"
         done
         pm2 status
         ;;
     restart)
-        echo -e "${YELLOW}Restarting CISO services only...${NC}"
+        echo -e "${YELLOW}Restarting CISO staging services only...${NC}"
         run_migrations
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || true
@@ -185,14 +191,13 @@ case "${1:-start}" in
         ;;
     logs)
         if [ -n "$2" ]; then
-            pm2 logs "dev-$2"
+            pm2 logs "ciso-stage-$2"
         else
-            # Show only CISO logs
-            pm2 logs dev-backend dev-frontend dev-huey
+            pm2 logs ciso-stage-backend ciso-stage-frontend ciso-stage-huey
         fi
         ;;
     delete)
-        echo -e "${RED}Deleting CISO PM2 processes only...${NC}"
+        echo -e "${RED}Deleting CISO staging PM2 processes only...${NC}"
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || echo -e "${YELLOW}  $app not found${NC}"
         done
@@ -207,14 +212,17 @@ case "${1:-start}" in
     *)
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
+        echo "Staging: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
+        echo "Build frontend first: cd frontend && pnpm run build:staging"
+        echo ""
         echo "Commands:"
-        echo "  start   - Start CISO services (production mode)"
-        echo "  stop    - Stop CISO services only (other PM2 apps unaffected)"
-        echo "  restart - Restart CISO services only"
-        echo "  status  - Show all PM2 service status"
-        echo "  logs    - Show CISO logs (use 'logs backend', 'logs frontend', 'logs huey')"
-        echo "  delete  - Remove CISO PM2 processes only"
-        echo "  startup - Enable auto-start on boot"
+        echo "  start   - Write ecosystem.config.js and start staging (Gunicorn + Node)"
+        echo "  stop    - Stop staging PM2 apps only"
+        echo "  restart - Migrate, recreate staging PM2 apps"
+        echo "  status  - PM2 status"
+        echo "  logs    - Staging logs (optional: logs backend | logs frontend | logs huey)"
+        echo "  delete  - Remove staging PM2 processes"
+        echo "  startup - Enable PM2 on boot"
         exit 1
         ;;
 esac
