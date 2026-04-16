@@ -28,6 +28,7 @@
 		data.requirementAssessment.requirement.associated_reference_controls ?? [];
 	const annotation = data.requirement.annotation;
 	const typical_evidence = data.requirement.typical_evidence;
+	const typicalEvidenceLines = typical_evidence ? typical_evidence.split('\n') : [];
 
 	const has_threats = threats.length > 0;
 	const has_reference_controls = reference_controls.length > 0;
@@ -308,17 +309,28 @@
 						</div>
 					</div>
 				{/if}
-				{#if typical_evidence}
-					<div class="my-2">
-						<p class="font-medium">
-							<i class="fa-solid fa-pencil"></i>
-							{m.typicalEvidence()}
-						</p>
-						<div class="py-1">
-							<MarkdownRenderer content={typical_evidence} />
-						</div>
+			{#if typical_evidence}
+				<div class="my-2">
+					<p class="font-medium">
+						<i class="fa-solid fa-pencil"></i>
+						{m.typicalEvidence()}
+					</p>
+					<div class="py-1">
+						{#each typicalEvidenceLines as line}
+							{#if line.trim().includes('[EXCLUDED]')}
+								<div class="opacity-50 flex items-start gap-1">
+									<span class="inline-flex items-center shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+										<i class="fa-solid fa-ban mr-0.5 text-[7px]"></i>AI-Excluded
+									</span>
+									<MarkdownRenderer content={line.replace('[EXCLUDED]', '').trim()} />
+								</div>
+							{:else if line.trim()}
+								<MarkdownRenderer content={line} />
+							{/if}
+						{/each}
 					</div>
-				{/if}
+				</div>
+			{/if}
 				{#if mappingInference.result}
 					<div class="my-2">
 						<p class="font-medium">
@@ -422,8 +434,15 @@
 	{#if data.requirementAssessment.requirement.questions != null && Object.keys(data.requirementAssessment.requirement.questions).length !== 0}
 		<h1 class="font-semibold text-sm">{m.questions()}</h1>
 		{#each Object.entries(data.requirementAssessment.requirement.questions) as [urn, question]}
-			<li class="flex justify-between items-center border rounded-xl p-2 disabled">
-				<p>{question.text} ({safeTranslate(question.type)})</p>
+			<li class="flex justify-between items-center border rounded-xl p-2 disabled {question.excluded ? 'opacity-50' : ''}">
+				<p>
+					{question.text} ({safeTranslate(question.type)})
+					{#if question.excluded}
+						<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+							<i class="fa-solid fa-ban mr-1 text-[8px]"></i>Excluded from AI Analysis
+						</span>
+					{/if}
+				</p>
 			</li>
 		{/each}
 	{/if}

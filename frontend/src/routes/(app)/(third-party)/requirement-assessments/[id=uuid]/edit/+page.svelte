@@ -56,6 +56,7 @@
 		data.requirementAssessment.requirement.associated_reference_controls ?? [];
 	const annotation = data.requirement.annotation;
 	const typical_evidence = data.requirement.typical_evidence;
+	const typicalEvidenceLines = typical_evidence ? typical_evidence.split('\n') : [];
 
 	const has_threats = threats.length > 0;
 	const has_reference_controls = reference_controls.length > 0;
@@ -1063,17 +1064,28 @@
 							</button>
 						</div>
 						{#if !hideSuggestion}
-							{#if typical_evidence}
-								<div class="mb-3">
-									<p class="font-semibold text-xs uppercase tracking-wider text-[#1D53DA] mb-1.5">
-										<i class="fa-solid fa-clipboard-list mr-1.5 text-[#1D53DA]"></i>
-										{m.typicalEvidence()}
-									</p>
-									<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
-										<MarkdownRenderer content={typical_evidence} />
-									</div>
+						{#if typical_evidence}
+							<div class="mb-3">
+								<p class="font-semibold text-xs uppercase tracking-wider text-[#1D53DA] mb-1.5">
+									<i class="fa-solid fa-clipboard-list mr-1.5 text-[#1D53DA]"></i>
+									{m.typicalEvidence()}
+								</p>
+								<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
+									{#each typicalEvidenceLines as line}
+										{#if line.trim().includes('[EXCLUDED]')}
+											<div class="opacity-50 flex items-start gap-1">
+												<span class="inline-flex items-center shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+													<i class="fa-solid fa-ban mr-0.5 text-[7px]"></i>AI-Excluded
+												</span>
+												<MarkdownRenderer content={line.replace('[EXCLUDED]', '').trim()} />
+											</div>
+										{:else if line.trim()}
+											<MarkdownRenderer content={line} />
+										{/if}
+									{/each}
 								</div>
-							{/if}
+							</div>
+						{/if}
 							{#if annotation}
 								<div class="text-sm text-gray-600 italic leading-relaxed mb-3" dir="auto">
 									<MarkdownRenderer content={annotation} />
@@ -1366,7 +1378,7 @@
 								{#each questionEntries as [urn, question], idx}
 									{@const currentAnswer = data?.answers?.[urn]}
 									{#if isQuestionVisible(question, data?.answers || {})}
-										<div class="border border-gray-200 rounded-xl px-5 py-4">
+										<div class="border border-gray-200 rounded-xl px-5 py-4 {question.excluded ? 'opacity-50' : ''}">
 											<!-- Header row: Q number + question text -->
 											<div class="flex items-start gap-4 mb-3">
 												<div class="shrink-0 min-w-[60px]">
@@ -1377,6 +1389,11 @@
 												</div>
 												<div class="flex-1 text-sm text-gray-700 font-medium" dir="auto">
 													{question.text}
+													{#if question.excluded}
+														<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+															<i class="fa-solid fa-ban mr-1 text-[8px]"></i>Excluded from AI Analysis
+														</span>
+													{/if}
 												</div>
 											</div>
 
