@@ -1074,8 +1074,8 @@
 									{#each typicalEvidenceLines as line}
 										{#if line.trim().includes('[EXCLUDED]')}
 											<div class="opacity-50 flex items-start gap-1">
-												<span class="inline-flex items-center shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-													<i class="fa-solid fa-ban mr-0.5 text-[7px]"></i>AI-Excluded
+												<span class="inline-flex items-center shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+													<i class="fa-solid fa-ban mr-1 text-[8px]"></i>Excluded from AI Analysis
 												</span>
 												<MarkdownRenderer content={line.replace('[EXCLUDED]', '').trim()} />
 											</div>
