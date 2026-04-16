@@ -46,7 +46,7 @@
 <div class="border-t border-white/10 pt-3 mt-auto space-y-3">
 	{#if page.data.user?.is_admin}
 		<a
-			href="https://grc.wathbah.dev/"
+			href="https://grc-admin.wathbah.dev/"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-white/15 text-white/80 hover:bg-white/8 hover:text-white transition-all duration-150 group"
