@@ -4188,31 +4188,43 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'provider': req.framework.provider if req.framework else ''
             })
 
-            # Parse questions
+            # Parse questions (skip excluded ones)
             if req.questions:
                 if isinstance(req.questions, dict):
                     for q_key, q_val in req.questions.items():
-                        if isinstance(q_val, dict) and 'text' in q_val:
-                            questions.append(q_val['text'])
+                        if isinstance(q_val, dict):
+                            if q_val.get('excluded') is True:
+                                continue
+                            if 'text' in q_val:
+                                questions.append(q_val['text'])
                         elif isinstance(q_val, str):
                             questions.append(q_val)
                 elif isinstance(req.questions, list):
-                    questions.extend(
-                        [q.get('text', q) if isinstance(q, dict) else q for q in req.questions]
-                    )
+                    for q in req.questions:
+                        if isinstance(q, dict):
+                            if q.get('excluded') is True:
+                                continue
+                            questions.append(q.get('text', ''))
+                        else:
+                            questions.append(q)
 
-            # Parse typical evidence
+            # Parse typical evidence (skip lines marked [EXCLUDED])
             if req.typical_evidence:
                 if isinstance(req.typical_evidence, str):
                     for line in req.typical_evidence.strip().split('\n'):
+                        if '[EXCLUDED]' in line:
+                            continue
                         line = line.strip().lstrip('-').lstrip('•').strip()
                         if line:
                             typical_evidence.append(line)
                 elif isinstance(req.typical_evidence, list):
-                    typical_evidence.extend(req.typical_evidence)
+                    for item in req.typical_evidence:
+                        if isinstance(item, str) and '[EXCLUDED]' in item:
+                            continue
+                        typical_evidence.append(item)
 
-        # Remove duplicates preserving order
-        questions = list(dict.fromkeys(questions))
+        # Remove duplicates / empties preserving order
+        questions = list(dict.fromkeys([q for q in questions if q]))
         typical_evidence = list(dict.fromkeys(typical_evidence))
 
         # Build request body matching Muraji /api/audit/analyze format
@@ -4249,7 +4261,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         from core.models import AiAnalysisResult
@@ -10142,33 +10154,52 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
         print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_file_ids) - direct_ev_count}, Direct on RA: {direct_ev_count}")
 
-        # 3. Extract questions from the requirement
+        # 3. Extract questions from the requirement (skip excluded ones)
         questions = []
+        excluded_question_count = 0
         if requirement.questions:
             if isinstance(requirement.questions, dict):
                 for q_key, q_val in requirement.questions.items():
-                    if isinstance(q_val, dict) and 'text' in q_val:
-                        questions.append(q_val['text'])
+                    if isinstance(q_val, dict):
+                        if q_val.get('excluded') is True:
+                            excluded_question_count += 1
+                            continue
+                        if 'text' in q_val:
+                            questions.append(q_val['text'])
                     elif isinstance(q_val, str):
                         questions.append(q_val)
             elif isinstance(requirement.questions, list):
-                questions.extend(
-                    [q.get('text', q) if isinstance(q, dict) else q for q in requirement.questions]
-                )
-        questions = list(dict.fromkeys(questions))
-        print(f"[RA-AI-ANALYSIS] Questions extracted: {len(questions)}")
+                for q in requirement.questions:
+                    if isinstance(q, dict):
+                        if q.get('excluded') is True:
+                            excluded_question_count += 1
+                            continue
+                        questions.append(q.get('text', ''))
+                    else:
+                        questions.append(q)
+        questions = list(dict.fromkeys([q for q in questions if q]))
+        print(f"[RA-AI-ANALYSIS] Questions extracted: {len(questions)} (excluded: {excluded_question_count})")
 
-        # 4. Extract typical evidence
+        # 4. Extract typical evidence (skip lines marked [EXCLUDED])
         typical_evidence = []
+        excluded_evidence_count = 0
         if requirement.typical_evidence:
             if isinstance(requirement.typical_evidence, str):
                 for line in requirement.typical_evidence.strip().split('\n'):
+                    if '[EXCLUDED]' in line:
+                        excluded_evidence_count += 1
+                        continue
                     line = line.strip().lstrip('-').lstrip('•').strip()
                     if line:
                         typical_evidence.append(line)
             elif isinstance(requirement.typical_evidence, list):
-                typical_evidence.extend(requirement.typical_evidence)
+                for item in requirement.typical_evidence:
+                    if isinstance(item, str) and '[EXCLUDED]' in item:
+                        excluded_evidence_count += 1
+                        continue
+                    typical_evidence.append(item)
         typical_evidence = list(dict.fromkeys(typical_evidence))
+        print(f"[RA-AI-ANALYSIS] Typical evidence extracted: {len(typical_evidence)} (excluded: {excluded_evidence_count})")
 
         # 5. Build requirement context
         requirements_context = [{
@@ -10232,7 +10263,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")

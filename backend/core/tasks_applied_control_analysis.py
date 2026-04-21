@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 MURAJI_ANALYSIS_API_URL = os.getenv(
     'MURAJI_ANALYSIS_API_URL', 
-    'https://muraji-api.wathbahs.com/api/audit/analyze'
+    'https://muraji-api.wathbah.dev/api/audit/analyze'
 )
 
 
@@ -84,15 +84,29 @@ def run_applied_control_analysis(applied_control_id: str):
                 'provider': requirement.framework.provider if requirement.framework else ''
             })
             
-            # Extract questions from requirement
+            # Extract questions from requirement (skip excluded ones)
             if requirement.questions:
                 for q_key, q_data in requirement.questions.items():
-                    if isinstance(q_data, dict) and 'text' in q_data:
-                        questions.append(q_data['text'])
+                    if isinstance(q_data, dict):
+                        if q_data.get('excluded') is True:
+                            continue
+                        if 'text' in q_data:
+                            questions.append(q_data['text'])
             
-            # Extract typical evidence
+            # Extract typical evidence (skip lines marked [EXCLUDED])
             if requirement.typical_evidence:
-                typical_evidence.extend(requirement.typical_evidence)
+                if isinstance(requirement.typical_evidence, str):
+                    for line in requirement.typical_evidence.strip().split('\n'):
+                        if '[EXCLUDED]' in line:
+                            continue
+                        line = line.strip().lstrip('-').lstrip('•').strip()
+                        if line:
+                            typical_evidence.append(line)
+                elif isinstance(requirement.typical_evidence, list):
+                    for item in requirement.typical_evidence:
+                        if isinstance(item, str) and '[EXCLUDED]' in item:
+                            continue
+                        typical_evidence.append(item)
         
         # Prepare request body for Muraji API
         request_body = {

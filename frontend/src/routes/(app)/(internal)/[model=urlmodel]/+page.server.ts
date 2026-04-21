@@ -90,7 +90,7 @@ export const actions: Actions = {
 		return { status: 200 };
 	},
 	fetchMuraji: async (event) => {
-		const MURAJI_API_URL = 'https://muraji-api.wathbahs.com/api/libraries';
+		const MURAJI_API_URL = 'https://muraji-api.wathbah.dev/api/libraries';
 		
 		try {
 			const murajiResponse = await fetch(MURAJI_API_URL);

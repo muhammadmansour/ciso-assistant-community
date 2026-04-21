@@ -99,8 +99,15 @@
 		{#each Object.entries(questions) as [urn, question]}
 			<!-- Only render if visible according to depends_on -->
 			{#if isQuestionVisible(question, internalAnswers)}
-				<li class="flex flex-col justify-between border rounded-xl px-2 pb-2">
-					<p class="font-semibold p-2">{question.text} ({safeTranslate(question.type)})</p>
+				<li class="flex flex-col justify-between border rounded-xl px-2 pb-2 {question.excluded ? 'opacity-50' : ''}">
+					<p class="font-semibold p-2">
+						{question.text} ({safeTranslate(question.type)})
+						{#if question.excluded}
+							<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+								<i class="fa-solid fa-ban mr-1 text-[8px]"></i>Excluded from AI Analysis
+							</span>
+						{/if}
+					</p>
 
 					{#if shallow}
 						{#if Array.isArray(internalAnswers[urn]) && internalAnswers[urn].length > 0}
