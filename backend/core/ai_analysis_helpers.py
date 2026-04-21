@@ -351,10 +351,14 @@ def map_answers_to_requirement_choices(question_answers, req_questions):
 
     mapped_answers = {}
 
-    # Build ordered list of question URNs matching the order we sent to the AI
+    # Build ordered list of question URNs matching the order we sent to the AI.
+    # Excluded questions are NOT sent to the AI, so we must skip them here too
+    # to keep the AI-answer index aligned with the requirement's question URNs.
     question_urns_ordered = []
     for q_urn, q_def in req_questions.items():
         if isinstance(q_def, dict) and 'text' in q_def:
+            if q_def.get('excluded') is True:
+                continue
             question_urns_ordered.append((q_urn, q_def))
 
     # Map AI answer index to question URN
