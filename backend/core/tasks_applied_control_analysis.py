@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 MURAJI_ANALYSIS_API_URL = os.getenv(
     'MURAJI_ANALYSIS_API_URL', 
-    'https://muraji-api.wathbah.dev/api/audit/analyze'
+    'https://muraji-api.wathbahs.com/api/audit/analyze'
 )
 
 

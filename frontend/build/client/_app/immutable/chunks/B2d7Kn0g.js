@@ -1,0 +1,1 @@
+import{p}from"./BJgYCOde.js";const o=p;export{o as p};

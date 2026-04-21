@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { BASE_API_URL } from '$lib/utils/constants';
 
-const AUDIT_ANALYSIS_API_URL = 'https://muraji-api.wathbah.dev/api/audit/analyze';
+const AUDIT_ANALYSIS_API_URL = 'https://muraji-api.wathbahs.com/api/audit/analyze';
 
 export const POST: RequestHandler = async ({ params, request, fetch }) => {
 	const evidenceId = params.id;
