@@ -225,7 +225,7 @@ function _page($$payload, $$props) {
           let line = each_array_3[$$index_3];
           if (line.trim().includes("[EXCLUDED]")) {
             $$payload.out += "<!--[-->";
-            $$payload.out += `<div class="opacity-50 flex items-start gap-1"><span class="inline-flex items-center shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200"><i class="fa-solid fa-ban mr-0.5 text-[7px]"></i>AI-Excluded</span> `;
+            $$payload.out += `<div class="opacity-50 flex items-start gap-1"><span class="inline-flex items-center shrink-0 mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200"><i class="fa-solid fa-ban mr-0.5 text-[7px]"></i>Excluded from AI Analysis</span> `;
             MarkdownRenderer($$payload, {
               content: line.replace("[EXCLUDED]", "").trim()
             });
