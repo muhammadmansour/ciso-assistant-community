@@ -4261,7 +4261,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-stage.wathbahs.com/api/audit/analyze'
         )
 
         from core.models import AiAnalysisResult
@@ -10201,6 +10201,36 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         typical_evidence = list(dict.fromkeys(typical_evidence))
         print(f"[RA-AI-ANALYSIS] Typical evidence extracted: {len(typical_evidence)} (excluded: {excluded_evidence_count})")
 
+        # 4b. Extract admin notes (library-supplied auditor guidance).
+        # Accepts list[str] (preferred, matches Muraji library admin-notes-support),
+        # a single string, or a dict {key: str}. Lines marked [EXCLUDED] are skipped.
+        admin_notes = []
+        excluded_admin_notes_count = 0
+        raw_admin_notes = getattr(requirement, 'admin_notes', None)
+
+        def _append_admin_note(value):
+            nonlocal excluded_admin_notes_count
+            if not isinstance(value, str):
+                return
+            if '[EXCLUDED]' in value:
+                excluded_admin_notes_count += 1
+                return
+            cleaned = value.strip().lstrip('-').lstrip('•').strip()
+            if cleaned:
+                admin_notes.append(cleaned)
+
+        if isinstance(raw_admin_notes, list):
+            for item in raw_admin_notes:
+                _append_admin_note(item)
+        elif isinstance(raw_admin_notes, dict):
+            for v in raw_admin_notes.values():
+                _append_admin_note(v)
+        elif isinstance(raw_admin_notes, str):
+            for line in raw_admin_notes.strip().split('\n'):
+                _append_admin_note(line)
+        admin_notes = list(dict.fromkeys(admin_notes))
+        print(f"[RA-AI-ANALYSIS] Admin notes extracted: {len(admin_notes)} (excluded: {excluded_admin_notes_count})")
+
         # 5. Build requirement context
         requirements_context = [{
             'ref_id': requirement.ref_id,
@@ -10208,6 +10238,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'description': requirement.description or '',
             'framework': requirement.framework.name if requirement.framework else '',
             'provider': requirement.framework.provider if requirement.framework else '',
+            'admin_notes': admin_notes,
         }]
 
         # 6. Build request body for Muraji /api/audit/analyze
@@ -10245,6 +10276,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             'requirements': requirements_context,
             'questions': questions,
             'typical_evidence': typical_evidence,
+            'admin_notes': admin_notes,
             'analysis_config': {
                 'return_compliance_result': True,
                 'include_gap_analysis': True,
@@ -10263,12 +10295,13 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbahs.com/api/audit/analyze'
+            'https://muraji-stage.wathbahs.com/api/audit/analyze'
         )
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
         print(f"[RA-AI-ANALYSIS] Questions: {questions}")
         print(f"[RA-AI-ANALYSIS] Typical evidence: {typical_evidence}")
+        print(f"[RA-AI-ANALYSIS] Admin notes: {admin_notes}")
         print(f"[RA-AI-ANALYSIS] Gemini files count: {len(gemini_file_ids)}")
         print(f"[RA-AI-ANALYSIS] Request body keys: {list(request_body.keys())}")
         import json as _json

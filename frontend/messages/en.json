@@ -232,6 +232,8 @@
 	"annotation": "Annotation",
 	"library": "Library",
 	"typicalEvidence": "Typical evidence",
+	"adminNotes": "Admin notes",
+	"adminNotesHelp": "Internal auditor guidance (scope limits, accepted exceptions, interpretation hints). Included as authoritative context when running AI analysis, but does not override evidence.",
 	"parentAsset": "Supported asset",
 	"parentAssets": "Is a dependency of ↑",
 	"supportAssets": "Depends on ↓",

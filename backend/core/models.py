@@ -2125,6 +2125,17 @@ class RequirementNode(ReferentialObjectMixin, I18nObjectMixin):
         null=True, blank=True, verbose_name=_("Typical evidence")
     )
     questions = models.JSONField(blank=True, null=True, verbose_name=_("Questions"))
+    admin_notes = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_("Admin notes"),
+        help_text=_(
+            "Internal auditor/admin guidance attached to this requirement "
+            "(scope limits, accepted exceptions, interpretation hints). "
+            "Stored as a list of strings, loaded from the library and passed "
+            "to the AI analysis as authoritative auditor context."
+        ),
+    )
     weight = models.IntegerField(default=1, verbose_name=_("Weight"))
     importance = models.CharField(
         max_length=20,
@@ -6303,6 +6314,11 @@ class ComplianceAssessment(Assessment):
                     existing_node.typical_evidence = library_typical_evidence
                     update_fields.append("typical_evidence")
 
+                library_admin_notes = node_data.get("admin_notes")
+                if existing_node.admin_notes != library_admin_notes:
+                    existing_node.admin_notes = library_admin_notes
+                    update_fields.append("admin_notes")
+
                 library_description = node_data.get("description")
                 if existing_node.description != library_description:
                     existing_node.description = library_description
@@ -6342,6 +6358,7 @@ class ComplianceAssessment(Assessment):
                     translations=node_data.get("translations", {}),
                     is_published=True,
                     questions=node_data.get("questions"),
+                    admin_notes=node_data.get("admin_notes"),
                 )
                 created_nodes.append(node)
                 created_count += 1
