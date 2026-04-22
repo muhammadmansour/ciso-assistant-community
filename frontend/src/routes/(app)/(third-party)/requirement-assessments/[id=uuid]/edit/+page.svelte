@@ -58,6 +58,16 @@
 	const typical_evidence = data.requirement.typical_evidence;
 	const typicalEvidenceLines = typical_evidence ? typical_evidence.split('\n') : [];
 
+	const raw_admin_notes = data.requirement.admin_notes;
+	const adminNotesLines: string[] = Array.isArray(raw_admin_notes)
+		? (raw_admin_notes.filter((n: unknown) => typeof n === 'string' && n.trim().length > 0) as string[])
+		: raw_admin_notes && typeof raw_admin_notes === 'object'
+			? (Object.values(raw_admin_notes).filter((n: unknown) => typeof n === 'string' && (n as string).trim().length > 0) as string[])
+			: typeof raw_admin_notes === 'string' && raw_admin_notes.trim().length > 0
+				? raw_admin_notes.split('\n').filter((n) => n.trim().length > 0)
+				: [];
+	const has_admin_notes = adminNotesLines.length > 0;
+
 	const has_threats = threats.length > 0;
 	const has_reference_controls = reference_controls.length > 0;
 
@@ -1048,7 +1058,7 @@
 				{/if}
 
 				<!-- Additional Information -->
-				{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence}
+				{#if has_threats || has_reference_controls || annotation || mappingInference.result || typical_evidence || has_admin_notes}
 					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5 text-sm">
 						<div class="flex items-center justify-between mb-3">
 							<h2 class="flex items-center gap-2 font-semibold text-base text-gray-900">
@@ -1072,6 +1082,28 @@
 								</p>
 								<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
 									{#each typicalEvidenceLines as line}
+										{#if line.trim().includes('[EXCLUDED]')}
+											<div class="opacity-50 flex items-start gap-1">
+												<span class="inline-flex items-center shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+													<i class="fa-solid fa-ban mr-1 text-[8px]"></i>Excluded from AI Analysis
+												</span>
+												<MarkdownRenderer content={line.replace('[EXCLUDED]', '').trim()} />
+											</div>
+										{:else if line.trim()}
+											<MarkdownRenderer content={line} />
+										{/if}
+									{/each}
+								</div>
+							</div>
+						{/if}
+						{#if has_admin_notes}
+							<div class="mb-3">
+								<p class="font-semibold text-xs uppercase tracking-wider text-[#1D53DA] mb-1.5" title={m.adminNotesHelp()}>
+									<i class="fa-solid fa-user-shield mr-1.5 text-[#1D53DA]"></i>
+									{m.adminNotes()}
+								</p>
+								<div class="text-sm text-gray-600 leading-relaxed" dir="auto">
+									{#each adminNotesLines as line}
 										{#if line.trim().includes('[EXCLUDED]')}
 											<div class="opacity-50 flex items-start gap-1">
 												<span class="inline-flex items-center shrink-0 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">

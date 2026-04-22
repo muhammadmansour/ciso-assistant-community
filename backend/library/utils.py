@@ -93,6 +93,7 @@ class RequirementNodeImporter:
             translations=self.requirement_data.get("translations", {}),
             is_published=True,
             questions=self.requirement_data.get("questions"),
+            admin_notes=self.requirement_data.get("admin_notes"),
         )
         for threat in self.requirement_data.get("threats", []):
             logger.info(

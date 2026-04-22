@@ -2008,6 +2008,7 @@ class RequirementAssessmentReadSerializer(BaseModelSerializer):
                 "name",
                 "description",
                 "typical_evidence",
+                "admin_notes",
                 "ref_id",
                 "associated_reference_controls",
                 "associated_threats",
