@@ -111,6 +111,9 @@ export const actions: Actions = {
 			let successCount = 0;
 			let updateCount = 0;
 			let errorCount = 0;
+			let reloadCount = 0;
+			let reloadErrorCount = 0;
+			let scoreConflictCount = 0;
 			
 			for (const library of murajiData.data) {
 				try {
@@ -156,6 +159,33 @@ export const actions: Actions = {
 						} else {
 							successCount++;
 						}
+
+						// Re-load the library so already-loaded frameworks pick up the new
+						// content (questions, typical_evidence, admin_notes, ...).
+						// The endpoint 404s when no LoadedLibrary exists yet, which is fine.
+						try {
+							const reloadEndpoint = `${BASE_API_URL}/loaded-libraries/${encodeURIComponent(library.urn)}/update/`;
+							const reloadResponse = await event.fetch(reloadEndpoint);
+
+							if (reloadResponse.ok) {
+								reloadCount++;
+							} else if (reloadResponse.status === 404) {
+								// Library was stored but never loaded — nothing to reload.
+							} else if (reloadResponse.status === 409) {
+								// Score boundaries changed — needs user decision via the per-row button.
+								scoreConflictCount++;
+							} else {
+								const reloadError = await reloadResponse.json().catch(() => ({}));
+								console.error(
+									`Failed to reload library ${library.name} (${reloadResponse.status}):`,
+									reloadError
+								);
+								reloadErrorCount++;
+							}
+						} catch (reloadErr) {
+							console.error(`Error reloading library ${library.name}:`, reloadErr);
+							reloadErrorCount++;
+						}
 					} else {
 						const errorData = await uploadResponse.json().catch(() => ({}));
 						console.error(`Failed to upload library ${library.name}:`, errorData);
@@ -177,7 +207,22 @@ export const actions: Actions = {
 				} else {
 					message = `تم إضافة ${successCount} مكتبة جديدة من مراجع`;
 				}
-				setFlash({ type: 'success', message }, event);
+				if (reloadCount > 0) {
+					message += ` — تمت إعادة تحميل ${reloadCount} مكتبة`;
+				}
+				if (scoreConflictCount > 0) {
+					message += ` — ${scoreConflictCount} تحتاج إلى تأكيد يدوي (تغير في المعايير)`;
+				}
+				if (reloadErrorCount > 0) {
+					message += ` — فشل في إعادة تحميل ${reloadErrorCount}`;
+				}
+				setFlash(
+					{
+						type: scoreConflictCount > 0 || reloadErrorCount > 0 ? 'warning' : 'success',
+						message
+					},
+					event
+				);
 			} else if (errorCount > 0) {
 				setFlash({ type: 'error', message: `فشل في المزامنة. الأخطاء: ${errorCount}` }, event);
 			} else {
