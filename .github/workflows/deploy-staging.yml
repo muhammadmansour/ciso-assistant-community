@@ -1,0 +1,58 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - staging-version
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+
+      - name: Create frontend .env
+        run: echo "${{ secrets.FRONTEND_ENV }}" > ./frontend/.env.staging
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install
+
+      - name: Build staging
+        working-directory: frontend
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy build to server
+        run: |
+          rsync -az --no-perms --no-owner --no-group --omit-dir-times \
+            -e "ssh -i ~/.ssh/id_rsa" \
+            ./frontend/build/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-stage/ciso-assistant-community/frontend/ || true
+
+      - name: Run remote start script
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "bash ~/ciso-stage/ciso-assistant-community/start-pm2.sh restart"
