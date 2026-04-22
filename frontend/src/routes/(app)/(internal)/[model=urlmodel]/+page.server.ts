@@ -91,7 +91,8 @@ export const actions: Actions = {
 	},
 	fetchMuraji: async (event) => {
 		const MURAJI_API_URL = 'https://muraji-stage.wathbahs.com/api/libraries';
-		
+		console.log(`[fetchMuraji] syncing libraries from ${MURAJI_API_URL}`);
+
 		try {
 			const murajiResponse = await fetch(MURAJI_API_URL);
 			
