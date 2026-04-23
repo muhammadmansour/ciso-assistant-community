@@ -59,10 +59,34 @@
 	const typicalEvidenceLines = typical_evidence ? typical_evidence.split('\n') : [];
 
 	const raw_admin_notes = data.requirement.admin_notes;
+
+	// Muraji admin notes can be:
+	//   1. a list of strings (legacy)
+	//   2. a list of objects with { text, content_ar?, content_en?, excluded?, included_in_ai_scope? }
+	//   3. a dict whose values are strings (legacy)
+	//   4. a multiline string (legacy)
+	// Prefer localized content (ar → en → text) and skip items marked excluded
+	// or outside AI scope.
+	function extractAdminNoteText(item: unknown): string | null {
+		if (typeof item === 'string') {
+			const trimmed = item.trim();
+			return trimmed.length > 0 ? trimmed : null;
+		}
+		if (item && typeof item === 'object') {
+			const obj = item as Record<string, unknown>;
+			if (obj.excluded === true || obj.included_in_ai_scope === false) return null;
+			const pick = (v: unknown) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : null);
+			return pick(obj.content_ar) ?? pick(obj.content_en) ?? pick(obj.text) ?? null;
+		}
+		return null;
+	}
+
 	const adminNotesLines: string[] = Array.isArray(raw_admin_notes)
-		? (raw_admin_notes.filter((n: unknown) => typeof n === 'string' && n.trim().length > 0) as string[])
+		? (raw_admin_notes.map(extractAdminNoteText).filter((v): v is string => v !== null))
 		: raw_admin_notes && typeof raw_admin_notes === 'object'
-			? (Object.values(raw_admin_notes).filter((n: unknown) => typeof n === 'string' && (n as string).trim().length > 0) as string[])
+			? (Object.values(raw_admin_notes)
+					.map(extractAdminNoteText)
+					.filter((v): v is string => v !== null))
 			: typeof raw_admin_notes === 'string' && raw_admin_notes.trim().length > 0
 				? raw_admin_notes.split('\n').filter((n) => n.trim().length > 0)
 				: [];

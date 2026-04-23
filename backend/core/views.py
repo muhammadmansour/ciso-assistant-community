@@ -10202,20 +10202,38 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         print(f"[RA-AI-ANALYSIS] Typical evidence extracted: {len(typical_evidence)} (excluded: {excluded_evidence_count})")
 
         # 4b. Extract admin notes (library-supplied auditor guidance).
-        # Accepts list[str] (preferred, matches Muraji library admin-notes-support),
-        # a single string, or a dict {key: str}. Lines marked [EXCLUDED] are skipped.
+        # Accepts several shapes Muraji has shipped over time:
+        #   1. list[str] (legacy)
+        #   2. list[dict] with keys like text / content_ar / content_en /
+        #      excluded / included_in_ai_scope (current Muraji format)
+        #   3. dict[str, str|dict] (legacy)
+        #   4. single str (legacy) with optional "[EXCLUDED]" inline marker
+        # Preference when extracting text: content_ar → content_en → text
         admin_notes = []
         excluded_admin_notes_count = 0
         raw_admin_notes = getattr(requirement, 'admin_notes', None)
 
-        def _append_admin_note(value):
+        def _coerce_admin_note(value):
+            """Return a clean string for a single admin-note entry or None."""
             nonlocal excluded_admin_notes_count
-            if not isinstance(value, str):
-                return
-            if '[EXCLUDED]' in value:
-                excluded_admin_notes_count += 1
-                return
-            cleaned = value.strip().lstrip('-').lstrip('•').strip()
+            if isinstance(value, str):
+                if '[EXCLUDED]' in value:
+                    excluded_admin_notes_count += 1
+                    return None
+                cleaned = value.strip().lstrip('-').lstrip('•').strip()
+                return cleaned or None
+            if isinstance(value, dict):
+                if value.get('excluded') is True or value.get('included_in_ai_scope') is False:
+                    excluded_admin_notes_count += 1
+                    return None
+                for key in ('content_ar', 'content_en', 'text'):
+                    candidate = value.get(key)
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate.strip()
+            return None
+
+        def _append_admin_note(value):
+            cleaned = _coerce_admin_note(value)
             if cleaned:
                 admin_notes.append(cleaned)
 
