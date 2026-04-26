@@ -45,12 +45,29 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Pull latest backend code on server
+        # The remote restart script only runs `poetry install` + `migrate` against
+        # whatever code is checked out on disk; it does NOT fetch from origin.
+        # Without this step, backend changes pushed to `staging-version` would
+        # never reach the server. We fetch and hard-reset to origin/staging-version
+        # so the deployed tree always matches the branch that just triggered the
+        # workflow. Untracked files (e.g. frontend/build/, db/, .env) are left
+        # untouched by `git reset --hard`.
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd ~/ciso-stage/ciso-assistant-community && \
+             git fetch origin staging-version && \
+             git reset --hard origin/staging-version && \
+             git log -1 --pretty=oneline"
+
       - name: Copy build to server
         run: |
           # --delete removes stale chunks from previous builds so no old
           # compiled code (e.g. obsolete API URLs) lingers on the server.
           # Target the frontend/build/ directory explicitly so --delete
           # cannot touch anything outside of build/.
+          # Runs AFTER the git reset so the freshly-built CI artifacts win
+          # over whatever stale build/ may exist on the server.
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "mkdir -p /home/mansourmuhammad37/ciso-stage/ciso-assistant-community/frontend/build"
           rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
