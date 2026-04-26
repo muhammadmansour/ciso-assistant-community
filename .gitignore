@@ -23,3 +23,9 @@ charts/ciso-assistant-next/custom.yaml
 .history/
 __pycache__
 cli/db_backup
+
+# GCP service-account keys (must never be committed)
+*service-account*.json
+*service_account*.json
+ciso-storage*.json
+gcp-*.json
