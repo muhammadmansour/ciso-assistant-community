@@ -135,6 +135,18 @@ export const load = (async ({ fetch, params }) => {
 	}
 	evidenceModel.selectOptions = evidenceSelectOptions;
 
+	// Attach applied control options to the evidence model so the EvidenceForm
+	// can show an optional "Evidence to Applied Control" dropdown in the RA context
+	const acList = requirementAssessment.applied_controls;
+	if (Array.isArray(acList) && acList.length > 0) {
+		evidenceModel.appliedControlOptions = acList
+			.filter((ac: any) => ac && ac.id && ac.str)
+			.map((ac: any) => ({
+				label: ac.str,
+				value: ac.id
+			}));
+	}
+
 	const securityExceptionModel = getModelInfo('security-exceptions');
 	const securityExceptionCreateSchema = modelSchema('security-exceptions');
 	const securityExceptionCreateForm = await superValidate(
@@ -162,6 +174,24 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
+	// Load past AI analyses (safe — won't break page if it fails)
+	let aiAnalyses: any[] = [];
+	try {
+		const aiAnalysesUrl = `${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`;
+		console.log('[RA-EDIT] Fetching AI analyses from:', aiAnalysesUrl);
+		const analysesResponse = await fetch(aiAnalysesUrl);
+		console.log('[RA-EDIT] AI analyses response status:', analysesResponse.status, analysesResponse.statusText);
+		if (analysesResponse.ok) {
+			aiAnalyses = await analysesResponse.json();
+			console.log('[RA-EDIT] AI analyses loaded:', aiAnalyses.length, 'records');
+		} else {
+			const errorText = await analysesResponse.text().catch(() => '');
+			console.error('[RA-EDIT] AI analyses fetch failed:', analysesResponse.status, errorText.substring(0, 500));
+		}
+	} catch (e) {
+		console.error('[RA-EDIT] Failed to load AI analyses:', e);
+	}
+
 	return {
 		URLModel,
 		title: requirementAssessment.name,
@@ -177,7 +207,8 @@ export const load = (async ({ fetch, params }) => {
 		evidenceCreateForm,
 		securityExceptionModel,
 		securityExceptionCreateForm,
-		tables
+		tables,
+		aiAnalyses
 	};
 }) satisfies PageServerLoad;
 
@@ -261,12 +292,44 @@ export const actions: Actions = {
 		return { form, newControls: [measure.id] };
 	},
 	createEvidence: async (event) => {
-		const result = await nestedWriteFormAction({ event, action: 'create' });
-		return { form: result.form, newEvidence: result.form.message.object.id };
+		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: false });
 	},
 	createSecurityException: async (event) => {
 		const result = await nestedWriteFormAction({ event, action: 'create' });
 		return { form: result.form, newSecurityException: result.form.message.object.id };
+	},
+	runAiAnalysis: async (event) => {
+		// Call backend which calls Muraji API directly, wait for result
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/run-ai-analysis/`,
+			{ method: 'POST' }
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			return fail(response.status, { aiError: err.message || `Error ${response.status}` });
+		}
+
+		const result = await response.json();
+		return { aiAnalysis: result };
+	},
+	deleteAiAnalysis: async (event) => {
+		const formData = await event.request.formData();
+		const analysisId = formData.get('analysisId');
+		if (!analysisId) {
+			return fail(400, { error: 'Missing analysis ID' });
+		}
+
+		const response = await event.fetch(
+			`${BASE_API_URL}/requirement-assessments/${event.params.id}/ai-analyses/${analysisId}/delete/`,
+			{ method: 'DELETE' }
+		);
+
+		if (!response.ok) {
+			return fail(response.status, { error: 'Failed to delete analysis' });
+		}
+
+		return { deleted: true };
 	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();

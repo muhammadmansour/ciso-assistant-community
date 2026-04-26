@@ -9,6 +9,10 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
+	// Clear any existing session to prevent logged-in user from interfering with first connexion
+	event.cookies.delete('token', { path: '/' });
+	event.cookies.delete('allauth_session_token', { path: '/' });
+	
 	const form = await superValidate(event.request, zod(ResetPasswordSchema));
 
 	return { form };

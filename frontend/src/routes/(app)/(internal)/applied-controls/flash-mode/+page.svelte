@@ -231,7 +231,7 @@
 										}}
 									/>
 									<button
-										class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+										class="px-3 py-1 bg-[#0A1628] text-white rounded text-sm hover:bg-[#1a2740]"
 										onclick={handleJumpSubmit}
 									>
 										Go

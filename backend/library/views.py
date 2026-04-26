@@ -148,6 +148,42 @@ class StoredLibraryViewSet(BaseModelViewSet):
             return StoredLibrarySerializer
         return StoredLibraryDetailedSerializer
 
+    @action(detail=False, methods=["delete"], url_path="delete-all")
+    def delete_all(self, request):
+        """Delete all stored libraries, loaded libraries, and frameworks"""
+        from django.db import transaction
+        from core.models import RiskAssessment, RiskScenario
+
+        try:
+            with transaction.atomic():
+                fw_count = Framework.objects.count()
+                loaded_count = LoadedLibrary.objects.count()
+                stored_count = StoredLibrary.objects.count()
+
+                # Delete objects that have PROTECT FKs to library-derived models first
+                # RiskScenario.risk_origin → Terminology (PROTECT)
+                # RiskAssessment.risk_matrix → RiskMatrix (PROTECT)
+                # RiskScenario cascades from RiskAssessment, but delete explicitly to clear Terminology PROTECT
+                RiskScenario.objects.all().delete()
+                RiskAssessment.objects.all().delete()
+
+                # Now safe to delete the library chain
+                Framework.objects.all().delete()
+                LoadedLibrary.objects.all().delete()
+                StoredLibrary.objects.all().delete()
+
+            return Response({
+                'message': f'Deleted {stored_count} stored libraries, {loaded_count} loaded libraries, and {fw_count} frameworks.',
+                'stored_libraries_deleted': stored_count,
+                'loaded_libraries_deleted': loaded_count,
+                'frameworks_deleted': fw_count,
+            })
+        except Exception as e:
+            return Response(
+                {'message': f'Failed to delete libraries: {str(e)}'},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
     def retrieve(self, request, *args, pk, **kwargs):
         if "view_storedlibrary" not in request.user.permissions:
             return Response(status=HTTP_403_FORBIDDEN)

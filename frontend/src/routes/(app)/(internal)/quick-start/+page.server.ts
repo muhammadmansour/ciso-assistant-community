@@ -22,19 +22,23 @@ export const actions: Actions = {
 
 		const endpoint = `${BASE_API_URL}/quick-start/`;
 		const res = await event.fetch(endpoint, requestInitOptions);
+		const response = await res.json();
 
 		if (!res.ok) {
-			const response = await res.json();
 			console.error(response);
 			if (response.errors) {
-				response.errors.forEach((error) => {
+				response.errors.forEach((error: { param: string; code: string }) => {
 					setError(form, error.param, error.code);
 				});
-				return fail(res.status, { form });
 			}
+			// Handle field-level validation errors (e.g., {name: "error msg", version: "error msg"})
+			for (const [field, errorMsg] of Object.entries(response)) {
+				if (field !== 'errors' && typeof errorMsg === 'string') {
+					setError(form, field as keyof typeof form.data, errorMsg);
+				}
+			}
+			return fail(res.status, { form });
 		}
-
-		const response = await res.json();
 
 		return message(form, {
 			redirect: `/compliance-assessments/${response.complianceassessment.id}`

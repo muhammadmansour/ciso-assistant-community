@@ -10,8 +10,8 @@
 	const modalStore: ModalStore = getModalStore();
 
 	// Base Classes
-	const cBase = 'card bg-surface-50 p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold';
+	const cBase = 'card bg-white p-6 w-modal shadow-2xl space-y-4 rounded-2xl border border-gray-100';
+	const cHeader = 'text-xl font-bold text-gray-900';
 	const cForm = 'p-4 space-y-4 rounded-container';
 
 	interface Props {

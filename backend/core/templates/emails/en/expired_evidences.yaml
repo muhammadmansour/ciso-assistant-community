@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Evidence is expired since ${expired_since} ${days_text}"
+subject: "Wathbah GRC: Evidence is expired since ${expired_since} ${days_text}"
 body: |
   Hello,
 
@@ -6,7 +6,7 @@ body: |
 
   ${evidence_list}
 
-  Please log in to your CISO Assistant portal to review and update these evidences:
+  Please log in to your Wathbah GRC portal to review and update these evidences:
   ${ciso_assistant_url}
 
   Thank you.

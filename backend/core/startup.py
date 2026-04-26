@@ -1298,8 +1298,11 @@ def startup(sender: AppConfig, **kwargs):
     except Exception as e:
         logger.error("Error creating servicenow IntegrationProvider", exc_info=True)
 
-    call_command("storelibraries")
-    call_command("autoloadlibraries")
+    if os.environ.get("SKIP_STORE_LIBRARIES", "").lower() not in ("true", "1", "yes"):
+        call_command("storelibraries")
+        call_command("autoloadlibraries")
+    else:
+        logger.info("Skipping storelibraries/autoloadlibraries (SKIP_STORE_LIBRARIES=true)")
     call_command("sync_event_types")
 
     try:

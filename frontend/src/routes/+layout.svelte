@@ -92,7 +92,12 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href="/favicon.ico" /></svelte:head>
+<svelte:head>
+	<link rel="icon" href="/favicon.ico" />
+	<title>Wathbah GRC</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</svelte:head>
 <Modal components={modalRegistry} />
 <Toast />
 {@render children?.()}

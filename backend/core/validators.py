@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.core.validators import BaseValidator
@@ -50,16 +52,24 @@ def validate_file_name(value):
         "pdf",
     ]
     parts = value.name.split(".")
-    extension = parts[-1]
+    extension = parts[-1].lower()
 
     if extension in allowed_extensions:
-        if len(value.name) > 256:
-            raise ValidationError("File name is too long")
-        value.name = (
-            slugify(get_valid_filename(value.name.replace(extension, "")))
-            + "."
-            + extension
+        if len(value.name) > int(settings.ATTACHMENT_MAX_NAME_LENGTH):
+            raise ValidationError(
+                f"File name is too long (maximum {settings.ATTACHMENT_MAX_NAME_LENGTH} characters)"
+            )
+        # Get the filename without extension
+        name_without_ext = ".".join(parts[:-1]) if len(parts) > 1 else parts[0]
+        # Sanitize with unicode support for Arabic and other non-ASCII characters
+        sanitized_name = slugify(
+            get_valid_filename(name_without_ext), 
+            allow_unicode=True
         )
+        # If sanitization results in empty name, generate a UUID-based name
+        if not sanitized_name:
+            sanitized_name = f"file-{uuid.uuid4().hex[:8]}"
+        value.name = f"{sanitized_name}.{extension}"
         return value
     else:
         raise ValidationError("An error occured with file extension")

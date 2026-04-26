@@ -98,8 +98,6 @@ export const actions: Actions = {
 		return nestedDeleteFormAction({ event });
 	},
 	createEvidence: async (event) => {
-		const result = await nestedWriteFormAction({ event, action: 'create' });
-		if (result.form) return { form: result.form, newEvidence: result.form.message.object.id };
-		else return result;
+		return nestedWriteFormAction({ event, action: 'create', redirectToWrittenObject: false });
 	}
 };

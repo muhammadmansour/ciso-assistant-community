@@ -76,6 +76,19 @@ export const actions: Actions = {
 	delete: async (event) => {
 		return defaultDeleteFormAction({ event, urlModel: event.params.model! });
 	},
+	deleteAll: async (event) => {
+		const urlModel = event.params.model!;
+		const endpoint = `${BASE_API_URL}/${urlModel}/delete-all/`;
+		const response = await event.fetch(endpoint, { method: 'DELETE' });
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			setFlash({ type: 'error', message: errorData.message || `Failed to delete all ${urlModel}` }, event);
+			return fail(response.status);
+		}
+		const result = await response.json().catch(() => ({}));
+		setFlash({ type: 'success', message: result.message || `All ${urlModel} deleted successfully` }, event);
+		return { status: 200 };
+	},
 	importFolder: async (event) => {
 		const formData = await event.request.formData();
 		if (!formData) return fail(400, { error: 'No form data' });

@@ -110,7 +110,14 @@ from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound, PermissionDenied
 
 
-from weasyprint import HTML
+# WeasyPrint is optional - PDF generation will be disabled if not available
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError) as e:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    print(f"WeasyPrint not available: {e}. PDF export will be disabled.")
 
 from core.helpers import *
 from core.models import (
@@ -3326,6 +3333,11 @@ class RiskAssessmentViewSet(BaseModelViewSet):
                 "settings": matrix_settings,
                 "feature_flags": feature_flags,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/ra_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -3373,6 +3385,11 @@ class RiskAssessmentViewSet(BaseModelViewSet):
                 "context": context,
                 "risk_assessment": risk_assessment_object,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/risk_action_plan_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -3916,6 +3933,10 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
     API endpoint that allows applied controls to be viewed or edited.
     """
 
+    permission_overrides = {
+        "run_ai_analysis": "change_appliedcontrol",
+    }
+
     model = AppliedControl
     filterset_class = AppliedControlFilterSet
     search_fields = ["name", "description", "ref_id"]
@@ -4040,6 +4061,352 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 "security_exceptions",  # Serialized as FieldsRelatedField
             )
         )
+
+    @staticmethod
+    def _replace_gemini_ids_with_names(obj, id_to_name_map):
+        """Recursively replace Gemini file IDs (e.g. files/abc123) with real evidence names in the API response."""
+        if isinstance(obj, str):
+            for gid, name in id_to_name_map.items():
+                obj = obj.replace(gid, name)
+            return obj
+        elif isinstance(obj, dict):
+            return {k: AppliedControlViewSet._replace_gemini_ids_with_names(v, id_to_name_map) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [AppliedControlViewSet._replace_gemini_ids_with_names(item, id_to_name_map) for item in obj]
+        return obj
+
+    @action(detail=True, methods=["post"], url_path="run-ai-analysis")
+    def run_ai_analysis(self, request, pk=None):
+        """Call Muraji /api/audit/analyze directly and return result"""
+        import requests as http_requests
+        import os
+        from core.models import FileSearchTable
+        from core.gemini_file_search import get_gemini_client
+
+        applied_control = self.get_object()
+        print(f"[AI-ANALYSIS] ====== START ======")
+        print(f"[AI-ANALYSIS] Applied Control: id={applied_control.id}, name={applied_control.name}")
+
+        evidence_count = applied_control.evidences.count()
+        print(f"[AI-ANALYSIS] Total evidences linked to this applied control: {evidence_count}")
+        if evidence_count == 0:
+            print(f"[AI-ANALYSIS] ERROR: No evidences found!")
+            return Response(
+                {'message': 'No evidences found. Please upload evidence files first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Gather Gemini File Search IDs from evidences
+        # If files are missing valid IDs, upload them on-the-fly
+        gemini_file_ids = []
+        gemini_client = None  # Lazy init only if needed
+
+        for evidence in applied_control.evidences.all():
+            for revision in evidence.revisions.all():
+                if not revision.attachment:
+                    continue
+
+                # Check for existing valid Gemini file ID
+                has_valid_id = False
+                try:
+                    fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                        gemini_file_ids.append({
+                            'gemini_file_id': fs_entry.gemini_file_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
+                            'evidence_name': evidence.name,
+                            'evidence_description': evidence.description or ''
+                        })
+                        has_valid_id = True
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': using existing file ID {fs_entry.gemini_file_id}")
+                except Exception as e:
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+
+                # Upload on-the-fly if no valid ID exists
+                if not has_valid_id:
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no valid Gemini file ID, uploading now...")
+                    try:
+                        if gemini_client is None:
+                            gemini_client = get_gemini_client()
+                        if gemini_client is None:
+                            print(f"[AI-ANALYSIS] Gemini client not configured, skipping file upload")
+                            continue
+
+                        file_path = revision.attachment.path
+                        from urllib.parse import unquote
+                        decoded_filename = unquote(evidence.filename() or '')
+                        display_name = f"{evidence.name} - {decoded_filename}"
+                        
+                        result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+                        
+                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
+                            # Save to FileSearchTable
+                            fs_entry, _ = FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'gemini_file_id': result['gemini_file_id'],
+                                    'gemini_store_id': result.get('gemini_store_id', ''),
+                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                    'error_message': None,
+                                }
+                            )
+                            gemini_file_ids.append({
+                                'gemini_file_id': result['gemini_file_id'],
+                                'gemini_store_id': result.get('gemini_store_id', ''),
+                                'evidence_name': evidence.name,
+                                'evidence_description': evidence.description or ''
+                            })
+                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': uploaded successfully -> {result['gemini_file_id']}")
+                        else:
+                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
+                    except Exception as e:
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+
+        print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
+        print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'] for f in gemini_file_ids]}")
+
+        # Gather requirements, questions, typical evidence
+        questions = []
+        typical_evidence = []
+        requirements_context = []
+
+        for ra in applied_control.requirement_assessments.select_related(
+            'requirement', 'requirement__framework'
+        ).all():
+            req = ra.requirement
+
+            requirements_context.append({
+                'ref_id': req.ref_id,
+                'name': req.name,
+                'description': req.description or '',
+                'framework': req.framework.name if req.framework else '',
+                'provider': req.framework.provider if req.framework else ''
+            })
+
+            # Parse questions
+            if req.questions:
+                if isinstance(req.questions, dict):
+                    for q_key, q_val in req.questions.items():
+                        if isinstance(q_val, dict) and 'text' in q_val:
+                            questions.append(q_val['text'])
+                        elif isinstance(q_val, str):
+                            questions.append(q_val)
+                elif isinstance(req.questions, list):
+                    questions.extend(
+                        [q.get('text', q) if isinstance(q, dict) else q for q in req.questions]
+                    )
+
+            # Parse typical evidence
+            if req.typical_evidence:
+                if isinstance(req.typical_evidence, str):
+                    for line in req.typical_evidence.strip().split('\n'):
+                        line = line.strip().lstrip('-').lstrip('•').strip()
+                        if line:
+                            typical_evidence.append(line)
+                elif isinstance(req.typical_evidence, list):
+                    typical_evidence.extend(req.typical_evidence)
+
+        # Remove duplicates preserving order
+        questions = list(dict.fromkeys(questions))
+        typical_evidence = list(dict.fromkeys(typical_evidence))
+
+        # Build request body matching Muraji /api/audit/analyze format
+        request_body = {
+            'applied_control': {
+                'id': str(applied_control.id),
+                'ref_id': applied_control.ref_id,
+                'name': applied_control.name,
+                'description': applied_control.description or '',
+                'status': applied_control.status,
+                'category': applied_control.category,
+                'csf_function': applied_control.csf_function
+            },
+            'gemini_file_search': {
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids
+            },
+            'requirements': requirements_context,
+            'questions': questions,
+            'typical_evidence': typical_evidence,
+            'analysis_config': {
+                'include_entity_extraction': True,
+                'include_compliance_check': True,
+                'include_gap_analysis': True,
+                'include_recommendations': True
+            }
+        }
+
+        muraji_url = os.environ.get(
+            'MURAJI_ANALYSIS_API_URL',
+            'https://muraji-api.wathbahs.com/api/audit/analyze'
+        )
+
+        from core.models import AiAnalysisResult
+
+        try:
+            resp = http_requests.post(
+                muraji_url,
+                json=request_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=300
+            )
+            if not resp.ok:
+                # Save failed analysis
+                AiAnalysisResult.objects.create(
+                    applied_control=applied_control,
+                    result={'error': resp.text[:2000]},
+                    status='failed',
+                    error_message=f'Muraji API error: {resp.status_code}',
+                    gemini_files_count=len(gemini_file_ids),
+                    requirements_count=len(requirements_context),
+                )
+                return Response(
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+            
+            analysis_data = resp.json()
+
+            # Replace both Gemini file IDs and positional "Evidence N" labels with evidence names
+            id_to_name = {}
+            for idx, fs in enumerate(gemini_file_ids):
+                ev_name = fs['evidence_name']
+                if fs.get('gemini_file_id'):
+                    id_to_name[fs['gemini_file_id']] = ev_name
+                id_to_name[f"Evidence {idx + 1}"] = ev_name
+            if id_to_name:
+                analysis_data = self._replace_gemini_ids_with_names(analysis_data, id_to_name)
+            
+            # Extract score and status from the analysis result
+            overall = analysis_data.get('overallAssessment', {})
+            score = overall.get('score', None)
+            compliance_status = overall.get('status', '')
+            
+            # Save to database
+            analysis_record = AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result=analysis_data,
+                status='completed',
+                score=score,
+                compliance_status=compliance_status,
+                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
+            
+            return Response({
+                'ai_analysis': analysis_data,
+                'ai_analysis_id': str(analysis_record.id),
+                'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
+            })
+        except http_requests.Timeout:
+            AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result={'error': 'Muraji API timed out'},
+                status='failed',
+                error_message='Muraji API timed out',
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
+            return Response(
+                {'message': 'Muraji API timed out'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except Exception as e:
+            AiAnalysisResult.objects.create(
+                applied_control=applied_control,
+                result={'error': str(e)},
+                status='failed',
+                error_message=str(e),
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=len(requirements_context),
+            )
+            return Response(
+                {'message': f'Failed to call Muraji API: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses")
+    def list_ai_analyses(self, request, pk=None):
+        """List all AI analysis results for this applied control"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        analyses = AiAnalysisResult.objects.filter(
+            applied_control=applied_control
+        ).order_by('-created_at')
+        
+        results = []
+        for a in analyses:
+            results.append({
+                'id': str(a.id),
+                'created_at': a.created_at.isoformat(),
+                'status': a.status,
+                'score': a.score,
+                'compliance_status': a.compliance_status,
+                'model_used': a.model_used,
+                'gemini_files_count': a.gemini_files_count,
+                'requirements_count': a.requirements_count,
+                'error_message': a.error_message,
+                'result': a.result,
+            })
+        
+        return Response(results)
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)")
+    def get_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Get a specific AI analysis result with full details"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                applied_control=applied_control
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        return Response({
+            'id': str(analysis.id),
+            'created_at': analysis.created_at.isoformat(),
+            'status': analysis.status,
+            'score': analysis.score,
+            'compliance_status': analysis.compliance_status,
+            'model_used': analysis.model_used,
+            'gemini_files_count': analysis.gemini_files_count,
+            'requirements_count': analysis.requirements_count,
+            'error_message': analysis.error_message,
+            'result': analysis.result,
+        })
+
+    @action(detail=True, methods=["delete"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)/delete")
+    def delete_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Delete a specific AI analysis result"""
+        from core.models import AiAnalysisResult
+        applied_control = self.get_object()
+        
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                applied_control=applied_control
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        analysis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_create(self, serializer):
         create_remote_object = serializer.validated_data.pop(
@@ -7278,6 +7645,27 @@ class FrameworkViewSet(BaseModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["delete"], url_path="delete-all")
+    def delete_all(self, request):
+        """Delete all frameworks and their loaded libraries"""
+        from core.models import LoadedLibrary, StoredLibrary
+        
+        fw_count = Framework.objects.count()
+        loaded_count = LoadedLibrary.objects.count()
+        
+        # Delete frameworks first, then loaded libraries
+        Framework.objects.all().delete()
+        LoadedLibrary.objects.all().delete()
+        
+        # Mark stored libraries as not loaded
+        StoredLibrary.objects.filter(is_loaded=True).update(is_loaded=False)
+        
+        return Response({
+            'message': f'Deleted {fw_count} frameworks and {loaded_count} loaded libraries.',
+            'frameworks_deleted': fw_count,
+            'loaded_libraries_deleted': loaded_count,
+        }, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["get"])
     def tree(self, request, pk):
         _framework = Framework.objects.get(id=pk)
@@ -7627,11 +8015,29 @@ class EvidenceViewSet(BaseModelViewSet):
         "processings",
     ]
 
+    def perform_create(self, serializer):
+        """Create evidence and trigger auto-analysis if attachment is uploaded."""
+        instance = super().perform_create(serializer)
+        # Note: Attachments are uploaded via EvidenceRevision, not directly on Evidence
+        # Auto-analysis is triggered from EvidenceRevisionViewSet.perform_create
+        return instance
+
+    def perform_update(self, serializer):
+        """Update evidence."""
+        instance = super().perform_update(serializer)
+        # Note: Attachments are uploaded via EvidenceRevision, not directly on Evidence
+        # Auto-analysis is triggered from EvidenceRevisionViewSet.perform_create
+        return instance
+
     @action(detail=False, name="Get all evidences owners")
     def owner(self, request):
+        # Get users who are owners of evidences through the Actor model
+        user_ids = Actor.objects.filter(
+            evidences__isnull=False, user__isnull=False
+        ).values_list("user_id", flat=True).distinct()
         return Response(
             UserReadSerializer(
-                User.objects.filter(evidences__isnull=False).distinct(),
+                User.objects.filter(id__in=user_ids),
                 many=True,
             ).data
         )
@@ -7673,6 +8079,157 @@ class EvidenceViewSet(BaseModelViewSet):
     def status(self, request):
         return Response(dict(Evidence.Status.choices))
 
+    @action(methods=["get", "post"], detail=True, url_path="ai-analysis")
+    def ai_analysis(self, request, pk):
+        """
+        Get or save AI entity extraction analysis results for an evidence.
+        GET: Retrieve stored analysis, questions, and typical evidence from linked requirements
+        POST: Save new analysis results
+        """
+        from django.utils import timezone
+
+        (
+            object_ids_view,
+            object_ids_change,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+        
+        if request.method == "GET":
+            if UUID(pk) not in object_ids_view:
+                return Response(
+                    {"error": "You don't have permission to view this evidence"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            evidence = self.get_object()
+            
+            # Get questions and typical evidence from linked requirement assessments
+            questions = []
+            typical_evidence = []
+            requirements_context = []
+            
+            # Get through requirement_assessments relationship
+            for ra in evidence.requirement_assessments.all():
+                req = ra.requirement
+                
+                # Build requirement context
+                req_context = {
+                    "ref_id": req.ref_id,
+                    "name": req.name or "",
+                    "description": req.description or "",
+                    "provider": req.provider or "",
+                    "framework": req.framework.name if req.framework else "",
+                    "framework_provider": req.framework.provider if req.framework else "",
+                }
+                requirements_context.append(req_context)
+                
+                # Parse questions from the requirement
+                if req.questions:
+                    if isinstance(req.questions, dict):
+                        for q_key, q_val in req.questions.items():
+                            if isinstance(q_val, dict) and 'text' in q_val:
+                                questions.append(q_val['text'])
+                            elif isinstance(q_val, str):
+                                questions.append(q_val)
+                    elif isinstance(req.questions, list):
+                        questions.extend([q.get('text', q) if isinstance(q, dict) else q for q in req.questions])
+                
+                # Parse typical evidence
+                if req.typical_evidence:
+                    # typical_evidence might be a string with newlines or bullet points
+                    if isinstance(req.typical_evidence, str):
+                        lines = req.typical_evidence.strip().split('\n')
+                        for line in lines:
+                            line = line.strip().lstrip('-').lstrip('•').strip()
+                            if line:
+                                typical_evidence.append(line)
+                    elif isinstance(req.typical_evidence, list):
+                        typical_evidence.extend(req.typical_evidence)
+            
+            # Remove duplicates while preserving order
+            questions = list(dict.fromkeys(questions))
+            typical_evidence = list(dict.fromkeys(typical_evidence))
+            
+            return Response({
+                "ai_analysis": evidence.ai_analysis,
+                "ai_analysis_updated_at": evidence.ai_analysis_updated_at,
+                "audit_analysis": evidence.audit_analysis,
+                "audit_analysis_updated_at": evidence.audit_analysis_updated_at,
+                "questions": questions,
+                "typical_evidence": typical_evidence,
+                "requirements_context": requirements_context,
+                "evidence_name": evidence.name,
+                "evidence_description": evidence.description or ""
+            })
+        
+        elif request.method == "POST":
+            if UUID(pk) not in object_ids_change:
+                return Response(
+                    {"error": "You don't have permission to update this evidence"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            evidence = self.get_object()
+            analysis_data = request.data.get("analysis")
+            
+            if not analysis_data:
+                return Response(
+                    {"error": "analysis data is required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            evidence.ai_analysis = analysis_data
+            evidence.ai_analysis_updated_at = timezone.now()
+            evidence.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
+            
+            return Response({
+                "success": True,
+                "ai_analysis": evidence.ai_analysis,
+                "ai_analysis_updated_at": evidence.ai_analysis_updated_at
+            })
+
+    @action(methods=["post"], detail=True, url_path="audit-analysis")
+    def audit_analysis(self, request, pk):
+        """
+        Save audit compliance analysis results for an evidence.
+        """
+        from django.utils import timezone
+
+        (
+            _,
+            object_ids_change,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+        
+        if UUID(pk) not in object_ids_change:
+            return Response(
+                {"error": "You don't have permission to update this evidence"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        evidence = self.get_object()
+        analysis_data = request.data.get("analysis")
+        
+        if not analysis_data:
+            return Response(
+                {"error": "analysis data is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        evidence.audit_analysis = analysis_data
+        evidence.audit_analysis_updated_at = timezone.now()
+        evidence.save(update_fields=["audit_analysis", "audit_analysis_updated_at"])
+        
+        return Response({
+            "success": True,
+            "audit_analysis": evidence.audit_analysis,
+            "audit_analysis_updated_at": evidence.audit_analysis_updated_at
+        })
+
 
 class EvidenceRevisionViewSet(BaseModelViewSet):
     """
@@ -7682,6 +8239,15 @@ class EvidenceRevisionViewSet(BaseModelViewSet):
     model = EvidenceRevision
     filterset_fields = ["evidence"]
     ordering = ["-version"]
+
+    def perform_create(self, serializer):
+        """Create evidence revision and trigger auto-analysis if attachment is uploaded."""
+        instance = super().perform_create(serializer)
+        # Auto-analysis disabled - can be triggered manually from UI
+        # if instance and instance.attachment and instance.evidence:
+        #     from core.tasks import run_evidence_auto_analysis
+        #     run_evidence_auto_analysis(str(instance.evidence.id))
+        return instance
 
     @action(methods=["get"], detail=True)
     def attachment(self, request, pk):
@@ -7761,6 +8327,60 @@ class UploadAttachmentView(APIView):
                     revision.attachment.delete()
                 revision.attachment = attachment
                 revision.save()
+                
+                # Upload to Gemini synchronously
+                try:
+                    from core.gemini_file_search import get_gemini_client
+                    from core.models import FileSearchTable
+
+                    gemini_client = get_gemini_client()
+                    if gemini_client:
+                        file_path = revision.attachment.path
+                        display_name = f"{evidence.name} - {evidence.filename()}"
+
+                        # Delete any old entry
+                        FileSearchTable.objects.filter(evidence_revision=revision).delete()
+
+                        result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+
+                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
+                            FileSearchTable.objects.create(
+                                evidence_revision=revision,
+                                gemini_file_id=result['gemini_file_id'],
+                                gemini_store_id=result.get('gemini_store_id', ''),
+                                upload_status=FileSearchTable.UploadStatus.COMPLETED,
+                            )
+                            logger.info(
+                                "Gemini file uploaded successfully",
+                                revision_id=str(revision.id),
+                                gemini_file_id=result['gemini_file_id'],
+                            )
+                        else:
+                            FileSearchTable.objects.create(
+                                evidence_revision=revision,
+                                gemini_file_id='',
+                                gemini_store_id='',
+                                upload_status=FileSearchTable.UploadStatus.FAILED,
+                                error_message=result.get('error', 'Upload did not return valid file ID'),
+                            )
+                            logger.warning(
+                                "Gemini file upload did not succeed",
+                                revision_id=str(revision.id),
+                                result=str(result),
+                            )
+                    else:
+                        logger.info("Gemini not configured, skipping upload")
+                except Exception as e:
+                    logger.warning(
+                        "Failed to upload to Gemini",
+                        revision_id=str(revision.id),
+                        error=str(e)
+                    )
 
         return Response(status=status.HTTP_200_OK)
 
@@ -8356,6 +8976,11 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 "context": context,
                 "compliance_assessment": compliance_assessment_object,
             }
+            if not WEASYPRINT_AVAILABLE:
+                return Response(
+                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                    status=status.HTTP_501_NOT_IMPLEMENTED
+                )
             html = render_to_string("core/action_plan_pdf.html", data)
             pdf_file = HTML(string=html).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -8705,6 +9330,10 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
     def tree(self, request, pk):
         compliance_assessment = self.get_object()
         _framework = compliance_assessment.framework
+
+        # Sync missing requirement nodes from library before building the tree
+        compliance_assessment.sync_requirement_nodes_with_library()
+
         requirement_assessments = list(
             compliance_assessment.get_requirement_assessments(
                 include_non_assessable=True
@@ -8744,6 +9373,10 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             self.request.query_params.get("assessable", "false")
         ).lower() in {"true", "1", "yes"}
         compliance_assessment = self.get_object()
+
+        # Sync missing requirement nodes from library before fetching requirements
+        compliance_assessment.sync_requirement_nodes_with_library()
+
         requirement_assessments_objects = list(
             compliance_assessment.get_requirement_assessments(
                 include_non_assessable=not assessable
@@ -9278,6 +9911,13 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
     API endpoint that allows requirement assessments to be viewed or edited.
     """
 
+    permission_overrides = {
+        "run_ai_analysis": "change_requirementassessment",
+        "list_ai_analyses": "view_requirementassessment",
+        "get_ai_analysis": "view_requirementassessment",
+        "delete_ai_analysis": "change_requirementassessment",
+    }
+
     model = RequirementAssessment
     filterset_fields = [
         "folder",
@@ -9325,6 +9965,636 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         response = super().update(request, *args, **kwargs)
         cache.clear()
         return response
+
+    @action(detail=True, methods=["post"], url_path="run-ai-analysis")
+    def run_ai_analysis(self, request, pk=None):
+        """Run AI analysis for a requirement assessment via Muraji /api/audit/analyze"""
+        import requests as http_requests
+        import os
+        from core.models import FileSearchTable
+        from core.gemini_file_search import get_gemini_client
+
+        requirement_assessment = self.get_object()
+        requirement = requirement_assessment.requirement
+
+        print(f"[RA-AI-ANALYSIS] ====== START ======")
+        print(f"[RA-AI-ANALYSIS] Requirement Assessment: id={requirement_assessment.id}")
+        print(f"[RA-AI-ANALYSIS] Requirement: {requirement.ref_id} - {requirement.name}")
+
+        # 1. Get all applied controls linked to this requirement assessment
+        applied_controls = requirement_assessment.applied_controls.all()
+        ac_count = applied_controls.count()
+        print(f"[RA-AI-ANALYSIS] Applied Controls linked: {ac_count}")
+
+        # Also get evidences directly linked to the requirement assessment
+        direct_evidences = requirement_assessment.evidences.all()
+        direct_evidence_count = direct_evidences.count()
+        print(f"[RA-AI-ANALYSIS] Direct evidences on RA: {direct_evidence_count}")
+
+        if ac_count == 0 and direct_evidence_count == 0:
+            return Response(
+                {'message': 'No applied controls or evidences linked. Please link applied controls with evidences first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Gather Gemini file IDs from all sources
+        gemini_file_ids = []
+        applied_controls_meta = []
+        gemini_client = None
+        seen_evidence_ids = set()  # Track already-processed evidences to avoid duplicates
+        from urllib.parse import unquote
+
+        def _process_evidence(evidence, source_label, ac_name=None):
+            """Process a single evidence: check FileSearchTable or upload on-the-fly."""
+            nonlocal gemini_client
+            if evidence.id in seen_evidence_ids:
+                return 0, []
+            seen_evidence_ids.add(evidence.id)
+
+            ev_count = 0
+            ev_files = []
+            label_prefix = f"[AC: {ac_name}]" if ac_name else "[Direct]"
+            ctrl_name = ac_name or "Direct Evidence"
+
+            for revision in evidence.revisions.all():
+                if not revision.attachment:
+                    continue
+
+                has_valid_id = False
+                try:
+                    fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                        gemini_file_ids.append({
+                            'gemini_file_id': fs_entry.gemini_file_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
+                            'evidence_name': f"{label_prefix} {evidence.name}",
+                            'evidence_description': evidence.description or '',
+                            'applied_control_name': ctrl_name,
+                        })
+                        has_valid_id = True
+                        ev_files.append(evidence.filename() or evidence.name)
+                        ev_count += 1
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): using existing file ID {fs_entry.gemini_file_id}")
+                except Exception as e:
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+
+                # Upload on-the-fly if no valid ID exists
+                if not has_valid_id:
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no valid Gemini file ID, uploading now...")
+                    try:
+                        if gemini_client is None:
+                            gemini_client = get_gemini_client()
+                        if gemini_client is None:
+                            print(f"[RA-AI-ANALYSIS] Gemini client not configured, skipping file upload")
+                            continue
+
+                        file_path = revision.attachment.path
+                        decoded_filename = unquote(evidence.filename() or '')
+                        display_name = f"{label_prefix} {evidence.name} - {decoded_filename}"
+
+                        upload_result = gemini_client.upload_file(
+                            file_path=file_path,
+                            display_name=display_name,
+                            max_wait_seconds=120,
+                            poll_interval=3,
+                        )
+
+                        if upload_result['status'] == 'completed' and upload_result.get('gemini_file_id', '').startswith('files/'):
+                            fs_entry, _ = FileSearchTable.objects.update_or_create(
+                                evidence_revision=revision,
+                                defaults={
+                                    'gemini_file_id': upload_result['gemini_file_id'],
+                                    'gemini_store_id': upload_result.get('gemini_store_id', ''),
+                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
+                                    'error_message': None,
+                                }
+                            )
+                            gemini_file_ids.append({
+                                'gemini_file_id': upload_result['gemini_file_id'],
+                                'gemini_store_id': upload_result.get('gemini_store_id', ''),
+                                'evidence_name': f"{label_prefix} {evidence.name}",
+                                'evidence_description': evidence.description or '',
+                                'applied_control_name': ctrl_name,
+                            })
+                            ev_files.append(decoded_filename or evidence.name)
+                            ev_count += 1
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': uploaded -> {upload_result['gemini_file_id']}")
+                        else:
+                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {upload_result}")
+                    except Exception as e:
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+
+            return ev_count, ev_files
+
+        # 2a. Process evidences from applied controls
+        for ac in applied_controls:
+            ac_evidence_count = 0
+            ac_file_names = []
+
+            for evidence in ac.evidences.all():
+                count, files = _process_evidence(evidence, f"AC: {ac.name}", ac_name=ac.name)
+                ac_evidence_count += count
+                ac_file_names.extend(files)
+
+            applied_controls_meta.append({
+                'id': str(ac.id),
+                'name': ac.name,
+                'ref_id': ac.ref_id or '',
+                'status': ac.status or '--',
+                'evidenceCount': ac_evidence_count,
+                'fileNames': ac_file_names,
+            })
+
+        # 2b. Process evidences directly linked to the requirement assessment
+        direct_ev_count = 0
+        direct_ev_files = []
+        for evidence in direct_evidences:
+            count, files = _process_evidence(evidence, "Direct on RA")
+            direct_ev_count += count
+            direct_ev_files.extend(files)
+
+        if direct_ev_count > 0:
+            applied_controls_meta.append({
+                'id': 'direct',
+                'name': 'Direct Evidences (on Requirement Assessment)',
+                'ref_id': '',
+                'status': '--',
+                'evidenceCount': direct_ev_count,
+                'fileNames': direct_ev_files,
+            })
+
+        print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
+        print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_file_ids) - direct_ev_count}, Direct on RA: {direct_ev_count}")
+
+        # 3. Extract questions from the requirement
+        questions = []
+        if requirement.questions:
+            if isinstance(requirement.questions, dict):
+                for q_key, q_val in requirement.questions.items():
+                    if isinstance(q_val, dict) and 'text' in q_val:
+                        questions.append(q_val['text'])
+                    elif isinstance(q_val, str):
+                        questions.append(q_val)
+            elif isinstance(requirement.questions, list):
+                questions.extend(
+                    [q.get('text', q) if isinstance(q, dict) else q for q in requirement.questions]
+                )
+        questions = list(dict.fromkeys(questions))
+        print(f"[RA-AI-ANALYSIS] Questions extracted: {len(questions)}")
+
+        # 4. Extract typical evidence
+        typical_evidence = []
+        if requirement.typical_evidence:
+            if isinstance(requirement.typical_evidence, str):
+                for line in requirement.typical_evidence.strip().split('\n'):
+                    line = line.strip().lstrip('-').lstrip('•').strip()
+                    if line:
+                        typical_evidence.append(line)
+            elif isinstance(requirement.typical_evidence, list):
+                typical_evidence.extend(requirement.typical_evidence)
+        typical_evidence = list(dict.fromkeys(typical_evidence))
+
+        # 5. Build requirement context
+        requirements_context = [{
+            'ref_id': requirement.ref_id,
+            'name': requirement.name,
+            'description': requirement.description or '',
+            'framework': requirement.framework.name if requirement.framework else '',
+            'provider': requirement.framework.provider if requirement.framework else '',
+        }]
+
+        # 6. Build request body for Muraji /api/audit/analyze
+        # Use first AC as the "main" applied control if available, otherwise use RA info directly
+        first_ac = applied_controls.first()
+        ac_descriptions = []
+        for ac in applied_controls:
+            ac_descriptions.append(f"- {ac.name} ({ac.ref_id or 'no ref'}) [status: {ac.status or 'unknown'}]: {ac.description or 'no description'}")
+
+        if ac_count > 0:
+            merged_description = f"This analysis covers {ac_count} applied control(s) linked to requirement {requirement.ref_id}:\n" + "\n".join(ac_descriptions)
+        else:
+            merged_description = f"This analysis covers requirement {requirement.ref_id} with {direct_evidence_count} direct evidence(s)."
+
+        if direct_ev_count > 0:
+            merged_description += f"\nAdditionally, {direct_ev_count} evidence file(s) are directly attached to the requirement assessment."
+
+        # Format questions with answer constraint: each question must be answered with Yes, No, or Partial
+        questions_with_format = []
+        for q in questions:
+            questions_with_format.append({
+                'text': q,
+                'answer_format': 'Must answer with exactly one of: Yes, No, Partial',
+                'allowed_values': ['Yes', 'No', 'Partial'],
+            })
+
+        request_body = {
+            'applied_control': {
+                'id': str(first_ac.id) if first_ac else str(requirement_assessment.id),
+                'ref_id': (first_ac.ref_id if first_ac else '') or requirement.ref_id or '',
+                'name': f"Requirement Assessment: {requirement.ref_id} - {requirement.name}",
+                'description': merged_description,
+                'status': first_ac.status if first_ac else '',
+                'category': first_ac.category if first_ac else '',
+                'csf_function': first_ac.csf_function if first_ac else '',
+            },
+            'gemini_file_search': {
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids,
+            },
+            'requirements': requirements_context,
+            'questions': questions_with_format,
+            'typical_evidence': typical_evidence,
+            'analysis_config': {
+                'include_entity_extraction': True,
+                'include_compliance_check': True,
+                'include_gap_analysis': True,
+                'include_recommendations': True,
+                'question_answer_values': ['Yes', 'No', 'Partial'],
+                'question_answer_instruction': 'IMPORTANT: Each question MUST be answered with exactly one of these values: "Yes", "No", or "Partial". Do not use any other values.',
+            }
+        }
+
+        muraji_url = os.environ.get(
+            'MURAJI_ANALYSIS_API_URL',
+            'https://muraji-api.wathbahs.com/api/audit/analyze'
+        )
+
+        print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
+        print(f"[RA-AI-ANALYSIS] Questions: {questions}")
+        print(f"[RA-AI-ANALYSIS] Typical evidence: {typical_evidence}")
+        print(f"[RA-AI-ANALYSIS] Gemini files count: {len(gemini_file_ids)}")
+        print(f"[RA-AI-ANALYSIS] Request body keys: {list(request_body.keys())}")
+        import json as _json
+        print(f"[RA-AI-ANALYSIS] Request body (truncated): {_json.dumps(request_body, default=str)[:2000]}")
+
+        try:
+            resp = http_requests.post(
+                muraji_url,
+                json=request_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=300,
+            )
+
+            from core.models import AiAnalysisResult
+
+            if not resp.ok:
+                print(f"[RA-AI-ANALYSIS] Muraji API error: {resp.status_code} - {resp.text[:1000]}")
+                AiAnalysisResult.objects.create(
+                    requirement_assessment=requirement_assessment,
+                    result={'error': resp.text[:2000]},
+                    status='failed',
+                    error_message=f'Muraji API error: {resp.status_code}',
+                    gemini_files_count=len(gemini_file_ids),
+                    requirements_count=1,
+                )
+                return Response(
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+
+            result = resp.json()
+            print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
+
+            # Build replacement map: both Gemini file IDs AND positional "Evidence N" labels → AC name
+            id_to_name = {}
+            for idx, fs in enumerate(gemini_file_ids):
+                ac_name = fs.get('applied_control_name', fs['evidence_name'])
+                if fs.get('gemini_file_id'):
+                    id_to_name[fs['gemini_file_id']] = ac_name
+                id_to_name[f"Evidence {idx + 1}"] = ac_name
+            if id_to_name:
+                result = AppliedControlViewSet._replace_gemini_ids_with_names(result, id_to_name)
+
+            # Add applied controls metadata to the response
+            if isinstance(result, dict):
+                result['_appliedControls'] = applied_controls_meta
+
+            # ── Extract question answers as a separate JSON object ──
+            # Look for question evaluation in the AI response and normalize answers to Yes/No/Partial
+            VALID_ANSWERS = {'yes': 'Yes', 'no': 'No', 'partial': 'Partial'}
+
+            def _normalize_answer(raw_answer):
+                """Normalize an answer string to exactly Yes, No, or Partial."""
+                if raw_answer is None:
+                    return 'Partial'
+                val = str(raw_answer).strip().lower()
+                if val in VALID_ANSWERS:
+                    return VALID_ANSWERS[val]
+                # Try common variations
+                if val in ('true', 'compliant', 'met', 'full', 'fully'):
+                    return 'Yes'
+                if val in ('false', 'non-compliant', 'noncompliant', 'not met', 'none', 'not_met'):
+                    return 'No'
+                if val in ('partially', 'partially compliant', 'partially_compliant', 'partial', 'partly'):
+                    return 'Partial'
+                return 'Partial'  # Default to Partial if answer is ambiguous
+
+            def _extract_question_answers(ai_result, original_questions):
+                """Extract question answers from the AI response and return as a separate dict."""
+                if not isinstance(ai_result, dict):
+                    return {}
+
+                # Find the question evaluation section (case-insensitive)
+                question_section = None
+                question_section_key = None
+                for key in ai_result:
+                    lower_key = key.lower().replace('_', '').replace(' ', '')
+                    if lower_key in ('questionevaluation', 'questionsanswers', 'questionanswers',
+                                     'questions_answers', 'question_evaluation', 'questionsandanswers'):
+                        question_section = ai_result[key]
+                        question_section_key = key
+                        break
+
+                answers_dict = {}
+
+                if isinstance(question_section, list):
+                    for idx, item in enumerate(question_section):
+                        if isinstance(item, dict):
+                            # Get question text
+                            q_text = None
+                            for q_key in ('question', 'text', 'questionText', 'question_text'):
+                                if q_key in item:
+                                    q_text = item[q_key]
+                                    break
+                            if not q_text and idx < len(original_questions):
+                                q_text = original_questions[idx]
+
+                            # Get the answer and normalize
+                            raw_answer = None
+                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
+                                if a_key in item:
+                                    raw_answer = item[a_key]
+                                    break
+
+                            normalized = _normalize_answer(raw_answer)
+                            q_number = item.get('questionNumber', item.get('number', idx + 1))
+
+                            answer_entry = {
+                                'question': q_text or f"Question {q_number}",
+                                'answer': normalized,
+                            }
+                            # Include source/justification if present
+                            for extra_key in ('source', 'sourceFile', 'appliedControl', 'applied_control'):
+                                if extra_key in item and item[extra_key]:
+                                    answer_entry['source'] = item[extra_key] if isinstance(item[extra_key], str) else str(item[extra_key])
+                                    break
+                            for extra_key in ('justification', 'explanation', 'reasoning', 'notes'):
+                                if extra_key in item and item[extra_key]:
+                                    answer_entry['justification'] = str(item[extra_key])
+                                    break
+
+                            answers_dict[f"q{idx + 1}"] = answer_entry
+
+                            # Also normalize the answer in-place in the AI response
+                            for a_key in ('answer', 'answered', 'selectedChoice', 'selected_choice', 'value', 'response'):
+                                if a_key in item:
+                                    item[a_key] = normalized
+                                    break
+                            else:
+                                item['answer'] = normalized
+
+                elif isinstance(question_section, dict):
+                    # Handle dict format
+                    for idx, (q_key, q_val) in enumerate(question_section.items()):
+                        if isinstance(q_val, dict):
+                            raw_answer = q_val.get('answer', q_val.get('value'))
+                            normalized = _normalize_answer(raw_answer)
+                            answers_dict[f"q{idx + 1}"] = {
+                                'question': q_val.get('question', q_val.get('text', q_key)),
+                                'answer': normalized,
+                            }
+                            q_val['answer'] = normalized
+                        elif isinstance(q_val, str):
+                            normalized = _normalize_answer(q_val)
+                            answers_dict[f"q{idx + 1}"] = {
+                                'question': q_key,
+                                'answer': normalized,
+                            }
+                            question_section[q_key] = normalized
+
+                # If no question section found, create answers from original questions with Partial
+                if not answers_dict and original_questions:
+                    for idx, q in enumerate(original_questions):
+                        answers_dict[f"q{idx + 1}"] = {
+                            'question': q,
+                            'answer': 'Partial',  # Default when AI didn't provide answers
+                        }
+
+                return answers_dict
+
+            question_answers = _extract_question_answers(result, questions)
+            print(f"[RA-AI-ANALYSIS] Extracted question_answers: {question_answers}")
+
+            # ── Auto-update requirement assessment answers from AI responses ──
+            # Map AI Yes/No/Partial answers → choice URNs in the requirement's questions
+            req_questions = requirement.questions or {}
+            current_answers = dict(requirement_assessment.answers or {})
+            answers_updated = False
+
+            if req_questions and question_answers:
+                # Build ordered list of question URNs matching the order we sent to the AI
+                question_urns_ordered = []
+                for q_urn, q_def in req_questions.items():
+                    if isinstance(q_def, dict) and 'text' in q_def:
+                        question_urns_ordered.append((q_urn, q_def))
+
+                # Map AI answer index to question URN
+                qa_entries = list(question_answers.values())
+                for idx, qa_entry in enumerate(qa_entries):
+                    if idx >= len(question_urns_ordered):
+                        break
+
+                    q_urn, q_def = question_urns_ordered[idx]
+                    ai_answer = qa_entry.get('answer', '')  # "Yes", "No", or "Partial"
+                    choices = q_def.get('choices', [])
+
+                    if not choices or not ai_answer:
+                        continue
+
+                    # Find the choice whose value matches the AI answer (case-insensitive)
+                    matched_choice_urn = None
+                    ai_lower = ai_answer.lower()
+                    for choice in choices:
+                        choice_value = (choice.get('value') or '').lower()
+                        if choice_value == ai_lower:
+                            matched_choice_urn = choice.get('urn')
+                            break
+
+                    # Fallback: if "Partial" not found, try "N/A" or similar
+                    if not matched_choice_urn and ai_lower == 'partial':
+                        for choice in choices:
+                            choice_value = (choice.get('value') or '').lower()
+                            if choice_value in ('partial', 'n/a', 'na', 'partially'):
+                                matched_choice_urn = choice.get('urn')
+                                break
+
+                    if matched_choice_urn:
+                        q_type = q_def.get('type', 'unique_choice')
+                        if q_type == 'multiple_choice':
+                            current_answers[q_urn] = [matched_choice_urn]
+                        else:
+                            current_answers[q_urn] = matched_choice_urn
+                        answers_updated = True
+                        print(f"[RA-AI-ANALYSIS] Auto-set answer for {q_urn}: {ai_answer} → {matched_choice_urn}")
+                    else:
+                        print(f"[RA-AI-ANALYSIS] No matching choice for {q_urn}: AI answered '{ai_answer}', available: {[c.get('value') for c in choices]}")
+
+            # Save updated answers and recompute score/result
+            ra_status_before = requirement_assessment.result
+            if answers_updated:
+                requirement_assessment.answers = current_answers
+                requirement_assessment.save(update_fields=['answers'])
+                requirement_assessment.compute_score_and_result()
+                requirement_assessment.refresh_from_db()
+                print(f"[RA-AI-ANALYSIS] Auto-updated RA status: {ra_status_before} → {requirement_assessment.result}")
+
+            # Extract score and status from the analysis result
+            overall = result.get('overallAssessment', {}) if isinstance(result, dict) else {}
+            score = overall.get('score', None) if isinstance(overall, dict) else None
+            compliance_status_val = overall.get('status', '') if isinstance(overall, dict) else ''
+
+            # Save to database — question_answers stored separately from the main result
+            analysis_record = AiAnalysisResult.objects.create(
+                requirement_assessment=requirement_assessment,
+                result=result,
+                question_answers=question_answers,
+                status='completed',
+                score=score,
+                compliance_status=compliance_status_val,
+                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'),
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=1,
+            )
+
+            return Response({
+                'ai_analysis': result,
+                'question_answers': question_answers,
+                'ai_analysis_id': str(analysis_record.id),
+                'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
+                'answers_auto_updated': answers_updated,
+                'updated_answers': requirement_assessment.answers,
+                'requirement_assessment_result': requirement_assessment.result,
+                'requirement_assessment_score': requirement_assessment.score,
+            }, status=status.HTTP_200_OK)
+
+        except http_requests.exceptions.Timeout:
+            print(f"[RA-AI-ANALYSIS] Muraji API timed out")
+            from core.models import AiAnalysisResult
+            AiAnalysisResult.objects.create(
+                requirement_assessment=requirement_assessment,
+                result={'error': 'Muraji API timed out'},
+                status='failed',
+                error_message='Muraji API timed out',
+                gemini_files_count=len(gemini_file_ids),
+                requirements_count=1,
+            )
+            return Response(
+                {'message': 'Analysis timed out. Please try again.'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except Exception as e:
+            print(f"[RA-AI-ANALYSIS] Error: {e}")
+            from core.models import AiAnalysisResult
+            AiAnalysisResult.objects.create(
+                requirement_assessment=requirement_assessment,
+                result={'error': str(e)},
+                status='failed',
+                error_message=str(e),
+                gemini_files_count=len(gemini_file_ids) if 'gemini_file_ids' in dir() else 0,
+                requirements_count=1,
+            )
+            return Response(
+                {'message': f'Analysis failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses")
+    def list_ai_analyses(self, request, pk=None):
+        """List all AI analysis results for this requirement assessment"""
+        from core.models import AiAnalysisResult
+        requirement_assessment = self.get_object()
+        print(f"[RA-AI-LIST] Listing AI analyses for RA: {requirement_assessment.id}")
+        
+        # Debug: check total records in db
+        total_records = AiAnalysisResult.objects.count()
+        ra_records = AiAnalysisResult.objects.filter(requirement_assessment=requirement_assessment).count()
+        all_ra_records = AiAnalysisResult.objects.filter(requirement_assessment__isnull=False).count()
+        print(f"[RA-AI-LIST] Total AiAnalysisResult: {total_records}, For this RA: {ra_records}, All with RA set: {all_ra_records}")
+        
+        analyses = AiAnalysisResult.objects.filter(
+            requirement_assessment=requirement_assessment
+        ).order_by('-created_at')
+
+        results = []
+        for a in analyses:
+            results.append({
+                'id': str(a.id),
+                'created_at': a.created_at.isoformat(),
+                'status': a.status,
+                'score': a.score,
+                'compliance_status': a.compliance_status,
+                'model_used': a.model_used,
+                'gemini_files_count': a.gemini_files_count,
+                'requirements_count': a.requirements_count,
+                'error_message': a.error_message,
+                'result': a.result,
+                'question_answers': a.question_answers,
+            })
+
+        print(f"[RA-AI-LIST] Returning {len(results)} analyses")
+        return Response(results)
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)")
+    def get_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Get a specific AI analysis result"""
+        from core.models import AiAnalysisResult
+        requirement_assessment = self.get_object()
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                requirement_assessment=requirement_assessment
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            'id': str(analysis.id),
+            'created_at': analysis.created_at.isoformat(),
+            'status': analysis.status,
+            'score': analysis.score,
+            'compliance_status': analysis.compliance_status,
+            'model_used': analysis.model_used,
+            'gemini_files_count': analysis.gemini_files_count,
+            'requirements_count': analysis.requirements_count,
+            'error_message': analysis.error_message,
+            'result': analysis.result,
+            'question_answers': analysis.question_answers,
+        })
+
+    @action(detail=True, methods=["delete"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)/delete")
+    def delete_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Delete a specific AI analysis result"""
+        from core.models import AiAnalysisResult
+        requirement_assessment = self.get_object()
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                requirement_assessment=requirement_assessment
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        analysis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, name="Get updatable measures")
     def updatables(self, request):
@@ -10506,6 +11776,11 @@ class FindingsAssessmentViewSet(BaseModelViewSet):
             "finding_status_choices": dict(Finding.Status.choices),
         }
 
+        if not WEASYPRINT_AVAILABLE:
+            return Response(
+                {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                status=status.HTTP_501_NOT_IMPLEMENTED
+            )
         html = render_to_string("core/findings_assessment_pdf.html", context)
         pdf_file = HTML(string=html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
@@ -10889,6 +12164,11 @@ class IncidentViewSet(ExportMixin, BaseModelViewSet):
             "mitigation_count": mitigation_count,
         }
 
+        if not WEASYPRINT_AVAILABLE:
+            return Response(
+                {"error": "PDF export is not available. WeasyPrint library is not installed."},
+                status=status.HTTP_501_NOT_IMPLEMENTED
+            )
         html = render_to_string("core/incident_pdf.html", context)
         pdf_file = HTML(string=html).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")

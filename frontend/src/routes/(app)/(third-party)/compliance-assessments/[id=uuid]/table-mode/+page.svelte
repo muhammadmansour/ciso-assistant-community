@@ -33,6 +33,39 @@
 	import { invalidateAll } from '$app/navigation';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 
+	// AI Analysis state
+	let analysisLoading: Record<string, boolean> = $state({});
+	let analysisResults: Record<string, any> = $state({});
+	let analysisErrors: Record<string, string> = $state({});
+
+	async function startAnalysis(requirementAssessmentId: string) {
+		analysisLoading[requirementAssessmentId] = true;
+		analysisErrors[requirementAssessmentId] = '';
+		analysisResults[requirementAssessmentId] = null;
+
+		try {
+			const response = await fetch(`/requirement-assessments/${requirementAssessmentId}/analysis`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Analysis failed');
+			}
+
+			const result = await response.json();
+			analysisResults[requirementAssessmentId] = result;
+		} catch (error) {
+			console.error('Analysis error:', error);
+			analysisErrors[requirementAssessmentId] = error instanceof Error ? error.message : 'Analysis failed';
+		} finally {
+			analysisLoading[requirementAssessmentId] = false;
+		}
+	}
+
 	interface Props {
 		data: PageData;
 		form: Actions;
@@ -272,7 +305,7 @@
 		});
 	});
 
-	const accordionItems: Record<string, ['' | 'observation' | 'evidence']> = $state(
+	const accordionItems: Record<string, ['' | 'observation' | 'evidence' | 'analysis']> = $state(
 		// svelte-ignore state_referenced_locally
 		requirementAssessments.reduce((acc, requirementAssessment) => {
 			const requirement =
@@ -882,6 +915,185 @@
 																	</p>
 																{/each}
 															{/key}
+														</div>
+													{/snippet}
+												</Accordion.Item>
+											{/if}
+
+											<!-- AI Analysis Section -->
+											{#if !shallow && requirementAssessment.assessable}
+												<Accordion.Item value="analysis">
+													{#snippet control()}
+														<p class="flex items-center space-x-2">
+															<span><i class="fa-solid fa-robot mr-1"></i> {m.aiAnalysis()}</span>
+															{#if analysisResults[requirementAssessment.id]}
+																<span class="badge preset-tonal-success">✓</span>
+															{/if}
+														</p>
+													{/snippet}
+													{#snippet panel()}
+														<div class="flex flex-col space-y-4">
+															<div class="flex flex-row space-x-2 items-center">
+																<button
+																	class="btn preset-filled-warning-500 self-start"
+																	onclick={() => startAnalysis(requirementAssessment.id)}
+																	type="button"
+																	disabled={analysisLoading[requirementAssessment.id]}
+																	data-testid="start-analysis-button"
+																>
+																	{#if analysisLoading[requirementAssessment.id]}
+																		<i class="fa-solid fa-spinner fa-spin mr-2"></i>{m.analyzing()}
+																	{:else}
+																		<i class="fa-solid fa-brain mr-2"></i>{m.startAnalysis()}
+																	{/if}
+																</button>
+															</div>
+
+															<!-- Analysis Error -->
+															{#if analysisErrors[requirementAssessment.id]}
+																<div class="card preset-tonal-error p-4">
+																	<p class="font-semibold text-red-600">
+																		<i class="fa-solid fa-exclamation-triangle mr-2"></i>{m.analysisFailed()}
+																	</p>
+																	<p class="text-sm">{analysisErrors[requirementAssessment.id]}</p>
+																</div>
+															{/if}
+
+															<!-- Analysis Results -->
+															{#if analysisResults[requirementAssessment.id]}
+																{@const result = analysisResults[requirementAssessment.id]}
+																<div class="card preset-tonal-success p-4 space-y-3">
+																	<h3 class="font-semibold text-green-700">
+																		<i class="fa-solid fa-check-circle mr-2"></i>{m.analysisComplete()}
+																	</h3>
+
+																	<!-- Score and Status Row -->
+																	<div class="flex flex-wrap items-center gap-4">
+																		{#if result.score !== undefined}
+																			<div class="flex items-center space-x-2">
+																				<span class="font-medium">{m.complianceScore()}:</span>
+																				<span class="badge preset-filled-primary-500 text-lg px-3 py-1">
+																					{result.score}%
+																				</span>
+																			</div>
+																		{/if}
+
+																		{#if result.compliance_status || result.status}
+																			<div class="flex items-center space-x-2">
+																				<span class="font-medium">{m.status()}:</span>
+																				<span class="badge preset-filled-secondary-500 px-2 py-1">
+																					{result.compliance_status || result.status}
+																				</span>
+																			</div>
+																		{/if}
+
+																		{#if result.effectiveness}
+																			<div class="flex items-center space-x-2">
+																				<span class="font-medium">Effectiveness:</span>
+																				<span class="badge preset-tonal px-2 py-1">
+																					{result.effectiveness}
+																				</span>
+																			</div>
+																		{/if}
+
+																		{#if result.evidenceQuality}
+																			<div class="flex items-center space-x-2">
+																				<span class="font-medium">Evidence Quality:</span>
+																				<span class="badge preset-tonal px-2 py-1">
+																					{result.evidenceQuality}
+																				</span>
+																			</div>
+																		{/if}
+																	</div>
+
+																	<!-- Summary -->
+																	{#if result.summary}
+																		<div>
+																			<p class="font-medium mb-1">Summary:</p>
+																			<div class="bg-white/50 rounded p-2">
+																				<MarkdownRenderer content={result.summary} />
+																			</div>
+																		</div>
+																	{/if}
+
+																	<!-- Strengths -->
+																	{#if result.strengths && result.strengths.length > 0}
+																		<div>
+																			<p class="font-medium mb-1 text-green-600"><i class="fa-solid fa-plus-circle mr-1"></i>Strengths:</p>
+																			<ul class="list-disc list-inside bg-white/50 rounded p-2 space-y-1">
+																				{#each result.strengths as strength}
+																					<li>{strength}</li>
+																				{/each}
+																			</ul>
+																		</div>
+																	{/if}
+
+																	<!-- Weaknesses -->
+																	{#if result.weaknesses && result.weaknesses.length > 0}
+																		<div>
+																			<p class="font-medium mb-1 text-red-600"><i class="fa-solid fa-minus-circle mr-1"></i>Weaknesses:</p>
+																			<ul class="list-disc list-inside bg-white/50 rounded p-2 space-y-1">
+																				{#each result.weaknesses as weakness}
+																					<li>{weakness}</li>
+																				{/each}
+																			</ul>
+																		</div>
+																	{/if}
+
+																	<!-- Recommendations -->
+																	{#if result.recommendations && result.recommendations.length > 0}
+																		<div>
+																			<p class="font-medium mb-1 text-blue-600"><i class="fa-solid fa-lightbulb mr-1"></i>{m.recommendations()}:</p>
+																			<ul class="list-disc list-inside bg-white/50 rounded p-2 space-y-1">
+																				{#each result.recommendations as recommendation}
+																					<li>{recommendation}</li>
+																				{/each}
+																			</ul>
+																		</div>
+																	{/if}
+
+																	<!-- Next Steps -->
+																	{#if result.nextSteps && result.nextSteps.length > 0}
+																		<div>
+																			<p class="font-medium mb-1 text-purple-600"><i class="fa-solid fa-arrow-right mr-1"></i>Next Steps:</p>
+																			<ul class="list-disc list-inside bg-white/50 rounded p-2 space-y-1">
+																				{#each result.nextSteps as step}
+																					<li>{step}</li>
+																				{/each}
+																			</ul>
+																		</div>
+																	{/if}
+
+																	<!-- Detailed Analysis -->
+																	{#if result.detailedAnalysis}
+																		<div>
+																			<p class="font-medium mb-1"><i class="fa-solid fa-file-alt mr-1"></i>Detailed Analysis:</p>
+																			<div class="bg-white/50 rounded p-2">
+																				<MarkdownRenderer content={result.detailedAnalysis} />
+																			</div>
+																		</div>
+																	{/if}
+
+																	<!-- Note -->
+																	{#if result.note}
+																		<div class="text-sm text-gray-600 italic">
+																			<i class="fa-solid fa-info-circle mr-1"></i>{result.note}
+																		</div>
+																	{/if}
+
+																	<!-- Files Analyzed -->
+																	{#if result.filesAnalyzed && result.filesAnalyzed.length > 0}
+																		<div class="text-sm text-gray-500">
+																			<p class="font-medium"><i class="fa-solid fa-file mr-1"></i>Files Analyzed ({result.filesAnalyzed.length}):</p>
+																			<ul class="list-inside ml-4">
+																				{#each result.filesAnalyzed as file}
+																					<li>{file.filename} - <span class="text-xs">{file.relevance}</span></li>
+																				{/each}
+																			</ul>
+																		</div>
+																	{/if}
+																</div>
+															{/if}
 														</div>
 													{/snippet}
 												</Accordion.Item>

@@ -860,17 +860,26 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
         validated_data.pop("remote_object_id", None)
         validated_data.pop("integration_config", None)
 
-        owner_data = validated_data.get("owner", [])
-        applied_control = super().create(validated_data)
+        # Pop M2M fields before super().create() - DRF handles them after object creation
+        owner_data = validated_data.pop("owner", [])
         findings = validated_data.pop("findings", [])
+        
+        applied_control = super().create(validated_data)
+        
+        # Set M2M relationships manually
+        if owner_data:
+            applied_control.owner.set(owner_data)
         if findings:
             applied_control.findings.set(findings)
 
         # Send notification to newly assigned owners
+        logger.info(f"AppliedControl created: {applied_control.id}, owner_data: {owner_data}")
         if owner_data:
-            self._send_assignment_notifications(
-                applied_control, [user.id for user in owner_data]
-            )
+            owner_ids = [actor.id for actor in owner_data]
+            logger.info(f"Sending notifications to owner_ids: {owner_ids}")
+            self._send_assignment_notifications(applied_control, owner_ids)
+        else:
+            logger.info("No owners assigned, skipping notification")
 
         return applied_control
 
@@ -1666,10 +1675,26 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
     folder = FieldsRelatedField()
     str = serializers.CharField(source="__str__")
     task_node = FieldsRelatedField()
+    file_search = serializers.SerializerMethodField()
 
     class Meta:
         model = EvidenceRevision
         fields = "__all__"
+    
+    def get_file_search(self, obj):
+        """Get Gemini File Search data if available"""
+        try:
+            if hasattr(obj, 'file_search'):
+                fs = obj.file_search
+                return {
+                    'gemini_file_id': fs.gemini_file_id,
+                    'gemini_store_id': fs.gemini_store_id,
+                    'upload_status': fs.upload_status,
+                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None
+                }
+        except:
+            pass
+        return None
 
 
 class EvidenceRevisionWriteSerializer(BaseModelSerializer):
@@ -2510,7 +2535,11 @@ class QuickStartSerializer(serializers.Serializer):
         if not validated_data["create_risk_assessment"]:
             return created_objects
 
-        matrix_lib_urn = validated_data["risk_matrix"]
+        matrix_lib_urn = validated_data.get("risk_matrix")
+        if not matrix_lib_urn:
+            raise serializers.ValidationError(
+                {"risk_matrix": "Risk matrix is required when creating a risk assessment"}
+            )
         if not LoadedLibrary.objects.filter(urn=matrix_lib_urn).exists():
             matrix_stored_lib = StoredLibrary.objects.get(urn=matrix_lib_urn)
             try:

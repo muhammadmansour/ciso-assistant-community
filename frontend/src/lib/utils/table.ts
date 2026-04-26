@@ -1368,32 +1368,16 @@ export const listViewFields = {
 	},
 	'applied-controls': {
 		head: [
-			'ref_id',
+			'id',
 			'name',
-			'priority',
 			'status',
-			'category',
-			'csfFunction',
-			'eta',
-			'domain',
-			'owner',
-			'controlImpact',
-			'effort',
-			'labels'
+			'eta'
 		],
 		body: [
 			'ref_id',
 			'name',
-			'priority',
 			'status',
-			'category',
-			'csf_function',
-			'eta',
-			'folder',
-			'owner',
-			'control_impact',
-			'effort',
-			'filtering_labels'
+			'eta'
 		],
 		filters: {
 			folder: DOMAIN_FILTER,
@@ -1568,22 +1552,14 @@ export const listViewFields = {
 		head: [
 			'ref_id',
 			'name',
-			'version',
-			'framework',
-			'perimeter',
-			'reviewProgress',
-			'createdAt',
-			'updatedAt'
+			'status',
+			'eta'
 		],
 		body: [
 			'ref_id',
 			'name',
-			'version',
-			'framework',
-			'perimeter',
-			'progress',
-			'created_at',
-			'updated_at'
+			'status',
+			'eta'
 		],
 		filters: {
 			folder: DOMAIN_FILTER,

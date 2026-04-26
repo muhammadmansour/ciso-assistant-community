@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { formFieldProxy, type SuperForm } from 'sveltekit-superforms';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { isQuestionVisible } from '$lib/utils/helpers';
@@ -46,6 +47,18 @@
 	$effect(() => {
 		if (value) {
 			$value = internalAnswers;
+		}
+	});
+
+	// Sync external form changes (e.g. AI analysis) back to internalAnswers
+	$effect(() => {
+		if (value) {
+			const formValue = $value;
+			untrack(() => {
+				if (formValue && JSON.stringify(formValue) !== JSON.stringify(internalAnswers)) {
+					internalAnswers = { ...formValue };
+				}
+			});
 		}
 	});
 

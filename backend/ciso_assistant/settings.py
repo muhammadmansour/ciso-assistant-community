@@ -22,6 +22,7 @@ from . import meta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".meta")
+load_dotenv(BASE_DIR / ".env", override=True)  # Load local .env for GEMINI keys etc.
 
 
 VERSION = os.getenv("CISO_ASSISTANT_VERSION", "unset")
@@ -130,6 +131,7 @@ LOCAL_STORAGE_DIRECTORY = os.environ.get(
     "LOCAL_STORAGE_DIRECTORY", BASE_DIR / "db/attachments"
 )
 ATTACHMENT_MAX_SIZE_MB = os.environ.get("ATTACHMENT_MAX_SIZE_MB", 25)
+ATTACHMENT_MAX_NAME_LENGTH = int(os.environ.get("ATTACHMENT_MAX_NAME_LENGTH", 256))
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
 
@@ -167,6 +169,17 @@ if USE_S3:
 else:
     MEDIA_ROOT = LOCAL_STORAGE_DIRECTORY
     MEDIA_URL = ""
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {
+                "location": LOCAL_STORAGE_DIRECTORY,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 PAGINATE_BY = int(os.environ.get("PAGINATE_BY", default=5000))
 
@@ -260,6 +273,16 @@ EMAIL_HOST_PASSWORD_RESCUE = os.environ.get("EMAIL_HOST_PASSWORD_RESCUE")
 EMAIL_USE_TLS_RESCUE = os.environ.get("EMAIL_USE_TLS_RESCUE", "False") == "True"
 
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", default="5"))  # seconds
+
+# Microsoft Graph API email configuration
+MS_GRAPH_CLIENT_ID = os.environ.get("MS_GRAPH_CLIENT_ID")
+MS_GRAPH_TENANT_ID = os.environ.get("MS_GRAPH_TENANT_ID")
+MS_GRAPH_CLIENT_SECRET = os.environ.get("MS_GRAPH_CLIENT_SECRET")
+
+# Use Microsoft Graph email backend if credentials are provided, otherwise fall back to SMTP
+if MS_GRAPH_CLIENT_ID and MS_GRAPH_TENANT_ID and MS_GRAPH_CLIENT_SECRET:
+    EMAIL_BACKEND = "core.email_backends.microsoft_graph.MicrosoftGraphEmailBackend"
+    logger.info("Email backend: Microsoft Graph API")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
@@ -489,6 +512,14 @@ if MAIL_DEBUG:
 
 ## Huey settings
 HUEY_FILE_PATH = os.environ.get("HUEY_FILE_PATH", BASE_DIR / "db" / "huey.db")
+
+# File-based cache so web server and Huey worker can share data
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.environ.get("CACHE_FILE_PATH", BASE_DIR / "db" / "django_cache"),
+    }
+}
 
 HUEY = {
     "huey_class": "huey.SqliteHuey",

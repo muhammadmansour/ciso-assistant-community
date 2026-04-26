@@ -10,8 +10,13 @@
 	} from '$lib/components/Modals/stores';
 
 	import { safeTranslate } from '$lib/utils/i18n';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
+	let isFetchingMuraji = $state(false);
+	let isDeletingAll = $state(false);
+	let isLoading = $state(true);
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -49,57 +54,56 @@
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-book-open',
-			selectedClass: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-200',
-			hoverClass: 'hover:border-blue-400 hover:bg-blue-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.frameworks()
 		},
 		reference_controls: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-shield-halved',
-			selectedClass:
-				'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-200',
-			hoverClass: 'hover:border-emerald-400 hover:bg-emerald-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.referenceControls()
 		},
 		risk_matrices: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-table-cells',
-			selectedClass: 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-amber-200',
-			hoverClass: 'hover:border-amber-400 hover:bg-amber-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.riskMatrices()
 		},
 		threats: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-triangle-exclamation',
-			selectedClass: 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-red-200',
-			hoverClass: 'hover:border-red-400 hover:bg-red-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.threats()
 		},
 		metric_definitions: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-chart-line',
-			selectedClass: 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-purple-200',
-			hoverClass: 'hover:border-purple-400 hover:bg-purple-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.metricDefinitions()
 		},
 		requirement_mapping_sets: {
 			type: 'string',
 			field: 'object_type',
 			icon: 'fa-diagram-project',
-			selectedClass: 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-pink-200',
-			hoverClass: 'hover:border-pink-400 hover:bg-pink-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.requirementMappingSets()
 		},
 		is_update: {
 			type: 'boolean',
 			field: 'is_update',
 			icon: 'fa-arrows-rotate',
-			selectedClass: 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-pink-200',
-			hoverClass: 'hover:border-pink-400 hover:bg-pink-50',
+			selectedClass: 'bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white shadow-md',
+			hoverClass: 'hover:border-[#0A1628]/40 hover:bg-[#0A1628]/5',
 			label: m.updateAvailable()
 		}
 	};
@@ -109,12 +113,42 @@
 	let quickFilterSelected: Record<string, boolean> = $state({});
 </script>
 
-<div class="card bg-white py-2 shadow-sm">
-	<ModelTable
-		source={data.storedLibrariesTable}
-		URLModel="stored-libraries"
-		deleteForm={data.deleteForm}
-		onFilterChange={(filters) => {
+<div class="wgrc-card min-h-[400px]">
+	{#await data.storedLibrariesTable}
+		<!-- Loading State with Circular Progress -->
+		<div class="flex flex-col items-center justify-center py-20 gap-4">
+			<div class="relative">
+				<!-- Circular Progress Spinner -->
+				<svg class="w-16 h-16 animate-spin" viewBox="0 0 50 50">
+					<circle
+						class="stroke-gray-200"
+						cx="25"
+						cy="25"
+						r="20"
+						fill="none"
+						stroke-width="4"
+					></circle>
+					<circle
+						class="stroke-indigo-600"
+						cx="25"
+						cy="25"
+						r="20"
+						fill="none"
+						stroke-width="4"
+						stroke-linecap="round"
+						stroke-dasharray="31.4 94.2"
+					></circle>
+				</svg>
+			</div>
+			<p class="text-gray-600 font-medium">{m.loading ? m.loading() : 'Loading libraries...'}</p>
+			<p class="text-gray-400 text-sm">جاري تحميل المكتبات...</p>
+		</div>
+	{:then storedLibrariesTable}
+		<ModelTable
+			source={storedLibrariesTable}
+			URLModel="stored-libraries"
+			deleteForm={data.deleteForm}
+			onFilterChange={(filters) => {
 			// Reset all quickFilterSelected states
 			Object.keys(quickFilterSelected).forEach((key) => (quickFilterSelected[key] = false));
 
@@ -209,17 +243,99 @@
 			</div>
 		{/snippet}
 		{#snippet addButton()}
-			<div>
+			<div class="flex gap-2">
+				<!-- Delete All Libraries Button -->
+				<form
+					method="POST"
+					action="?/deleteAll"
+					use:enhance={() => {
+						isDeletingAll = true;
+						return async ({ result, update }) => {
+							isDeletingAll = false;
+							await update();
+							await invalidateAll();
+						};
+					}}
+				>
+					<button
+						type="submit"
+						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-red-500 to-red-600 text-white font-medium text-sm shadow-sm hover:from-red-600 hover:to-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						disabled={isDeletingAll}
+						title="Delete all libraries"
+						onclick={(e) => {
+							if (!confirm('Are you sure you want to delete ALL libraries and frameworks? This action cannot be undone.')) {
+								e.preventDefault();
+							}
+						}}
+					>
+						{#if isDeletingAll}
+							<i class="fa-solid fa-spinner fa-spin"></i>
+							<span>جاري الحذف...</span>
+						{:else}
+							<i class="fa-solid fa-trash-can"></i>
+							<span>حذف الكل</span>
+						{/if}
+					</button>
+				</form>
+
+				<!-- Fetch from Muraji Button -->
+				<form
+					method="POST"
+					action="?/fetchMuraji"
+					use:enhance={() => {
+						isFetchingMuraji = true;
+						return async ({ result, update }) => {
+							isFetchingMuraji = false;
+							await update();
+							await invalidateAll();
+						};
+					}}
+				>
+					<button
+						type="submit"
+						class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-medium text-sm shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						disabled={isFetchingMuraji}
+						title="Fetch from Muraji"
+					>
+						{#if isFetchingMuraji}
+							<i class="fa-solid fa-spinner fa-spin"></i>
+							<span>جاري المزامنة...</span>
+						{:else}
+							<i class="fa-solid fa-cloud-arrow-down"></i>
+							<span>مزامنة مع مراجع</span>
+						{/if}
+					</button>
+				</form>
+
+				<!-- Upload Library Button -->
 				<span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
 					<button
 						class="inline-block p-3 btn-mini-primary w-12 focus:relative"
 						data-testid="add-button"
 						title={m.addYourLibrary()}
+						aria-label={m.addYourLibrary()}
 						onclick={modalCreateForm}
 						><i class="fa-solid fa-file-circle-plus"></i>
 					</button>
 				</span>
 			</div>
 		{/snippet}
-	</ModelTable>
+		</ModelTable>
+	{:catch error}
+		<!-- Error State -->
+		<div class="flex flex-col items-center justify-center py-20 gap-4">
+			<div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+				<i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl"></i>
+			</div>
+			<p class="text-red-600 font-medium">Failed to load libraries</p>
+			<p class="text-gray-500 text-sm">{error?.message || 'An unexpected error occurred'}</p>
+			<button
+				class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+				onclick={() => invalidateAll()}
+			>
+				<i class="fa-solid fa-refresh mr-2"></i>
+				Retry
+			</button>
+		</div>
+	{/await}
 </div>

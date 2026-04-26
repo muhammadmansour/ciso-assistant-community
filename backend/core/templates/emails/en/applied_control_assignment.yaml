@@ -1,4 +1,4 @@
-subject: "CISO Assistant: You have been assigned to '${control_name}'"
+subject: "Wathbah GRC: You have been assigned to '${control_name}'"
 body: |
   Hello,
 
@@ -12,7 +12,7 @@ body: |
   - ETA: ${control_eta}
   - Domain: ${folder_name}
 
-  Log in to your CISO Assistant portal to view and manage this control:
-  ${ciso_assistant_url}
+  View this control directly:
+  ${ciso_assistant_url}/applied-controls/${control_id}
 
   Thank you.

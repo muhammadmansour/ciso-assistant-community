@@ -6,6 +6,21 @@ import { setFlash } from 'sveltekit-flash-message/server';
 
 import { loadFeatureFlags } from '$lib/feature-flags';
 import { paraglideMiddleware } from '$paraglide/server';
+import { defineCustomServerStrategy } from '$paraglide/runtime';
+
+// Define server-side custom strategies for locale detection
+defineCustomServerStrategy('custom-userPreference', {
+	getLocale: () => {
+		// User preference is handled via cookie on server side
+		return undefined;
+	}
+});
+
+defineCustomServerStrategy('custom-fallback', {
+	getLocale: () => {
+		return DEFAULT_LANGUAGE;
+	}
+});
 
 async function ensureCsrfToken(event: RequestEvent): Promise<string> {
 	let csrfToken = event.cookies.get('csrftoken') || '';
@@ -65,10 +80,14 @@ export const handle: Handle = async ({ event, resolve }) =>
 
 		await ensureCsrfToken(event);
 
+		// RTL languages
+		const rtlLanguages = ['ar', 'he', 'fa', 'ur'];
+		const dir = rtlLanguages.includes(locale) ? 'rtl' : 'ltr';
+
 		if (event.locals.user)
 			return await resolve(event, {
 				transformPageChunk: ({ html }) => {
-					return html.replace('%lang%', locale);
+					return html.replace('%lang%', locale).replace('%dir%', dir);
 				}
 			});
 
@@ -78,36 +97,39 @@ export const handle: Handle = async ({ event, resolve }) =>
 			redirect(302, '/login');
 		}
 
-		const user = await validateUserSession(event);
-		if (user) {
-			event.locals.user = user;
-			const generalSettings = await fetch(`${BASE_API_URL}/settings/general/object/`, {
-				credentials: 'include',
-				headers: {
-					'content-type': 'application/json',
-					Authorization: `Token ${event.cookies.get('token')}`
-				}
-			});
-			event.locals.settings = await generalSettings.json();
+	const user = await validateUserSession(event);
+	if (user) {
+		event.locals.user = user;
+		const token = event.cookies.get('token');
+		const headers = {
+			'content-type': 'application/json',
+			Authorization: `Token ${token}`
+		};
 
-			const featureFlagSettings = await fetch(`${BASE_API_URL}/settings/feature-flags/`, {
+		// Fetch settings and feature flags in parallel
+		const [generalSettings, featureFlagSettings] = await Promise.all([
+			fetch(`${BASE_API_URL}/settings/general/object/`, {
 				credentials: 'include',
-				headers: {
-					'content-type': 'application/json',
-					Authorization: `Token ${event.cookies.get('token')}`
-				}
-			});
-			try {
-				event.locals.featureflags = await featureFlagSettings.json();
-			} catch (e) {
-				console.error('Error fetching feature flags', e);
-				event.locals.featureflags = {};
-			}
+				headers
+			}),
+			fetch(`${BASE_API_URL}/settings/feature-flags/`, {
+				credentials: 'include',
+				headers
+			})
+		]);
+
+		event.locals.settings = await generalSettings.json();
+		try {
+			event.locals.featureflags = await featureFlagSettings.json();
+		} catch (e) {
+			console.error('Error fetching feature flags', e);
+			event.locals.featureflags = {};
 		}
+	}
 
 		return await resolve(event, {
 			transformPageChunk: ({ html }) => {
-				return html.replace('%lang%', locale);
+				return html.replace('%lang%', locale).replace('%dir%', dir);
 			}
 		});
 	});
@@ -116,7 +138,12 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 	const currentLang = event.locals.user?.preferences?.lang || DEFAULT_LANGUAGE;
 	if (request.url.startsWith(BASE_API_URL)) {
-		request.headers.set('Content-Type', 'application/json');
+		// Only set Content-Type to JSON if this is not a file upload
+		// File uploads are indicated by Content-Disposition header
+		const isFileUpload = request.headers.has('Content-Disposition');
+		if (!isFileUpload) {
+			request.headers.set('Content-Type', 'application/json');
+		}
 		request.headers.set('Accept-Language', currentLang);
 
 		const token = event.cookies.get('token');

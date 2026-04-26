@@ -12,8 +12,8 @@
 
 	let classesActive = $derived((href: string) =>
 		href === page.url.pathname
-			? 'bg-primary-100 text-primary-800'
-			: 'hover:bg-primary-50 text-gray-800 '
+			? 'bg-[#0077CC] text-white font-medium'
+			: 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'
 	);
 </script>
 
@@ -23,18 +23,18 @@
 		<Anchor
 			href={item.href}
 			breadcrumbAction="replace"
-			class="unstyled flex whitespace-nowrap items-center py-2 text-sm font-normal rounded-base {classesActive(
+			class="unstyled flex whitespace-nowrap items-center py-2 text-sm rounded-lg transition-all duration-150 {classesActive(
 				item.href ?? ''
 			)}"
 			data-testid={'accordion-item-' + item.href.substring(1)}
 		>
 			<span
-				class="px-4 flex items-center w-full space-x-2 text-xs"
+				class="px-3 flex items-center w-full gap-3 text-xs"
 				id={item.name}
 				title={safeTranslate(item.name)}
 			>
-				<i class="{item.fa_icon} w-1/12"></i>
-				<span class="text-sm tracking-wide truncate">{safeTranslate(item.name)}</span>
+				<i class="{item.fa_icon} w-4 text-center text-[13px] opacity-80"></i>
+				<span class="text-[13px] tracking-wide truncate">{safeTranslate(item.name)}</span>
 			</span>
 		</Anchor>
 	{/if}

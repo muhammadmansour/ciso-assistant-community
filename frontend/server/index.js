@@ -1,4 +1,11 @@
-import { server } from '../build/index.js';
+// Set body size limit to 50MB if not already configured (SvelteKit default is 512KB)
+// Must be set BEFORE importing the handler, and dynamic import is needed
+// because static imports are hoisted above all other code in ES modules.
+if (!process.env.BODY_SIZE_LIMIT) {
+	process.env.BODY_SIZE_LIMIT = '50000000';
+}
+
+const { server } = await import('../build/index.js');
 
 process.on('SIGINT', () => {
 	console.log('Got SIGINT. Starting graceful shutdown.');

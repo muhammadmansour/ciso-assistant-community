@@ -172,7 +172,7 @@
 			<div class="flex gap-2">
 				<button
 					onclick={applyFilters}
-					class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="px-4 py-2 bg-[#0A1628] text-white rounded-md hover:bg-[#1a2740] focus:outline-none focus:ring-2 focus:ring-blue-500"
 				>
 					{m.refresh()}
 				</button>

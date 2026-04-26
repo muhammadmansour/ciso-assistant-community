@@ -74,45 +74,52 @@
 
 <style>
 	button {
-		background: inherit;
+		background: white;
 		height: 32px;
 		width: 32px;
-		color: #616161;
+		color: #6b7280;
 		cursor: pointer;
 		font-size: 13px;
 		margin: 0;
 		padding: 0;
-		transition: all, 0.2s;
+		transition: all 0.2s ease;
 		line-height: 32px;
-		border: 1px solid #e0e0e0;
+		border: 1px solid #e5e7eb;
 		border-right: none;
 		outline: none;
 	}
 	button:first-child {
-		border-radius: 4px 0 0 4px;
+		border-radius: 8px 0 0 8px;
 		width: auto;
 		min-width: 72px;
 	}
 	button:last-child {
-		border-right: 1px solid #e0e0e0;
-		border-radius: 0 4px 4px 0;
+		border-right: 1px solid #e5e7eb;
+		border-radius: 0 8px 8px 0;
 		width: auto;
 		min-width: 72px;
 	}
 	button:not(.active):hover {
-		background: #eee;
+		background: #f3f4f6;
+		color: #0A1628;
 	}
 	button.ellipse:hover {
-		background: inherit;
+		background: white;
 		cursor: default;
 	}
 	button.active {
-		background: #eee;
-		font-weight: bold;
+		background: #0A1628;
+		color: white;
+		font-weight: 600;
+		cursor: default;
+		border-color: #0A1628;
+	}
+	button.disabled {
+		opacity: 0.5;
 		cursor: default;
 	}
 	button.disabled:hover {
-		background: inherit;
+		background: white;
 		cursor: default;
 	}
 </style>

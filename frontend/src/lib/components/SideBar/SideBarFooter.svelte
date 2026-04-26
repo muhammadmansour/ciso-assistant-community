@@ -43,19 +43,19 @@
 	let openState = $state(false);
 </script>
 
-<div class="border-t pt-2.5">
+<div class="border-t border-white/10 pt-3 mt-auto">
 	<div class="flex flex-row items-center justify-between">
-		<div class="flex flex-col w-3/4">
+		<div class="flex flex-col w-3/4 min-w-0">
 			{#if page.data.user}
 				<span
-					class="text-gray-900 text-sm whitespace-nowrap overflow-hidden truncate w-full"
+					class="text-white text-sm whitespace-nowrap overflow-hidden truncate w-full font-medium"
 					data-testid="sidebar-user-name-display"
 				>
 					{page.data.user.first_name}
 					{page.data.user.last_name}
 				</span>
 				<span
-					class="font-normal text-xs whitespace-nowrap truncate text-gray-600 mr-2 w-full"
+					class="font-normal text-xs whitespace-nowrap truncate text-white/50 w-full"
 					data-testid="sidebar-user-email-display"
 				>
 					{page.data.user.email}
@@ -68,12 +68,12 @@
 				onOpenChange={(e) => (openState = e.open)}
 				positioning={{ placement: 'top' }}
 				triggerBase="btn "
-				contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-lg space-y-1"
+				contentBase="card whitespace-nowrap bg-white py-2 w-fit shadow-xl rounded-lg space-y-1"
 				zIndex="1000"
 			>
 				{#snippet trigger()}
 					<button
-						class="btn bg-initial"
+						class="btn bg-initial text-white/50 hover:text-white transition-colors"
 						data-testid="sidebar-more-btn"
 						aria-label="More options"
 						id="sidebar-more-btn"
@@ -141,7 +141,7 @@
 			</Popover>
 		{:else}
 			<button
-				class="btn bg-initial"
+				class="btn bg-initial text-white/50"
 				data-testid="sidebar-more-btn-disabled"
 				aria-label="More options"
 				id="sidebar-more-btn-disabled"><i class="fa-solid fa-ellipsis-vertical"></i></button

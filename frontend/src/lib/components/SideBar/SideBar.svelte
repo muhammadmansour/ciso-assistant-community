@@ -284,16 +284,16 @@
 		setCookie('show_first_login_modal', 'false');
 	});
 
-	let classesSidebarOpen = $derived((open: boolean) => (open ? '' : '-ml-56 pointer-events-none'));
+	let classesSidebarOpen = $derived((open: boolean) => (open ? '' : 'ltr:-ml-56 rtl:-mr-56 pointer-events-none'));
 </script>
 
 <div data-testid="sidebar" class="sidebar">
 	<aside
-		class="flex w-64 shadow transition-all duration-300 fixed h-screen overflow-visible top-0 left-0 z-20 {classesSidebarOpen(
+		class="flex w-64 shadow-xl transition-all duration-300 fixed h-screen overflow-visible top-0 ltr:left-0 rtl:right-0 z-20 {classesSidebarOpen(
 			open
 		)}"
 	>
-		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-gray-50 py-4 px-3">
+		<nav class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[#0A1628] py-4 px-3">
 			<SideBarHeader />
 			<SideBarNavigation {sideBarVisibleItems} />
 			<SideBarFooter on:triggerGT={triggerVisit} on:loadDemoDomain={loadDemoDomain} />

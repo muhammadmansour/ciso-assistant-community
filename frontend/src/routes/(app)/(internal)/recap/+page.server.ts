@@ -137,8 +137,60 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		});
 	}
 
+	// Fetch evidences for evidence status section using parallel requests with status filters
+	let evidences: { total: number; pending: number; approved: number } = {
+		total: 0,
+		pending: 0,
+		approved: 0
+	};
+	try {
+		const [allEvidencesRes, pendingEvidencesRes, approvedEvidencesRes] = await Promise.all([
+			fetch(`${BASE_API_URL}/evidences/?page_size=1`),
+			fetch(`${BASE_API_URL}/evidences/?status=in_review&page_size=1`),
+			fetch(`${BASE_API_URL}/evidences/?status=approved&page_size=1`)
+		]);
+		if (allEvidencesRes.ok) {
+			const allData = await allEvidencesRes.json();
+			evidences.total = allData.count || 0;
+		}
+		if (pendingEvidencesRes.ok) {
+			const pendingData = await pendingEvidencesRes.json();
+			evidences.pending = pendingData.count || 0;
+		}
+		if (approvedEvidencesRes.ok) {
+			const approvedData = await approvedEvidencesRes.json();
+			evidences.approved = approvedData.count || 0;
+		}
+	} catch (e) {
+		console.error('Failed to load evidences:', e);
+	}
+
+	// Fetch applied controls counts using status filters
+	let appliedControls: { total: number; completed: number } = {
+		total: 0,
+		completed: 0
+	};
+	try {
+		const [allControlsRes, activeControlsRes] = await Promise.all([
+			fetch(`${BASE_API_URL}/applied-controls/?page_size=1`),
+			fetch(`${BASE_API_URL}/applied-controls/?status=active&page_size=1`)
+		]);
+		if (allControlsRes.ok) {
+			const allData = await allControlsRes.json();
+			appliedControls.total = allData.count || 0;
+		}
+		if (activeControlsRes.ok) {
+			const activeData = await activeControlsRes.json();
+			appliedControls.completed = activeData.count || 0;
+		}
+	} catch (e) {
+		console.error('Failed to load applied controls:', e);
+	}
+
 	return {
 		perimeters,
+		evidences,
+		appliedControls,
 		user: locals.user,
 		title: m.recap()
 	};

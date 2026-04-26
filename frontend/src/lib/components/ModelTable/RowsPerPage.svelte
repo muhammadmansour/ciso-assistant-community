@@ -45,10 +45,10 @@
 	const options = [5, 10, 20, 50, 100];
 </script>
 
-<aside class="flex items-center">
+<aside class="flex items-center text-sm text-gray-500">
 	{m.show()}
 	<select
-		class="select bg-surface-50 w-fit mx-1"
+		class="bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 w-[80px] mx-2 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
 		bind:value={$rowsPerPage}
 		onchange={setRowsPerPage}
 	>

@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Preuve expirant dans ${days_remaining} jour(s)"
+subject: "Wathbah GRC: Preuve expirant dans ${days_remaining} jour(s)"
 body: |
   Bonjour,
 
@@ -6,7 +6,7 @@ body: |
 
   ${evidence_list}
 
-  Veuillez vous connecter à votre portail CISO Assistant pour réviser et mettre à jour ces preuves:
+  Veuillez vous connecter à votre portail Wathbah GRC pour réviser et mettre à jour ces preuves:
   ${ciso_assistant_url}
 
   Merci.

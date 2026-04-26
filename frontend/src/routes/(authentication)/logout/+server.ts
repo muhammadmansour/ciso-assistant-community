@@ -5,7 +5,7 @@ export const GET = async ({ locals }) => {
 	if (!locals.user) {
 		redirect(302, `/login?next=/home`);
 	}
-	redirect(302, '/analytics');
+	redirect(302, '/recap');
 };
 
 export const POST = async ({ fetch, cookies }) => {

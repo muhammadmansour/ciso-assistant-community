@@ -2,6 +2,7 @@ import json
 import os
 import re
 import hashlib
+import uuid
 from datetime import date, datetime
 from pathlib import Path
 from typing import Self, Union, List, Optional, Literal
@@ -341,11 +342,13 @@ class StoredLibrary(LibraryMixin):
             urn=urn, locale=locale, version=version
         ).first()
         if same_version_lib:
-            # update hash following cosmetic change (e.g. when we added publication date)
-            logger.info("update hash", urn=urn)
+            # update hash and content following library content change
+            logger.info("update hash and content", urn=urn)
+            library_objects = library_data["objects"]
             same_version_lib.hash_checksum = hash_checksum
-            same_version_lib.save()
-            return None
+            same_version_lib.content = library_objects
+            same_version_lib.save(update_fields=["hash_checksum", "content"])
+            return same_version_lib
 
         if StoredLibrary.objects.filter(urn=urn, locale=locale, version__gte=version):
             return None  # We do not accept to store outdated libraries
@@ -3762,6 +3765,30 @@ class Evidence(
         null=True,
         verbose_name=_("Expiry date"),
     )
+    ai_analysis = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_("AI Analysis"),
+        help_text=_("AI-generated entity extraction and analysis results"),
+    )
+    ai_analysis_updated_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_("AI Analysis Updated At"),
+        help_text=_("When the AI analysis was last performed"),
+    )
+    audit_analysis = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_("Audit Analysis"),
+        help_text=_("AI-generated audit compliance analysis results"),
+    )
+    audit_analysis_updated_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_("Audit Analysis Updated At"),
+        help_text=_("When the audit analysis was last performed"),
+    )
     fields_to_check = ["name"]
 
     class Meta:
@@ -3823,6 +3850,161 @@ class Evidence(
         return hashlib.sha256(self.last_revision.attachment.read()).hexdigest()
 
 
+class AiAnalysisResult(models.Model):
+    """Stores AI analysis results for applied controls and requirement assessments"""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
+    
+    applied_control = models.ForeignKey(
+        "AppliedControl",
+        on_delete=models.CASCADE,
+        related_name="ai_analyses",
+        verbose_name=_("Applied Control"),
+        null=True,
+        blank=True,
+    )
+    
+    requirement_assessment = models.ForeignKey(
+        "RequirementAssessment",
+        on_delete=models.CASCADE,
+        related_name="ai_analyses",
+        verbose_name=_("Requirement Assessment"),
+        null=True,
+        blank=True,
+    )
+    
+    result = models.JSONField(
+        verbose_name=_("Analysis Result"),
+        help_text=_("The full JSON result from the AI analysis")
+    )
+    
+    status = models.CharField(
+        max_length=50,
+        default="completed",
+        verbose_name=_("Status"),
+    )
+    
+    score = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Compliance Score"),
+        help_text=_("Overall compliance score (0-100)")
+    )
+    
+    compliance_status = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name=_("Compliance Status"),
+    )
+    
+    model_used = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name=_("AI Model Used"),
+    )
+    
+    gemini_files_count = models.IntegerField(
+        default=0,
+        verbose_name=_("Gemini Files Used"),
+    )
+    
+    requirements_count = models.IntegerField(
+        default=0,
+        verbose_name=_("Requirements Evaluated"),
+    )
+    
+    error_message = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Error Message")
+    )
+
+    question_answers = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_("Question Answers"),
+        help_text=_("Extracted question answers (Yes/No/Partial) stored separately from the AI response body")
+    )
+    
+    class Meta:
+        verbose_name = _("AI Analysis Result")
+        verbose_name_plural = _("AI Analysis Results")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['applied_control', '-created_at']),
+        ]
+    
+    def __str__(self):
+        target = self.applied_control or self.requirement_assessment
+        return f"AI Analysis for {target} at {self.created_at}"
+
+
+class FileSearchTable(models.Model):
+    """Stores Gemini File Search IDs for uploaded evidence files"""
+    
+    class UploadStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        UPLOADING = "uploading", "Uploading"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated at"))
+    
+    evidence_revision = models.OneToOneField(
+        "EvidenceRevision",
+        on_delete=models.CASCADE,
+        related_name="file_search",
+        verbose_name=_("Evidence Revision")
+    )
+    
+    # Gemini File Search IDs
+    gemini_file_id = models.CharField(
+        max_length=255,
+        verbose_name=_("Gemini File ID"),
+        help_text=_("The file ID returned by Gemini File Search")
+    )
+    gemini_store_id = models.CharField(
+        max_length=255,
+        verbose_name=_("Gemini File Search Store ID"),
+        help_text=_("The File Search Store this file belongs to")
+    )
+    operation_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name=_("Gemini Operation ID"),
+        help_text=_("The operation ID for tracking upload status")
+    )
+    
+    upload_status = models.CharField(
+        max_length=20,
+        choices=UploadStatus.choices,
+        default=UploadStatus.PENDING,
+        verbose_name=_("Upload Status")
+    )
+    error_message = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_("Error Message")
+    )
+    
+    class Meta:
+        verbose_name = _("File Search Entry")
+        verbose_name_plural = _("File Search Entries")
+        indexes = [
+            models.Index(fields=['gemini_file_id']),
+            models.Index(fields=['upload_status']),
+        ]
+    
+    def __str__(self):
+        return f"FileSearch for {self.evidence_revision.evidence.name} - {self.upload_status}"
+
+
 class EvidenceRevision(AbstractBaseModel, FolderMixin):
     evidence = models.ForeignKey(
         Evidence, on_delete=models.CASCADE, related_name="revisions"
@@ -3842,6 +4024,7 @@ class EvidenceRevision(AbstractBaseModel, FolderMixin):
     attachment = models.FileField(
         blank=True,
         null=True,
+        max_length=512,
         verbose_name=_("Attachment"),
         validators=[validate_file_size, validate_file_name],
     )
@@ -6050,6 +6233,133 @@ class ComplianceAssessment(Assessment):
             if group.get("ref_id") in self.selected_implementation_groups
         ]
 
+    def sync_requirement_nodes_with_library(self) -> tuple[int, int]:
+        """
+        Sync requirement nodes from the stored library to the database.
+        - Creates missing nodes
+        - Updates assessable field for existing nodes
+        Returns tuple of (nodes_created, nodes_updated).
+        """
+        from library.helpers import get_referential_translation
+
+        # Get the stored library for this framework
+        library = self.framework.library
+        if not library:
+            return (0, 0)
+
+        stored_library = StoredLibrary.objects.filter(urn=library.urn).first()
+        if not stored_library or not stored_library.content:
+            return (0, 0)
+
+        # Get framework data from stored library
+        content = stored_library.content
+        framework_data = content.get("framework")
+        if not framework_data and "frameworks" in content:
+            frameworks_list = content.get("frameworks", [])
+            if frameworks_list:
+                framework_data = frameworks_list[0]
+
+        if not framework_data:
+            return (0, 0)
+
+        stored_nodes = framework_data.get("requirement_nodes", [])
+        if not stored_nodes:
+            return (0, 0)
+
+        # Get existing nodes as a dict for quick lookup
+        existing_nodes = {
+            node.urn: node
+            for node in RequirementNode.objects.filter(framework=self.framework)
+        }
+
+        # Find missing nodes and update existing ones
+        created_count = 0
+        updated_count = 0
+        created_nodes = []
+
+        for index, node_data in enumerate(stored_nodes):
+            node_urn = node_data.get("urn", "").lower()
+            if not node_urn:
+                continue
+
+            library_assessable = node_data.get("assessable", False)
+
+            if node_urn in existing_nodes:
+                # Update existing node with library data
+                existing_node = existing_nodes[node_urn]
+                update_fields = []
+
+                if existing_node.assessable != library_assessable:
+                    existing_node.assessable = library_assessable
+                    update_fields.append("assessable")
+
+                library_questions = node_data.get("questions")
+                if existing_node.questions != library_questions:
+                    existing_node.questions = library_questions
+                    update_fields.append("questions")
+
+                library_typical_evidence = node_data.get("typical_evidence")
+                if existing_node.typical_evidence != library_typical_evidence:
+                    existing_node.typical_evidence = library_typical_evidence
+                    update_fields.append("typical_evidence")
+
+                library_description = node_data.get("description")
+                if existing_node.description != library_description:
+                    existing_node.description = library_description
+                    update_fields.append("description")
+
+                library_annotation = node_data.get("annotation")
+                if existing_node.annotation != library_annotation:
+                    existing_node.annotation = library_annotation
+                    update_fields.append("annotation")
+
+                if update_fields:
+                    existing_node.save(update_fields=update_fields)
+                    updated_count += 1
+            else:
+                # Create missing node
+                parent_urn = node_data.get("parent_urn")
+                if parent_urn:
+                    parent_urn = parent_urn.lower()
+
+                node = RequirementNode.objects.create(
+                    folder=Folder.get_root_folder(),
+                    framework=self.framework,
+                    urn=node_urn,
+                    parent_urn=parent_urn,
+                    assessable=library_assessable,
+                    ref_id=node_data.get("ref_id"),
+                    annotation=node_data.get("annotation"),
+                    typical_evidence=node_data.get("typical_evidence"),
+                    provider=self.framework.provider,
+                    order_id=index,
+                    name=node_data.get("name"),
+                    description=node_data.get("description"),
+                    implementation_groups=node_data.get("implementation_groups"),
+                    weight=node_data.get("weight", 1),
+                    locale=self.framework.locale,
+                    default_locale=self.framework.default_locale,
+                    translations=node_data.get("translations", {}),
+                    is_published=True,
+                    questions=node_data.get("questions"),
+                )
+                created_nodes.append(node)
+                created_count += 1
+
+        # Create requirement assessments for the new nodes
+        if created_nodes:
+            for node in created_nodes:
+                RequirementAssessment.objects.create(
+                    compliance_assessment=self,
+                    requirement=node,
+                    folder=self.folder,
+                    answers=transform_questions_to_answers(node.questions)
+                    if node.questions
+                    else {},
+                )
+
+        return (created_count, updated_count)
+
     def get_requirement_assessments(self, include_non_assessable: bool):
         """
         Returns sorted assessable requirement assessments based on the selected implementation groups.
@@ -7933,7 +8243,7 @@ auditlog.register(
 )
 auditlog.register(
     EvidenceRevision,
-    exclude_fields=common_exclude,
+    exclude_fields=common_exclude + ["file_search"],
 )
 auditlog.register(
     OrganisationIssue,

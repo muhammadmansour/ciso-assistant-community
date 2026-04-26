@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from datetime import date, timedelta
 from huey import crontab
@@ -363,10 +364,38 @@ def auditlog_prune():
 # Assignment notification functions
 
 
-@task()
+def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
+    """Send email via Muraji API"""
+    import requests
+    
+    MURAJI_API_URL = "https://muraji-api.wathbahs.com/api/mail/send"
+    
+    try:
+        payload = {
+            "recipient_list": [to_email],
+            "subject": subject,
+            "body": body
+        }
+        
+        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+        
+        if response.ok:
+            logger.info(f"Muraji email sent successfully to {to_email}")
+            return True
+        else:
+            logger.error(f"Muraji API error: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to send email via Muraji API: {str(e)}")
+        return False
+
+
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
-    """Send notification when AppliedControl is assigned to users"""
+    """Send notification when AppliedControl is assigned to users via Muraji API"""
+    logger.info(f"send_applied_control_assignment_notification called with control_id={control_id}, emails={assigned_user_emails}")
+    
     if not assigned_user_emails:
+        logger.warning("No emails provided for applied control assignment notification")
         return
 
     try:
@@ -378,6 +407,7 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     from .email_utils import render_email_template
 
     context = {
+        "control_id": str(control.id),
         "control_name": control.name,
         "control_description": control.description or "No description provided",
         "control_ref_id": control.ref_id or "N/A",
@@ -390,10 +420,13 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     }
 
     for email in assigned_user_emails:
-        if email and check_email_configuration(email, [control]):
-            rendered = render_email_template("applied_control_assignment", context)
-            if rendered:
-                send_notification_email(rendered["subject"], rendered["body"], email)
+        logger.info(f"Processing email notification for: {email}")
+        rendered = render_email_template("applied_control_assignment", context)
+        if rendered:
+            logger.info(f"Sending Muraji email to {email}")
+            # Use Muraji API instead of Django send_mail
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
 
 
 @task()
@@ -737,3 +770,341 @@ def mark_expired_evidences():
         logger.info(f"Successfully marked {count} evidences as expired")
     else:
         logger.debug("No expired evidences found to mark")
+
+
+@task()
+def run_evidence_auto_analysis(evidence_id: str):
+    """
+    Run auto AI analysis (entity extraction and audit analysis) on an evidence.
+    Triggered when evidence attachment is uploaded.
+    """
+    import base64
+    import requests
+    from django.utils import timezone
+    
+    ENTITY_EXTRACTION_API_URL = "https://muraji-api.wathbahs.com/api/entity-extraction/extract"
+    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbahs.com/api/audit/analyze"
+    
+    try:
+        evidence = Evidence.objects.get(id=evidence_id)
+        
+        # Check if evidence has an attachment (via last_revision)
+        if not evidence.last_revision or not evidence.last_revision.attachment:
+            logger.info(f"Evidence {evidence_id} has no attachment, skipping auto-analysis")
+            return
+        
+        logger.info(f"Starting auto-analysis for evidence: {evidence.name} (ID: {evidence_id})")
+        
+        # Read the attachment file
+        try:
+            evidence.last_revision.attachment.seek(0)  # Reset file pointer
+            file_content = evidence.last_revision.attachment.read()
+            base64_data = base64.b64encode(file_content).decode('utf-8')
+            
+            # Get file info
+            attachment_name = evidence.filename()
+            # Determine MIME type from extension
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(attachment_name)
+            mime_type = mime_type or 'application/octet-stream'
+            
+            logger.info(f"File: {attachment_name}, MIME: {mime_type}, Size: {len(file_content)} bytes")
+        except Exception as e:
+            logger.error(f"Failed to read attachment for evidence {evidence_id}: {e}")
+            return
+        
+        # Prepare file payload
+        file_payload = {
+            "name": attachment_name,
+            "mimeType": mime_type,
+            "encoding": "base64",
+            "data": base64_data
+        }
+        
+        # 1. Run Entity Extraction
+        try:
+            logger.info(f"Running entity extraction for evidence {evidence_id}")
+            entity_response = requests.post(
+                ENTITY_EXTRACTION_API_URL,
+                json={"files": [file_payload]},
+                headers={"Content-Type": "application/json"},
+                timeout=300  # 5 minutes
+            )
+            
+            if entity_response.ok:
+                entity_result = entity_response.json()
+                evidence.ai_analysis = entity_result
+                evidence.ai_analysis_updated_at = timezone.now()
+                evidence.save(update_fields=["ai_analysis", "ai_analysis_updated_at"])
+                logger.info(f"Entity extraction completed for evidence {evidence_id}")
+            else:
+                logger.error(f"Entity extraction failed for evidence {evidence_id}: {entity_response.text[:500]}")
+        except Exception as e:
+            logger.error(f"Entity extraction error for evidence {evidence_id}: {e}")
+        
+        # 2. Run Audit Analysis (if linked to requirements)
+        try:
+            # Get questions and typical evidence from linked requirements
+            questions = []
+            typical_evidence = []
+            context_parts = [f"Evidence: {evidence.name}"]
+            
+            if evidence.description:
+                context_parts.append(f"Description: {evidence.description}")
+            
+            for ra in evidence.requirement_assessments.all():
+                req = ra.requirement
+                
+                # Parse questions
+                if req.questions:
+                    if isinstance(req.questions, dict):
+                        for q_key, q_val in req.questions.items():
+                            if isinstance(q_val, dict) and 'text' in q_val:
+                                questions.append(q_val['text'])
+                            elif isinstance(q_val, str):
+                                questions.append(q_val)
+                    elif isinstance(req.questions, list):
+                        questions.extend([q.get('text', q) if isinstance(q, dict) else q for q in req.questions])
+                
+                # Parse typical evidence
+                if req.typical_evidence:
+                    if isinstance(req.typical_evidence, str):
+                        lines = req.typical_evidence.strip().split('\n')
+                        for line in lines:
+                            line = line.strip().lstrip('-').lstrip('•').strip()
+                            if line:
+                                typical_evidence.append(line)
+                    elif isinstance(req.typical_evidence, list):
+                        typical_evidence.extend(req.typical_evidence)
+                
+                # Build context
+                req_parts = []
+                if req.framework:
+                    req_parts.append(f"Framework: {req.framework.name}")
+                    if req.framework.provider:
+                        req_parts.append(f"Provider: {req.framework.provider}")
+                if req.ref_id:
+                    req_parts.append(f"Requirement: {req.ref_id}")
+                if req.description:
+                    req_parts.append(f"Description: {req.description}")
+                if req_parts:
+                    context_parts.append(", ".join(req_parts))
+            
+            # Remove duplicates
+            questions = list(dict.fromkeys(questions))
+            typical_evidence = list(dict.fromkeys(typical_evidence))
+            
+            # Only run audit analysis if we have questions or typical evidence
+            if questions or typical_evidence:
+                logger.info(f"Running audit analysis for evidence {evidence_id} with {len(questions)} questions and {len(typical_evidence)} typical evidence items")
+                
+                audit_request = {
+                    "files": [file_payload],
+                    "questions": questions,
+                    "typicalEvidence": typical_evidence,
+                    "options": {
+                        "context": "\n".join(context_parts)
+                    }
+                }
+                
+                audit_response = requests.post(
+                    AUDIT_ANALYSIS_API_URL,
+                    json=audit_request,
+                    headers={"Content-Type": "application/json"},
+                    timeout=300  # 5 minutes
+                )
+                
+                if audit_response.ok:
+                    audit_result = audit_response.json()
+                    evidence.audit_analysis = audit_result
+                    evidence.audit_analysis_updated_at = timezone.now()
+                    evidence.save(update_fields=["audit_analysis", "audit_analysis_updated_at"])
+                    logger.info(f"Audit analysis completed for evidence {evidence_id}")
+                else:
+                    logger.error(f"Audit analysis failed for evidence {evidence_id}: {audit_response.text[:500]}")
+            else:
+                logger.info(f"Skipping audit analysis for evidence {evidence_id} - no questions or typical evidence linked")
+                
+        except Exception as e:
+            logger.error(f"Audit analysis error for evidence {evidence_id}: {e}")
+        
+        logger.info(f"Auto-analysis completed for evidence {evidence_id}")
+        
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence {evidence_id} not found for auto-analysis")
+    except Exception as e:
+        logger.error(f"Auto-analysis failed for evidence {evidence_id}: {e}")
+
+
+# Register Gemini upload tasks so Huey can discover them
+try:
+    from core.tasks_gemini import upload_evidence_to_gemini  # noqa: F401, E402
+except ImportError:
+    pass  # google-genai not installed
+
+
+# ==============================================================================
+# Applied Control AI Analysis using Muraji API
+# ==============================================================================
+
+MURAJI_ANALYSIS_API_URL = os.environ.get(
+    'MURAJI_ANALYSIS_API_URL',
+    'https://muraji-api.wathbahs.com/api/audit/analyze'
+)
+
+
+@task()
+def run_applied_control_analysis(applied_control_id: str):
+    """
+    Run AI analysis for an Applied Control using Muraji API.
+    Sends evidence info, requirements, questions, and typical evidence.
+    """
+    try:
+        applied_control = AppliedControl.objects.get(id=applied_control_id)
+
+        logger.info(
+            "Starting Applied Control AI analysis",
+            applied_control_id=applied_control_id,
+            applied_control_name=applied_control.name
+        )
+
+        # Gather evidence info from associated evidences
+        evidence_data = []
+        gemini_file_ids = []
+        evidences = applied_control.evidences.all()
+
+        for evidence in evidences:
+            ev_info = {
+                'name': evidence.name,
+                'description': evidence.description or '',
+            }
+
+            # Try to get Gemini File Search IDs if available
+            for revision in evidence.revisions.all():
+                try:
+                    if hasattr(revision, 'file_search'):
+                        fs = revision.file_search
+                        if fs and fs.upload_status == 'completed':
+                            gemini_file_ids.append({
+                                'gemini_file_id': fs.gemini_file_id,
+                                'gemini_store_id': fs.gemini_store_id,
+                                'evidence_name': evidence.name,
+                            })
+                except Exception:
+                    pass
+
+            evidence_data.append(ev_info)
+
+        # Gather questions and typical evidence from requirement assessments
+        questions = []
+        typical_evidence = []
+        requirements_context = []
+
+        for req_assessment in applied_control.requirement_assessments.select_related(
+            'requirement',
+            'requirement__framework'
+        ).all():
+            requirement = req_assessment.requirement
+
+            requirements_context.append({
+                'ref_id': requirement.ref_id,
+                'name': requirement.name,
+                'description': requirement.description or '',
+                'framework': requirement.framework.name if requirement.framework else '',
+                'provider': requirement.framework.provider if requirement.framework else ''
+            })
+
+            if requirement.questions:
+                for q_key, q_data in requirement.questions.items():
+                    if isinstance(q_data, dict) and 'text' in q_data:
+                        questions.append(q_data['text'])
+
+            if requirement.typical_evidence:
+                typical_evidence.extend(requirement.typical_evidence)
+
+        # Prepare request body for Muraji API
+        request_body = {
+            'applied_control': {
+                'id': str(applied_control.id),
+                'ref_id': applied_control.ref_id,
+                'name': applied_control.name,
+                'description': applied_control.description or '',
+                'status': applied_control.status,
+                'category': applied_control.category,
+                'csf_function': applied_control.csf_function
+            },
+            'evidences': evidence_data,
+            'gemini_file_search': {
+                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
+                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
+                'evidences': gemini_file_ids
+            } if gemini_file_ids else None,
+            'requirements': requirements_context,
+            'questions': list(set(questions)),
+            'typical_evidence': list(set(typical_evidence)),
+            'analysis_config': {
+                'include_entity_extraction': True,
+                'include_compliance_check': True,
+                'include_gap_analysis': True,
+                'include_recommendations': True
+            }
+        }
+
+        logger.info(
+            "Sending analysis request to Muraji API",
+            applied_control_id=applied_control_id,
+            muraji_url=MURAJI_ANALYSIS_API_URL,
+            evidence_count=len(evidence_data),
+            gemini_file_count=len(gemini_file_ids),
+            question_count=len(questions),
+            requirement_count=len(requirements_context)
+        )
+
+        import requests as http_requests
+        response = http_requests.post(
+            MURAJI_ANALYSIS_API_URL,
+            json=request_body,
+            headers={'Content-Type': 'application/json'},
+            timeout=300
+        )
+
+        if not response.ok:
+            logger.error(
+                "Muraji API request failed",
+                applied_control_id=applied_control_id,
+                status_code=response.status_code,
+                response_text=response.text
+            )
+            return
+
+        result = response.json()
+
+        logger.info(
+            "Applied Control AI analysis completed",
+            applied_control_id=applied_control_id,
+            result_keys=list(result.keys()) if isinstance(result, dict) else None
+        )
+
+        # Store result in Django cache (shared file-based cache)
+        from django.core.cache import cache
+        from django.utils import timezone
+        cache_key = f"ai_analysis_{applied_control.id}"
+        cache.set(cache_key, {
+            'result': result,
+            'updated_at': timezone.now().isoformat(),
+        }, timeout=86400 * 30)  # Cache for 30 days
+
+        return result
+
+    except AppliedControl.DoesNotExist:
+        logger.error(
+            "Applied Control not found",
+            applied_control_id=applied_control_id
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to run Applied Control AI analysis",
+            applied_control_id=applied_control_id,
+            error=str(e)
+        )
+        raise

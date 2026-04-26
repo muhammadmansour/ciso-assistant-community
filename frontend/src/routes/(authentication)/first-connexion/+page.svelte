@@ -3,11 +3,10 @@
 	import SuperForm from '$lib/components/Forms/Form.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
 	import { ResetPasswordSchema } from '$lib/utils/schemas';
-	import Typewriter from 'sv-typewriter';
+	import Greetings from '../login/Greetings.svelte';
 
 	import { m } from '$paraglide/messages.js';
 	import { zod } from 'sveltekit-superforms/adapters';
-	import Logo from '$lib/components/Logo/Logo.svelte';
 
 	interface Props {
 		data: PageData;
@@ -16,61 +15,101 @@
 	let { data }: Props = $props();
 </script>
 
-<div class="flex mx-auto justify-center items-center h-screen w-screen bg-slate-200">
-	<div class="absolute top-5 left-5">
-		<div class="flex flex-row w-full space-x-4 pb-3">
-			<Logo />
+<div class="min-h-screen flex">
+	<!-- Left panel - Branding -->
+	<div
+		class="hidden lg:flex lg:w-[55%] bg-[#0A1628] flex-col relative overflow-hidden"
+	>
+		<!-- Decorative background circles -->
+		<div
+			class="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-[#0077CC]/5 -translate-y-1/3 translate-x-1/4"
+		></div>
+		<div
+			class="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-[#00A3E0]/5 translate-y-1/3 -translate-x-1/4"
+		></div>
+		<div
+			class="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full bg-[#0077CC]/[0.03] -translate-x-1/2 -translate-y-1/2"
+		></div>
+
+		<div class="relative z-10 w-full px-12 flex-1 flex items-center justify-center">
+			<div class="w-full">
+				<Greetings />
+			</div>
 		</div>
 	</div>
-	<div class="flex w-full items-center justify-center">
-		<div id="hellothere" class="flex flex-col justify-center items-center w-3/5 text-gray-900">
-			<Typewriter mode="loopOnce" cursor={false} interval={50}>
-				<div class="text-2xl unstyled text-center pb-4">
-					<span class="text-2xl text-center">{m.helloThere()} 👋</span>
-					<span> {m.thisIsCisoAssistant()}. </span>
+
+	<!-- Right panel - Set Password form -->
+	<div class="flex-1 flex flex-col bg-gray-50 px-6 py-12">
+		<div class="w-full max-w-[420px] mx-auto flex-1 flex items-center">
+			<div class="w-full">
+				<!-- Mobile logo -->
+				<div class="lg:hidden flex items-center gap-3 mb-10">
+					<div
+						class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
+					>
+						W
+					</div>
+					<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
 				</div>
-			</Typewriter>
-			<Typewriter mode="cascade" cursor={false} interval={45} delay={5000}>
-				<div class="text-2xl unstyled text-center">
-					<span> {m.yourStreamlined()} </span>
-					<span class="font-black"> {m.oneStopShop()} </span>
-					<span> {m.forComplianceRiskManagement()}. </span>
-				</div>
-			</Typewriter>
-		</div>
-		<div class="flex flex-col bg-white p-12 rounded-lg shadow-lg items-center space-y-4">
-			<div class="bg-primary-300 px-6 py-5 rounded-full text-3xl">
-				<i class="fa-solid fa-key"></i>
-			</div>
-			<p class="text-gray-600 text-sm text-center">
-				{m.youCanSetPasswordHere()}<br />
-			</p>
-			<!-- SuperForm with dataType 'form' -->
-			<div class="flex w-full">
-				<SuperForm
-					class="flex flex-col space-y-3 w-full"
-					data={data?.form}
-					dataType="form"
-					validators={zod(ResetPasswordSchema)}
-				>
-					{#snippet children({ form })}
-						<TextField type="password" {form} field="new_password" label={m.newPassword()} />
-						<TextField
-							type="password"
-							{form}
-							field="confirm_new_password"
-							label={m.confirmNewPassword()}
-						/>
-						<p class="pt-3">
-							<button
-								class="btn preset-filled-primary-500 font-semibold w-full"
-								type="submit"
-								data-testid="set-password-btn">{m.setPassword()}</button
-							>
+
+				<div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+					<!-- Icon -->
+					<div class="w-16 h-16 bg-gradient-to-br from-[#0A1628] to-[#1a2740] rounded-2xl flex items-center justify-center shadow-lg mb-6">
+						<i class="fa-solid fa-key text-white text-2xl"></i>
+					</div>
+
+					<div class="text-center mb-6">
+						<h3 class="text-2xl font-bold text-gray-900">
+							{m.helloThere()} 👋
+						</h3>
+						<p class="text-gray-500 text-sm mt-1">
+							{m.youCanSetPasswordHere()}
 						</p>
-					{/snippet}
-				</SuperForm>
+					</div>
+
+					<div class="w-full">
+						<SuperForm
+							class="flex flex-col space-y-4"
+							data={data?.form}
+							dataType="form"
+							validators={zod(ResetPasswordSchema)}
+						>
+							{#snippet children({ form })}
+								<TextField type="password" {form} field="new_password" label={m.newPassword()} />
+								<TextField
+									type="password"
+									{form}
+									field="confirm_new_password"
+									label={m.confirmNewPassword()}
+								/>
+								<button
+									class="btn w-full bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white font-semibold py-3 rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
+									type="submit"
+									data-testid="set-password-btn"
+								>
+									{m.setPassword()}
+								</button>
+							{/snippet}
+						</SuperForm>
+					</div>
+				</div>
+
+				<!-- Security note -->
+				<p class="text-center text-xs text-gray-400 mt-6">
+					Protected by enterprise-grade security
+				</p>
 			</div>
+		</div>
+
+		<!-- Powered by Wathbah -->
+		<div class="flex flex-col items-center gap-1.5 pb-2 pt-6">
+			<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
+				<img
+					src="/wathba_logo_full.png"
+					alt="Wathbah"
+					class="h-10 hover:opacity-90 transition-opacity"
+				/>
+			</a>
 		</div>
 	</div>
 </div>

@@ -237,16 +237,14 @@
 		}
 	});
 
-	let isLoading = $state(false);
 	let previousFormErrors = $derived('');
-	const { form: formData, errors } = _form;
+	const { form: formData, errors, submitting } = _form;
 
 	errors.subscribe((newErrors) => {
 		const errorCount = Object.values(newErrors).reduce((acc, error) => (acc += error ? 1 : 0), 0);
 		const stringifiedErrors = JSON.stringify([Date.now(), newErrors]);
 
 		if (errorCount && stringifiedErrors !== previousFormErrors) {
-			isLoading = false;
 			previousFormErrors = stringifiedErrors;
 		}
 	});
@@ -861,10 +859,10 @@
 				{...rest}
 			/>
 		{/if}
-		<div class="flex flex-row justify-between space-x-4">
+		<div class="flex flex-row justify-between space-x-4 mt-2">
 			{#if closeModal}
 				<button
-					class="btn bg-gray-400 text-white font-semibold w-full"
+					class="btn bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold w-full rounded-lg transition-colors"
 					data-testid="cancel-button"
 					type="button"
 					onclick={(event) => {
@@ -872,42 +870,33 @@
 						createModalCache.deleteCache(model.urlModel);
 					}}>{m.cancel()}</button
 				>
-				<button
-					class="btn preset-filled-primary-500 font-semibold w-full {isLoading
-						? 'cursor-wait'
-						: ''}"
-					data-testid="save-button"
-					type="submit"
-					onclick={(e) => {
-						if (URLModel !== 'folders-import') return;
-						if (isLoading) {
-							e.preventDefault();
-							e.stopPropagation();
-							return;
-						}
-
-						const schema = modelSchema(URLModel);
-						const result = schema.safeParse($formData);
-						if (!result.success) return;
-
-						isLoading = true;
-					}}
-					>{#if isLoading}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
-				>
+			<button
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+					? 'cursor-wait opacity-75'
+					: ''}"
+				data-testid="save-button"
+				type="submit"
+				disabled={$submitting}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+			>
 			{:else}
 				{#if cancelButton}
 					<button
-						class="btn bg-gray-400 text-white font-semibold w-full"
+						class="btn bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold w-full rounded-lg transition-colors"
 						data-testid="cancel-button"
 						type="button"
 						onclick={cancel}>{m.cancel()}</button
 					>
 				{/if}
-				<button
-					class="btn preset-filled-primary-500 font-semibold w-full"
-					data-testid="save-button"
-					type="submit">{m.save()}</button
-				>
+			<button
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+					? 'cursor-wait opacity-75'
+					: ''}"
+				data-testid="save-button"
+				type="submit"
+				disabled={$submitting}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+			>
 			{/if}
 		</div>
 	{/snippet}

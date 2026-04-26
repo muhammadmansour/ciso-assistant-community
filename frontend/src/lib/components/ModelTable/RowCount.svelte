@@ -12,7 +12,7 @@
 {#if $rowCount === undefined}
 	<div></div>
 {:else}
-	<aside class="text-sm" data-testid="row-count">
+	<aside class="text-sm text-gray-500" data-testid="row-count">
 		{#if $rowCount?.total > 0}
 			{m.rowCount({ start: $rowCount.start, end: $rowCount.end, total: $rowCount.total })}
 		{:else}

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import Logo from '$lib/components/Logo/Logo.svelte';
 	import Greetings from './Greetings.svelte';
 	import FormCard from './FormCard.svelte';
 
@@ -12,19 +11,57 @@
 	let { data, form }: Props = $props();
 </script>
 
-<div class="lg:relative h-screen bg-slate-200">
-	<div class="lg:absolute top-5 lg:left-5 flex justify-center">
-		<div class="flex justify-center flex-row max-w-48 space-x-4 pb-3">
-			<Logo />
+<div class="min-h-screen flex flex-col lg:flex-row">
+	<!-- Left panel - Branding -->
+	<div
+		class="hidden lg:flex lg:w-[55%] bg-[#0A1628] relative overflow-hidden items-center justify-center"
+	>
+		<!-- Decorative background circles -->
+		<div
+			class="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-[#0077CC]/5 -translate-y-1/3 translate-x-1/4"
+		></div>
+		<div
+			class="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-[#00A3E0]/5 translate-y-1/3 -translate-x-1/4"
+		></div>
+		<div
+			class="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full bg-[#0077CC]/[0.03] -translate-x-1/2 -translate-y-1/2"
+		></div>
+
+		<div class="relative z-10 w-full px-12">
+			<Greetings />
 		</div>
 	</div>
-	<div
-		class="lg:absolute lg:top-1/2 lg:left-1/2 w-full transform lg:-translate-x-1/2 lg:-translate-y-1/2"
-	>
-		<div class="flex flex-col lg:flex-row w-full lg:pr-8 space-y-4 lg:space-y-0 lg:space-x-4">
-			<Greetings />
-			<div class="flex justify-center lg:pr-5 items-center w-full lg:w-2/5">
-				<FormCard {data} {form} />
+
+	<!-- Right panel - Login form -->
+	<div class="flex-1 bg-gray-50 flex items-center justify-center px-6 py-6">
+		<div class="w-full max-w-[420px]">
+			<!-- Mobile logo -->
+			<div class="lg:hidden flex items-center gap-3 mb-10">
+				<div
+					class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
+				>
+					W
+				</div>
+				<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
+			</div>
+
+			<FormCard {data} {form} />
+
+			<!-- Security note -->
+			<p class="text-center text-xs text-gray-400 mt-6">
+				Protected by enterprise-grade security
+			</p>
+
+			<!-- Powered by Wathbah -->
+			<div class="mt-8 flex flex-col items-center gap-1.5">
+				<span class="text-gray-400 text-xs">Powered by</span>
+				<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
+					<img
+						src="/wathba_logo_full.png"
+						alt="Wathbah"
+						class="h-10 hover:opacity-90 transition-opacity"
+					/>
+				</a>
 			</div>
 		</div>
 	</div>

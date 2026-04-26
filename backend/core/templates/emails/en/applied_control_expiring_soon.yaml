@@ -1,4 +1,4 @@
-subject: "CISO Assistant: Control is expiring in ${days_remaining} ${days_text}"
+subject: "Wathbah GRC: Control is expiring in ${days_remaining} ${days_text}"
 body: |
   Hello,
 
@@ -6,7 +6,7 @@ body: |
 
   ${control_list}
 
-  Please log in to your CISO Assistant portal to review and complete these controls:
+  Please log in to your Wathbah GRC portal to review and complete these controls:
   ${ciso_assistant_url}
 
   Thank you.

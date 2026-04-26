@@ -15,6 +15,12 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit()
 	],
+	server: {
+		host: '0.0.0.0',
+		port: 3000,
+		allowedHosts: ['localhost', 'ciso.wathbahs.com', 'grc.wathbahs.com'],
+		hmr: false
+	},
 	test: {
 		include: ['{src}/**/*.{test,spec}.{js,ts}']
 	}

@@ -9,6 +9,8 @@
 	import type { ActionData, PageData } from './$types';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	import { onMount } from 'svelte';
 	import {
@@ -26,6 +28,7 @@
 	let { data, form }: Props = $props();
 	let URLModel = $derived(data.URLModel);
 	let exportPopupOpen = $state(false);
+	let isDeletingAll = $state(false);
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -112,7 +115,7 @@
 </script>
 
 {#if data?.table}
-	<div class="shadow-lg">
+	<div class="wgrc-card">
 		{#key URLModel}
 			<ModelTable
 				source={data.table}
@@ -209,7 +212,7 @@
 								{/if}
 								{#if URLModel === 'folders'}
 									<button
-										class="text-gray-50 inline-block border-e p-3 bg-sky-400 hover:bg-sky-300 w-12 focus:relative"
+										class="text-gray-50 inline-block border-e p-3 bg-[#1a2740] hover:bg-[#2a3a66] w-12 focus:relative"
 										data-testid="import-button"
 										title={safeTranslate('importFolder')}
 										aria-label={safeTranslate('importFolder')}
@@ -233,33 +236,65 @@
 										data-testid="viz-button"><i class="fa-solid fa-chart-pie"></i></Anchor
 									>
 								{/if}
-							{:else if ['risk-matrices', 'frameworks', 'requirement-mapping-sets'].includes(URLModel)}
-								{@const href = `/libraries?object_type=${URLModel.replace(/-/g, '_')}`}
-								{@const title =
-									URLModel === 'risk-matrices'
-										? m.importMatrices()
-										: URLModel === 'frameworks'
-											? m.importFrameworks()
-											: m.importMappings()}
-								<Anchor
-									{href}
-									onclick={handleClickForGT}
-									label={m.libraries()}
-									class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
-									data-testid="import-button"
-									id="add-button"
-									{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
+			{:else if ['risk-matrices', 'frameworks', 'requirement-mapping-sets'].includes(URLModel)}
+							{@const href = `/libraries?object_type=${URLModel.replace(/-/g, '_')}`}
+							{@const title =
+								URLModel === 'risk-matrices'
+									? m.importMatrices()
+									: URLModel === 'frameworks'
+										? m.importFrameworks()
+										: m.importMappings()}
+							<Anchor
+								{href}
+								onclick={handleClickForGT}
+								label={m.libraries()}
+								class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
+								data-testid="import-button"
+								id="add-button"
+								{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
+							>
+							{#if URLModel === 'frameworks'}
+								<form
+									method="POST"
+									action="?/deleteAll"
+									use:enhance={() => {
+										isDeletingAll = true;
+										return async ({ result, update }) => {
+											isDeletingAll = false;
+											await update();
+											await invalidateAll();
+										};
+									}}
 								>
-								{#if URLModel === 'requirement-mapping-sets'}
-									<Anchor
-										href="requirement-mapping-sets/graph/"
-										class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
-										title={m.exploreButton()}
-										label={m.inspect()}
-										data-testid="viz-button"><i class="fa-solid fa-diagram-project"></i></Anchor
+									<button
+										type="submit"
+										class="inline-block p-3 text-red-600 hover:bg-red-50 w-12 focus:relative"
+										title="Delete all frameworks"
+										disabled={isDeletingAll}
+										onclick={(e) => {
+											if (!confirm('Are you sure you want to delete ALL frameworks? This action cannot be undone.')) {
+												e.preventDefault();
+											}
+										}}
 									>
-								{/if}
+										{#if isDeletingAll}
+											<i class="fa-solid fa-spinner fa-spin"></i>
+										{:else}
+											<i class="fa-solid fa-trash-can"></i>
+										{/if}
+									</button>
+								</form>
 							{/if}
+							{#if URLModel === 'requirement-mapping-sets'}
+								<Anchor
+									href="requirement-mapping-sets/graph/"
+									class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
+									title={m.exploreButton()}
+									label={m.inspect()}
+									data-testid="viz-button"><i class="fa-solid fa-diagram-project"></i></Anchor
+								>
+							{/if}
+						{/if}
 						</span>
 					</div>
 				{/snippet}

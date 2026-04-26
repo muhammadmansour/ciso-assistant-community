@@ -7,6 +7,8 @@
 	import { page } from '$app/state';
 	import { URL_MODEL_MAP } from '$lib/utils/crud';
 	import { driverInstance } from '$lib/utils/stores';
+	import Anchor from '$lib/components/Anchor/Anchor.svelte';
+	import { safeTranslate } from '$lib/utils/i18n';
 
 	const user = page.data.user;
 
@@ -55,18 +57,30 @@
 	}
 </script>
 
-<nav class="grow scrollbar">
+<nav class="grow scrollbar mt-2">
+	<!-- Standalone Home link -->
+	<Anchor
+		href="/recap"
+		breadcrumbAction="replace"
+		class="unstyled flex items-center gap-3 px-4 py-2.5 mb-2 rounded-lg transition-all duration-150 {page.url.pathname === '/recap' ? 'bg-[#0077CC] text-white font-medium' : 'text-white/70 hover:bg-[#0077CC]/80 hover:text-white'}"
+		data-testid="sidebar-home"
+	>
+		<i class="fa-solid fa-house w-4 text-center text-[13px] opacity-80"></i>
+		<span class="text-[13px] tracking-wide">Home</span>
+	</Anchor>
+
 	<Accordion
-		spaceY="space-y-4"
-		regionPanel="space-y-2"
+		spaceY="space-y-2"
+		regionPanel="space-y-0.5"
 		caretClosed="-rotate-90"
 		caretOpen=""
 		value={$lastAccordionItem}
 		onValueChange={(e) => ($lastAccordionItem = e.value)}
+		multiple
 		collapsible
 	>
 		{#snippet iconOpen()}
-			<svg xmlns="http://www.w3.org/2000/svg" width="14px" height="14px" viewBox="0 0 448 512">
+			<svg xmlns="http://www.w3.org/2000/svg" width="12px" height="12px" viewBox="0 0 448 512" class="fill-white/50">
 				<path
 					d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"
 				/>
@@ -75,9 +89,9 @@
 		{#snippet iconClosed()}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
-				class="-rotate-90"
-				width="14px"
-				height="14px"
+				class="-rotate-90 fill-white/50"
+				width="12px"
+				height="12px"
 				viewBox="0 0 448 512"
 			>
 				<path
@@ -91,6 +105,10 @@
 					id={item.name.toLowerCase().replace(' ', '-')}
 					onClick={() => handleNavClick(item)}
 					value={item.name}
+					controlHover="hover:bg-white/8"
+					controlPadding="py-2 px-2"
+					controlRounded="rounded-lg"
+					panelPadding="py-0 px-0"
 				>
 					{#snippet control()}
 						<SideBarCategory {item} />
