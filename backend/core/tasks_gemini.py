@@ -177,14 +177,26 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
 
         client = get_gemini_client()
         if not client:
-            logger.warning("Gemini client not configured, skipping upload")
+            error_msg = (
+                "Gemini client not configured: GEMINI_API_KEY is missing from "
+                "the worker environment. Set it in ~/.ciso-staging.env AND make "
+                "sure start-pm2.sh forwards it into the PM2 env block."
+            )
+            logger.warning(error_msg, revision_id=evidence_revision_id)
+            file_search.upload_status = FileSearchTable.UploadStatus.FAILED
+            file_search.error_message = error_msg
+            file_search.save()
             return
 
         if not client.store_name:
-            logger.warning(
-                "GEMINI_FILE_SEARCH_STORE_NAME is not set — cannot index evidence durably",
-                revision_id=evidence_revision_id,
+            error_msg = (
+                "GEMINI_FILE_SEARCH_STORE_NAME is not set — cannot index "
+                "evidence durably. Configure it on the worker host."
             )
+            logger.warning(error_msg, revision_id=evidence_revision_id)
+            file_search.upload_status = FileSearchTable.UploadStatus.FAILED
+            file_search.error_message = error_msg
+            file_search.save()
             return
 
         file_search.upload_status = FileSearchTable.UploadStatus.UPLOADING

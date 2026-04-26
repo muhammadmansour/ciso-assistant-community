@@ -60,6 +60,14 @@ GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-/etc/ciso/ciso
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
 
+# Gemini File Search (used by the AI analysis flow). Both must reach the
+# huey worker AND the gunicorn process (the analysis HTTP endpoint also
+# instantiates the client). Sourced from ~/.ciso-staging.env above.
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-stage.wathbahs.com/api/audit/analyze}"
+
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
 
@@ -93,6 +101,21 @@ elif [ "$USE_S3" = "True" ]; then
 else
     echo -e "${GREEN}Storage backend: local filesystem${NC}"
 fi
+
+# Gemini AI analysis configuration. Missing values silently break the
+# entire Run AI Analysis flow, so we surface them here.
+if [ -n "$GEMINI_API_KEY" ]; then
+    masked="${GEMINI_API_KEY:0:6}…${GEMINI_API_KEY: -4}"
+    echo -e "${GREEN}Gemini API key: ${masked}${NC}"
+else
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-staging.env — AI analysis will fail with a 'client not configured' error.${NC}"
+fi
+if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
+    echo -e "${GREEN}Gemini File Search store: ${GEMINI_FILE_SEARCH_STORE_NAME}${NC}"
+else
+    echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set — evidences cannot be indexed.${NC}"
+fi
+echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
 
 # Check if PM2 is installed
 if ! command -v pm2 &> /dev/null; then
@@ -134,6 +157,10 @@ module.exports = {
         GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
         GS_LOCATION: '${GS_LOCATION}',
         GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
+        GEMINI_API_KEY: '${GEMINI_API_KEY}',
+        GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
+        GEMINI_MODEL: '${GEMINI_MODEL}',
+        MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -165,6 +192,10 @@ module.exports = {
         GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
         GS_LOCATION: '${GS_LOCATION}',
         GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
+        GEMINI_API_KEY: '${GEMINI_API_KEY}',
+        GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
+        GEMINI_MODEL: '${GEMINI_MODEL}',
+        MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
