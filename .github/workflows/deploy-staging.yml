@@ -53,11 +53,20 @@ jobs:
         # so the deployed tree always matches the branch that just triggered the
         # workflow. Untracked files (e.g. frontend/build/, db/, .env) are left
         # untouched by `git reset --hard`.
+        #
+        # Scoped `git clean -fdx backend/core/migrations/` sweeps any stray
+        # migration files (and their __pycache__) that may have been generated
+        # on the host — for example by a stray `manage.py makemigrations` run
+        # in a previous deploy. These show up as untracked leaf-node migrations
+        # and break `migrate` with "Conflicting migrations detected". Restricting
+        # the clean to that one directory keeps it safe against frontend/build/,
+        # db/, .env, and other untracked deploy artifacts.
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd ~/ciso-stage/ciso-assistant-community && \
              git fetch origin staging-version && \
              git reset --hard origin/staging-version && \
+             git clean -fdx backend/core/migrations/ && \
              git log -1 --pretty=oneline"
 
       - name: Copy build to server
