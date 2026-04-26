@@ -390,6 +390,20 @@ export AWS_SECRET_ACCESS_KEY=<XXX>
 export AWS_STORAGE_BUCKET_NAME=<your-bucket-name>
 export AWS_S3_ENDPOINT_URL=<your-bucket-endpoint>
 
+# Or, use a Google Cloud Storage bucket (mutually exclusive with USE_S3).
+# The bucket must exist beforehand, with uniform bucket-level access
+# and public access prevention enabled. Grant `roles/storage.objectAdmin`
+# on the bucket to a dedicated service account.
+export USE_GCS=True
+export GS_BUCKET_NAME=<your-gcs-bucket-name>
+export GS_PROJECT_ID=<your-gcp-project-id>
+# Path to the service-account JSON key. Omit when using Workload Identity
+# (GKE / Cloud Run / GCE) — Application Default Credentials will be used.
+export GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso-assistant/gcs-service-account.json
+# Optional: object key prefix inside the bucket, and signed-URL TTL (seconds).
+# export GS_LOCATION=attachments/
+# export GS_SIGNED_URL_EXPIRATION_SECONDS=900
+
 # Add a second backup mailer (will be deprecated, not recommended anymore)
 export EMAIL_HOST_RESCUE=<XXX>
 export EMAIL_PORT_RESCUE=587
