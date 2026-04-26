@@ -1682,17 +1682,17 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
         fields = "__all__"
     
     def get_file_search(self, obj):
-        """Get Gemini File Search data if available"""
+        """Get Gemini File Search Store data if available."""
         try:
-            if hasattr(obj, 'file_search'):
-                fs = obj.file_search
+            fs = getattr(obj, 'file_search', None)
+            if fs is not None:
                 return {
-                    'gemini_file_id': fs.gemini_file_id,
+                    'gemini_document_id': fs.gemini_document_id,
                     'gemini_store_id': fs.gemini_store_id,
                     'upload_status': fs.upload_status,
-                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None
+                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None,
                 }
-        except:
+        except Exception:
             pass
         return None
 
