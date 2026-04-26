@@ -15,6 +15,24 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Source server-local env overrides if present.
+# This file is NOT tracked in git, lives outside the repo, and survives
+# `git reset --hard origin/staging-version` from the deploy workflow.
+# Use it for secrets / per-host settings, e.g.:
+#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
+#   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
+#   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
+#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
+#   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
+#                                                   >> ~/.ciso-staging.env
+#   chmod 600 ~/.ciso-staging.env
+if [ -f "$HOME/.ciso-staging.env" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "$HOME/.ciso-staging.env"
+    set +a
+fi
+
 # Configuration
 DOMAIN="grc-stage.wathbahs.com"
 PUBLIC_URL="https://${DOMAIN}"
@@ -29,6 +47,18 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
 POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
+
+# Object storage (S3 / Google Cloud Storage). Default = local filesystem.
+# Set via ~/.ciso-staging.env on the server to flip to GCS without editing
+# this script. USE_S3 and USE_GCS are mutually exclusive (settings.py exits
+# fast if both are True).
+USE_S3="${USE_S3:-False}"
+USE_GCS="${USE_GCS:-False}"
+GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
+GS_PROJECT_ID="${GS_PROJECT_ID:-}"
+GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-/etc/ciso/ciso-storage.json}"
+GS_LOCATION="${GS_LOCATION:-}"
+GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
@@ -49,6 +79,20 @@ export PATH="$HOME/.local/bin:$PATH"
 echo -e "${GREEN}========================================"
 echo "  CISO Assistant - PM2 Staging (${DOMAIN})"
 echo -e "========================================${NC}"
+
+# Surface object-storage configuration up front so deploys are easy to debug.
+if [ "$USE_GCS" = "True" ]; then
+    echo -e "${GREEN}Storage backend: Google Cloud Storage (bucket=${GS_BUCKET_NAME})${NC}"
+    if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+        echo -e "${YELLOW}Warning: USE_GCS=True but credentials file not found at${NC}"
+        echo -e "${YELLOW}  ${GOOGLE_APPLICATION_CREDENTIALS}${NC}"
+        echo -e "${YELLOW}Backend will fail to start until this file exists.${NC}"
+    fi
+elif [ "$USE_S3" = "True" ]; then
+    echo -e "${GREEN}Storage backend: S3 (${AWS_STORAGE_BUCKET_NAME:-?})${NC}"
+else
+    echo -e "${GREEN}Storage backend: local filesystem${NC}"
+fi
 
 # Check if PM2 is installed
 if ! command -v pm2 &> /dev/null; then
@@ -83,6 +127,13 @@ module.exports = {
         DB_HOST: '${DB_HOST}',
         DB_PORT: '${DB_PORT}',
         POSTGRES_SEARCH_PATH: '${POSTGRES_SEARCH_PATH}',
+        USE_S3: '${USE_S3}',
+        USE_GCS: '${USE_GCS}',
+        GS_BUCKET_NAME: '${GS_BUCKET_NAME}',
+        GS_PROJECT_ID: '${GS_PROJECT_ID}',
+        GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
+        GS_LOCATION: '${GS_LOCATION}',
+        GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -107,6 +158,13 @@ module.exports = {
         DB_HOST: '${DB_HOST}',
         DB_PORT: '${DB_PORT}',
         POSTGRES_SEARCH_PATH: '${POSTGRES_SEARCH_PATH}',
+        USE_S3: '${USE_S3}',
+        USE_GCS: '${USE_GCS}',
+        GS_BUCKET_NAME: '${GS_BUCKET_NAME}',
+        GS_PROJECT_ID: '${GS_PROJECT_ID}',
+        GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
+        GS_LOCATION: '${GS_LOCATION}',
+        GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
