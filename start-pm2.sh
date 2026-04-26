@@ -206,6 +206,12 @@ mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$BACKEND_DIR/logs"
 
 # Function to run migrations
+#
+# Deploys must NEVER call `makemigrations`: any model-level change must come in
+# via a committed migration file. Running `makemigrations` on the server has
+# historically generated leaf-node migration files on disk that aren't in git,
+# producing "Conflicting migrations detected" once the matching committed
+# migration arrives. We only apply migrations here.
 run_migrations() {
     echo -e "${GREEN}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
@@ -214,7 +220,6 @@ run_migrations() {
     export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
-    poetry run python manage.py makemigrations --noinput
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
 }
