@@ -4081,6 +4081,11 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         import requests as http_requests
         import os
         from core.models import FileSearchTable
+        from core.tasks_gemini import (
+            ensure_evidence_indexed,
+            INDEXING_STATUS_COMPLETED,
+            INDEXING_STATUS_ENQUEUED,
+        )
 
         applied_control = self.get_object()
         print(f"[AI-ANALYSIS] ====== START ======")
@@ -4122,13 +4127,43 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         print(f"[AI-ANALYSIS] Total indexed documents: {len(gemini_documents)}")
 
         if not gemini_documents:
+            # Auto-recover: walk every attached evidence's latest revision and
+            # ensure the indexing task is queued. The next click will succeed
+            # once Huey finishes — no manual ``manage.py upload_evidences_to_gemini``
+            # needed. The per-evidence breakdown returned below lets the UI show
+            # the user exactly *why* each evidence is unavailable.
+            evidences_status = []
+            enqueued_count = 0
+            for evidence in applied_control.evidences.all():
+                latest = evidence.revisions.order_by('-created_at').first()
+                if latest is None:
+                    evidences_status.append({
+                        'evidence_id': str(evidence.id),
+                        'evidence_name': evidence.name,
+                        'evidence_revision_id': '',
+                        'status': 'no_revision',
+                        'gemini_document_id': '',
+                        'gemini_store_id': '',
+                        'error_message': None,
+                    })
+                    continue
+                state = ensure_evidence_indexed(latest)
+                if state.get('status') == INDEXING_STATUS_ENQUEUED:
+                    enqueued_count += 1
+                evidences_status.append({
+                    'evidence_id': str(evidence.id),
+                    **state,
+                })
+
             return Response(
                 {
                     'message': (
-                        'No evidence files have been indexed in Gemini File Search yet. '
-                        'Indexing runs asynchronously after upload — please retry shortly, '
-                        'or run "manage.py upload_evidences_to_gemini" to backfill.'
-                    )
+                        'Indexing in progress — please retry shortly. '
+                        'The system has automatically queued any missing uploads; '
+                        'no manual action is required.'
+                    ),
+                    'retry_enqueued': enqueued_count,
+                    'evidences': evidences_status,
                 },
                 status=status.HTTP_409_CONFLICT
             )
@@ -10033,13 +10068,64 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_documents) - direct_ev_count}, Direct on RA: {direct_ev_count}")
 
         if not gemini_documents:
+            # Auto-recover: ensure every attached evidence (from applied controls
+            # and direct on the RA) has its indexing task queued. See the matching
+            # block in AppliedControlViewSet.run_ai_analysis for the contract.
+            from core.tasks_gemini import (
+                ensure_evidence_indexed,
+                INDEXING_STATUS_ENQUEUED,
+            )
+            evidences_status = []
+            enqueued_count = 0
+
+            def _ensure_status(evidence, source):
+                latest = evidence.revisions.order_by('-created_at').first()
+                if latest is None:
+                    return {
+                        'evidence_id': str(evidence.id),
+                        'evidence_name': evidence.name,
+                        'evidence_revision_id': '',
+                        'status': 'no_revision',
+                        'source': source,
+                        'gemini_document_id': '',
+                        'gemini_store_id': '',
+                        'error_message': None,
+                    }
+                state = ensure_evidence_indexed(latest)
+                return {
+                    'evidence_id': str(evidence.id),
+                    'source': source,
+                    **state,
+                }
+
+            seen = set()
+            for ac in applied_controls:
+                for evidence in ac.evidences.all():
+                    if evidence.id in seen:
+                        continue
+                    seen.add(evidence.id)
+                    state = _ensure_status(evidence, f"applied_control:{ac.name}")
+                    if state.get('status') == INDEXING_STATUS_ENQUEUED:
+                        enqueued_count += 1
+                    evidences_status.append(state)
+            for evidence in direct_evidences:
+                if evidence.id in seen:
+                    continue
+                seen.add(evidence.id)
+                state = _ensure_status(evidence, "direct")
+                if state.get('status') == INDEXING_STATUS_ENQUEUED:
+                    enqueued_count += 1
+                evidences_status.append(state)
+
             return Response(
                 {
                     'message': (
-                        'No evidence files have been indexed in Gemini File Search yet. '
-                        'Indexing runs asynchronously after upload — please retry shortly, '
-                        'or run "manage.py upload_evidences_to_gemini" to backfill.'
-                    )
+                        'Indexing in progress — please retry shortly. '
+                        'The system has automatically queued any missing uploads; '
+                        'no manual action is required.'
+                    ),
+                    'retry_enqueued': enqueued_count,
+                    'evidences': evidences_status,
                 },
                 status=status.HTTP_409_CONFLICT
             )

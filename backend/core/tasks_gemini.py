@@ -16,6 +16,91 @@ from core.gemini_file_search import get_gemini_client
 logger = structlog.get_logger(__name__)
 
 
+# Status tokens returned by ``ensure_evidence_indexed`` — they mirror the four
+# UploadStatus values plus two sentinel values for cases the model can't
+# represent. The keys are kept stable (never localized) so the API can include
+# them in machine-readable diagnostic responses.
+INDEXING_STATUS_COMPLETED = "completed"          # durable gemini_document_id present
+INDEXING_STATUS_UPLOADING = "uploading"          # already in flight, do not re-enqueue
+INDEXING_STATUS_ENQUEUED = "enqueued"            # we (re)enqueued upload_evidence_to_gemini
+INDEXING_STATUS_NO_ATTACHMENT = "no_attachment"  # revision has no file to index
+
+
+def ensure_evidence_indexed(evidence_revision):
+    """Idempotently make sure an evidence revision is on track to be indexed.
+
+    Returns a dict with the current indexing state, suitable for inclusion in
+    diagnostic API responses (e.g. the 409 returned by ``run_ai_analysis``
+    when no evidence is yet indexed).
+
+    Behaviour:
+        * No attachment           → ``no_attachment`` (cannot index).
+        * Already has a durable
+          ``gemini_document_id``  → ``completed`` (no work).
+        * Currently ``uploading`` → ``uploading`` (do **not** re-enqueue,
+          another worker is mid-flight).
+        * Anything else (no row,
+          pending, or failed)     → enqueue ``upload_evidence_to_gemini`` and
+          return ``enqueued``.
+
+    The helper is safe to call from request paths: enqueue is non-blocking
+    via Huey, and the function never raises (defensive ``try/except``).
+    """
+    revision_id = str(getattr(evidence_revision, 'id', '') or '')
+    evidence_name = ''
+    try:
+        evidence_name = getattr(getattr(evidence_revision, 'evidence', None), 'name', '') or ''
+    except Exception:
+        pass
+
+    base = {
+        'evidence_revision_id': revision_id,
+        'evidence_name': evidence_name,
+        'gemini_document_id': '',
+        'gemini_store_id': '',
+        'error_message': None,
+    }
+
+    if not getattr(evidence_revision, 'attachment', None):
+        base['status'] = INDEXING_STATUS_NO_ATTACHMENT
+        return base
+
+    fs_row = FileSearchTable.objects.filter(evidence_revision=evidence_revision).first()
+
+    if fs_row is not None:
+        base['gemini_document_id'] = fs_row.gemini_document_id or ''
+        base['gemini_store_id'] = fs_row.gemini_store_id or ''
+        base['error_message'] = fs_row.error_message or None
+
+        if fs_row.has_durable_document():
+            base['status'] = INDEXING_STATUS_COMPLETED
+            return base
+
+        if fs_row.upload_status == FileSearchTable.UploadStatus.UPLOADING:
+            # Another worker is mid-upload. Re-enqueueing now would race with it
+            # and could double-index.
+            base['status'] = INDEXING_STATUS_UPLOADING
+            return base
+
+    # No row yet, or the row is PENDING / FAILED — kick off (or retry) indexing.
+    try:
+        upload_evidence_to_gemini(revision_id)
+    except Exception as exc:
+        # Huey enqueue failures (broker down, etc.) shouldn't 500 the caller —
+        # surface them in the diagnostic payload instead.
+        logger.warning(
+            "Failed to enqueue upload_evidence_to_gemini",
+            revision_id=revision_id,
+            error=str(exc),
+        )
+        base['status'] = INDEXING_STATUS_ENQUEUED  # caller still retries
+        base['error_message'] = f"enqueue failed: {exc}"
+        return base
+
+    base['status'] = INDEXING_STATUS_ENQUEUED
+    return base
+
+
 @task()
 def upload_evidence_to_gemini(evidence_revision_id: str):
     """Upload an evidence file to the Gemini File Search Store.
