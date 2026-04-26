@@ -4081,7 +4081,6 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         import requests as http_requests
         import os
         from core.models import FileSearchTable
-        from core.gemini_file_search import get_gemini_client
 
         applied_control = self.get_object()
         print(f"[AI-ANALYSIS] ====== START ======")
@@ -4096,84 +4095,43 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Gather Gemini File Search IDs from evidences
-        # If files are missing valid IDs, upload them on-the-fly
-        gemini_file_ids = []
-        gemini_client = None  # Lazy init only if needed
+        # Collect durable File Search Store document references from each evidence
+        # revision. Evidences without an indexed document are skipped — the upload
+        # to the store happens asynchronously when the evidence is created.
+        gemini_documents = []
 
         for evidence in applied_control.evidences.all():
             for revision in evidence.revisions.all():
                 if not revision.attachment:
                     continue
-
-                # Reuse a fresh Files API ID if one is recorded; otherwise re-upload.
-                # The 48h TTL is enforced by FileSearchTable.is_gemini_file_fresh().
-                has_valid_id = False
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
-                    if fs_entry and fs_entry.is_gemini_file_fresh():
-                        gemini_file_ids.append({
-                            'gemini_file_id': fs_entry.gemini_file_id,
-                            'gemini_store_id': fs_entry.gemini_store_id,
+                    if fs_entry and fs_entry.has_durable_document():
+                        gemini_documents.append({
                             'gemini_document_id': fs_entry.gemini_document_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
                             'evidence_name': evidence.name,
-                            'evidence_description': evidence.description or ''
+                            'evidence_description': evidence.description or '',
                         })
-                        has_valid_id = True
-                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': reusing fresh file ID {fs_entry.gemini_file_id}")
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': document {fs_entry.gemini_document_id}")
+                    else:
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no indexed document yet — skipping")
                 except Exception as e:
-                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': error reading FileSearchTable: {e}")
 
-                # Upload on-the-fly when no fresh transient ID exists (missing or > 47h old)
-                if not has_valid_id:
-                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no fresh Gemini file ID, uploading now...")
-                    try:
-                        if gemini_client is None:
-                            gemini_client = get_gemini_client()
-                        if gemini_client is None:
-                            print(f"[AI-ANALYSIS] Gemini client not configured, skipping file upload")
-                            continue
+        print(f"[AI-ANALYSIS] Total indexed documents: {len(gemini_documents)}")
 
-                        file_path = revision.attachment.path
-                        from urllib.parse import unquote
-                        decoded_filename = unquote(evidence.filename() or '')
-                        display_name = f"{evidence.name} - {decoded_filename}"
-
-                        result = gemini_client.upload_file(
-                            file_path=file_path,
-                            display_name=display_name,
-                            max_wait_seconds=120,
-                            poll_interval=3,
-                        )
-
-                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
-                            # Persist the refreshed transient ID + timestamp; don't clobber
-                            # an existing durable gemini_document_id.
-                            fs_entry, _ = FileSearchTable.objects.update_or_create(
-                                evidence_revision=revision,
-                                defaults={
-                                    'gemini_file_id': result['gemini_file_id'],
-                                    'gemini_uploaded_at': timezone.now(),
-                                    'gemini_store_id': result.get('gemini_store_id', ''),
-                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
-                                    'error_message': None,
-                                }
-                            )
-                            gemini_file_ids.append({
-                                'gemini_file_id': result['gemini_file_id'],
-                                'gemini_store_id': result.get('gemini_store_id', ''),
-                                'gemini_document_id': fs_entry.gemini_document_id,
-                                'evidence_name': evidence.name,
-                                'evidence_description': evidence.description or ''
-                            })
-                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': uploaded successfully -> {result['gemini_file_id']}")
-                        else:
-                            print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {result}")
-                    except Exception as e:
-                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
-
-        print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
-        print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'] for f in gemini_file_ids]}")
+        if not gemini_documents:
+            return Response(
+                {
+                    'message': (
+                        'No evidence files have been indexed in Gemini File Search yet. '
+                        'Indexing runs asynchronously after upload — please retry shortly, '
+                        'or run "manage.py upload_evidences_to_gemini" to backfill.'
+                    )
+                },
+                status=status.HTTP_409_CONFLICT
+            )
 
         # Gather requirements, questions, typical evidence
         questions = []
@@ -4245,9 +4203,8 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'csf_function': applied_control.csf_function
             },
             'gemini_file_search': {
-                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
-                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
-                'evidences': gemini_file_ids
+                'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+                'evidences': gemini_documents,
             },
             'requirements': requirements_context,
             'questions': questions,
@@ -4279,38 +4236,35 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 timeout=300
             )
             if not resp.ok:
-                # Save failed analysis
                 AiAnalysisResult.objects.create(
                     applied_control=applied_control,
                     result={'error': resp.text[:2000]},
                     status='failed',
                     error_message=f'Muraji API error: {resp.status_code}',
-                    gemini_files_count=len(gemini_file_ids),
+                    gemini_files_count=len(gemini_documents),
                     requirements_count=len(requirements_context),
                 )
                 return Response(
                     {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
                     status=status.HTTP_502_BAD_GATEWAY
                 )
-            
+
             analysis_data = resp.json()
 
-            # Replace both Gemini file IDs and positional "Evidence N" labels with evidence names
+            # Replace document IDs and positional "Evidence N" labels with evidence names
             id_to_name = {}
-            for idx, fs in enumerate(gemini_file_ids):
-                ev_name = fs['evidence_name']
-                if fs.get('gemini_file_id'):
-                    id_to_name[fs['gemini_file_id']] = ev_name
+            for idx, doc in enumerate(gemini_documents):
+                ev_name = doc['evidence_name']
+                if doc.get('gemini_document_id'):
+                    id_to_name[doc['gemini_document_id']] = ev_name
                 id_to_name[f"Evidence {idx + 1}"] = ev_name
             if id_to_name:
                 analysis_data = self._replace_gemini_ids_with_names(analysis_data, id_to_name)
-            
-            # Extract score and status from the analysis result
+
             overall = analysis_data.get('overallAssessment', {})
             score = overall.get('score', None)
             compliance_status = overall.get('status', '')
-            
-            # Save to database
+
             analysis_record = AiAnalysisResult.objects.create(
                 applied_control=applied_control,
                 result=analysis_data,
@@ -4318,10 +4272,10 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 score=score,
                 compliance_status=compliance_status,
                 model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
-                gemini_files_count=len(gemini_file_ids),
+                gemini_files_count=len(gemini_documents),
                 requirements_count=len(requirements_context),
             )
-            
+
             return Response({
                 'ai_analysis': analysis_data,
                 'ai_analysis_id': str(analysis_record.id),
@@ -4333,7 +4287,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 result={'error': 'Muraji API timed out'},
                 status='failed',
                 error_message='Muraji API timed out',
-                gemini_files_count=len(gemini_file_ids),
+                gemini_files_count=len(gemini_documents),
                 requirements_count=len(requirements_context),
             )
             return Response(
@@ -4346,7 +4300,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 result={'error': str(e)},
                 status='failed',
                 error_message=str(e),
-                gemini_files_count=len(gemini_file_ids),
+                gemini_files_count=len(gemini_documents),
                 requirements_count=len(requirements_context),
             )
             return Response(
@@ -8350,70 +8304,24 @@ class UploadAttachmentView(APIView):
                 revision.attachment = attachment
                 revision.save()
                 
-                # Upload to Gemini synchronously.
-                #   * Files API → transient ~48h ID, used by the next Muraji request.
-                #   * File Search Store → durable ID dispatched as a background task so
-                #     the upload step doesn't pay the indexing latency twice.
+                # Index the evidence in the Gemini File Search Store. The upload
+                # runs in the background — analysis becomes available once the
+                # durable gemini_document_id is recorded on FileSearchTable. Any
+                # stale row from a previous revision is cleared first so the
+                # task starts from a clean slate.
                 try:
-                    from core.gemini_file_search import get_gemini_client
                     from core.models import FileSearchTable
+                    from core.tasks_gemini import upload_evidence_to_gemini
 
-                    gemini_client = get_gemini_client()
-                    if gemini_client:
-                        file_path = revision.attachment.path
-                        display_name = f"{evidence.name} - {evidence.filename()}"
-
-                        FileSearchTable.objects.filter(evidence_revision=revision).delete()
-
-                        result = gemini_client.upload_file(
-                            file_path=file_path,
-                            display_name=display_name,
-                            max_wait_seconds=120,
-                            poll_interval=3,
-                        )
-
-                        if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
-                            FileSearchTable.objects.create(
-                                evidence_revision=revision,
-                                gemini_file_id=result['gemini_file_id'],
-                                gemini_uploaded_at=timezone.now(),
-                                gemini_store_id=result.get('gemini_store_id', ''),
-                                upload_status=FileSearchTable.UploadStatus.COMPLETED,
-                            )
-                            logger.info(
-                                "Gemini file uploaded successfully",
-                                revision_id=str(revision.id),
-                                gemini_file_id=result['gemini_file_id'],
-                            )
-                            # Kick off the durable store upload in the background. The
-                            # task is idempotent and skips when a document already exists.
-                            try:
-                                from core.tasks_gemini import upload_evidence_to_gemini
-                                upload_evidence_to_gemini(str(revision.id))
-                            except Exception as bg_e:
-                                logger.warning(
-                                    "Failed to enqueue durable Gemini store upload",
-                                    revision_id=str(revision.id),
-                                    error=str(bg_e),
-                                )
-                        else:
-                            FileSearchTable.objects.create(
-                                evidence_revision=revision,
-                                gemini_file_id='',
-                                gemini_store_id='',
-                                upload_status=FileSearchTable.UploadStatus.FAILED,
-                                error_message=result.get('error', 'Upload did not return valid file ID'),
-                            )
-                            logger.warning(
-                                "Gemini file upload did not succeed",
-                                revision_id=str(revision.id),
-                                result=str(result),
-                            )
-                    else:
-                        logger.info("Gemini not configured, skipping upload")
+                    FileSearchTable.objects.filter(evidence_revision=revision).delete()
+                    upload_evidence_to_gemini(str(revision.id))
+                    logger.info(
+                        "Enqueued Gemini File Search Store upload",
+                        revision_id=str(revision.id),
+                    )
                 except Exception as e:
                     logger.warning(
-                        "Failed to upload to Gemini",
+                        "Failed to enqueue Gemini File Search Store upload",
                         revision_id=str(revision.id),
                         error=str(e)
                     )
@@ -10012,7 +9920,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         import requests as http_requests
         import os
         from core.models import FileSearchTable
-        from core.gemini_file_search import get_gemini_client
 
         # Extract optional additional prompt from request body
         additional_prompt = ''
@@ -10044,16 +9951,15 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 2. Gather Gemini file IDs from all sources
-        gemini_file_ids = []
+        # 2. Collect durable File Search Store document references from all sources.
+        # Evidences without an indexed document are skipped — store indexing happens
+        # asynchronously after upload (see UploadAttachmentView + tasks_gemini).
+        gemini_documents = []
         applied_controls_meta = []
-        gemini_client = None
-        seen_evidence_ids = set()  # Track already-processed evidences to avoid duplicates
-        from urllib.parse import unquote
+        seen_evidence_ids = set()
 
         def _process_evidence(evidence, source_label, ac_name=None):
-            """Process a single evidence: check FileSearchTable or upload on-the-fly."""
-            nonlocal gemini_client
+            """Process one evidence: collect its durable gemini_document_id if present."""
             if evidence.id in seen_evidence_ids:
                 return 0, []
             seen_evidence_ids.add(evidence.id)
@@ -10066,74 +9972,23 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             for revision in evidence.revisions.all():
                 if not revision.attachment:
                     continue
-
-                # Reuse a fresh Files API ID (< 47h old); otherwise re-upload before the
-                # 48h hard expiry kicks in.
-                has_valid_id = False
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
-                    if fs_entry and fs_entry.is_gemini_file_fresh():
-                        gemini_file_ids.append({
-                            'gemini_file_id': fs_entry.gemini_file_id,
-                            'gemini_store_id': fs_entry.gemini_store_id,
+                    if fs_entry and fs_entry.has_durable_document():
+                        gemini_documents.append({
                             'gemini_document_id': fs_entry.gemini_document_id,
+                            'gemini_store_id': fs_entry.gemini_store_id,
                             'evidence_name': f"{label_prefix} {evidence.name}",
                             'evidence_description': evidence.description or '',
                             'applied_control_name': ctrl_name,
                         })
-                        has_valid_id = True
                         ev_files.append(evidence.filename() or evidence.name)
                         ev_count += 1
-                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): reusing fresh file ID {fs_entry.gemini_file_id}")
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): document {fs_entry.gemini_document_id}")
+                    else:
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no indexed document yet — skipping")
                 except Exception as e:
-                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
-
-                if not has_valid_id:
-                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no fresh Gemini file ID, uploading now...")
-                    try:
-                        if gemini_client is None:
-                            gemini_client = get_gemini_client()
-                        if gemini_client is None:
-                            print(f"[RA-AI-ANALYSIS] Gemini client not configured, skipping file upload")
-                            continue
-
-                        file_path = revision.attachment.path
-                        decoded_filename = unquote(evidence.filename() or '')
-                        display_name = f"{label_prefix} {evidence.name} - {decoded_filename}"
-
-                        upload_result = gemini_client.upload_file(
-                            file_path=file_path,
-                            display_name=display_name,
-                            max_wait_seconds=120,
-                            poll_interval=3,
-                        )
-
-                        if upload_result['status'] == 'completed' and upload_result.get('gemini_file_id', '').startswith('files/'):
-                            fs_entry, _ = FileSearchTable.objects.update_or_create(
-                                evidence_revision=revision,
-                                defaults={
-                                    'gemini_file_id': upload_result['gemini_file_id'],
-                                    'gemini_uploaded_at': timezone.now(),
-                                    'gemini_store_id': upload_result.get('gemini_store_id', ''),
-                                    'upload_status': FileSearchTable.UploadStatus.COMPLETED,
-                                    'error_message': None,
-                                }
-                            )
-                            gemini_file_ids.append({
-                                'gemini_file_id': upload_result['gemini_file_id'],
-                                'gemini_store_id': upload_result.get('gemini_store_id', ''),
-                                'gemini_document_id': fs_entry.gemini_document_id,
-                                'evidence_name': f"{label_prefix} {evidence.name}",
-                                'evidence_description': evidence.description or '',
-                                'applied_control_name': ctrl_name,
-                            })
-                            ev_files.append(decoded_filename or evidence.name)
-                            ev_count += 1
-                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': uploaded -> {upload_result['gemini_file_id']}")
-                        else:
-                            print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload failed -> {upload_result}")
-                    except Exception as e:
-                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': upload error -> {e}")
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error reading FileSearchTable: {e}")
 
             return ev_count, ev_files
 
@@ -10174,8 +10029,20 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'fileNames': direct_ev_files,
             })
 
-        print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
-        print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_file_ids) - direct_ev_count}, Direct on RA: {direct_ev_count}")
+        print(f"[RA-AI-ANALYSIS] Total indexed documents: {len(gemini_documents)}")
+        print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_documents) - direct_ev_count}, Direct on RA: {direct_ev_count}")
+
+        if not gemini_documents:
+            return Response(
+                {
+                    'message': (
+                        'No evidence files have been indexed in Gemini File Search yet. '
+                        'Indexing runs asynchronously after upload — please retry shortly, '
+                        'or run "manage.py upload_evidences_to_gemini" to backfill.'
+                    )
+                },
+                status=status.HTTP_409_CONFLICT
+            )
 
         # 3. Extract questions from the requirement (skip excluded ones)
         questions = []
@@ -10310,9 +10177,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'csf_function': first_ac.csf_function if first_ac else '',
             },
             'gemini_file_search': {
-                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
-                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
-                'evidences': gemini_file_ids,
+                'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+                'evidences': gemini_documents,
             },
             'requirements': requirements_context,
             'questions': questions,
@@ -10343,7 +10209,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         print(f"[RA-AI-ANALYSIS] Questions: {questions}")
         print(f"[RA-AI-ANALYSIS] Typical evidence: {typical_evidence}")
         print(f"[RA-AI-ANALYSIS] Admin notes: {admin_notes}")
-        print(f"[RA-AI-ANALYSIS] Gemini files count: {len(gemini_file_ids)}")
+        print(f"[RA-AI-ANALYSIS] Indexed documents count: {len(gemini_documents)}")
         print(f"[RA-AI-ANALYSIS] Request body keys: {list(request_body.keys())}")
         import json as _json
         print(f"[RA-AI-ANALYSIS] Request body (truncated): {_json.dumps(request_body, default=str)[:2000]}")
@@ -10366,12 +10232,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
             result = resp.json()
             print(f"[RA-AI-ANALYSIS] SUCCESS - keys: {list(result.keys()) if isinstance(result, dict) else 'not dict'}")
 
-            # Build replacement map: both Gemini file IDs AND positional "Evidence N" labels → AC name
+            # Build replacement map: durable doc IDs and positional "Evidence N" labels → AC name
             id_to_name = {}
-            for idx, fs in enumerate(gemini_file_ids):
-                ac_name = fs.get('applied_control_name', fs['evidence_name'])
-                if fs.get('gemini_file_id'):
-                    id_to_name[fs['gemini_file_id']] = ac_name
+            for idx, doc in enumerate(gemini_documents):
+                ac_name = doc.get('applied_control_name', doc['evidence_name'])
+                if doc.get('gemini_document_id'):
+                    id_to_name[doc['gemini_document_id']] = ac_name
                 id_to_name[f"Evidence {idx + 1}"] = ac_name
             if id_to_name:
                 result = AppliedControlViewSet._replace_gemini_ids_with_names(result, id_to_name)
@@ -10428,7 +10294,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 score=score,
                 compliance_status=compliance_status_val,
                 model_used=model_used,
-                gemini_files_count=len(gemini_file_ids),
+                gemini_files_count=len(gemini_documents),
                 requirements_count=1,
             )
             print(f"[RA-AI-ANALYSIS] Analysis saved to DB: AiAnalysisResult {analysis_record.id}")
@@ -10438,7 +10304,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'question_answers': question_answers,
                 'analysis_id': str(analysis_record.id),
                 'model_used': model_used,
-                'gemini_files_count': len(gemini_file_ids),
+                'gemini_files_count': len(gemini_documents),
                 'score': score,
                 'compliance_status': compliance_status_val,
                 # Proposed values for the frontend to populate the form with

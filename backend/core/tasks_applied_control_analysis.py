@@ -36,47 +36,30 @@ def run_applied_control_analysis(applied_control_id: str):
             applied_control_name=applied_control.name
         )
         
-        # Gather evidence info from associated evidences
+        # Gather evidence info + durable File Search Store document references.
         evidence_data = []
-        gemini_file_ids = []
+        gemini_documents = []
         evidences = applied_control.evidences.all()
-        
+
         for evidence in evidences:
             ev_info = {
                 'name': evidence.name,
                 'description': evidence.description or '',
             }
-            
-            # Try to get Gemini File Search IDs if available. Files API IDs expire
-            # after 48h, so we refresh stale ones before forwarding them to Muraji.
+
             for revision in evidence.revisions.all():
                 try:
-                    if hasattr(revision, 'file_search'):
-                        fs = revision.file_search
-                        if not fs:
-                            continue
-                        if not fs.is_gemini_file_fresh():
-                            try:
-                                from core.tasks_gemini import refresh_files_api_id
-                                refresh_files_api_id(fs)
-                                fs.refresh_from_db()
-                            except Exception as refresh_err:
-                                logger.warning(
-                                    "Could not refresh stale Files API id; forwarding may fail",
-                                    revision_id=str(revision.id),
-                                    error=str(refresh_err),
-                                )
-                        if fs.is_gemini_file_fresh():
-                            gemini_file_ids.append({
-                                'gemini_file_id': fs.gemini_file_id,
-                                'gemini_store_id': fs.gemini_store_id,
-                                'gemini_document_id': fs.gemini_document_id,
-                                'evidence_name': evidence.name,
-                            })
+                    fs = getattr(revision, 'file_search', None)
+                    if fs and fs.has_durable_document():
+                        gemini_documents.append({
+                            'gemini_document_id': fs.gemini_document_id,
+                            'gemini_store_id': fs.gemini_store_id,
+                            'evidence_name': evidence.name,
+                        })
                 except Exception:
                     # FileSearchTable may not exist yet - skip gracefully
                     pass
-            
+
             evidence_data.append(ev_info)
         
         # Gather questions and typical evidence from requirement assessments
@@ -136,10 +119,9 @@ def run_applied_control_analysis(applied_control_id: str):
             },
             'evidences': evidence_data,
             'gemini_file_search': {
-                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
-                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
-                'evidences': gemini_file_ids
-            } if gemini_file_ids else None,
+                'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+                'evidences': gemini_documents,
+            } if gemini_documents else None,
             'requirements': requirements_context,
             'questions': list(set(questions)),
             'typical_evidence': list(set(typical_evidence)),
@@ -150,13 +132,13 @@ def run_applied_control_analysis(applied_control_id: str):
                 'include_recommendations': True
             }
         }
-        
+
         logger.info(
             "Sending analysis request to Muraji API",
             applied_control_id=applied_control_id,
             muraji_url=MURAJI_ANALYSIS_API_URL,
             evidence_count=len(evidence_data),
-            gemini_file_count=len(gemini_file_ids),
+            gemini_document_count=len(gemini_documents),
             question_count=len(questions),
             requirement_count=len(requirements_context)
         )

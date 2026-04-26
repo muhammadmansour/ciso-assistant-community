@@ -3954,22 +3954,13 @@ class AiAnalysisResult(models.Model):
 
 
 class FileSearchTable(models.Model):
-    """Stores Gemini AI references for uploaded evidence files.
+    """Records the durable Gemini File Search Store reference for an evidence file.
 
-    Two identifiers are tracked because Gemini exposes two distinct file APIs:
-
-    * ``gemini_document_id`` — File Search Store document name
-      (``fileSearchStores/<store>/documents/<doc-id>``). **Durable**: persists until
-      explicitly deleted. This is the source of truth that the file has been indexed
-      for AI use.
-
-    * ``gemini_file_id`` — Files API ID (``files/<id>``). **Transient**: expires ~48h
-      after upload. Re-uploaded on demand from the local attachment when stale, gated
-      by :attr:`gemini_uploaded_at`.
+    Each row tracks the indexed ``gemini_document_id`` produced by uploading the
+    evidence to a File Search Store. These document names are durable: they
+    persist until explicitly deleted and never expire, so a single reference is
+    sufficient for any future analysis.
     """
-
-    # Files API hard limit is 48h. We re-upload before that, with a 1h safety margin.
-    GEMINI_FILE_TTL_HOURS = 47
 
     class UploadStatus(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -3988,39 +3979,23 @@ class FileSearchTable(models.Model):
         verbose_name=_("Evidence Revision")
     )
 
-    # Durable identifier: File Search Store document (does not expire)
     gemini_document_id = models.CharField(
         max_length=512,
         blank=True,
         default="",
         verbose_name=_("Gemini Store Document ID"),
         help_text=_(
-            "Durable File Search Store document name "
-            "(fileSearchStores/<store>/documents/<doc-id>). "
-            "Unlike Files API IDs, store documents do not expire."
-        ),
-    )
-
-    # Transient identifier: Files API ID (~48h TTL)
-    gemini_file_id = models.CharField(
-        max_length=255,
-        verbose_name=_("Gemini File ID"),
-        help_text=_("Files API ID (files/...). Expires ~48h after upload — refreshed on demand."),
-    )
-    gemini_uploaded_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_("Files API Last Upload"),
-        help_text=_(
-            "When `gemini_file_id` was last refreshed. Used to detect impending "
-            "expiry of the transient Files API identifier."
+            "File Search Store document name "
+            "(fileSearchStores/<store>/documents/<doc-id>). Durable — does not expire."
         ),
     )
 
     gemini_store_id = models.CharField(
         max_length=255,
+        blank=True,
+        default="",
         verbose_name=_("Gemini File Search Store ID"),
-        help_text=_("The File Search Store this file belongs to")
+        help_text=_("The File Search Store this document belongs to")
     )
     operation_id = models.CharField(
         max_length=255,
@@ -4046,7 +4021,6 @@ class FileSearchTable(models.Model):
         verbose_name = _("File Search Entry")
         verbose_name_plural = _("File Search Entries")
         indexes = [
-            models.Index(fields=['gemini_file_id']),
             models.Index(fields=['gemini_document_id'], name='core_filese_gemini__idx'),
             models.Index(fields=['upload_status']),
         ]
@@ -4060,20 +4034,6 @@ class FileSearchTable(models.Model):
             self.gemini_document_id
             and self.gemini_document_id.startswith("fileSearchStores/")
         )
-
-    def is_gemini_file_fresh(self) -> bool:
-        """True if the transient Files API ID is present and within its TTL.
-
-        Stale or missing IDs should trigger a fresh upload at request time.
-        """
-        from django.utils import timezone as _tz
-        from datetime import timedelta as _td
-
-        if not self.gemini_file_id or not self.gemini_file_id.startswith("files/"):
-            return False
-        if not self.gemini_uploaded_at:
-            return False
-        return (_tz.now() - self.gemini_uploaded_at) < _td(hours=self.GEMINI_FILE_TTL_HOURS)
 
 
 class EvidenceRevision(AbstractBaseModel, FolderMixin):

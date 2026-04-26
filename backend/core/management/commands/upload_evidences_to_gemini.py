@@ -155,7 +155,6 @@ class Command(BaseCommand):
                     evidence_revision=revision,
                     defaults={
                         "upload_status": FileSearchTable.UploadStatus.PENDING,
-                        "gemini_file_id": "",
                         "gemini_document_id": "",
                         "gemini_store_id": "",
                     },
@@ -252,7 +251,7 @@ class Command(BaseCommand):
         evidences = ac.evidences.all()
         self.stdout.write(f"\nLinked Evidences: {evidences.count()}")
 
-        gemini_file_ids = []
+        gemini_documents = []
         for evidence in evidences:
             self.stdout.write(f"\n  Evidence: {evidence.name} (id={evidence.id})")
             revisions = evidence.revisions.all()
@@ -264,48 +263,33 @@ class Command(BaseCommand):
                 if revision.attachment:
                     self.stdout.write(f"      Attachment: {revision.attachment.name[:80]}")
 
-                # Check FileSearchTable via direct DB query
                 fs_entries = FileSearchTable.objects.filter(evidence_revision=revision)
                 self.stdout.write(f"      FileSearchTable entries: {fs_entries.count()}")
 
                 for fs in fs_entries:
-                    self.stdout.write(f"        upload_status: {fs.upload_status}")
-                    self.stdout.write(f"        gemini_document_id: {fs.gemini_document_id[:80] if fs.gemini_document_id else 'EMPTY'} (durable)")
-                    self.stdout.write(f"        gemini_file_id:     {fs.gemini_file_id[:80] if fs.gemini_file_id else 'EMPTY'} (transient)")
-                    self.stdout.write(f"        gemini_uploaded_at: {fs.gemini_uploaded_at}")
-                    self.stdout.write(f"        is_gemini_file_fresh: {fs.is_gemini_file_fresh()}")
-                    self.stdout.write(f"        gemini_store_id: {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
-                    self.stdout.write(f"        error_message: {fs.error_message}")
+                    self.stdout.write(f"        upload_status:      {fs.upload_status}")
+                    self.stdout.write(f"        gemini_document_id: {fs.gemini_document_id[:80] if fs.gemini_document_id else 'EMPTY'}")
+                    self.stdout.write(f"        gemini_store_id:    {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
+                    self.stdout.write(f"        has_durable_doc:    {fs.has_durable_document()}")
+                    self.stdout.write(f"        error_message:      {fs.error_message}")
 
-                    if fs.upload_status == 'completed':
-                        gemini_file_ids.append({
-                            'gemini_file_id': fs.gemini_file_id,
-                            'gemini_store_id': fs.gemini_store_id,
+                    if fs.has_durable_document():
+                        gemini_documents.append({
                             'gemini_document_id': fs.gemini_document_id,
+                            'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
                         })
 
-                # Also check via hasattr (the way run_ai_analysis does it)
-                try:
-                    has_rel = hasattr(revision, 'file_search')
-                    self.stdout.write(f"      hasattr(revision, 'file_search'): {has_rel}")
-                    if has_rel:
-                        fs_rel = revision.file_search
-                        self.stdout.write(f"      relation.upload_status: {fs_rel.upload_status}")
-                        self.stdout.write(f"      relation.gemini_file_id: {fs_rel.gemini_file_id[:80] if fs_rel.gemini_file_id else 'EMPTY'}")
-                except Exception as e:
-                    self.stdout.write(f"      Error accessing file_search relation: {e}")
-
         self.stdout.write(f"\n{'='*60}")
-        self.stdout.write(f"RESULT: Would send {len(gemini_file_ids)} gemini_file_ids to Muraji")
-        for gf in gemini_file_ids:
-            self.stdout.write(f"  - {gf['evidence_name']}: {gf['gemini_file_id'][:80]}")
+        self.stdout.write(f"RESULT: Would send {len(gemini_documents)} indexed document(s) to Muraji")
+        for gd in gemini_documents:
+            self.stdout.write(f"  - {gd['evidence_name']}: {gd['gemini_document_id'][:80]}")
         self.stdout.write(f"{'='*60}")
 
-        # Also show ALL FileSearchTable entries for reference
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(f"ALL FileSearchTable entries in DB:")
         for fs in FileSearchTable.objects.all().select_related('evidence_revision__evidence'):
             ev_name = fs.evidence_revision.evidence.name if fs.evidence_revision.evidence else 'Unknown'
-            self.stdout.write(f"  {ev_name}: status={fs.upload_status}, file_id={fs.gemini_file_id[:60]}")
+            doc_short = fs.gemini_document_id[:60] if fs.gemini_document_id else 'EMPTY'
+            self.stdout.write(f"  {ev_name}: status={fs.upload_status}, doc={doc_short}")
         self.stdout.write(f"{'='*60}")
