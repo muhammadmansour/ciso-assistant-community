@@ -7,11 +7,44 @@ sole identifier we keep for an evidence file: it is referenced directly in
 analysis requests and never needs refreshing.
 """
 
+import os
+import shutil
+import tempfile
+from contextlib import contextmanager
+
 import structlog
 from huey.contrib.djhuey import task
 
 from core.models import FileSearchTable, EvidenceRevision
 from core.gemini_file_search import get_gemini_client
+
+
+@contextmanager
+def _materialize_attachment(attachment):
+    """Yield a local filesystem path for ``attachment``, regardless of backend.
+
+    ``FieldFile.path`` raises ``NotImplementedError`` on any non-local storage
+    backend (GCS, S3, …), so we can't pass ``attachment.path`` straight to the
+    Gemini SDK. We always stream the bytes into a tempfile and yield its path.
+    For local-FS storage this is a tiny extra copy; for cloud storage this is
+    the only thing that works.
+
+    The tempfile is removed when the context exits, so the worker's tmpdir
+    stays clean even on long-running Huey processes.
+    """
+    suffix = os.path.splitext(getattr(attachment, 'name', '') or '')[1]
+    tmp = tempfile.NamedTemporaryFile(prefix='gemini-upload-', suffix=suffix, delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    try:
+        with attachment.open('rb') as src, open(tmp_path, 'wb') as dst:
+            shutil.copyfileobj(src, dst)
+        yield tmp_path
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 logger = structlog.get_logger(__name__)
 
@@ -83,6 +116,13 @@ def ensure_evidence_indexed(evidence_revision):
             return base
 
     # No row yet, or the row is PENDING / FAILED — kick off (or retry) indexing.
+    # Reset a FAILED row back to PENDING with the previous error cleared so the
+    # UI sees a fresh attempt rather than a stale failure during the re-run.
+    if fs_row is not None and fs_row.upload_status == FileSearchTable.UploadStatus.FAILED:
+        fs_row.upload_status = FileSearchTable.UploadStatus.PENDING
+        fs_row.error_message = None
+        fs_row.save(update_fields=['upload_status', 'error_message', 'updated_at'])
+
     try:
         upload_evidence_to_gemini(revision_id)
     except Exception as exc:
@@ -157,15 +197,18 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             evidence_name=revision.evidence.name,
         )
 
-        file_path = revision.attachment.path
         display_name = f"{revision.evidence.name} - {revision.evidence.filename()}"
 
-        result = client.upload_to_store_and_wait(
-            file_path=file_path,
-            display_name=display_name,
-            max_wait_seconds=300,
-            poll_interval=3,
-        )
+        # Stream from the configured storage backend into a tempfile. This
+        # works for local FS, GCS, S3, etc — ``revision.attachment.path``
+        # would raise NotImplementedError on cloud backends.
+        with _materialize_attachment(revision.attachment) as file_path:
+            result = client.upload_to_store_and_wait(
+                file_path=file_path,
+                display_name=display_name,
+                max_wait_seconds=300,
+                poll_interval=3,
+            )
 
         if result['status'] == 'completed':
             file_search.gemini_document_id = result.get('gemini_document_id', '')

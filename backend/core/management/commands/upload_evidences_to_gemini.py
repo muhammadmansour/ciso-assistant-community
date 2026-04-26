@@ -117,40 +117,24 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
-            # Check file exists on disk
-            try:
-                file_path = revision.attachment.path
-            except Exception as e:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"  [WARN] {evidence_name} (rev {rev_id[:8]}...) — "
-                        f"cannot resolve file path: {e}"
-                    )
-                )
-                skipped += 1
-                continue
-
             display_name = f"{evidence_name} - {revision.evidence.filename()}"
 
             if dry_run:
                 self.stdout.write(
                     f"  [DRY-RUN] Would upload: {evidence_name} (rev {rev_id[:8]}...) "
-                    f"— {file_path}"
+                    f"— {revision.attachment.name}"
                 )
                 uploaded += 1
                 continue
 
-            # Perform the upload
             self.stdout.write(
-                f"  [UPLOAD] {evidence_name} (rev {rev_id[:8]}...) — {file_path}"
+                f"  [UPLOAD] {evidence_name} (rev {rev_id[:8]}...) — {revision.attachment.name}"
             )
 
             try:
-                # Delete existing failed entry if force
                 if force:
                     FileSearchTable.objects.filter(evidence_revision=revision).delete()
 
-                # Create or update FileSearchTable entry
                 file_search, _ = FileSearchTable.objects.get_or_create(
                     evidence_revision=revision,
                     defaults={
@@ -164,15 +148,18 @@ class Command(BaseCommand):
                 file_search.error_message = None
                 file_search.save()
 
-                # Upload to the File Search Store — produces a durable, non-expiring
-                # gemini_document_id. Files API IDs are refreshed lazily at request time.
+                # Stream from storage (works for local FS, GCS, S3, …) into a
+                # tempfile and feed that to the Gemini SDK. ``attachment.path``
+                # would raise NotImplementedError on cloud backends.
+                from core.tasks_gemini import _materialize_attachment
                 self.stdout.write(f"           Indexing in File Search Store and waiting for completion...")
-                final_status = client.upload_to_store_and_wait(
-                    file_path=file_path,
-                    display_name=display_name,
-                    max_wait_seconds=300,
-                    poll_interval=3,
-                )
+                with _materialize_attachment(revision.attachment) as file_path:
+                    final_status = client.upload_to_store_and_wait(
+                        file_path=file_path,
+                        display_name=display_name,
+                        max_wait_seconds=300,
+                        poll_interval=3,
+                    )
 
                 self.stdout.write(f"           Final status: {final_status}")
 
