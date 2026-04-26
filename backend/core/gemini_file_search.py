@@ -177,52 +177,205 @@ class GeminiFileSearchClient:
             )
             raise
 
-    # Keep old method for backward compatibility but it's no longer the primary method
-    def upload_file_to_search_store(
+    def upload_to_store_and_wait(
         self,
         file_path: str,
-        display_name: str
+        display_name: str,
+        max_wait_seconds: int = 300,
+        poll_interval: int = 3,
     ) -> Dict[str, Any]:
-        """
-        Upload a file to Gemini File Search store (legacy method).
-        NOTE: This uploads to the store for grounded search, but the returned
-        operation ID is NOT usable as a file reference in generateContent.
-        Use upload_file() instead for file IDs usable by Muraji.
+        """Upload a file to the configured File Search Store and wait for indexing.
+
+        Unlike :meth:`upload_file` (Files API, ~48h TTL), the document name returned
+        here is **durable** — it persists in the store until explicitly deleted.
+
+        Returns a dict with:
+            * status: 'completed' | 'failed' | 'timeout'
+            * gemini_document_id: 'fileSearchStores/<store>/documents/<doc-id>'
+            * gemini_store_id: the store name
+            * operation_id: the long-running operation name (for diagnostics)
         """
         if not self.client:
-            raise ValueError("Gemini File Search client is not initialized")
-        
+            raise ValueError("Gemini client is not initialized")
         if not self.store_name:
-            raise ValueError("GEMINI_FILE_SEARCH_STORE_NAME not configured")
-        
+            raise ValueError(
+                "GEMINI_FILE_SEARCH_STORE_NAME is not configured — cannot upload to store"
+            )
+
         try:
+            logger.info(
+                "Uploading file to Gemini File Search Store",
+                file_path=file_path,
+                display_name=display_name,
+                store_name=self.store_name,
+            )
             operation = self.client.file_search_stores.upload_to_file_search_store(
                 file=file_path,
                 file_search_store_name=self.store_name,
-                config={
-                    'display_name': display_name,
-                }
+                config={'display_name': display_name},
             )
-            
-            return {
-                'operation_id': getattr(operation, 'name', str(operation)),
-                'operation_object': operation,
-                'gemini_store_id': self.store_name,
-                'status': 'uploading'
-            }
-            
         except Exception as e:
             logger.error(
                 "Failed to upload file to Gemini File Search Store",
                 error=str(e),
-                file_path=file_path
+                file_path=file_path,
             )
             raise
 
-    # Alias for backward compatibility
+        operation_id = getattr(operation, 'name', '') or ''
+
+        # Poll the operation until it's done. The document name is only available
+        # after indexing completes, on operation.response / operation.metadata.
+        elapsed = 0
+        while elapsed < max_wait_seconds:
+            done = bool(getattr(operation, 'done', False))
+            if done:
+                break
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            try:
+                operation = self.client.operations.get(operation)
+            except Exception as e:
+                logger.warning(
+                    "Error polling File Search Store upload operation",
+                    operation_id=operation_id,
+                    error=str(e),
+                )
+                # Don't bail on transient errors — keep polling until timeout
+                continue
+
+        if not getattr(operation, 'done', False):
+            logger.warning(
+                "File Search Store upload did not complete in time",
+                operation_id=operation_id,
+                elapsed=elapsed,
+            )
+            return {
+                'status': 'timeout',
+                'operation_id': operation_id,
+                'gemini_store_id': self.store_name,
+                'error': f'Indexing did not complete within {max_wait_seconds}s',
+            }
+
+        op_error = getattr(operation, 'error', None)
+        if op_error:
+            logger.error(
+                "File Search Store upload operation failed",
+                operation_id=operation_id,
+                error=str(op_error),
+            )
+            return {
+                'status': 'failed',
+                'operation_id': operation_id,
+                'gemini_store_id': self.store_name,
+                'error': str(op_error),
+            }
+
+        # The document resource is on operation.response. The exact attribute name
+        # varies across SDK versions; try the common shapes.
+        document_name = self._extract_document_name(operation)
+        if not document_name:
+            logger.error(
+                "File Search Store upload completed but document name not found",
+                operation_id=operation_id,
+                response_attrs=[a for a in dir(operation) if not a.startswith('_')],
+            )
+            return {
+                'status': 'failed',
+                'operation_id': operation_id,
+                'gemini_store_id': self.store_name,
+                'error': 'Indexing completed but document name was not returned',
+            }
+
+        logger.info(
+            "File Search Store document indexed",
+            operation_id=operation_id,
+            document_name=document_name,
+        )
+        return {
+            'status': 'completed',
+            'operation_id': operation_id,
+            'gemini_document_id': document_name,
+            'gemini_store_id': self.store_name,
+        }
+
+    @staticmethod
+    def _extract_document_name(operation) -> str:
+        """Best-effort extraction of the document resource name from a long-running op.
+
+        The google-genai SDK has shifted between attribute-based and dict-shaped
+        operation responses over versions, so we probe both.
+        """
+        def _probe(container) -> str:
+            if container is None:
+                return ''
+            for attr in ('name', 'document_name', 'document'):
+                # Attribute access (typed protos / pydantic models)
+                val = getattr(container, attr, None)
+                if isinstance(val, str) and val.startswith('fileSearchStores/'):
+                    return val
+                inner = getattr(val, 'name', None) if val is not None else None
+                if isinstance(inner, str) and inner.startswith('fileSearchStores/'):
+                    return inner
+                # Dict-style access
+                if isinstance(container, dict):
+                    val = container.get(attr)
+                    if isinstance(val, str) and val.startswith('fileSearchStores/'):
+                        return val
+                    if isinstance(val, dict):
+                        nested = val.get('name')
+                        if isinstance(nested, str) and nested.startswith('fileSearchStores/'):
+                            return nested
+            return ''
+
+        for source_attr in ('response', 'metadata', 'result'):
+            found = _probe(getattr(operation, source_attr, None))
+            if found:
+                return found
+        if isinstance(operation, dict):
+            for source_attr in ('response', 'metadata', 'result'):
+                found = _probe(operation.get(source_attr))
+                if found:
+                    return found
+        return ''
+
+    def delete_store_document(self, document_name: str) -> bool:
+        """Best-effort deletion of a File Search Store document.
+
+        Returns True on success, False on any failure (logged). Never raises —
+        deletion is a cleanup operation, not a critical path.
+        """
+        if not document_name or not document_name.startswith('fileSearchStores/'):
+            return False
+        if not self.client:
+            return False
+        try:
+            self.client.file_search_stores.documents.delete(name=document_name)
+            logger.info("Deleted File Search Store document", document_name=document_name)
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to delete File Search Store document",
+                document_name=document_name,
+                error=str(e),
+            )
+            return False
+
+    # ── Back-compat shims ──────────────────────────────────────────────────────
+    # Older callers expect upload_file_and_wait() — keep it pointing at the
+    # transient Files API path so request-time uploads remain unchanged.
     def upload_file_and_wait(self, *args, **kwargs):
-        """Alias for upload_file() - backward compatible."""
+        """Alias for :meth:`upload_file` (Files API, transient)."""
         return self.upload_file(*args, **kwargs)
+
+    def upload_file_to_search_store(self, file_path: str, display_name: str) -> Dict[str, Any]:
+        """Deprecated. Use :meth:`upload_to_store_and_wait` instead.
+
+        Kept as a thin wrapper so any external callers don't break — but this now
+        polls to completion and returns the durable document name in
+        ``gemini_document_id`` (previously this returned only an operation_id).
+        """
+        return self.upload_to_store_and_wait(file_path=file_path, display_name=display_name)
 
 
 def get_gemini_client() -> Optional[GeminiFileSearchClient]:

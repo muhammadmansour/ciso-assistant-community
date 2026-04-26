@@ -47,15 +47,30 @@ def run_applied_control_analysis(applied_control_id: str):
                 'description': evidence.description or '',
             }
             
-            # Try to get Gemini File Search IDs if available
+            # Try to get Gemini File Search IDs if available. Files API IDs expire
+            # after 48h, so we refresh stale ones before forwarding them to Muraji.
             for revision in evidence.revisions.all():
                 try:
                     if hasattr(revision, 'file_search'):
                         fs = revision.file_search
-                        if fs and fs.upload_status == 'completed':
+                        if not fs:
+                            continue
+                        if not fs.is_gemini_file_fresh():
+                            try:
+                                from core.tasks_gemini import refresh_files_api_id
+                                refresh_files_api_id(fs)
+                                fs.refresh_from_db()
+                            except Exception as refresh_err:
+                                logger.warning(
+                                    "Could not refresh stale Files API id; forwarding may fail",
+                                    revision_id=str(revision.id),
+                                    error=str(refresh_err),
+                                )
+                        if fs.is_gemini_file_fresh():
                             gemini_file_ids.append({
                                 'gemini_file_id': fs.gemini_file_id,
                                 'gemini_store_id': fs.gemini_store_id,
+                                'gemini_document_id': fs.gemini_document_id,
                                 'evidence_name': evidence.name,
                             })
                 except Exception:

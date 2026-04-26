@@ -73,29 +73,28 @@ class Command(BaseCommand):
             evidence_name = revision.evidence.name if revision.evidence else "Unknown"
             rev_id = str(revision.id)
 
-            # Check if FileSearchTable entry already exists
+            # Check if FileSearchTable entry already exists. The durable identifier
+            # is gemini_document_id (File Search Store) — Files API IDs expire after
+            # 48h and are intentionally not what this command populates.
             try:
                 existing = FileSearchTable.objects.filter(evidence_revision=revision).first()
                 if existing and not force:
+                    if existing.has_durable_document():
+                        already_done += 1
+                        self.stdout.write(
+                            f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
+                            f"already indexed (gemini_document_id: {existing.gemini_document_id[:60]})"
+                        )
+                        continue
                     if existing.upload_status == FileSearchTable.UploadStatus.COMPLETED:
-                        # Check if the file ID is actually valid (must start with 'files/')
-                        if existing.gemini_file_id and existing.gemini_file_id.startswith('files/'):
-                            already_done += 1
-                            self.stdout.write(
-                                f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                                f"already uploaded (gemini_file_id: {existing.gemini_file_id[:60]})"
+                        # Completed in legacy Files-API-only mode: still needs a
+                        # durable store document.
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  [INDEX] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"completed without store document, indexing now..."
                             )
-                            continue
-                        else:
-                            # Invalid file ID (old operation path) - needs re-upload
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"  [FIX] {evidence_name} (rev {rev_id[:8]}...) — "
-                                    f"invalid gemini_file_id: {existing.gemini_file_id[:60]}. Re-uploading..."
-                                )
-                            )
-                            # Delete the old entry so we can re-upload
-                            existing.delete()
+                        )
                     elif existing.upload_status == FileSearchTable.UploadStatus.UPLOADING:
                         skipped += 1
                         self.stdout.write(
@@ -157,6 +156,7 @@ class Command(BaseCommand):
                     defaults={
                         "upload_status": FileSearchTable.UploadStatus.PENDING,
                         "gemini_file_id": "",
+                        "gemini_document_id": "",
                         "gemini_store_id": "",
                     },
                 )
@@ -165,26 +165,29 @@ class Command(BaseCommand):
                 file_search.error_message = None
                 file_search.save()
 
-                # Upload to Gemini and wait for completion
-                self.stdout.write(f"           Uploading and waiting for completion...")
-                final_status = client.upload_file_and_wait(
+                # Upload to the File Search Store — produces a durable, non-expiring
+                # gemini_document_id. Files API IDs are refreshed lazily at request time.
+                self.stdout.write(f"           Indexing in File Search Store and waiting for completion...")
+                final_status = client.upload_to_store_and_wait(
                     file_path=file_path,
                     display_name=display_name,
-                    max_wait_seconds=120,
+                    max_wait_seconds=300,
                     poll_interval=3,
                 )
 
                 self.stdout.write(f"           Final status: {final_status}")
 
                 if final_status["status"] == "completed":
-                    file_search.gemini_file_id = final_status.get("gemini_file_id", "")
+                    file_search.gemini_document_id = final_status.get("gemini_document_id", "")
                     file_search.gemini_store_id = final_status.get("gemini_store_id", "")
+                    if final_status.get("operation_id"):
+                        file_search.operation_id = final_status["operation_id"]
                     file_search.upload_status = FileSearchTable.UploadStatus.COMPLETED
                     file_search.save()
                     uploaded += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"           ✓ Uploaded (gemini_file_id: {file_search.gemini_file_id[:80]})"
+                            f"           ✓ Indexed (gemini_document_id: {file_search.gemini_document_id[:80]})"
                         )
                     )
                 else:
@@ -267,7 +270,10 @@ class Command(BaseCommand):
 
                 for fs in fs_entries:
                     self.stdout.write(f"        upload_status: {fs.upload_status}")
-                    self.stdout.write(f"        gemini_file_id: {fs.gemini_file_id[:80] if fs.gemini_file_id else 'EMPTY'}")
+                    self.stdout.write(f"        gemini_document_id: {fs.gemini_document_id[:80] if fs.gemini_document_id else 'EMPTY'} (durable)")
+                    self.stdout.write(f"        gemini_file_id:     {fs.gemini_file_id[:80] if fs.gemini_file_id else 'EMPTY'} (transient)")
+                    self.stdout.write(f"        gemini_uploaded_at: {fs.gemini_uploaded_at}")
+                    self.stdout.write(f"        is_gemini_file_fresh: {fs.is_gemini_file_fresh()}")
                     self.stdout.write(f"        gemini_store_id: {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
                     self.stdout.write(f"        error_message: {fs.error_message}")
 
@@ -275,6 +281,7 @@ class Command(BaseCommand):
                         gemini_file_ids.append({
                             'gemini_file_id': fs.gemini_file_id,
                             'gemini_store_id': fs.gemini_store_id,
+                            'gemini_document_id': fs.gemini_document_id,
                             'evidence_name': evidence.name,
                         })
 

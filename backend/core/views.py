@@ -4106,25 +4106,27 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 if not revision.attachment:
                     continue
 
-                # Check for existing valid Gemini file ID
+                # Reuse a fresh Files API ID if one is recorded; otherwise re-upload.
+                # The 48h TTL is enforced by FileSearchTable.is_gemini_file_fresh().
                 has_valid_id = False
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
-                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                    if fs_entry and fs_entry.is_gemini_file_fresh():
                         gemini_file_ids.append({
                             'gemini_file_id': fs_entry.gemini_file_id,
                             'gemini_store_id': fs_entry.gemini_store_id,
+                            'gemini_document_id': fs_entry.gemini_document_id,
                             'evidence_name': evidence.name,
                             'evidence_description': evidence.description or ''
                         })
                         has_valid_id = True
-                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': using existing file ID {fs_entry.gemini_file_id}")
+                        print(f"[AI-ANALYSIS] Evidence '{evidence.name}': reusing fresh file ID {fs_entry.gemini_file_id}")
                 except Exception as e:
                     print(f"[AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
 
-                # Upload on-the-fly if no valid ID exists
+                # Upload on-the-fly when no fresh transient ID exists (missing or > 47h old)
                 if not has_valid_id:
-                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no valid Gemini file ID, uploading now...")
+                    print(f"[AI-ANALYSIS] Evidence '{evidence.name}': no fresh Gemini file ID, uploading now...")
                     try:
                         if gemini_client is None:
                             gemini_client = get_gemini_client()
@@ -4136,20 +4138,22 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                         from urllib.parse import unquote
                         decoded_filename = unquote(evidence.filename() or '')
                         display_name = f"{evidence.name} - {decoded_filename}"
-                        
+
                         result = gemini_client.upload_file(
                             file_path=file_path,
                             display_name=display_name,
                             max_wait_seconds=120,
                             poll_interval=3,
                         )
-                        
+
                         if result['status'] == 'completed' and result.get('gemini_file_id', '').startswith('files/'):
-                            # Save to FileSearchTable
+                            # Persist the refreshed transient ID + timestamp; don't clobber
+                            # an existing durable gemini_document_id.
                             fs_entry, _ = FileSearchTable.objects.update_or_create(
                                 evidence_revision=revision,
                                 defaults={
                                     'gemini_file_id': result['gemini_file_id'],
+                                    'gemini_uploaded_at': timezone.now(),
                                     'gemini_store_id': result.get('gemini_store_id', ''),
                                     'upload_status': FileSearchTable.UploadStatus.COMPLETED,
                                     'error_message': None,
@@ -4158,6 +4162,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                             gemini_file_ids.append({
                                 'gemini_file_id': result['gemini_file_id'],
                                 'gemini_store_id': result.get('gemini_store_id', ''),
+                                'gemini_document_id': fs_entry.gemini_document_id,
                                 'evidence_name': evidence.name,
                                 'evidence_description': evidence.description or ''
                             })
@@ -8345,7 +8350,10 @@ class UploadAttachmentView(APIView):
                 revision.attachment = attachment
                 revision.save()
                 
-                # Upload to Gemini synchronously
+                # Upload to Gemini synchronously.
+                #   * Files API → transient ~48h ID, used by the next Muraji request.
+                #   * File Search Store → durable ID dispatched as a background task so
+                #     the upload step doesn't pay the indexing latency twice.
                 try:
                     from core.gemini_file_search import get_gemini_client
                     from core.models import FileSearchTable
@@ -8355,7 +8363,6 @@ class UploadAttachmentView(APIView):
                         file_path = revision.attachment.path
                         display_name = f"{evidence.name} - {evidence.filename()}"
 
-                        # Delete any old entry
                         FileSearchTable.objects.filter(evidence_revision=revision).delete()
 
                         result = gemini_client.upload_file(
@@ -8369,6 +8376,7 @@ class UploadAttachmentView(APIView):
                             FileSearchTable.objects.create(
                                 evidence_revision=revision,
                                 gemini_file_id=result['gemini_file_id'],
+                                gemini_uploaded_at=timezone.now(),
                                 gemini_store_id=result.get('gemini_store_id', ''),
                                 upload_status=FileSearchTable.UploadStatus.COMPLETED,
                             )
@@ -8377,6 +8385,17 @@ class UploadAttachmentView(APIView):
                                 revision_id=str(revision.id),
                                 gemini_file_id=result['gemini_file_id'],
                             )
+                            # Kick off the durable store upload in the background. The
+                            # task is idempotent and skips when a document already exists.
+                            try:
+                                from core.tasks_gemini import upload_evidence_to_gemini
+                                upload_evidence_to_gemini(str(revision.id))
+                            except Exception as bg_e:
+                                logger.warning(
+                                    "Failed to enqueue durable Gemini store upload",
+                                    revision_id=str(revision.id),
+                                    error=str(bg_e),
+                                )
                         else:
                             FileSearchTable.objects.create(
                                 evidence_revision=revision,
@@ -10048,13 +10067,16 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 if not revision.attachment:
                     continue
 
+                # Reuse a fresh Files API ID (< 47h old); otherwise re-upload before the
+                # 48h hard expiry kicks in.
                 has_valid_id = False
                 try:
                     fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
-                    if fs_entry and fs_entry.upload_status == 'completed' and fs_entry.gemini_file_id.startswith('files/'):
+                    if fs_entry and fs_entry.is_gemini_file_fresh():
                         gemini_file_ids.append({
                             'gemini_file_id': fs_entry.gemini_file_id,
                             'gemini_store_id': fs_entry.gemini_store_id,
+                            'gemini_document_id': fs_entry.gemini_document_id,
                             'evidence_name': f"{label_prefix} {evidence.name}",
                             'evidence_description': evidence.description or '',
                             'applied_control_name': ctrl_name,
@@ -10062,13 +10084,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                         has_valid_id = True
                         ev_files.append(evidence.filename() or evidence.name)
                         ev_count += 1
-                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): using existing file ID {fs_entry.gemini_file_id}")
+                        print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): reusing fresh file ID {fs_entry.gemini_file_id}")
                 except Exception as e:
                     print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}': error checking FileSearchTable: {e}")
 
-                # Upload on-the-fly if no valid ID exists
                 if not has_valid_id:
-                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no valid Gemini file ID, uploading now...")
+                    print(f"[RA-AI-ANALYSIS] Evidence '{evidence.name}' ({source_label}): no fresh Gemini file ID, uploading now...")
                     try:
                         if gemini_client is None:
                             gemini_client = get_gemini_client()
@@ -10092,6 +10113,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                                 evidence_revision=revision,
                                 defaults={
                                     'gemini_file_id': upload_result['gemini_file_id'],
+                                    'gemini_uploaded_at': timezone.now(),
                                     'gemini_store_id': upload_result.get('gemini_store_id', ''),
                                     'upload_status': FileSearchTable.UploadStatus.COMPLETED,
                                     'error_message': None,
@@ -10100,6 +10122,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                             gemini_file_ids.append({
                                 'gemini_file_id': upload_result['gemini_file_id'],
                                 'gemini_store_id': upload_result.get('gemini_store_id', ''),
+                                'gemini_document_id': fs_entry.gemini_document_id,
                                 'evidence_name': f"{label_prefix} {evidence.name}",
                                 'evidence_description': evidence.description or '',
                                 'applied_control_name': ctrl_name,
