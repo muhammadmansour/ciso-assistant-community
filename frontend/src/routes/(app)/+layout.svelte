@@ -28,7 +28,6 @@
 	} from '$lib/components/Modals/stores';
 
 	import CommandPalette from '$lib/components/CommandPalette/CommandPalette.svelte';
-	import FloatingPolicyWidget from '$lib/components/FloatingPolicyWidget/FloatingPolicyWidget.svelte';
 	import {
 		interceptExternalLinks,
 		setGlobalModalStore,
@@ -268,7 +267,4 @@
 	>
 		{@render children?.()}
 	</main>
-
-	<!-- Floating Policy Chat Widget -->
-	<FloatingPolicyWidget />
 </div>
