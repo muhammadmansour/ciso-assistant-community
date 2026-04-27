@@ -23,9 +23,14 @@ cd "$SCRIPT_DIR"
 #   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
 #   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
 #   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
+#   chmod 600 ~/.ciso-staging.env
+#
+# GCS authentication: leave GOOGLE_APPLICATION_CREDENTIALS UNSET to use
+# Application Default Credentials (the GCE VM's attached service account).
+# Only set it if you have a service-account JSON key file you want to use
+# explicitly:
 #   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
 #                                                   >> ~/.ciso-staging.env
-#   chmod 600 ~/.ciso-staging.env
 if [ -f "$HOME/.ciso-staging.env" ]; then
     set -a
     # shellcheck disable=SC1090
@@ -56,9 +61,17 @@ USE_S3="${USE_S3:-False}"
 USE_GCS="${USE_GCS:-False}"
 GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
 GS_PROJECT_ID="${GS_PROJECT_ID:-}"
-GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-/etc/ciso/ciso-storage.json}"
+# Empty default → Application Default Credentials (GCE VM service account).
+# Set explicitly in ~/.ciso-staging.env if you want to use a JSON key file.
+GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
+# Disable mTLS for the GCE metadata server. google-auth 2.48-2.49.x has
+# bugs in this code path (AttributeError: 'Request' has no 'session' on
+# 2.48; project_id=None on 2.49.x). The metadata server is on a private
+# link-local IP (169.254.169.254) and plain HTTP is safe.
+# Refs: googleapis/google-cloud-python#16035, #16090
+GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 
 # Gemini File Search (used by the AI analysis flow). Both must reach the
 # huey worker AND the gunicorn process (the analysis HTTP endpoint also
@@ -91,10 +104,23 @@ echo -e "========================================${NC}"
 # Surface object-storage configuration up front so deploys are easy to debug.
 if [ "$USE_GCS" = "True" ]; then
     echo -e "${GREEN}Storage backend: Google Cloud Storage (bucket=${GS_BUCKET_NAME})${NC}"
-    if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-        echo -e "${YELLOW}Warning: USE_GCS=True but credentials file not found at${NC}"
-        echo -e "${YELLOW}  ${GOOGLE_APPLICATION_CREDENTIALS}${NC}"
-        echo -e "${YELLOW}Backend will fail to start until this file exists.${NC}"
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+        # Explicit JSON key path: must exist or settings.py will exit.
+        if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo -e "${YELLOW}Warning: USE_GCS=True but credentials file not found at${NC}"
+            echo -e "${YELLOW}  ${GOOGLE_APPLICATION_CREDENTIALS}${NC}"
+            echo -e "${YELLOW}Backend will fail to start until this file exists,${NC}"
+            echo -e "${YELLOW}or unset GOOGLE_APPLICATION_CREDENTIALS to use ADC.${NC}"
+        else
+            echo -e "${GREEN}GCS auth: service-account JSON (${GOOGLE_APPLICATION_CREDENTIALS})${NC}"
+        fi
+    else
+        # No key file → Application Default Credentials.
+        # On a GCE VM this means the VM's attached service account is used
+        # (keyless). The VM must have an SA attached with Storage Object
+        # Admin on the bucket, and access scope `cloud-platform` (or at
+        # least `devstorage.read_write`).
+        echo -e "${GREEN}GCS auth: Application Default Credentials (keyless / GCE VM SA)${NC}"
     fi
 elif [ "$USE_S3" = "True" ]; then
     echo -e "${GREEN}Storage backend: S3 (${AWS_STORAGE_BUCKET_NAME:-?})${NC}"
@@ -155,6 +181,7 @@ module.exports = {
         GS_BUCKET_NAME: '${GS_BUCKET_NAME}',
         GS_PROJECT_ID: '${GS_PROJECT_ID}',
         GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
+        GCE_METADATA_MTLS_MODE: '${GCE_METADATA_MTLS_MODE}',
         GS_LOCATION: '${GS_LOCATION}',
         GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
@@ -190,6 +217,7 @@ module.exports = {
         GS_BUCKET_NAME: '${GS_BUCKET_NAME}',
         GS_PROJECT_ID: '${GS_PROJECT_ID}',
         GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}',
+        GCE_METADATA_MTLS_MODE: '${GCE_METADATA_MTLS_MODE}',
         GS_LOCATION: '${GS_LOCATION}',
         GS_SIGNED_URL_EXPIRATION_SECONDS: '${GS_SIGNED_URL_EXPIRATION_SECONDS}',
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
