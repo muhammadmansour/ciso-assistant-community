@@ -62,7 +62,7 @@ export const navData = {
 					href: '/user-groups'
 				}
 			]
-		},
+		}
 		// {
 		// 	name: 'overview',
 		// 	items: [
@@ -174,143 +174,157 @@ export const navData = {
 		// 		}
 		// 	]
 		// },
-		{
-			name: 'governance',
-			items: [
-				{
-					name: 'libraries',
-					fa_icon: 'fa-solid fa-folder-plus',
-					href: '/libraries',
-					alwaysShow: true
-				},
-				{
-					name: 'policies',
-					fa_icon: 'fa-solid fa-file-alt',
-					href: '/policies',
-					alwaysShow: true
-				},
-				{
-					name: 'organisationObjectives',
-					fa_icon: 'fa-solid fa-bullseye',
-					href: '/organisation-objectives',
-					permissions: ['view_organisationobjective']
-				},
-				{
-					name: 'validationFlows',
-					fa_icon: 'fa-solid fa-clipboard-check',
-					href: '/validation-flows',
-					alwaysShow: true
-				},
-				{
-					name: 'securityExceptions',
-					fa_icon: 'fa-solid fa-circle-exclamation',
-					href: '/security-exceptions',
-					alwaysShow: true
-				},
-				{
-					name: 'findingsTracking',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/findings-assessments',
-					alwaysShow: true
-				}
-			]
-		},
-		{
-			name: 'risk',
-			items: [
-				{
-					name: 'riskAssessments',
-					fa_icon: 'fa-solid fa-magnifying-glass-chart',
-					href: '/risk-assessments'
-				},
-				// {
-				// 	name: 'ebiosRM',
-				// 	fa_icon: 'fa-solid fa-gopuram',
-				// 	href: '/ebios-rm'
-				// },
-				// {
-				// 	name: 'quantitativeRiskStudies',
-				// 	fa_icon: 'fa-solid fa-calculator',
-				// 	href: '/quantitative-risk-studies',
-				// 	permissions: ['view_quantitativeriskstudy']
-				// },
-				{
-					name: 'riskScenarios',
-					fa_icon: 'fa-solid fa-clone',
-					href: '/risk-scenarios'
-				},
-				{
-					name: 'scoringAssistant',
-					fa_icon: 'fa-solid fa-star-half-stroke',
-					href: '/scoring-assistant',
-					permissions: ['view_riskmatrix']
-				},
-				{
-					name: 'vulnerabilities',
-					fa_icon: 'fa-solid fa-triangle-exclamation',
-					href: '/vulnerabilities'
-				}
-			]
-		},
-		{
-			name: 'metrology',
-			items: [
-				{
-					name: 'metricDefinitions',
-					fa_icon: 'fa-solid fa-ruler',
-					href: '/metric-definitions',
-					permissions: ['view_metricdefinition']
-				},
-				{
-					name: 'metricInstances',
-					fa_icon: 'fa-solid fa-chart-line',
-					href: '/metric-instances',
-					permissions: ['view_metricinstance']
-				},
-				{
-					name: 'dashboards',
-					fa_icon: 'fa-solid fa-chart-bar',
-					href: '/dashboards',
-					permissions: ['view_dashboard']
-				}
-			]
-		},
-		{
-			name: 'thirdPartyCategory',
-			items: [
-				{
-					name: 'tprmOverview',
-					fa_icon: 'fa-solid fa-gauge',
-					href: '/analytics/tprm',
-					permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
-				},
-				{
-					name: 'entities',
-					fa_icon: 'fa-solid fa-building',
-					href: '/entities'
-				},
-				{
-					name: 'representatives',
-					fa_icon: 'fa-solid fa-user-tie',
-					href: '/representatives'
-				},
-				{
-					name: 'solutions',
-					fa_icon: 'fa-solid fa-box',
-					href: '/solutions'
-				},
-				{
-					name: 'contracts',
-					fa_icon: 'fa-solid fa-file-contract',
-					href: '/contracts'
-				},
-				{
-					name: 'entityAssessments',
-					fa_icon: 'fa-solid fa-clipboard-list',
-					href: '/entity-assessments'
-				}
-			]
-		},
+		// {
+		// 	name: 'governance',
+		// 	items: [
+		// 		{
+		// 			name: 'libraries',
+		// 			fa_icon: 'fa-solid fa-folder-plus',
+		// 			href: '/libraries',
+		// 			permissions: ['add_threat', 'add_riskmatrix', 'add_referencecontrol', 'add_framework']
+		// 		},
+		// 		{
+		// 			name: 'policies',
+		// 			fa_icon: 'fa-solid fa-file-alt',
+		// 			href: '/policies',
+		// 			permissions: ['view_appliedcontrol']
+		// 		},
+		// 		{
+		// 			name: 'organisationIssues',
+		// 			fa_icon: 'fa-solid fa-briefcase',
+		// 			href: '/organisation-issues',
+		// 			permissions: ['view_organisationissue']
+		// 		},
+		// 		{
+		// 			name: 'organisationObjectives',
+		// 			fa_icon: 'fa-solid fa-bullseye',
+		// 			href: '/organisation-objectives',
+		// 			permissions: ['view_organisationobjective']
+		// 		},
+		// 		{
+		// 			name: 'riskAcceptances',
+		// 			fa_icon: 'fa-solid fa-signature',
+		// 			href: '/risk-acceptances'
+		// 		},
+		// 		{
+		// 			name: 'validationFlows',
+		// 			fa_icon: 'fa-solid fa-clipboard-check',
+		// 			href: '/validation-flows',
+		// 			permissions: ['view_validationflow']
+		// 		},
+		// 		{
+		// 			name: 'securityExceptions',
+		// 			fa_icon: 'fa-solid fa-circle-exclamation',
+		// 			href: '/security-exceptions'
+		// 		},
+		// 		{
+		// 			name: 'followUp',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/findings-assessments'
+		// 		},
+		// 		{
+		// 			name: 'roleAssignments',
+		// 			fa_icon: 'fa-solid fa-user-tag',
+		// 			href: '/role-assignments'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'risk',
+		// 	items: [
+		// 		{
+		// 			name: 'riskAssessments',
+		// 			fa_icon: 'fa-solid fa-magnifying-glass-chart',
+		// 			href: '/risk-assessments'
+		// 		},
+		// 		{
+		// 			name: 'ebiosRM',
+		// 			fa_icon: 'fa-solid fa-gopuram',
+		// 			href: '/ebios-rm'
+		// 		},
+		// 		{
+		// 			name: 'quantitativeRiskStudies',
+		// 			fa_icon: 'fa-solid fa-calculator',
+		// 			href: '/quantitative-risk-studies',
+		// 			permissions: ['view_quantitativeriskstudy']
+		// 		},
+		// 		{
+		// 			name: 'riskScenarios',
+		// 			fa_icon: 'fa-solid fa-clone',
+		// 			href: '/risk-scenarios'
+		// 		},
+		// 		{
+		// 			name: 'scoringAssistant',
+		// 			fa_icon: 'fa-solid fa-star-half-stroke',
+		// 			href: '/scoring-assistant',
+		// 			permissions: ['view_riskmatrix']
+		// 		},
+		// 		{
+		// 			name: 'vulnerabilities',
+		// 			fa_icon: 'fa-solid fa-triangle-exclamation',
+		// 			href: '/vulnerabilities'
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'metrology',
+		// 	items: [
+		// 		{
+		// 			name: 'metricDefinitions',
+		// 			fa_icon: 'fa-solid fa-ruler',
+		// 			href: '/metric-definitions',
+		// 			permissions: ['view_metricdefinition']
+		// 		},
+		// 		{
+		// 			name: 'metricInstances',
+		// 			fa_icon: 'fa-solid fa-chart-line',
+		// 			href: '/metric-instances',
+		// 			permissions: ['view_metricinstance']
+		// 		},
+		// 		{
+		// 			name: 'dashboards',
+		// 			fa_icon: 'fa-solid fa-chart-bar',
+		// 			href: '/dashboards',
+		// 			permissions: ['view_dashboard']
+		// 		}
+		// 	]
+		// },
+		// {
+		// 	name: 'thirdPartyCategory',
+		// 	items: [
+		// 		{
+		// 			name: 'tprmOverview',
+		// 			fa_icon: 'fa-solid fa-gauge',
+		// 			href: '/analytics/tprm',
+		// 			permissions: ['view_entity', 'view_solution', 'view_contract', 'view_entityassessment']
+		// 		},
+		// 		{
+		// 			name: 'entities',
+		// 			fa_icon: 'fa-solid fa-building',
+		// 			href: '/entities'
+		// 		},
+		// 		{
+		// 			name: 'representatives',
+		// 			fa_icon: 'fa-solid fa-user-tie',
+		// 			href: '/representatives'
+		// 		},
+		// 		{
+		// 			name: 'solutions',
+		// 			fa_icon: 'fa-solid fa-box',
+		// 			href: '/solutions'
+		// 		},
+		// 		{
+		// 			name: 'contracts',
+		// 			fa_icon: 'fa-solid fa-file-contract',
+		// 			href: '/contracts'
+		// 		},
+		// 		{
+		// 			name: 'entityAssessments',
+		// 			fa_icon: 'fa-solid fa-clipboard-list',
+		// 			href: '/entity-assessments'
+		// 		}
+		// 	]
+		// },
 		// {
 		// 	name: 'privacy',
 		// 	items: [

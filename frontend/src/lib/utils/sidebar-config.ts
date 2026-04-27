@@ -58,8 +58,8 @@ export function getSidebarVisibleItems(
 		incidents: featureFlags?.incidents ?? false,
 		tasks: featureFlags?.tasks ?? false,
 		riskAcceptances: featureFlags?.risk_acceptances ?? false,
-		securityExceptions: true,
-		followUp: true,
+		securityExceptions: featureFlags?.exceptions ?? false,
+		followUp: featureFlags?.follow_up ?? false,
 		ebiosRM: featureFlags?.ebiosrm ?? false,
 		scoringAssistant: featureFlags?.scoring_assistant ?? false,
 		vulnerabilities: featureFlags?.vulnerabilities ?? false,
@@ -67,7 +67,7 @@ export function getSidebarVisibleItems(
 		thirdPartyCategory: featureFlags?.tprm ?? false,
 		privacy: featureFlags?.privacy ?? false,
 		experimental: featureFlags?.experimental ?? false,
-		organisationObjectives: featureFlags?.organisation_objectives ?? true,
+		organisationObjectives: featureFlags?.organisation_objectives ?? false,
 		organisationIssues: featureFlags?.organisation_issues ?? false,
 		quantitativeRiskStudies: featureFlags?.quantitative_risk_studies ?? false,
 		terminologies: featureFlags?.terminologies ?? true,
@@ -75,7 +75,7 @@ export function getSidebarVisibleItems(
 		projectManagement: featureFlags?.project_management ?? false,
 		contracts: featureFlags?.contracts ?? false,
 		reports: featureFlags?.reports ?? false,
-		validationFlows: true,
+		validationFlows: featureFlags?.validation_flows ?? false,
 		metrology: featureFlags?.metrology ?? true
 	};
 }
