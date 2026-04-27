@@ -1356,7 +1356,7 @@
 	"privacyIndividualRecipient": "Individual Recipient",
 	"privacySubProcessor": "Sub-Processor",
 	"privacyIndependentController": "Independent Controller",
-	"rightRequests": "Controls",
+	"rightRequests": "Data Controls",
 	"rightRequest": "Request",
 	"addRightRequest": "Trace a request",
 	"openRightRequests": "Open Requests",
