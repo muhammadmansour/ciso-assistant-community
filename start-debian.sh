@@ -44,7 +44,7 @@ export DJANGO_DEBUG=False
 export ALLOWED_HOSTS="backend,localhost,127.0.0.1,${DOMAIN}"
 export CISO_ASSISTANT_URL="$CISO_ASSISTANT_URL"
 export AUTH_TOKEN_TTL=7200
-export ATTACHMENT_MAX_SIZE_MB=100
+export ATTACHMENT_MAX_SIZE_MB=1000
 export ATTACHMENT_MAX_NAME_LENGTH=512
 export PUBLIC_BACKEND_API_URL="http://127.0.0.1:${BACKEND_PORT}/api"
 export PUBLIC_BACKEND_API_EXPOSED_URL="${CISO_ASSISTANT_URL}/api"
@@ -180,8 +180,8 @@ http {
     sendfile on;
     keepalive_timeout 65;
     
-    # Increase max body size to 100MB (matching ATTACHMENT_MAX_SIZE_MB)
-    client_max_body_size 100M;
+    # Increase max body size to 1GB (matching ATTACHMENT_MAX_SIZE_MB)
+    client_max_body_size 1G;
     
     # Upstream servers
     upstream frontend {

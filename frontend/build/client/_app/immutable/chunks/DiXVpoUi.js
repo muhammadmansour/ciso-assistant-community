@@ -1,1 +1,0 @@
-import{p}from"./CpFnAMUI.js";const o=p;export{o as p};

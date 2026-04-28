@@ -30,7 +30,7 @@ module.exports = {
         CSRF_TRUSTED_ORIGINS:
           'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
-        ATTACHMENT_MAX_SIZE_MB: '100',
+        ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
         // Database
         POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',
