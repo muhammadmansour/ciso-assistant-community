@@ -31,7 +31,6 @@
 	let { data, form }: Props = $props();
 	let URLModel = $derived(data.URLModel);
 	let exportPopupOpen = $state(false);
-	let isDeletingAll = $state(false);
 	let isFetchingMuraji = $state(false);
 
 	const modalStore: ModalStore = getModalStore();
@@ -337,36 +336,6 @@
 										{:else}
 											<i class="fa-solid fa-cloud-arrow-down"></i>
 											<span>مزامنة مع مراجع</span>
-										{/if}
-									</button>
-								</form>
-								<form
-									method="POST"
-									action="?/deleteAll"
-									use:enhance={() => {
-										isDeletingAll = true;
-										return async ({ result, update }) => {
-											isDeletingAll = false;
-											await update();
-											await invalidateAll();
-										};
-									}}
-								>
-									<button
-										type="submit"
-										class="inline-block p-3 text-red-600 hover:bg-red-50 w-12 focus:relative"
-										title="Delete all frameworks"
-										disabled={isDeletingAll}
-										onclick={(e) => {
-											if (!confirm('Are you sure you want to delete ALL frameworks? This action cannot be undone.')) {
-												e.preventDefault();
-											}
-										}}
-									>
-										{#if isDeletingAll}
-											<i class="fa-solid fa-spinner fa-spin"></i>
-										{:else}
-											<i class="fa-solid fa-trash-can"></i>
 										{/if}
 									</button>
 								</form>
