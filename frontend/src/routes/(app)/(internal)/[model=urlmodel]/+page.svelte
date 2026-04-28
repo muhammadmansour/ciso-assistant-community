@@ -302,16 +302,23 @@
 									: URLModel === 'frameworks'
 										? m.importFrameworks()
 										: m.importMappings()}
-							<Anchor
-								{href}
-								onclick={handleClickForGT}
-								label={m.libraries()}
-								class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
-								data-testid="import-button"
-								id="add-button"
-								{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
-							>
-							{#if URLModel === 'frameworks'}
+							<!--
+								Hidden per request: import-libraries button and Muraji sync button
+								on the frameworks list. Re-enable by removing the {#if false} guards
+								and restoring the URLModel !== 'frameworks' check.
+							-->
+							{#if URLModel !== 'frameworks'}
+								<Anchor
+									{href}
+									onclick={handleClickForGT}
+									label={m.libraries()}
+									class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
+									data-testid="import-button"
+									id="add-button"
+									{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
+								>
+							{/if}
+							{#if false && URLModel === 'frameworks'}
 								<form
 									method="POST"
 									action="?/fetchMuraji"

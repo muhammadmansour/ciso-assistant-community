@@ -183,7 +183,6 @@
 
 <div class="card space-y-2 p-4 bg-white shadow-sm">
 	<div class="flex flex-row space-x-2 items-center">
-		<code class="code">{data.requirement.urn}</code>
 		<span
 			class="badge h-fit"
 			style="background-color: {complianceStatusColorMap[data.requirementAssessment.status] ??

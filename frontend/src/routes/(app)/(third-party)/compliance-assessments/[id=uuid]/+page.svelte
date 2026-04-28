@@ -1037,8 +1037,11 @@
 			</div>
 		{/key}
 
-		<!-- Domains Coverage card -->
-		{#if treeCategories.length > 0}
+		<!--
+			Hidden per request: Domains Coverage card.
+			Re-enable by removing the {#if false} guard below.
+		-->
+		{#if false && treeCategories.length > 0}
 			<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
 				<h3 class="text-sm font-semibold text-gray-900 mb-3">{m.domainsCoverage()}</h3>
 				<div class="space-y-2">
