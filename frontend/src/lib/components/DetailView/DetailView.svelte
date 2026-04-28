@@ -305,7 +305,8 @@
 		'assets',
 		'compliance-assessments',
 		'follow-ups',
-		'followups'
+		'followups',
+		'findings-assessments'
 	]);
 
 	function getSortedRelatedModels() {
