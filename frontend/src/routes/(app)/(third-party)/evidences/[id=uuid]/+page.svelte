@@ -918,12 +918,16 @@
 												</thead>
 												<tbody>
 													{#each auditResult.typicalEvidenceCheck as item}
+														{@const _statusLower = (item.status || '').toLowerCase()}
+														{@const _isPartial = _statusLower.includes('partial') || _statusLower.includes('جزئ')}
+														{@const _isNotFound = !_isPartial && (_statusLower.includes('غير') || _statusLower.includes('not ') || _statusLower.includes('missing') || _statusLower.includes('absent') || _statusLower.includes('not_found') || _statusLower.includes('notfound'))}
+														{@const _isFound = !_isPartial && !_isNotFound && (_statusLower.includes('present') || _statusLower.includes('found') || _statusLower.includes('موجود') || _statusLower.includes('available') || _statusLower.includes('متوفر'))}
 														<tr class="border-b hover:bg-gray-50">
 															<td class="p-2 font-medium">{item.evidenceItem}</td>
 															<td class="p-2">
 																<span class="px-2 py-0.5 rounded text-xs {
-																	item.status === 'Present' ? 'bg-green-100 text-green-800' :
-																	item.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
+																	_isFound ? 'bg-green-100 text-green-800' :
+																	_isPartial ? 'bg-yellow-100 text-yellow-800' :
 																	'bg-red-100 text-red-800'
 																}">
 																	{item.status}
