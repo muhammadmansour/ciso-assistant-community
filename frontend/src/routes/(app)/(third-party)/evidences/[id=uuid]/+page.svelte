@@ -369,10 +369,16 @@
 					<i class="fa-solid fa-eye mr-2"></i>
 					{m.preview ? m.preview() : 'Preview'}
 				</Tabs.Control>
-				<Tabs.Control value="entity-extraction">
-					<i class="fa-solid fa-tags mr-2"></i>
-					Entity Extraction
-				</Tabs.Control>
+				<!--
+					Hidden per request: Entity Extraction tab.
+					Re-enable by removing the {#if false} guard below.
+				-->
+				{#if false}
+					<Tabs.Control value="entity-extraction">
+						<i class="fa-solid fa-tags mr-2"></i>
+						Entity Extraction
+					</Tabs.Control>
+				{/if}
 				<Tabs.Control value="ai-analysis">
 					<i class="fa-solid fa-brain mr-2"></i>
 					AI Analysis
@@ -383,10 +389,14 @@
 				<!-- Preview Tab -->
 				<Tabs.Panel value="preview">
 					<div class="p-6 space-y-4">
-						<div class="flex flex-row justify-between">
-							<h4 class="h4 font-semibold" data-testid="attachment-name-title">
-								{data.data.attachment}
-							</h4>
+						<div class="flex flex-row justify-end">
+							<!--
+								Hidden per request: raw attachment URL/path (was rendered as a heading
+								above the PDF preview). Re-enable by restoring the <h4> below.
+								<h4 class="h4 font-semibold" data-testid="attachment-name-title">
+									{data.data.attachment}
+								</h4>
+							-->
 							<div class="space-x-2">
 								<Anchor
 									href={`./${data.data.id}/attachment`}

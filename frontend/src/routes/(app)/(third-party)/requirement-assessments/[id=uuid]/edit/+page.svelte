@@ -251,7 +251,7 @@
 		complianceResultColorMap[mappingInference.result] === '#000000' ? 'text-white' : ''
 	);
 
-	let group = $state(page.data.user.is_third_party ? 'evidences' : 'applied_controls');
+	let group = $state('applied_controls');
 
 	// Refresh AutompleteSelect to assign created applied control/evidence
 	let refreshKey = $state(false);
@@ -967,9 +967,6 @@
 		<div>
 			<div class="flex items-center gap-3 mb-1">
 				<h1 class="text-2xl font-bold text-gray-900">{data.requirement.ref_id}</h1>
-				<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-white border border-[#005FA3]/20 text-[#005FA3]">
-					{data.requirement.urn}
-				</span>
 			</div>
 			<p class="text-sm text-gray-500">{data.requirementAssessment.name}</p>
 		</div>
@@ -1266,14 +1263,20 @@
 									onclick={() => (group = 'applied_controls')}
 								>{m.appliedControls()}</button>
 							{/if}
-							<button type="button"
-								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-								onclick={() => (group = 'evidences')}
-							>{m.evidences()}</button>
-						<button type="button"
-							class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-							onclick={() => (group = 'security_exceptions')}
-						>{m.securityExceptions()}</button>
+							<!--
+								Hidden per request: Evidences and Security Exceptions tab triggers.
+								Re-enable by removing the {#if false} guards below.
+							-->
+							{#if false}
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'evidences')}
+								>{m.evidences()}</button>
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'security_exceptions')}
+								>{m.securityExceptions()}</button>
+							{/if}
 					</div>
 					{/snippet}
 						{#snippet content()}
@@ -1341,70 +1344,76 @@
 									/>
 								</div>
 							</Tabs.Panel>
-							<Tabs.Panel value="evidences">
-								<div class="flex items-center mb-2 px-2 text-xs space-x-2">
-									<i class="fa-solid fa-info-circle"></i>
-									<p>{m.requirementEvidenceHelpText()}</p>
-								</div>
-								<div class="h-full flex flex-col space-y-2 rounded-container p-4">
-									<span class="flex flex-row justify-end items-center">
-										<button
-											class="btn preset-filled-primary-500 self-end"
-											onclick={modalEvidenceCreateForm}
-											type="button"><i class="fa-solid fa-plus mr-2"></i>{m.addEvidence()}</button
-										>
-									</span>
-									{#key refreshKey}
-										<AutocompleteSelect
-											multiple
-											{form}
-											optionsEndpoint="evidences"
-											optionsExtraFields={[['folder', 'str']]}
-											optionsDetailedUrlParameters={[
-												['scope_folder_id', page.data.requirementAssessment.folder.id]
-											]}
-											field="evidences"
+							<!--
+								Hidden per request: Evidences and Security Exceptions tab panels.
+								Re-enable by removing the {#if false} guards below.
+							-->
+							{#if false}
+								<Tabs.Panel value="evidences">
+									<div class="flex items-center mb-2 px-2 text-xs space-x-2">
+										<i class="fa-solid fa-info-circle"></i>
+										<p>{m.requirementEvidenceHelpText()}</p>
+									</div>
+									<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+										<span class="flex flex-row justify-end items-center">
+											<button
+												class="btn preset-filled-primary-500 self-end"
+												onclick={modalEvidenceCreateForm}
+												type="button"><i class="fa-solid fa-plus mr-2"></i>{m.addEvidence()}</button
+											>
+										</span>
+										{#key refreshKey}
+											<AutocompleteSelect
+												multiple
+												{form}
+												optionsEndpoint="evidences"
+												optionsExtraFields={[['folder', 'str']]}
+												optionsDetailedUrlParameters={[
+													['scope_folder_id', page.data.requirementAssessment.folder.id]
+												]}
+												field="evidences"
+											/>
+										{/key}
+										<ModelTable
+											source={page.data.tables['evidences']}
+											hideFilters={true}
+											URLModel="evidences"
+											expectedCount={countMasked(page.data.requirementAssessment.evidences)}
+											baseEndpoint="/evidences?requirement_assessments={page.data
+												.requirementAssessment.id}"
 										/>
-									{/key}
-									<ModelTable
-										source={page.data.tables['evidences']}
-										hideFilters={true}
-										URLModel="evidences"
-										expectedCount={countMasked(page.data.requirementAssessment.evidences)}
-										baseEndpoint="/evidences?requirement_assessments={page.data
-											.requirementAssessment.id}"
-									/>
-								</div>
-							</Tabs.Panel>
-						<Tabs.Panel value="security_exceptions">
-							<div class="h-full flex flex-col space-y-2 rounded-container p-4">
-								<span class="flex flex-row justify-end items-center">
-									<button
-										class="btn preset-filled-primary-500 self-end"
-										onclick={modalSecurityExceptionCreateForm}
-										type="button"
-										><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
-									>
-								</span>
-								{#key refreshKey}
-									<AutocompleteSelect
-										multiple
-										{form}
-										optionsEndpoint="security-exceptions"
-										optionsExtraFields={[['folder', 'str']]}
-										field="security_exceptions"
-									/>
-								{/key}
-								<ModelTable
-									source={page.data.tables['security-exceptions']}
-									hideFilters={true}
-									URLModel="security-exceptions"
-									expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
-									baseEndpoint="/security-exceptions?requirement_assessments={page.data
-										.requirementAssessment.id}"
-								/>
-							</div>
-					</Tabs.Panel>
+									</div>
+								</Tabs.Panel>
+								<Tabs.Panel value="security_exceptions">
+									<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+										<span class="flex flex-row justify-end items-center">
+											<button
+												class="btn preset-filled-primary-500 self-end"
+												onclick={modalSecurityExceptionCreateForm}
+												type="button"
+												><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
+											>
+										</span>
+										{#key refreshKey}
+											<AutocompleteSelect
+												multiple
+												{form}
+												optionsEndpoint="security-exceptions"
+												optionsExtraFields={[['folder', 'str']]}
+												field="security_exceptions"
+											/>
+										{/key}
+										<ModelTable
+											source={page.data.tables['security-exceptions']}
+											hideFilters={true}
+											URLModel="security-exceptions"
+											expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
+											baseEndpoint="/security-exceptions?requirement_assessments={page.data
+												.requirementAssessment.id}"
+										/>
+									</div>
+								</Tabs.Panel>
+							{/if}
 				{/snippet}
 			</Tabs>
 			</div>
