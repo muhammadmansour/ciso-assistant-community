@@ -13,8 +13,6 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { m } from '$paraglide/messages';
-	import { getLocale, locales, setLocale } from '$paraglide/runtime';
-	import { LOCALE_MAP, language, defaultLangLabels } from '$lib/utils/locales';
 
 	import type { PageData, ActionData } from './$types';
 	import QuickStartModal from '$lib/components/SideBar/QuickStart/QuickStartModal.svelte';
@@ -133,17 +131,6 @@
 	}
 
 	let searchQuery = $state('');
-	let langValue = $state(getLocale());
-	let langDropdownOpen = $state(false);
-
-	async function handleLocaleChange(newLang: string) {
-		langValue = newLang;
-		langDropdownOpen = false;
-		await fetch('/fe-api/user-preferences', {
-			method: 'PATCH',
-			body: JSON.stringify({ lang: newLang })
-		}).then(() => setLocale(newLang));
-	}
 
 	function handleGlobalSearch() {
 		const q = searchQuery.trim();
@@ -193,38 +180,6 @@
 						Start Audit
 					</button>
 				{/if}
-
-				<!-- Language Selector -->
-				<div class="relative">
-					<button
-						onclick={() => (langDropdownOpen = !langDropdownOpen)}
-						class="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all duration-150"
-						title="Change language"
-					>
-						<i class="fa-solid fa-globe text-sm"></i>
-						<span class="text-xs font-medium uppercase">{langValue}</span>
-						<i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
-					</button>
-					{#if langDropdownOpen}
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div
-							class="fixed inset-0 z-20"
-							onclick={() => (langDropdownOpen = false)}
-							onkeydown={() => {}}
-						></div>
-						<div class="absolute right-0 top-full mt-1 z-30 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-52 max-h-72 overflow-y-auto">
-							{#each locales as lang}
-								<button
-									onclick={() => handleLocaleChange(lang)}
-									class="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors {lang === langValue ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}"
-								>
-									<span>{defaultLangLabels[lang]}</span>
-									<span class="text-xs text-gray-400 uppercase">{lang}</span>
-								</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
 
 				<!-- Powered by Wathbah -->
 				<a

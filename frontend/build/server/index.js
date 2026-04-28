@@ -591,7 +591,7 @@ const options = {
 		<div class="error">
 			<span class="status">` + status + '</span>\n			<div class="message">\n				<h1>' + message + "</h1>\n			</div>\n		</div>\n	</body>\n</html>\n"
   },
-  version_hash: "1mpa4mo"
+  version_hash: "11qppg7"
 };
 async function get_hooks() {
   let handle;
@@ -599,7 +599,7 @@ async function get_hooks() {
   let handleError;
   let handleValidationError;
   let init;
-  ({ handle, handleFetch, handleError, handleValidationError, init } = await import('./chunks/hooks.server-XPq1ejNn.js'));
+  ({ handle, handleFetch, handleError, handleValidationError, init } = await import('./chunks/hooks.server-DRMJGoQV.js'));
   let reroute;
   let transport;
   return {

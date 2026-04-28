@@ -458,8 +458,9 @@
 													{@const eFoundIn = getField(item, 'foundIn')}
 													{@const eDetails = getField(item, 'details')}
 													{@const statusLower = (eStatus || '').toLowerCase()}
-													{@const isFound = statusLower === 'found' || statusLower === 'موجود'}
-													{@const isPartial = statusLower === 'partial' || statusLower === 'جزئي' || statusLower.includes('partial') || statusLower.includes('جزئ')}
+													{@const isPartial = statusLower.includes('partial') || statusLower.includes('جزئ')}
+													{@const isNotFound = !isPartial && (statusLower.includes('غير') || statusLower.includes('not ') || statusLower.includes('missing') || statusLower.includes('absent') || statusLower.includes('not_found') || statusLower.includes('notfound'))}
+													{@const isFound = !isPartial && !isNotFound && (statusLower.includes('found') || statusLower.includes('موجود') || statusLower.includes('present') || statusLower.includes('available') || statusLower.includes('متوفر'))}
 													<div class="border border-gray-200 rounded-lg overflow-hidden">
 														<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {isFound ? 'bg-green-50' : isPartial ? 'bg-yellow-50' : 'bg-red-50'}">
 															<span class="font-semibold text-sm text-gray-800">

@@ -10,16 +10,11 @@ import { defineCustomServerStrategy } from '$paraglide/runtime';
 
 // Define server-side custom strategies for locale detection
 defineCustomServerStrategy('custom-userPreference', {
-	getLocale: () => {
-		// User preference is handled via cookie on server side
-		return undefined;
-	}
+	getLocale: () => 'en'
 });
 
 defineCustomServerStrategy('custom-fallback', {
-	getLocale: () => {
-		return DEFAULT_LANGUAGE;
-	}
+	getLocale: () => 'en'
 });
 
 async function ensureCsrfToken(event: RequestEvent): Promise<string> {
@@ -136,7 +131,7 @@ export const handle: Handle = async ({ event, resolve }) =>
 
 export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-	const currentLang = event.locals.user?.preferences?.lang || DEFAULT_LANGUAGE;
+	const currentLang = 'en';
 	if (request.url.startsWith(BASE_API_URL)) {
 		// Only set Content-Type to JSON if this is not a file upload
 		// File uploads are indicated by Content-Disposition header
