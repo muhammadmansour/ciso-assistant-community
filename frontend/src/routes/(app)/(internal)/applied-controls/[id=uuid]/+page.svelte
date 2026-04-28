@@ -102,7 +102,7 @@
 	}
 </script>
 
-<DetailView {data} exclude={['folder', 'reference_control', 'category', 'csf_function', 'priority', 'effort', 'control_impact', 'annual_cost_display', 'status', 'created_at', 'updated_at', 'name', 'description', 'ref_id', 'annotation', 'eta', 'expiry_date', 'link', 'owner', 'progress_field', 'observation', 'security_exceptions', 'filtering_labels', 'sync_mappings']}>
+<DetailView {data} exclude={['reference_control', 'category', 'csf_function', 'priority', 'effort', 'control_impact', 'annual_cost_display', 'created_at', 'updated_at', 'ref_id', 'annotation', 'eta', 'expiry_date', 'link', 'progress_field', 'observation', 'security_exceptions', 'filtering_labels', 'sync_mappings']}>
 	{#snippet actions()}
 		<!-- Start AI Analysis Button -->
 		<form

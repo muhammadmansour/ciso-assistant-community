@@ -168,7 +168,7 @@ module.exports = {
         CISO_ASSISTANT_URL: 'https://grc-hrsd.wathbahs.com',
         CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
-        ATTACHMENT_MAX_SIZE_MB: '100',
+        ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',

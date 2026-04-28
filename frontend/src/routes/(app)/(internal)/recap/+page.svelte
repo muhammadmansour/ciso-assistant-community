@@ -145,15 +145,15 @@
 								<div class="space-y-4">
 									<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
 										<span class="text-sm text-gray-600">Total Evidences</span>
-										<span class="font-bold text-gray-900 text-lg">0</span>
+										<span class="font-bold text-gray-900 text-lg">{data.evidenceStats?.total ?? 0}</span>
 									</div>
 									<div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-100">
 										<span class="text-sm text-yellow-700">Pending Review</span>
-										<span class="font-bold text-yellow-700 text-lg">0</span>
+										<span class="font-bold text-yellow-700 text-lg">{data.evidenceStats?.inReview ?? 0}</span>
 									</div>
 									<div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
 										<span class="text-sm text-green-700">Approved</span>
-										<span class="font-bold text-green-700 text-lg">0</span>
+										<span class="font-bold text-green-700 text-lg">{data.evidenceStats?.approved ?? 0}</span>
 									</div>
 								</div>
 							</div>

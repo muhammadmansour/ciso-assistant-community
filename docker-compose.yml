@@ -10,7 +10,7 @@ services:
       - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
-      - ATTACHMENT_MAX_SIZE_MB=100
+      - ATTACHMENT_MAX_SIZE_MB=1000
       - ATTACHMENT_MAX_NAME_LENGTH=512
       - EMAIL_HOST=smtp.office365.com
       - EMAIL_PORT=587
@@ -42,7 +42,7 @@ services:
       - CISO_ASSISTANT_URL=https://localhost:9443
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
-      - ATTACHMENT_MAX_SIZE_MB=100
+      - ATTACHMENT_MAX_SIZE_MB=1000
       - ATTACHMENT_MAX_NAME_LENGTH=512
       - EMAIL_HOST=smtp.office365.com
       - EMAIL_PORT=587

@@ -137,8 +137,34 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		});
 	}
 
+	// Evidence status counts. We use page_size=1 and read the paginated `count`
+	// field so we don't transfer the actual rows — three small queries in
+	// parallel give us the totals shown on the recap card.
+	async function fetchEvidenceCount(query: string): Promise<number> {
+		try {
+			const res = await fetch(`${BASE_API_URL}/evidences/?page_size=1${query ? `&${query}` : ''}`);
+			if (!res.ok) return 0;
+			const json = await res.json();
+			return typeof json?.count === 'number' ? json.count : 0;
+		} catch (err) {
+			console.error('Failed to fetch evidence count for', query, err);
+			return 0;
+		}
+	}
+
+	const [evidenceTotal, evidenceInReview, evidenceApproved] = await Promise.all([
+		fetchEvidenceCount(''),
+		fetchEvidenceCount('status=in_review'),
+		fetchEvidenceCount('status=approved')
+	]);
+
 	return {
 		perimeters,
+		evidenceStats: {
+			total: evidenceTotal,
+			inReview: evidenceInReview,
+			approved: evidenceApproved
+		},
 		user: locals.user,
 		title: m.recap()
 	};

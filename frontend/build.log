@@ -1,0 +1,1223 @@
+﻿
+> frontend@0.0.1 build C:\Users\manso\projects\ciso-assistant-community\frontend
+> paraglide-js compile --project ./project.inlang && vite build
+
+i [paraglide-js] Compiling inlang project ...
+ΓêÜ [paraglide-js] Successfully compiled inlang project.
+vite v5.4.21 building SSR bundle for production...
+ΓêÜ [paraglide-js] Compilation complete (locale-modules)
+transforming...
+node.exe : 1:49:41 PM [vite-plugin-svelte] src/routes/(app)/(internal)/applied-controls/[id=uuid]/+page.svelte:322:5 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+At C:\Users\manso\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (1:49:41 PM [vit...edby` attribute:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+https://svelte.dev/e/a11y_consider_explicit_label
+320:         </div>
+321:         <div class="flex items-center gap-1">
+322:           <button
+                       ^
+323:             class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+324:             onclick={toggleExpand}
+1:49:41 PM [vite-plugin-svelte] src/routes/(app)/(internal)/applied-controls/[id=uuid]/+page.svelte:329:5 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+327:             <i class="fa-solid {isModalExpanded ? 'fa-compress' : 'fa-expand'} text-gray-500 text-lg"></i>
+328:           </button>
+329:           <button
+                       ^
+330:             class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+331:             onclick={closeModal}
+1:49:42 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/business-impact-analysis/[id=uuid]/report/+page.svelte:471:2 Unused CSS selector ".card"
+https://svelte.dev/e/css_unused_selector
+469: 
+470:     /* Prevent page breaks inside important elements */
+471:     .card,
+              ^
+472:     .border {
+473:       page-break-inside: avoid !important;
+1:49:42 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/business-impact-analysis/[id=uuid]/report/+page.svelte:480:2 Unused CSS selector 
+"[style*='background-color']"
+https://svelte.dev/e/css_unused_selector
+478:     .badge,
+479:     [class*='bg-'],
+480:     [style*='background-color'] {
+                                    ^
+481:       -webkit-print-color-adjust: exact !important;
+482:       print-color-adjust: exact !important;
+1:49:42 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/business-impact-analysis/[id=uuid]/report/+page.svelte:492:2 Unused CSS selector "a"
+https://svelte.dev/e/css_unused_selector
+490: 
+491:     /* Ensure proper link rendering */
+492:     a {
+          ^
+493:       color: inherit !important;
+494:       text-decoration: none !important;
+1:49:42 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/business-impact-analysis/[id=uuid]/report/+page.svelte:505:2 Unused CSS selector "body"
+https://svelte.dev/e/css_unused_selector
+503: 
+504:     /* Optimize font sizes */
+505:     body {
+             ^
+506:       font-size: 10pt !important;
+507:     }
+1:49:42 PM [vite-plugin-svelte] src/routes/(app)/(internal)/dashboards/[id=uuid]/layout/+page.svelte:413:4 Elements 
+with the 'grid' interactive role must have a tabindex value
+https://svelte.dev/e/a11y_interactive_supports_focus
+411: 
+412:         <!-- Widgets Grid -->
+413:         <div
+                  ^
+414:           bind:this={gridElement}
+415:           class="relative grid gap-2"
+1:49:42 PM [vite-plugin-svelte] src/routes/(app)/(internal)/dashboards/[id=uuid]/layout/+page.svelte:422:6 Elements 
+with the 'gridcell' interactive role must have a tabindex value
+https://svelte.dev/e/a11y_interactive_supports_focus
+420:         >
+421:           {#each widgets as widget (widget.id)}
+422:             <div
+                      ^
+423:               class="card bg-white dark:bg-surface-900 shadow-md p-3 cursor-move relative group transition-shadow 
+hover:shadow-lg {isDragging &&
+424:               draggedWidget?.id === widget.id
+1:49:42 PM [vite-plugin-svelte] src/routes/(app)/(internal)/dashboards/[id=uuid]/layout/+page.svelte:447:9 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+445:                 </div>
+446:                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+447:                   <a
+                          ^
+448:                     href="/{widget.chart_type === 'text'
+449:                       ? 'dashboard-text-widgets'
+1:49:42 PM [vite-plugin-svelte] src/routes/(app)/(internal)/dashboards/[id=uuid]/layout/+page.svelte:458:9 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+456:                     <i class="fa-solid fa-pencil text-sm"></i>
+457:                   </a>
+458:                   <button
+                               ^
+459:                     class="btn btn-sm preset-filled-error-500 p-1"
+460:                     onclick={() => confirmDeleteWidget(widget)}
+1:49:42 PM [vite-plugin-svelte] src/routes/(app)/(internal)/dashboards/[id=uuid]/layout/+page.svelte:544:8 Elements 
+with the ARIA role "slider" must have the following attributes defined: "aria-valuenow"
+https://svelte.dev/e/a11y_role_has_required_aria_props
+542:                   document.addEventListener('mouseup', onMouseUp);
+543:                 }}
+544:                 role="slider"
+                                  ^
+545:                 aria-label="Resize widget"
+546:                 tabindex="0"
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/report/+page.svelte:1458:2 Unused CSS 
+selector "[data-chart='radar-current'] > *"
+https://svelte.dev/e/css_unused_selector
+1456:     }
+1457: 
+1458:     [data-chart='radar-current'] > *,
+                                          ^
+1459:     [data-chart='radar-residual'] > * {
+1460:       max-height: 25cm !important;
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/report/+page.svelte:1459:2 Unused CSS 
+selector "[data-chart='radar-residual'] > *"
+https://svelte.dev/e/css_unused_selector
+1457: 
+1458:     [data-chart='radar-current'] > *,
+1459:     [data-chart='radar-residual'] > * {
+                                           ^
+1460:       max-height: 25cm !important;
+1461:     }
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/report/+page.svelte:1487:2 Unused CSS 
+selector "[data-chart^='operating-mode-'] > *"
+https://svelte.dev/e/css_unused_selector
+1485:     }
+1486: 
+1487:     [data-chart^='operating-mode-'] > * {
+                                             ^
+1488:       max-width: 100% !important;
+1489:       max-height: 18cm !important;
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/report/+page.svelte:1495:2 Unused CSS 
+selector "[data-chart^='operating-mode-'] svg"
+https://svelte.dev/e/css_unused_selector
+1493: 
+1494:     /* Ensure operating mode SVG elements scale properly */
+1495:     [data-chart^='operating-mode-'] svg {
+                                             ^
+1496:       max-width: 100% !important;
+1497:       height: auto !important;
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/report/+page.svelte:1567:2 Unused CSS 
+selector "body"
+https://svelte.dev/e/css_unused_selector
+1565: 
+1566:     /* Optimize font sizes for A3 */
+1567:     body {
+              ^
+1568:       font-size: 10pt !important;
+1569:     }
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/+page.svelte:45:4 Buttons and links should either 
+contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+43:     <div>
+44:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+45:         <button
+                    ^
+46:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+47:           data-testid="add-button"
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-1/baseline/+page.svelte:98:4 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+ 96:     <div>
+ 97:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+ 98:         <button
+                     ^
+ 99:           class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
+100:           data-testid="select-button"
+1:49:43 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-1/baseline/+page.svelte:111:4 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+109:     <div>
+110:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+111:         <button
+                     ^
+112:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+113:           data-testid="add-button"
+1:49:43 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-1/ebios-rm-study/+page.svelte:279:14 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+277:                             class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"
+278:                           >
+279:                             <button
+                                         ^
+280:                               class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
+281:                               data-testid="select-button"
+1:49:43 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-1/ebios-rm-study/+page.svelte:294:14 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+292:                             class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"
+293:                           >
+294:                             <button
+                                         ^
+295:                               class="inline-block border-e p-3 btn-mini-primary w-12 focus:relative"
+296:                               data-testid="add-button"
+1:49:43 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-1/feared-events/+page.svelte:64:4 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+62:     <div>
+63:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+64:         <button
+                    ^
+65:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+66:           data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-2/ro-to/+page.svelte:75:4 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+73:     <div>
+74:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+75:         <button
+                    ^
+76:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+77:           data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-3/strategic-scenarios/+page.svelte:89:4 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+87:     <div>
+88:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+89:         <button
+                    ^
+90:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+91:           data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-3/ecosystem/+page.svelte:105:5 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+103:       <div>
+104:         <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+105:           <button
+                       ^
+106:             class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+107:             data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-4/elementary-actions/+page.svelte:65:4 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+63:     <div>
+64:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+65:         <button
+                    ^
+66:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+67:           data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-4/operational-scenario/+page.svelte:83:4 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+81:     <div>
+82:       <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+83:         <button
+                    ^
+84:           class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+85:           data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/ebios-rm/[id=uuid]/workshop-5/risk-analyses/+page.svelte:106:3 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+104:     <!-- Create new button -->
+105:     <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+106:       <button
+                   ^
+107:         class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+108:         data-testid="add-button"
+1:49:44 PM [vite-plugin-svelte] src/routes/(app)/(internal)/experimental/batch-create/+page.svelte:112:3 A form label 
+must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+110:     <!-- Type Selector -->
+111:     <div class="py-2">
+112:       <label class="block text-sm font-medium text-gray-900 mb-2"> Type * </label>
+                                                                                       ^
+113:       <div class="flex gap-2">
+114:         <button
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/generic-collections/[id=uuid]/+page.svelte:163:11 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+161:                   <div>
+162:                     <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+163:                       <button
+                                   ^
+164:                         class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
+165:                         data-testid="select-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/generic-collections/[id=uuid]/+page.svelte:176:11 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+174:                   <div>
+175:                     <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+176:                       <button
+                                   ^
+177:                         class="inline-block border-e p-3 btn-mini-primary w-12 focus:relative"
+178:                         data-testid="add-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/incidents/[id=uuid]/+page.svelte:281:9 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+279:                     />
+280:                   </div>
+281:                   <button
+                        ^
+282:                     class="btn bg-gray-300 h-11 w-10"
+283:                     onclick={(_) => modalEvidenceCreateForm()}
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/libraries/+page.svelte:214:5 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+212:       <div>
+213:         <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+214:           <button
+                       ^
+215:             class="inline-block p-3 btn-mini-primary w-12 focus:relative"
+216:             data-testid="add-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/my-profile/settings/+page.svelte:230:13 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+228:                             </p>
+229:                           </span>
+230:                           <button
+                                ^
+231:                             onclick={(_) => {
+232:                               modalConfirmPATDelete(pat.digest);
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/operating-modes/[id=uuid]/+page.svelte:146:12 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+144:                         class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"
+145:                       >
+146:                         <button
+                                     ^
+147:                           class="inline-block p-3 btn-mini-secondary w-12 focus:relative"
+148:                           data-testid="select-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/operating-modes/[id=uuid]/+page.svelte:160:11 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+158:                   <div>
+159:                     <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+160:                       <button
+                                   ^
+161:                         class="inline-block border-e p-3 btn-mini-primary w-12 focus:relative"
+162:                         data-testid="add-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/operational-scenarios/[id=uuid]/+page.svelte:30:51 This 
+reference only captures the initial value of `operationalScenario`. Did you mean to reference it inside a closure 
+instead?
+https://svelte.dev/e/state_referenced_locally
+28:   const operationalScenario = $derived(data.data);
+29: 
+30:   pageTitle.set(m.operationalScenarioRefId({ refId: operationalScenario.ref_id }));
+                                                                           ^
+31: 
+32:   let activeActivity: string | null = $state(null);
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/operational-scenarios/[id=uuid]/+page.svelte:244:14 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+242:                             class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs"
+243:                           >
+244:                             <button
+                                         ^
+245:                               class="inline-block border-e p-3 btn-mini-primary w-12 focus:relative"
+246:                               data-testid="add-button"
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/quantitative-risk-hypotheses/[id=uuid]/+page.svelte:290:1 
+Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether 
+an interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+288: <!-- Distribution Modal -->
+289: {#if showDistributionModal}
+290:   <div
+            ^
+291:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+292:     onclick={(e) => {
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/quantitative-risk-hypotheses/[id=uuid]/+page.svelte:290:1 
+`<div>` with a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+288: <!-- Distribution Modal -->
+289: {#if showDistributionModal}
+290:   <div
+            ^
+291:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+292:     onclick={(e) => {
+1:49:45 PM [vite-plugin-svelte] src/routes/(app)/(internal)/quantitative-risk-hypotheses/[id=uuid]/+page.svelte:301:6 
+A form label must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+299:         <div class="flex items-center space-x-4">
+300:           <div class="flex items-center space-x-2">
+301:             <label class="text-sm font-medium">X-axis:</label>
+                                                                   ^
+302:             <button
+303:               onclick={() => (xAxisScale = xAxisScale === 'linear' ? 'log' : 'linear')}
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/executive-summary/+page.svelte:542:1 Visible, 
+non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an 
+interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+540: <!-- ALE Breakdown Modal -->
+541: {#if showAleBreakdownModal}
+542:   <div
+            ^
+543:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+544:     onclick={(e) => {
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/executive-summary/+page.svelte:542:1 `<div>` with a 
+click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+540: <!-- ALE Breakdown Modal -->
+541: {#if showAleBreakdownModal}
+542:   <div
+            ^
+543:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+544:     onclick={(e) => {
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:291:0 Visible, 
+non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an 
+interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+289: </svelte:head>
+290: 
+291: <div class="container mx-auto px-4 py-8" on:click={handleClickOutside}>
+           ^
+292:   <!-- Header -->
+293:   <div class="flex items-center justify-between mb-8">
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:291:0 `<div>` with a click 
+handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+289: </svelte:head>
+290: 
+291: <div class="container mx-auto px-4 py-8" on:click={handleClickOutside}>
+           ^
+292:   <!-- Header -->
+293:   <div class="flex items-center justify-between mb-8">
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:291:41 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+289: </svelte:head>
+290: 
+291: <div class="container mx-auto px-4 py-8" on:click={handleClickOutside}>
+                                                                           ^
+292:   <!-- Header -->
+293:   <div class="flex items-center justify-between mb-8">
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:300:3 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+298:     <button
+299:       class="btn variant-ghost-surface"
+300:       on:click={() => goto(`/quantitative-risk-studies/${$page.params.id}`)}
+                                                                                 ^
+301:     >
+302:       <i class="fa-solid fa-arrow-left mr-2"></i>
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:422:9 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+420:                 <button
+421:                   class="btn btn-sm variant-ghost-surface column-controls-button"
+422:                   on:click={() => (showColumnControls = !showColumnControls)}
+                                                                                  ^
+423:                   title="Show/Hide Columns"
+424:                 >
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:435:11 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+433:                     <div class="flex justify-between items-center mb-3">
+434:                       <h4 class="font-medium text-gray-900">{m.showHideColumns()}</h4>
+435:                       <button
+                                   ^
+436:                         class="text-gray-400 hover:text-gray-600"
+437:                         on:click={() => (showColumnControls = false)}
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:437:12 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+435:                       <button
+436:                         class="text-gray-400 hover:text-gray-600"
+437:                         on:click={() => (showColumnControls = false)}
+                                                                          ^
+438:                       >
+439:                         <i class="fa-solid fa-times"></i>
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:446:12 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+444:                       <button
+445:                         class="btn btn-sm variant-ghost-primary"
+446:                         on:click={() => toggleAllColumns(true)}
+                                                                    ^
+447:                         disabled={getVisibleColumnsCount() === allColumns.length}
+448:                       >
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:453:12 Using `on:click` to 
+listen to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+451:                       <button
+452:                         class="btn btn-sm variant-ghost-error"
+453:                         on:click={() => toggleAllColumns(false)}
+                                                                     ^
+454:                         disabled={getVisibleColumnsCount() <= 1}
+455:                       >
+1:49:46 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/quantitative-risk-studies/[id=uuid]/key-metrics/+page.svelte:472:14 Using `on:change` to 
+listen to the change event is deprecated. Use the event attribute `onchange` instead
+https://svelte.dev/e/event_directive_deprecated
+470:                             type="checkbox"
+471:                             checked={columnVisibility[column.id]}
+472:                             on:change={(e) => toggleColumn(column.id, e.target?.checked || false)}
+                                                                                                       ^
+473:                             disabled={isLastVisible}
+474:                             class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded 
+disabled:opacity-50"
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-assessments/[id=uuid]/+page.svelte:47:10 This 
+reference only captures the initial value of `risk_assessment`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+45:     action: 'change',
+46:     model: model.name,
+47:     domain: risk_assessment.folder.id
+                               ^
+48:   });
+49:   function modalCreateForm(): void {
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-assessments/[id=uuid]/+page.svelte:187:2 This 
+reference only captures the initial value of `risk_assessment`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+185: 
+186:   const currentCluster = buildRiskCluster(
+187:     risk_assessment.risk_scenarios,
+                        ^
+188:     risk_assessment.risk_matrix,
+189:     'current'
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-assessments/[id=uuid]/+page.svelte:188:2 This 
+reference only captures the initial value of `risk_assessment`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+186:   const currentCluster = buildRiskCluster(
+187:     risk_assessment.risk_scenarios,
+188:     risk_assessment.risk_matrix,
+                        ^
+189:     'current'
+190:   );
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-assessments/[id=uuid]/+page.svelte:192:2 This 
+reference only captures the initial value of `risk_assessment`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+190:   );
+191:   const residualCluster = buildRiskCluster(
+192:     risk_assessment.risk_scenarios,
+                        ^
+193:     risk_assessment.risk_matrix,
+194:     'residual'
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-assessments/[id=uuid]/+page.svelte:193:2 This 
+reference only captures the initial value of `risk_assessment`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+191:   const residualCluster = buildRiskCluster(
+192:     risk_assessment.risk_scenarios,
+193:     risk_assessment.risk_matrix,
+                        ^
+194:     'residual'
+195:   );
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-scenarios/[id=uuid]/edit/+page.svelte:347:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+345:             <div class="flex items-center justify-center">
+346:               <div class="">
+347:                 <button
+                      ^
+348:                   class="btn bg-gray-300 h-10 w-10"
+349:                   onclick={(_) => modalMeasureCreateForm('existing_applied_controls')}
+1:49:46 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-scenarios/[id=uuid]/edit/+page.svelte:423:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+421:             <div class="flex items-center justify-center">
+422:               <div class="">
+423:                 <button
+                      ^
+424:                   class="btn bg-gray-300 h-10 w-10"
+425:                   onclick={(_) => modalMeasureCreateForm('applied_controls')}
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-scenarios/[id=uuid]/+page.svelte:518:5 `<p>` cannot 
+be a child of `<p>`. When rendering this component on the server, the resulting HTML will be modified by the browser 
+(by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+516:       <p class="">
+517:         {#if data.scenario.justification}
+518:           <p><MarkdownRenderer content={data.scenario.justification} /></p>
+                                                                                ^
+519:         {:else}
+520:           <p class="text-gray-400 italic text-sm">{m.noJustification()}</p>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/risk-scenarios/[id=uuid]/+page.svelte:520:5 `<p>` cannot 
+be a child of `<p>`. When rendering this component on the server, the resulting HTML will be modified by the browser 
+(by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+518:           <p><MarkdownRenderer content={data.scenario.justification} /></p>
+519:         {:else}
+520:           <p class="text-gray-400 italic text-sm">{m.noJustification()}</p>
+                                                                                ^
+521:         {/if}
+522:       </p>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:121:10 This reference 
+only captures the initial value of `taskNode`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+119:     {
+120:       label: m.appliedControls(),
+121:       items: taskNode.applied_controls,
+                          ^
+122:       baseUrl: '/applied-controls'
+123:     },
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:126:10 This reference 
+only captures the initial value of `taskNode`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+124:     {
+125:       label: m.complianceAssessments(),
+126:       items: taskNode.compliance_assessments,
+                          ^
+127:       baseUrl: '/compliance-assessments'
+128:     },
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:131:10 This reference 
+only captures the initial value of `taskNode`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+129:     {
+130:       label: m.assets(),
+131:       items: taskNode.assets,
+                          ^
+132:       baseUrl: '/assets'
+133:     },
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:136:10 This reference 
+only captures the initial value of `taskNode`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+134:     {
+135:       label: m.riskAssessments(),
+136:       items: taskNode.risk_assessments,
+                          ^
+137:       baseUrl: '/risk-assessments'
+138:     },
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:141:10 This reference 
+only captures the initial value of `taskNode`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+139:     {
+140:       label: m.findingsAssessments(),
+141:       items: taskNode.findings_assessment,
+                          ^
+142:       baseUrl: '/finding-assessments'
+143:     }
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:253:9 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+251:               {#if !taskNode.evidence_reviewed.includes(evidence.id)}
+252:                 {#if page.data.user.permissions['add_evidencerevision']}
+253:                   <button
+                               ^
+254:                     onclick={() => modalRevisionCreate(evidence)}
+255:                     class="text-primary-500 hover:text-primary-700"
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:365:4 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+363:           <i class="fa-solid fa-eye ml-2 text-primary-500"></i>
+364:         </Anchor>
+365:         <button class="text-primary-500" onclick={(_) => removeEvidence(evidence.id, true)}>
+                      ^
+366:           <i class="fa-solid fa-square-arrow-up-right"></i>
+367:         </button>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/task-nodes/[id=uuid]/+page.svelte:368:4 Buttons and links 
+should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+366:           <i class="fa-solid fa-square-arrow-up-right"></i>
+367:         </button>
+368:         <button class="text-error-500" onclick={(_) => removeEvidence(evidence.id, false)}>
+                      ^
+369:           <i class="fa-solid fa-square-minus"></i>
+370:         </button>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/vulnerabilities/treemap/+page.svelte:152:5 A form label 
+must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+150:       <div class="flex items-center justify-between mb-3">
+151:         <div>
+152:           <label class="text-base font-semibold text-gray-900">{m.severity()}</label>
+                                                                                          ^
+153:           <p class="text-xs text-gray-500 mt-0.5">{m.filterVulnerabilitiesBySeverity()}</p>
+154:         </div>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/vulnerabilities/treemap/+page.svelte:196:5 A form label 
+must be associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+194:       <div class="flex items-center justify-between mb-3">
+195:         <div>
+196:           <label class="text-base font-semibold text-gray-900">{m.status()}</label>
+                                                                                        ^
+197:           <p class="text-xs text-gray-500 mt-0.5">{m.filterVulnerabilitiesByStatus()}</p>
+198:         </div>
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/validation-flows/[id=uuid]/+page.svelte:453:1 Visible, 
+non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an 
+interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+451: <!-- Observation Modal -->
+452: {#if showObservationModal}
+453:   <div
+            ^
+454:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+455:     onclick={closeObservationModal}
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/validation-flows/[id=uuid]/+page.svelte:453:1 `<div>` with 
+a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+451: <!-- Observation Modal -->
+452: {#if showObservationModal}
+453:   <div
+            ^
+454:     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+455:     onclick={closeObservationModal}
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/validation-flows/[id=uuid]/+page.svelte:457:2 Visible, 
+non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an 
+interactive element such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+455:     onclick={closeObservationModal}
+456:   >
+457:     <div
+              ^
+458:       class="card p-6 bg-white shadow-2xl max-w-2xl w-full mx-4"
+459:       onclick={(e) => e.stopPropagation()}
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/validation-flows/[id=uuid]/+page.svelte:457:2 `<div>` with 
+a click handler must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+455:     onclick={closeObservationModal}
+456:   >
+457:     <div
+              ^
+458:       class="card p-6 bg-white shadow-2xl max-w-2xl w-full mx-4"
+459:       onclick={(e) => e.stopPropagation()}
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(internal)/validation-flows/[id=uuid]/+page.svelte:477:4 Buttons and 
+links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+475:           {/if}
+476:         </h2>
+477:         <button
+                     ^
+478:           type="button"
+479:           class="text-gray-500 hover:text-gray-700"
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/compliance-assessments/[id=uuid]/+page.svelte:63:10 
+This reference only captures the initial value of `compliance_assessment`. Did you mean to reference it inside a 
+closure instead?
+https://svelte.dev/e/state_referenced_locally
+61:     action: 'change',
+62:     model: model.name,
+63:     domain: compliance_assessment.folder.id
+                                     ^
+64:   });
+65:   const requirementAssessmentModel = URL_MODEL_MAP['requirement-assessments'];
+1:49:47 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/compliance-assessments/[id=uuid]/+page.svelte:1155:3 
+Buttons and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+1153:     <div class="flex justify-between items-center mb-4">
+1154:       <h3 class="text-lg font-bold text-gray-900 capitalize">{m.potentialThreats()}</h3>
+1155:       <button class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center 
+transition-colors" onclick={closeThreatsDialog}>
+                     ^
+1156:         <i class="fa-solid fa-times text-gray-500"></i>
+1157:       </button>
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/evidence-revisions/[id=uuid]/+page.svelte:98:5 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+ 96:         >
+ 97:         {#if canEditObject}
+ 98:           <button
+                ^
+ 99:             onclick={(_) => {
+100:               modalConfirm(data.data.id, data.data.attachment, '?/deleteAttachment');
+1:49:48 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/compliance-assessments/[id=uuid]/table-mode/+page.svelte:179:30 This reference only 
+captures the initial value of `hasQuestions`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally
+177: 
+178:   let questionnaireMode = $state(
+179:     questionnaireOnly ? true : !hasQuestions ? false : page.data.user.is_third_party ? true : false
+                                                 ^
+180:   );
+181: 
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/[model=thirdparty_urlmodels]/+page.svelte:108:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+106:             <span class="inline-flex overflow-hidden rounded-md border bg-white shadow-xs">
+107:               {#if !['risk-matrices', 'frameworks', 'requirement-mapping-sets', 'user-groups', 
+'role-assignments'].includes(URLModel)}
+108:                 <button
+                             ^
+109:                   class="inline-block border-e p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 
+focus:relative"
+110:                   data-testid="add-button"
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/[model=thirdparty_urlmodels]/+page.svelte:117:9 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+115:                 </button>
+116:                 {#if ['applied-controls', 'assets'].includes(URLModel)}
+117:                   <a
+                        ^
+118:                     href="{URLModel}/export/"
+119:                     class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/[model=thirdparty_urlmodels]/+page.svelte:125:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+123:                 {/if}
+124:               {:else if URLModel === 'risk-matrices'}
+125:                 <a
+                      ^
+126:                   href="/libraries?object_type=risk_matrix"
+127:                   class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/[model=thirdparty_urlmodels]/+page.svelte:133:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+131:                 >
+132:               {:else if URLModel === 'frameworks'}
+133:                 <a
+                      ^
+134:                   href="/libraries?object_type=frameworks"
+135:                   class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
+1:49:48 PM [vite-plugin-svelte] src/routes/(app)/(third-party)/[model=thirdparty_urlmodels]/+page.svelte:141:8 Buttons 
+and links should either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+139:                 >
+140:               {:else if URLModel === 'requirement-mapping-sets'}
+141:                 <a
+                      ^
+142:                   href="/libraries?object_type=requirement_mapping_set"
+143:                   class="inline-block p-3 text-gray-50 bg-[#0A1628] hover:bg-[#1a2740] w-12 focus:relative"
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1009:3 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+1007:         <span class="font-semibold">AI Analysis Failed</span>
+1008:       </div>
+1009:       <button type="button" class="text-red-400 hover:text-red-600" onclick={() => (aiAnalysisError = null)}>
+                     ^
+1010:         <i class="fa-solid fa-xmark"></i>
+1011:       </button>
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1023:3 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+1021:         <span class="font-semibold">Apply Failed</span>
+1022:       </div>
+1023:       <button type="button" class="text-red-400 hover:text-red-600" onclick={() => (applyError = null)}>
+                     ^
+1024:         <i class="fa-solid fa-xmark"></i>
+1025:       </button>
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1045:3 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+1043:         </div>
+1044:       </div>
+1045:       <button type="button" class="text-gray-400 hover:text-gray-600" onclick={dismissApplyBanner}>
+                     ^
+1046:         <i class="fa-solid fa-xmark"></i>
+1047:       </button>
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1705:6 A form label must be 
+associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+1703:           <!-- STATUS -->
+1704:           <div class="relative">
+1705:             <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider 
+mb-1">
+                          ^
+1706:               <i class="fa-regular fa-clock text-[#005FA3]"></i>
+1707:               {m.status()}
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1724:7 A form label must be 
+associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+1722:           {#if computedResult}
+1723:             <div>
+1724:               <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider 
+mb-1">
+                            ^
+1725:                 <i class="fa-regular fa-circle-check text-[#005FA3]"></i>
+1726:                 {m.result()}
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1737:7 A form label must be 
+associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+1735:           {:else}
+1736:             <div class="relative">
+1737:               <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider 
+mb-1">
+                            ^
+1738:                 <i class="fa-regular fa-circle-check text-[#005FA3]"></i>
+1739:                 {m.result()}
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1766:6 A form label must be 
+associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+1764:           <!-- SCORING -->
+1765:           <div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
+1766:             <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider 
+mb-2">
+                          ^
+1767:               <i class="fa-solid fa-chart-bar text-[#005FA3]"></i>
+1768:               Scoring
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:1941:5 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+1939:         </div>
+1940:         {#if analysisComplete}
+1941:           <button
+                        ^
+1942:             type="button"
+1943:             class="text-gray-400 hover:text-gray-600 transition-colors p-1"
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2110:5 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+2108:         </div>
+2109:         <div class="flex items-center gap-1">
+2110:           <button
+                        ^
+2111:             type="button"
+2112:             class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2118:5 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+2116:             <i class="fa-solid {isModalExpanded ? 'fa-compress' : 'fa-expand'} text-gray-500 text-lg"></i>
+2117:           </button>
+2118:           <button
+                        ^
+2119:             type="button"
+2120:             class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2597:1 Elements with the 'dialog' 
+interactive role must have a tabindex value
+https://svelte.dev/e/a11y_interactive_supports_focus
+2595: <!-- Re-Analysis Prompt Modal -->
+2596: {#if showReanalysisModal}
+2597:   <div
+             ^
+2598:     class="fixed inset-0 z-[60] flex items-center justify-center"
+2599:     role="dialog"
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2603:2 Visible, non-interactive 
+elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element 
+such as `<button type="button">` or `<a>` might be more appropriate
+https://svelte.dev/e/a11y_click_events_have_key_events
+2601:     onkeydown={(e) => e.key === 'Escape' && (showReanalysisModal = false)}
+2602:   >
+2603:     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick={() => (showReanalysisModal = 
+false)}></div>
+                                                                                                                       
+  ^
+2604:     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+2605:       <!-- Header -->
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2603:2 `<div>` with a click handler 
+must have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+2601:     onkeydown={(e) => e.key === 'Escape' && (showReanalysisModal = false)}
+2602:   >
+2603:     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick={() => (showReanalysisModal = 
+false)}></div>
+                                                                                                                       
+  ^
+2604:     <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+2605:       <!-- Header -->
+1:49:49 PM [vite-plugin-svelte] 
+src/routes/(app)/(third-party)/requirement-assessments/[id=uuid]/edit/+page.svelte:2615:4 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+2613:         </div>
+2614:         <div class="flex-1"></div>
+2615:         <button
+                      ^
+2616:           type="button"
+2617:           class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+1:49:53 PM [vite-plugin-svelte] src/lib/components/Breadcrumbs/Breadcrumbs.svelte:53:2 Buttons and links should either 
+contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+51:   <!-- Home icon -->
+52:   <li>
+53:     <a
+           ^
+54:       href="/recap"
+55:       class="text-gray-400 hover:text-blue-600 transition-colors"
+1:49:54 PM [vite-plugin-svelte] src/lib/components/DetailView/DetailView.svelte:615:12 `<li>` cannot be a direct child 
+of `<li>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, 
+removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+613:                         <!-- Shortcut before DetailView refactoring -->
+614:                       {:else if value === 'P1'}
+615:                         <li class="fa-solid fa-flag text-red-500"></li>
+                                                                            ^
+616:                         {m.p1()}
+617:                       {:else if value === 'P2'}
+1:49:54 PM [vite-plugin-svelte] src/lib/components/DetailView/DetailView.svelte:618:12 `<li>` cannot be a direct child 
+of `<li>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, 
+removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+616:                         {m.p1()}
+617:                       {:else if value === 'P2'}
+618:                         <li class="fa-solid fa-flag text-orange-500"></li>
+                                                                               ^
+619:                         {m.p2()}
+620:                       {:else if value === 'P3'}
+1:49:54 PM [vite-plugin-svelte] src/lib/components/DetailView/DetailView.svelte:621:12 `<li>` cannot be a direct child 
+of `<li>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, 
+removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+619:                         {m.p2()}
+620:                       {:else if value === 'P3'}
+621:                         <li class="fa-solid fa-flag text-blue-500"></li>
+                                                                             ^
+622:                         {m.p3()}
+623:                       {:else if value === 'P4'}
+1:49:54 PM [vite-plugin-svelte] src/lib/components/DetailView/DetailView.svelte:624:12 `<li>` cannot be a direct child 
+of `<li>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, 
+removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+622:                         {m.p3()}
+623:                       {:else if value === 'P4'}
+624:                         <li class="fa-solid fa-flag text-gray-500"></li>
+                                                                             ^
+625:                         {m.p4()}
+626:                       {:else if key === 'icon'}
+1:49:54 PM [vite-plugin-svelte] src/lib/components/ModelTable/ModelTable.svelte:231:2 This reference only captures the 
+initial value of `tableSource`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+229: 
+230:   const handler = new DataHandler(
+231:     tableSource.body.map((item: Record<string, any>, index: number) => {
+                    ^
+232:       return {
+233:         ...item,
+1:49:55 PM [vite-plugin-svelte] src/lib/components/Calendar/Calendar.svelte:111:4 Buttons and links should either 
+contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+109:     >
+110:       <div class="flex flex-row justify-between w-3/4">
+111:         <a class="sticky" href={prevMonth(year, month)}>
+                 ^
+112:           <i class="fas fa-chevron-left"></i>
+113:         </a>
+1:49:55 PM [vite-plugin-svelte] src/lib/components/Calendar/Calendar.svelte:119:4 Buttons and links should either 
+contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+117:           </p>
+118:         {/key}
+119:         <a href={nextMonth(year, month)}>
+                 ^
+120:           <i class="fas fa-chevron-right"></i>
+121:         </a>
+1:49:55 PM [vite-plugin-svelte] src/lib/components/Calendar/Calendar.svelte:177:4 Buttons and links should either 
+contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+175:           {monthNames[$selectedDay.month - 1]}, {$selectedDay.year}
+176:         </h2>
+177:         <button onclick={closePanel} class="text-gray-500 hover:text-gray-700 focus:outline-hidden">
+                      ^
+178:           <i class="fas fa-times"></i>
+179:         </button>
+1:49:56 PM [vite-plugin-svelte] src/lib/components/Forms/ModelForm.svelte:219:12 This reference only captures the 
+initial value of `shape`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+217: 
+218:   const _form = superForm(form, {
+219:     dataType: shape?.attachment ? 'form' : 'json',
+                        ^
+220:     enctype: shape?.attachment ? 'multipart/form-data' : 'application/x-www-form-urlencoded',
+221:     invalidateAll,
+1:49:56 PM [vite-plugin-svelte] src/lib/components/Forms/ModelForm.svelte:220:11 This reference only captures the 
+initial value of `shape`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+218:   const _form = superForm(form, {
+219:     dataType: shape?.attachment ? 'form' : 'json',
+220:     enctype: shape?.attachment ? 'multipart/form-data' : 'application/x-www-form-urlencoded',
+                       ^
+221:     invalidateAll,
+222:     applyAction: rest.applyAction ?? true,
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Forms/AutocompleteSelect.svelte:150:41 This reference only captures 
+the initial value of `selectedValues`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+148:   let optionsLoaded = $state(Boolean(options.length));
+149:   const initialValue = resetForm ? undefined : $value;
+150:   const default_value = nullable ? null : selectedValues[0];
+                                                             ^
+151: 
+152:   const multiSelectOptions = {
+1:49:57 PM [vite-plugin-svelte] 
+src/routes/(app)/(internal)/my-profile/settings/pat/components/CreatePATModal.svelte:100:9 A form label must be 
+associated with a control
+https://svelte.dev/e/a11y_label_has_associated_control
+ 98:                 </div>
+ 99:                 <div class="space-y-2">
+100:                   <label class="label font-semibold">{m.token()}</label>
+                                                                             ^
+101:                   <div class="flex flex-row gap-2 items-stretch">
+102:                     <input
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:365:8 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+363:             <div class="flex items-center space-x-2">
+364:               {#if !isPlaying}
+365:                 <button
+                             ^
+366:                   class="btn btn-sm variant-filled-primary"
+367:                   on:click={playAnimation}
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:367:9 Using `on:click` to listen 
+to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+365:                 <button
+366:                   class="btn btn-sm variant-filled-primary"
+367:                   on:click={playAnimation}
+                                               ^
+368:                   title="Play Animation"
+369:                 >
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:373:8 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+371:                 </button>
+372:               {:else}
+373:                 <button
+                             ^
+374:                   class="btn btn-sm variant-filled-error"
+375:                   on:click={stopAnimation}
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:375:9 Using `on:click` to listen 
+to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+373:                 <button
+374:                   class="btn btn-sm variant-filled-error"
+375:                   on:click={stopAnimation}
+                                               ^
+376:                   title="Stop Animation"
+377:                 >
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:385:7 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+383:             <!-- Frame navigation -->
+384:             <div class="flex items-center space-x-2">
+385:               <button
+                           ^
+386:                 class="btn btn-sm variant-ghost-surface"
+387:                 on:click={() => goToFrame(currentFrameIndex - 1)}
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:387:8 Using `on:click` to listen 
+to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+385:               <button
+386:                 class="btn btn-sm variant-ghost-surface"
+387:                 on:click={() => goToFrame(currentFrameIndex - 1)}
+                                                                      ^
+388:                 disabled={currentFrameIndex === 0}
+389:                 title="Previous Frame"
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:398:7 Buttons and links should 
+either contain text or have an `aria-label` or `aria-labelledby` attribute
+https://svelte.dev/e/a11y_consider_explicit_label
+396:               </span>
+397: 
+398:               <button
+                           ^
+399:                 class="btn btn-sm variant-ghost-surface"
+400:                 on:click={() => goToFrame(currentFrameIndex + 1)}
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:400:8 Using `on:click` to listen 
+to the click event is deprecated. Use the event attribute `onclick` instead
+https://svelte.dev/e/event_directive_deprecated
+398:               <button
+399:                 class="btn btn-sm variant-ghost-surface"
+400:                 on:click={() => goToFrame(currentFrameIndex + 1)}
+                                                                      ^
+401:                 disabled={currentFrameIndex === timelineData.length - 1}
+402:                 title="Next Frame"
+1:49:57 PM [vite-plugin-svelte] src/lib/components/Chart/ALETimelineRaceChart.svelte:426:6 Using `on:input` to listen 
+to the input event is deprecated. Use the event attribute `oninput` instead
+https://svelte.dev/e/event_directive_deprecated
+424:             max={timelineData.length - 1}
+425:             bind:value={currentFrameIndex}
+426:             on:input={(e) => goToFrame(parseInt(e.target.value))}
+                                                                      ^
+427:             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+428:             style="background: linear-gradient(to right, #3b82f6 0%, #3b82f6 {(currentFrameIndex /
+1:49:58 PM [vite-plugin-svelte] src/lib/components/TableOfContents/TableOfContents.svelte:358:5 Redundant role 
+'navigation'
+https://svelte.dev/e/a11y_no_redundant_roles
+356:         <nav
+357:           class="toc-nav flex-1 overflow-y-auto"
+358:           role="navigation"
+                                ^
+359:           aria-label={m.tableOfContents()}
+360:         >
+1:50:03 PM [vite-plugin-svelte] src/lib/components/ModelTable/LecChartPreview.svelte:11:5 `chartContainer` is updated, 
+but is not declared with `$state(...)`. Changing its value will not correctly trigger updates
+https://svelte.dev/e/non_reactive_update
+ 9:   let { cell, meta }: Props = $props();
+10: 
+11:   let chartContainer: HTMLDivElement;
+                                        ^
+12:   let chart: any;
+13:   let hasValidData = $state(false);
+1:50:03 PM [vite-plugin-svelte] src/lib/components/Calendar/Day.svelte:102:5 `<button>` cannot be a descendant of 
+`<button>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by 
+moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr
+100: 
+101:         {#if extraItemsCount > 0}
+102:           <button
+                       ^
+103:             class="flex justify-center font-bold unstyled hover:bg-primary-200 text-primary-700 bg-primary-50 
+px-1 rounded-md"
+104:             onclick={stopPropagation(() => {
+1:50:06 PM [vite-plugin-svelte] src/lib/components/TreeView/RecursiveTreeViewItem.svelte:125:11 This reference only 
+captures the initial value of `group`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally
+123:         }
+124:       });
+125:       group = group;
+                        ^
+126:     } else {
+127:       nodes.forEach((node) => {
+1:50:07 PM [vite-plugin-svelte] src/lib/components/Forms/OTP/OTPInput.svelte:119:0 `<div>` with a keyup handler must 
+have an ARIA role
+https://svelte.dev/e/a11y_no_static_element_interactions
+117:   </div>
+118: {/if}
+119: <div class={`wrapper ${wrapperClass}`} style={wrapperStyle} onkeyup={keyUpHandler}>
+           ^
+120:   {#each codes as value, i (i)}
+121:     <OTPItem
