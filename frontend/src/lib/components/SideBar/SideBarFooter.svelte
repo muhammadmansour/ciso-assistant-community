@@ -79,30 +79,13 @@
 							data-testid="profile-button"
 							><i class="fa-solid fa-address-card mr-2"></i>{m.myProfile()}</a
 						>
-						<button
-							onclick={() => dispatch('triggerGT')}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="gt-button"
-							><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>{m.guidedTour()}</button
-						>
-						<button
-							onclick={() => dispatch('loadDemoDomain')}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="load-demo-data-button"
-							><i class="fa-solid fa-file-import mr-2"></i>{m.loadDemoData()}</button
-						>
-						<button
-							onclick={modalBuildInfo}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="about-button"
-							><i class="fa-solid fa-circle-info mr-2"></i>{m.aboutCiso()}</button
-						>
-						<a
-							href="https://intuitem.gitbook.io/ciso-assistant"
-							target="_blank"
-							class="unstyled cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="docs-button"><i class="fa-solid fa-book mr-2"></i>{m.onlineDocs()}</a
-						>
+						<!--
+							Wathbah customisation: hide Guided tour, Load demo data, About,
+							and Online documentation entries from the user popover. Keep the
+							handlers and `modalBuildInfo` intact so upstream behaviour is easy
+							to restore by removing this comment block and re-adding the
+							buttons below.
+						-->
 						<form action="/logout" method="POST">
 							<button class="w-full" type="submit" data-testid="logout-button">
 								<span

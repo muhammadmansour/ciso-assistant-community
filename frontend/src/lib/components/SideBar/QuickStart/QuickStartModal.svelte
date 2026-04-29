@@ -8,7 +8,6 @@
 
 	import * as m from '$paraglide/messages';
 	import TextField from '$lib/components/Forms/TextField.svelte';
-	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
 	import { quickStartSchema } from '$lib/utils/schemas';
 	import { getLocale } from '$paraglide/runtime';
 	import { getModalStore, type ModalStore } from '$lib/components/Modals/stores';
@@ -47,7 +46,8 @@
 			framework: 'urn:intuitem:risk:library:iso27001-2022',
 			risk_matrix: 'urn:intuitem:risk:library:critical_risk_matrix_5x5',
 			audit_name: `Quick start audit ${new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
-			risk_assessment_name: `Quick start risk assessment ${new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+			risk_assessment_name: `Quick start risk assessment ${new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
+			create_risk_assessment: false
 		},
 		zod(quickStartSchema)
 	);
@@ -103,26 +103,13 @@
 				field="framework"
 				label={m.framework()}
 				optionsEndpoint="stored-libraries"
-				optionsDetailedUrlParameters={[['object_type', 'framework']]}
+				optionsDetailedUrlParameters={[
+					['object_type', 'framework'],
+					['is_loaded', 'true']
+				]}
 				optionsValueField="urn"
 			/>
 			<TextField {form} field="audit_name" label={m.auditName()} />
-			<Checkbox {form} field="create_risk_assessment" label={m.createRiskAssessment()} />
-			<TextField
-				{form}
-				field="risk_assessment_name"
-				label={m.riskAssessmentName()}
-				disabled={!data.create_risk_assessment}
-			/>
-			<AutocompleteSelect
-				{form}
-				field="risk_matrix"
-				label={m.riskMatrix()}
-				optionsEndpoint="stored-libraries"
-				optionsDetailedUrlParameters={[['object_type', 'risk_matrix']]}
-				optionsValueField="urn"
-				disabled={!data.create_risk_assessment}
-			/>
 			<div class="flex flex-row justify-between space-x-4">
 				<button
 					class="btn bg-gray-400 text-white font-semibold w-full"
