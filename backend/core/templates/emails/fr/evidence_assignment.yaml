@@ -1,0 +1,16 @@
+subject: "Wathbah GRC: Vous avez été affecté à la preuve '${evidence_name}'"
+body: |
+  Bonjour,
+
+  Vous avez été désigné comme propriétaire de la preuve suivante :
+
+  - Nom : ${evidence_name}
+  - Description : ${evidence_description}
+  - Statut : ${evidence_status}
+  - Date d'expiration : ${evidence_expiry_date}
+  - Domaine : ${folder_name}
+
+  Consultez directement cette preuve :
+  ${ciso_assistant_url}/evidences/${evidence_id}
+
+  Merci.
