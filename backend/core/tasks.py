@@ -429,6 +429,57 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
             logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
 
 
+def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
+    """Send notification when Evidence is assigned to owners via Muraji API.
+
+    Mirrors send_applied_control_assignment_notification: synchronous send through
+    the same Muraji /api/mail/send endpoint that already powers AppliedControl
+    assignments, so production email deliverability is unchanged.
+    """
+    logger.info(
+        f"send_evidence_assignment_notification called with evidence_id={evidence_id}, "
+        f"emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for evidence assignment notification")
+        return
+
+    try:
+        evidence = Evidence.objects.get(id=evidence_id)
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence with id {evidence_id} not found")
+        return
+
+    from .email_utils import render_email_template
+
+    context = {
+        "evidence_id": str(evidence.id),
+        "evidence_name": evidence.name,
+        "evidence_description": evidence.description or "No description provided",
+        "evidence_status": evidence.get_status_display(),
+        "evidence_expiry_date": evidence.expiry_date.strftime("%Y-%m-%d")
+        if evidence.expiry_date
+        else "Not set",
+        "folder_name": evidence.folder.name if evidence.folder else "Default",
+    }
+
+    for email in assigned_user_emails:
+        logger.info(f"Processing evidence-assignment email notification for: {email}")
+        rendered = render_email_template("evidence_assignment", context)
+        if rendered:
+            logger.info(f"Sending Muraji evidence-assignment email to {email}")
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji evidence-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render evidence_assignment email template for {email}"
+            )
+
+
 @task()
 def send_task_template_assignment_notification(task_template_id, emails):
     """Send notification when TaskTemplate is assigned to users"""
