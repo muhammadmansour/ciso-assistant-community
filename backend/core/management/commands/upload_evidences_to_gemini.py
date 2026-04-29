@@ -151,12 +151,14 @@ class Command(BaseCommand):
                 # Stream from storage (works for local FS, GCS, S3, …) into a
                 # tempfile and feed that to the Gemini SDK. ``attachment.path``
                 # would raise NotImplementedError on cloud backends.
-                from core.tasks_gemini import _materialize_attachment
+                from core.tasks_gemini import _materialize_attachment, _build_evidence_custom_metadata
                 self.stdout.write(f"           Indexing in File Search Store and waiting for completion...")
+                custom_metadata = _build_evidence_custom_metadata(revision)
                 with _materialize_attachment(revision.attachment) as file_path:
                     final_status = client.upload_to_store_and_wait(
                         file_path=file_path,
                         display_name=display_name,
+                        custom_metadata=custom_metadata,
                         max_wait_seconds=300,
                         poll_interval=3,
                     )
@@ -265,6 +267,8 @@ class Command(BaseCommand):
                             'gemini_document_id': fs.gemini_document_id,
                             'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
 
         self.stdout.write(f"\n{'='*60}")

@@ -46,6 +46,7 @@ class GeminiFileSearchClient:
         self,
         file_path: str,
         display_name: str,
+        custom_metadata: Optional[Dict[str, Any]] = None,
         max_wait_seconds: int = 300,
         poll_interval: int = 3,
     ) -> Dict[str, Any]:
@@ -54,6 +55,15 @@ class GeminiFileSearchClient:
         The document name returned here is **durable** — it persists in the
         store until explicitly deleted, so a single reference is sufficient
         for any future analysis.
+
+        ``custom_metadata`` is an optional ``{key: value}`` mapping written to
+        the document's ``customMetadata`` so it can be referenced from a
+        ``metadataFilter`` at query time. This is what lets Muraji restrict
+        retrieval to the exact documents an analysis request submitted (the
+        File Search tool itself only accepts store names, so without metadata
+        retrieval is store-wide). Values are coerced to strings; numeric values
+        are also stored as strings — if you need numeric filtering, extend
+        the encoder to set ``numeric_value`` instead.
 
         Returns a dict with:
             * status: 'completed' | 'failed' | 'timeout'
@@ -68,18 +78,47 @@ class GeminiFileSearchClient:
                 "GEMINI_FILE_SEARCH_STORE_NAME is not configured — cannot upload to store"
             )
 
+        upload_config: Dict[str, Any] = {'display_name': display_name}
+        encoded_metadata = self._encode_custom_metadata(custom_metadata)
+        if encoded_metadata:
+            upload_config['custom_metadata'] = encoded_metadata
+
         try:
             logger.info(
                 "Uploading file to Gemini File Search Store",
                 file_path=file_path,
                 display_name=display_name,
                 store_name=self.store_name,
+                custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
             )
             operation = self.client.file_search_stores.upload_to_file_search_store(
                 file=file_path,
                 file_search_store_name=self.store_name,
-                config={'display_name': display_name},
+                config=upload_config,
             )
+        except TypeError as e:
+            # Older google-genai versions may not accept ``custom_metadata`` in
+            # the upload config. Retry once without metadata so the upload
+            # still succeeds; the operator gets a clear log line to upgrade.
+            if encoded_metadata and 'custom_metadata' in str(e):
+                logger.warning(
+                    "google-genai SDK rejected custom_metadata; retrying without it. "
+                    "Upgrade google-genai to enable per-document metadata filtering.",
+                    error=str(e),
+                )
+                upload_config.pop('custom_metadata', None)
+                operation = self.client.file_search_stores.upload_to_file_search_store(
+                    file=file_path,
+                    file_search_store_name=self.store_name,
+                    config=upload_config,
+                )
+            else:
+                logger.error(
+                    "Failed to upload file to Gemini File Search Store",
+                    error=str(e),
+                    file_path=file_path,
+                )
+                raise
         except Exception as e:
             logger.error(
                 "Failed to upload file to Gemini File Search Store",
@@ -164,6 +203,31 @@ class GeminiFileSearchClient:
             'gemini_document_id': document_name,
             'gemini_store_id': self.store_name,
         }
+
+    @staticmethod
+    def _encode_custom_metadata(custom_metadata):
+        """Encode a ``{key: value}`` dict into the SDK's ``CustomMetadata`` shape.
+
+        Each entry becomes ``{'key': str, 'string_value': str}``. ``None`` and
+        empty values are skipped (Gemini rejects empty strings for the value
+        slot). Up to 20 entries are kept — that's the per-document limit
+        documented in the SDK's ``Document`` type.
+        """
+        if not custom_metadata:
+            return []
+        encoded = []
+        for key, value in custom_metadata.items():
+            if value is None:
+                continue
+            if not isinstance(key, str) or not key:
+                continue
+            value_str = str(value)
+            if not value_str:
+                continue
+            encoded.append({'key': key, 'string_value': value_str})
+            if len(encoded) >= 20:
+                break
+        return encoded
 
     @staticmethod
     def _extract_document_name(operation) -> str:

@@ -987,6 +987,12 @@ def run_applied_control_analysis(applied_control_id: str):
                             'gemini_document_id': fs.gemini_document_id,
                             'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
+                            # Stable upload identifiers — Muraji filters on
+                            # evidence_revision_id (see audit.service.js
+                            # _buildMetadataFilter) so retrieval is restricted
+                            # to exactly these documents, not the whole store.
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
                 except Exception:
                     pass

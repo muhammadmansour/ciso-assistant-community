@@ -4117,6 +4117,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                             'gemini_store_id': fs_entry.gemini_store_id,
                             'evidence_name': evidence.name,
                             'evidence_description': evidence.description or '',
+                            # Stable upload identifiers tagged on the indexed
+                            # document (see tasks_gemini._build_evidence_custom_metadata).
+                            # Muraji filters on evidence_revision_id so retrieval
+                            # is restricted to exactly these documents.
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
                         print(f"[AI-ANALYSIS] Evidence '{evidence.name}': document {fs_entry.gemini_document_id}")
                     else:
@@ -10016,6 +10022,12 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                             'evidence_name': f"{label_prefix} {evidence.name}",
                             'evidence_description': evidence.description or '',
                             'applied_control_name': ctrl_name,
+                            # Stable upload identifiers — Muraji filters on
+                            # evidence_revision_id so retrieval is restricted
+                            # to these documents (see tasks_gemini.
+                            # _build_evidence_custom_metadata).
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
                         ev_files.append(evidence.filename() or evidence.name)
                         ev_count += 1
