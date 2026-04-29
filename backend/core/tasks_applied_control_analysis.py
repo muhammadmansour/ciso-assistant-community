@@ -55,6 +55,13 @@ def run_applied_control_analysis(applied_control_id: str):
                             'gemini_document_id': fs.gemini_document_id,
                             'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
+                            # Stable upload identifiers tagged on the indexed
+                            # document at upload time (see tasks_gemini.
+                            # _build_evidence_custom_metadata). Muraji uses
+                            # evidence_revision_id to build a metadataFilter
+                            # so retrieval is restricted to these documents.
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
                 except Exception:
                     # FileSearchTable may not exist yet - skip gracefully

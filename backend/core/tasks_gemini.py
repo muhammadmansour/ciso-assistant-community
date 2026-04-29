@@ -49,6 +49,45 @@ def _materialize_attachment(attachment):
 logger = structlog.get_logger(__name__)
 
 
+def _build_evidence_custom_metadata(revision):
+    """Build the ``customMetadata`` payload for a Gemini File Search upload.
+
+    These keys end up on the indexed Document and are queryable from the
+    File Search tool's ``metadataFilter`` — that's what lets Muraji restrict
+    retrieval to exactly the documents listed in an analysis request, instead
+    of the whole store.
+
+    Keys (all string-valued):
+        * evidence_revision_id  — primary scope key (one document per revision)
+        * evidence_id           — parent evidence (covers all its revisions)
+        * folder_id             — tenant / domain scope, useful as a guard
+                                  rail in shared stores
+
+    Failures here are non-fatal: a missing field just means the document is
+    less filterable at query time. The upload itself still proceeds.
+    """
+    md = {}
+    try:
+        revision_id = getattr(revision, 'id', None)
+        if revision_id:
+            md['evidence_revision_id'] = str(revision_id)
+
+        evidence = getattr(revision, 'evidence', None)
+        if evidence is not None:
+            ev_id = getattr(evidence, 'id', None)
+            if ev_id:
+                md['evidence_id'] = str(ev_id)
+            folder_id = getattr(evidence, 'folder_id', None)
+            if folder_id:
+                md['folder_id'] = str(folder_id)
+    except Exception as exc:  # noqa: BLE001 — defensive, never fail an upload
+        logger.warning(
+            "Failed to build custom_metadata for upload; proceeding without it",
+            error=str(exc),
+        )
+    return md
+
+
 # Status tokens returned by ``ensure_evidence_indexed`` — they mirror the four
 # UploadStatus values plus two sentinel values for cases the model can't
 # represent. The keys are kept stable (never localized) so the API can include
@@ -214,10 +253,13 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
         # Stream from the configured storage backend into a tempfile. This
         # works for local FS, GCS, S3, etc — ``revision.attachment.path``
         # would raise NotImplementedError on cloud backends.
+        custom_metadata = _build_evidence_custom_metadata(revision)
+
         with _materialize_attachment(revision.attachment) as file_path:
             result = client.upload_to_store_and_wait(
                 file_path=file_path,
                 display_name=display_name,
+                custom_metadata=custom_metadata,
                 max_wait_seconds=300,
                 poll_interval=3,
             )
