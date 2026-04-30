@@ -79,7 +79,7 @@ GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
-MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-hrsd.wathbahs.com/api/audit/analyze}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbahs.com/api/audit/analyze}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"

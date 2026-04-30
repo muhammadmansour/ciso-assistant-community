@@ -1,6 +1,6 @@
 #!/bin/bash
 # CISO Assistant - Debian Production Setup Script
-# Domain: ciso.wathbahs.com
+# Domain: grc.wathbahs.com
 # This script installs all dependencies and sets up the application
 # Uses nginx with Let's Encrypt SSL (ports 80/443)
 
@@ -118,10 +118,10 @@ echo "========================================${NC}"
 echo ""
 echo -e "${YELLOW}IMPORTANT: SSL Certificate Setup${NC}"
 echo "If you don't have SSL certificates yet, run:"
-echo "  sudo certbot certonly --standalone -d ciso.wathbahs.com"
+echo "  sudo certbot certonly --standalone -d grc.wathbahs.com"
 echo ""
 echo "Or if nginx is already running:"
-echo "  sudo certbot certonly --webroot -w /var/www/certbot -d ciso.wathbahs.com"
+echo "  sudo certbot certonly --webroot -w /var/www/certbot -d grc.wathbahs.com"
 echo ""
 echo "To start the application, run:"
 echo "  ./start-debian.sh"
@@ -131,5 +131,5 @@ echo "  ./start-debian.sh stop     - Stop all services"
 echo "  ./start-debian.sh status   - Check service status"
 echo "  ./start-debian.sh restart  - Restart all services"
 echo ""
-echo "Access at: https://ciso.wathbahs.com"
+echo "Access at: https://grc.wathbahs.com"
 echo ""

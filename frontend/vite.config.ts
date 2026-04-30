@@ -25,7 +25,6 @@ export default defineConfig({
 		port: 3000,
 		allowedHosts: [
 			'localhost',
-			'ciso.wathbahs.com',
 			'grc.wathbahs.com',
 			'grc-hrsd.wathbahs.com',
 			'grc.wathbah.dev'

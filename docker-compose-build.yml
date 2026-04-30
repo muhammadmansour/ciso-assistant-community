@@ -8,8 +8,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ALLOWED_HOSTS=backend,localhost,ciso.wathbahs.com
-      - CISO_ASSISTANT_URL=https://ciso.wathbahs.com
+      - ALLOWED_HOSTS=backend,localhost,grc.wathbahs.com
+      - CISO_ASSISTANT_URL=https://grc.wathbahs.com
       - DJANGO_DEBUG=True
       - AUTH_TOKEN_TTL=7200
       - ATTACHMENT_MAX_SIZE_MB=1000
@@ -33,8 +33,8 @@ services:
         condition: service_healthy
     restart: always
     environment:
-      - ALLOWED_HOSTS=backend,localhost,ciso.wathbahs.com
-      - CISO_ASSISTANT_URL=https://ciso.wathbahs.com
+      - ALLOWED_HOSTS=backend,localhost,grc.wathbahs.com
+      - CISO_ASSISTANT_URL=https://grc.wathbahs.com
       - DJANGO_DEBUG=False
       - AUTH_TOKEN_TTL=7200
       - ATTACHMENT_MAX_SIZE_MB=1000
@@ -57,7 +57,7 @@ services:
       - "3000:3000"
     environment:
       - PUBLIC_BACKEND_API_URL=http://backend:8000/api
-      - PUBLIC_BACKEND_API_EXPOSED_URL=https://ciso.wathbahs.com/api
+      - PUBLIC_BACKEND_API_EXPOSED_URL=https://grc.wathbahs.com/api
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
     depends_on:

@@ -1,6 +1,6 @@
 #!/bin/bash
 # CISO Assistant - Debian Production Run Script
-# Domain: ciso.wathbahs.com
+# Domain: grc.wathbahs.com
 # Ports: Backend=8000, Frontend=3000, nginx=80/443 (HTTP/HTTPS)
 # Uses Let's Encrypt SSL certificates
 
@@ -13,7 +13,7 @@ cd "$SCRIPT_DIR"
 # Configuration
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
-DOMAIN="ciso.wathbahs.com"
+DOMAIN="grc.wathbahs.com"
 CISO_ASSISTANT_URL="https://${DOMAIN}"
 
 # Directories

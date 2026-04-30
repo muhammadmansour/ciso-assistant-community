@@ -39,10 +39,10 @@ fi
 
 # Environment variables
 export DJANGO_DEBUG=True
-export CISO_ASSISTANT_URL=https://ciso.wathbahs.com
-export ALLOWED_HOSTS=localhost,127.0.0.1,ciso.wathbahs.com
+export CISO_ASSISTANT_URL=https://grc.wathbahs.com
+export ALLOWED_HOSTS=localhost,127.0.0.1,grc.wathbahs.com
 export PUBLIC_BACKEND_API_URL=http://localhost:8000/api
-export PUBLIC_BACKEND_API_EXPOSED_URL=https://ciso.wathbahs.com/api
+export PUBLIC_BACKEND_API_EXPOSED_URL=https://grc.wathbahs.com/api
 
 # Colors for output
 RED='\033[0;31m'
