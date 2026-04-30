@@ -1,13 +1,13 @@
 #!/bin/bash
-# CISO Assistant - PM2 staging (Linux)
-# Public URL: https://grc-hrsd.wathbahs.com
-# Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
-# Before start: cd frontend && pnpm run build:staging
+# CISO Assistant - PM2 production (Linux)
+# Public URL: https://grc.wathbahs.com
+# Ports: backend 8000, frontend 3000
+# Before start: cd frontend && pnpm run build
 #
-# DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
+# DB name is POSTGRES_NAME (e.g. wathbah_grc). Schema for tables is POSTGRES_SEARCH_PATH (can match: wathbah_grc).
 # If migrate fails on public, once as postgres:
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS "grc-stage" AUTHORIZATION "grc-stage";'
-# Default POSTGRES_SEARCH_PATH=grc-stage. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
+#   sudo -u postgres psql -d "wathbah_grc" -c 'CREATE SCHEMA IF NOT EXISTS "wathbah_grc" AUTHORIZATION "wathbah_grc";'
+# Default POSTGRES_SEARCH_PATH=wathbah_grc. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
 
 set -e
 
@@ -17,52 +17,67 @@ cd "$SCRIPT_DIR"
 
 # Source server-local env overrides if present.
 # This file is NOT tracked in git, lives outside the repo, and survives
-# `git reset --hard origin/staging-version` from the deploy workflow.
+# `git reset --hard origin/stable-version-april-2026` from the deploy
+# workflow.
+#
+# Lookup order (first match wins):
+#   1. $CISO_ENV_FILE   (explicit override)
+#   2. ~/.ciso.env      (production)
+#   3. ~/.ciso-staging.env (legacy / migration path)
+#
 # Use it for secrets / per-host settings, e.g.:
-#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
-#   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
-#   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
-#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
-#   chmod 600 ~/.ciso-staging.env
+#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso.env
+#   echo 'USE_GCS=True'                             >> ~/.ciso.env
+#   echo 'GS_BUCKET_NAME=grc-prod-env'              >> ~/.ciso.env
+#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso.env
+#   chmod 600 ~/.ciso.env
 #
 # GCS authentication: leave GOOGLE_APPLICATION_CREDENTIALS UNSET to use
 # Application Default Credentials (the GCE VM's attached service account).
 # Only set it if you have a service-account JSON key file you want to use
 # explicitly:
 #   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
-#                                                   >> ~/.ciso-staging.env
-if [ -f "$HOME/.ciso-staging.env" ]; then
+#                                                   >> ~/.ciso.env
+ENV_FILE="${CISO_ENV_FILE:-}"
+if [ -z "$ENV_FILE" ]; then
+    if [ -f "$HOME/.ciso.env" ]; then
+        ENV_FILE="$HOME/.ciso.env"
+    elif [ -f "$HOME/.ciso-staging.env" ]; then
+        ENV_FILE="$HOME/.ciso-staging.env"
+    fi
+fi
+if [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ]; then
     set -a
     # shellcheck disable=SC1090
-    . "$HOME/.ciso-staging.env"
+    . "$ENV_FILE"
     set +a
 fi
 
 # Configuration
-DOMAIN="grc-hrsd.wathbahs.com"
+DOMAIN="grc.wathbahs.com"
 PUBLIC_URL="https://${DOMAIN}"
-BACKEND_PORT=8020
-FRONTEND_PORT=3020
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
 
 # PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
-POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
-POSTGRES_USER="${POSTGRES_USER:-grc-stage}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
+POSTGRES_NAME="${POSTGRES_NAME:-wathbah_grc}"
+POSTGRES_USER="${POSTGRES_USER:-wathbah_grc}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-wathbah_grc}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
-POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
+POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-wathbah_grc}"
 
 # Object storage (S3 / Google Cloud Storage). Default = local filesystem.
-# Set via ~/.ciso-staging.env on the server to flip to GCS without editing
-# this script. USE_S3 and USE_GCS are mutually exclusive (settings.py exits
-# fast if both are True).
+# Set via $CISO_ENV_FILE / ~/.ciso.env on the server to flip to GCS without
+# editing this script. USE_S3 and USE_GCS are mutually exclusive
+# (settings.py exits fast if both are True).
 USE_S3="${USE_S3:-False}"
 USE_GCS="${USE_GCS:-False}"
 GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
 GS_PROJECT_ID="${GS_PROJECT_ID:-}"
 # Empty default → Application Default Credentials (GCE VM service account).
-# Set explicitly in ~/.ciso-staging.env if you want to use a JSON key file.
+# Set explicitly in ~/.ciso.env if you want to use a JSON key file.
 GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
@@ -75,14 +90,14 @@ GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 
 # Gemini File Search (used by the AI analysis flow). Both must reach the
 # huey worker AND the gunicorn process (the analysis HTTP endpoint also
-# instantiates the client). Sourced from ~/.ciso-staging.env above.
+# instantiates the client). Sourced from $CISO_ENV_FILE / ~/.ciso.env above.
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbahs.com/api/audit/analyze}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
-CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
+CISO_APPS="ciso-backend ciso-frontend ciso-huey"
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
@@ -98,7 +113,7 @@ NC='\033[0m'
 export PATH="$HOME/.local/bin:$PATH"
 
 echo -e "${GREEN}========================================"
-echo "  CISO Assistant - PM2 Staging (${DOMAIN})"
+echo "  CISO Assistant - PM2 Production (${DOMAIN})"
 echo -e "========================================${NC}"
 
 # Surface object-storage configuration up front so deploys are easy to debug.
@@ -134,7 +149,7 @@ if [ -n "$GEMINI_API_KEY" ]; then
     masked="${GEMINI_API_KEY:0:6}…${GEMINI_API_KEY: -4}"
     echo -e "${GREEN}Gemini API key: ${masked}${NC}"
 else
-    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-staging.env — AI analysis will fail with a 'client not configured' error.${NC}"
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in $ENV_FILE — AI analysis will fail with a 'client not configured' error.${NC}"
 fi
 if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
     echo -e "${GREEN}Gemini File Search store: ${GEMINI_FILE_SEARCH_STORE_NAME}${NC}"
@@ -156,17 +171,17 @@ const os = require('os');
 module.exports = {
   apps: [
     {
-      // BACKEND - Gunicorn on staging port 8020
-      name: 'ciso-stage-backend',
+      // BACKEND - Gunicorn on production port 8000
+      name: 'ciso-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8000 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-hrsd.wathbahs.com',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
+        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -192,20 +207,20 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/stage-backend-error.log',
-      out_file: './logs/stage-backend-out.log',
+      error_file: './logs/backend-error.log',
+      out_file: './logs/backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      name: 'ciso-stage-huey',
+      name: 'ciso-huey',
       cwd: './backend',
       script: 'poetry',
       args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-hrsd.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc.wathbahs.com',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
@@ -228,32 +243,32 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '500M',
-      error_file: './logs/stage-huey-error.log',
-      out_file: './logs/stage-huey-out.log',
+      error_file: './logs/huey-error.log',
+      out_file: './logs/huey-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - adapter-node (run: pnpm run build:staging)
-      name: 'ciso-stage-frontend',
+      // FRONTEND - adapter-node (run: pnpm run build)
+      name: 'ciso-frontend',
       cwd: './frontend',
       script: 'node',
       args: 'build/index.js',
       interpreter: 'none',
       env: {
         HOST: '0.0.0.0',
-        PORT: '3020',
+        PORT: '3000',
         NODE_ENV: 'production',
-        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-hrsd.wathbahs.com/api',
-        ORIGIN: 'https://grc-hrsd.wathbahs.com',
+        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8000/api',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc.wathbahs.com/api',
+        ORIGIN: 'https://grc.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600'
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/stage-frontend-error.log',
-      out_file: './logs/stage-frontend-out.log',
+      error_file: './logs/frontend-error.log',
+      out_file: './logs/frontend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     }
   ]
@@ -276,7 +291,7 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
@@ -305,10 +320,10 @@ ensure_gunicorn() {
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services (staging)...${NC}"
+        echo -e "${GREEN}Starting all services (production)...${NC}"
         if [ ! -f "$FRONTEND_DIR/build/index.js" ]; then
             echo -e "${YELLOW}Warning: frontend/build/index.js missing. Run:${NC}"
-            echo -e "  cd frontend && pnpm run build:staging"
+            echo -e "  cd frontend && pnpm run build"
             exit 1
         fi
         ensure_poetry_install
@@ -319,7 +334,7 @@ case "${1:-start}" in
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  Staging services started                 ${NC}"
+        echo -e "${GREEN}  Production services started              ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn on port ${BACKEND_PORT} (4 workers)"
@@ -329,14 +344,14 @@ case "${1:-start}" in
         pm2 status
         ;;
     stop)
-        echo -e "${YELLOW}Stopping CISO staging services only...${NC}"
+        echo -e "${YELLOW}Stopping CISO services only...${NC}"
         for app in $CISO_APPS; do
             pm2 stop "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running${NC}"
         done
         pm2 status
         ;;
     restart)
-        echo -e "${YELLOW}Restarting CISO staging services only...${NC}"
+        echo -e "${YELLOW}Restarting CISO services only...${NC}"
         ensure_poetry_install
         run_migrations
         for app in $CISO_APPS; do
@@ -351,13 +366,13 @@ case "${1:-start}" in
         ;;
     logs)
         if [ -n "$2" ]; then
-            pm2 logs "ciso-stage-$2"
+            pm2 logs "ciso-$2"
         else
-            pm2 logs ciso-stage-backend ciso-stage-frontend ciso-stage-huey
+            pm2 logs ciso-backend ciso-frontend ciso-huey
         fi
         ;;
     delete)
-        echo -e "${RED}Deleting CISO staging PM2 processes only...${NC}"
+        echo -e "${RED}Deleting CISO PM2 processes only...${NC}"
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || echo -e "${YELLOW}  $app not found${NC}"
         done
@@ -372,17 +387,17 @@ case "${1:-start}" in
     *)
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
-        echo "Staging: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
+        echo "Production: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
         echo "PostgreSQL: POSTGRES_NAME=${POSTGRES_NAME} DB_HOST=${DB_HOST} (override via env)"
-        echo "Build frontend first: cd frontend && pnpm run build:staging"
+        echo "Build frontend first: cd frontend && pnpm run build"
         echo ""
         echo "Commands:"
-        echo "  start   - Write ecosystem.config.js and start staging (Gunicorn + Node)"
-        echo "  stop    - Stop staging PM2 apps only"
-        echo "  restart - Migrate, recreate staging PM2 apps"
+        echo "  start   - Write ecosystem.config.js and start production (Gunicorn + Node)"
+        echo "  stop    - Stop production PM2 apps only"
+        echo "  restart - Migrate, recreate production PM2 apps"
         echo "  status  - PM2 status"
-        echo "  logs    - Staging logs (optional: logs backend | logs frontend | logs huey)"
-        echo "  delete  - Remove staging PM2 processes"
+        echo "  logs    - Production logs (optional: logs backend | logs frontend | logs huey)"
+        echo "  delete  - Remove production PM2 processes"
         echo "  startup - Enable PM2 on boot"
         exit 1
         ;;
