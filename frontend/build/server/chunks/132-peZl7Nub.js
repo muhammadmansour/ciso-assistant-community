@@ -98,7 +98,7 @@ const actions = {
     return { status: 200 };
   },
   fetchMuraji: async (event) => {
-    const MURAJI_API_URL = "https://muraji-hrsd.wathbahs.com/api/libraries";
+    const MURAJI_API_URL = "https://muraji-stage.wathbahs.com/api/libraries";
     console.log(`[fetchMuraji] syncing libraries from ${MURAJI_API_URL}`);
     try {
       const murajiResponse = await fetch(MURAJI_API_URL);

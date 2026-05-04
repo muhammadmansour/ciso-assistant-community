@@ -368,7 +368,7 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via Muraji API"""
     import requests
     
-    MURAJI_API_URL = "https://muraji-hrsd.wathbahs.com/api/mail/send"
+    MURAJI_API_URL = "https://muraji-stage.wathbahs.com/api/mail/send"
     
     try:
         payload = {
@@ -833,8 +833,8 @@ def run_evidence_auto_analysis(evidence_id: str):
     import requests
     from django.utils import timezone
     
-    ENTITY_EXTRACTION_API_URL = "https://muraji-hrsd.wathbahs.com/api/entity-extraction/extract"
-    AUDIT_ANALYSIS_API_URL = "https://muraji-hrsd.wathbahs.com/api/audit/analyze"
+    ENTITY_EXTRACTION_API_URL = "https://muraji-stage.wathbahs.com/api/entity-extraction/extract"
+    AUDIT_ANALYSIS_API_URL = "https://muraji-stage.wathbahs.com/api/audit/analyze"
     
     try:
         evidence = Evidence.objects.get(id=evidence_id)
@@ -1000,7 +1000,7 @@ except ImportError:
 
 MURAJI_ANALYSIS_API_URL = os.environ.get(
     'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-hrsd.wathbahs.com/api/audit/analyze'
+    'https://muraji-stage.wathbahs.com/api/audit/analyze'
 )
 
 

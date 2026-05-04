@@ -2,7 +2,7 @@ import { B as BASE_API_URL } from './constants-lv6aycRl.js';
 import './shared-server-BU2DVf8Q.js';
 import './runtime-BKo9q3Zd.js';
 
-const ENTITY_EXTRACTION_API_URL = "https://muraji-hrsd.wathbahs.com/api/entity-extraction/extract";
+const ENTITY_EXTRACTION_API_URL = "https://muraji-stage.wathbahs.com/api/entity-extraction/extract";
 const MAX_FILE_SIZE_FOR_AI = 50 * 1024 * 1024;
 const AI_ANALYSIS_TIMEOUT = 5 * 60 * 1e3;
 const POST = async (event) => {
