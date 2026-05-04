@@ -178,15 +178,17 @@
 	cacheLock={cacheLocks['version']}
 	bind:cachedValue={formDataCache['version']}
 />
-<TextField
-	type="date"
-	{form}
-	field="eta"
-	label={m.eta()}
-	helpText={m.etaHelpText()}
-	cacheLock={cacheLocks['eta']}
-	bind:cachedValue={formDataCache['eta']}
-/>
+{#if context !== 'create'}
+	<TextField
+		type="date"
+		{form}
+		field="eta"
+		label={m.eta()}
+		helpText={m.etaHelpText()}
+		cacheLock={cacheLocks['eta']}
+		bind:cachedValue={formDataCache['eta']}
+	/>
+{/if}
 <Dropdown open={false} style="hover:text-primary-700" icon="fa-solid fa-list" header={m.more()}>
 	<div class="space-y-4">
 		{#if context === 'create' && suggestions}
