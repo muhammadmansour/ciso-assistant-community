@@ -1,6 +1,7 @@
 import { BASE_API_URL } from '$lib/utils/constants';
 import { safeTranslate } from '$lib/utils/i18n';
 import { ResetPasswordSchema } from '$lib/utils/schemas';
+import { resolveResetUidAndToken } from '$lib/utils/password-reset-token';
 import { m } from '$paraglide/messages';
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { setFlash } from 'sveltekit-flash-message/server';
@@ -34,10 +35,31 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
+		const { uidb64, token } = resolveResetUidAndToken(event, form.data);
+		if (!uidb64 || !token) {
+			setFlash(
+				{
+					type: 'error',
+					message:
+						'This page must be opened using the full link from your email (including the text after ?).'
+				},
+				event
+			);
+			return fail(400, { form });
+		}
+
 		const endpoint = `${BASE_API_URL}/iam/password-reset/confirm/`;
 		const requestInitOptions: RequestInit = {
 			method: 'POST',
-			body: JSON.stringify(form.data)
+			headers: {
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			},
+			body: JSON.stringify({
+				...form.data,
+				uidb64,
+				token
+			})
 		};
 
 		const res = await event.fetch(endpoint, requestInitOptions);

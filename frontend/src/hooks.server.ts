@@ -144,7 +144,10 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 		const token = event.cookies.get('token');
 		const csrfToken = event.cookies.get('csrftoken');
 
-		if (token) {
+		// AllowAny + unauthenticated password confirm must not send a stale Knox token
+		const isPasswordResetConfirm = request.url.includes('/iam/password-reset/confirm/');
+
+		if (token && !isPasswordResetConfirm) {
 			request.headers.append('Authorization', `Token ${token}`);
 		}
 

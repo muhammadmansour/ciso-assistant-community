@@ -1,3 +1,4 @@
+import binascii
 from django.utils.http import urlsafe_base64_decode
 from datetime import timedelta
 
@@ -359,6 +360,8 @@ class ResetPasswordConfirmView(views.APIView):
             TypeError,
             ValueError,
             OverflowError,
+            binascii.Error,
+            UnicodeDecodeError,
             User.DoesNotExist,
         ):
             user = None
@@ -372,9 +375,26 @@ class ResetPasswordConfirmView(views.APIView):
         token = (serializer.validated_data.get("token") or "").strip()
         new_password = serializer.validated_data.get("new_password")
         user = self.get_user(uidb64)
-        if user is not None and user.is_active and self.token_generator.check_token(
-            user, token
-        ):
+        if user is None:
+            logger.warning(
+                "password_reset_confirm_rejected",
+                reason="user_not_found",
+                uidb64_length=len(uidb64),
+                token_length=len(token),
+            )
+        elif not user.is_active:
+            logger.warning(
+                "password_reset_confirm_rejected",
+                reason="user_inactive",
+                user_id=str(user.pk),
+            )
+        elif not self.token_generator.check_token(user, token):
+            logger.warning(
+                "password_reset_confirm_rejected",
+                reason="invalid_or_expired_token",
+                user_id=str(user.pk),
+            )
+        else:
             try:
                 sso_settings = GlobalSettings.objects.get(
                     name=GlobalSettings.Names.SSO
