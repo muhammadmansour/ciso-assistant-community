@@ -33,6 +33,8 @@
 					validators={zod(ResetPasswordSchema)}
 				>
 					{#snippet children({ form })}
+						<TextField type="hidden" hidden {form} field="uidb64" label="" />
+						<TextField type="hidden" hidden {form} field="token" label="" />
 						<TextField type="password" {form} field="new_password" label={m.newPassword()} />
 						<TextField
 							type="password"

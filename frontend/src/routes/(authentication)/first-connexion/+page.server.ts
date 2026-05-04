@@ -12,8 +12,17 @@ export const load: PageServerLoad = async (event) => {
 	// Clear any existing session to prevent logged-in user from interfering with first connexion
 	event.cookies.delete('token', { path: '/' });
 	event.cookies.delete('allauth_session_token', { path: '/' });
-	
-	const form = await superValidate(event.request, zod(ResetPasswordSchema));
+
+	const form = await superValidate(
+		{
+			uidb64: event.url.searchParams.get('uidb64') ?? '',
+			token: event.url.searchParams.get('token') ?? '',
+			new_password: '',
+			confirm_new_password: ''
+		},
+		zod(ResetPasswordSchema),
+		{ errors: false }
+	);
 
 	return { form };
 };
@@ -26,8 +35,6 @@ export const actions: Actions = {
 		}
 
 		const endpoint = `${BASE_API_URL}/iam/password-reset/confirm/`;
-		form.data.token = event.url.searchParams.get('token');
-		form.data.uidb64 = event.url.searchParams.get('uidb64');
 		const requestInitOptions: RequestInit = {
 			method: 'POST',
 			body: JSON.stringify(form.data)

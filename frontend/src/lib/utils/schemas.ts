@@ -415,6 +415,8 @@ export const ChangePasswordSchema = z.object({
 });
 
 export const ResetPasswordSchema = z.object({
+	uidb64: z.string().min(1),
+	token: z.string().min(1),
 	new_password: z.string(),
 	confirm_new_password: z.string()
 });

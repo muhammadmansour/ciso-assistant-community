@@ -373,13 +373,22 @@ class ResetPasswordConfirmView(views.APIView):
         token = serializer.validated_data.get("token")
         new_password = serializer.validated_data.get("new_password")
         user = self.get_user(uidb64)
-        if (
-            user is not None and user.is_local
-        ):  # Only local user can reset their password.
-            if self.token_generator.check_token(user, token):
-                user.set_password(new_password)
-                user.save()
-                return Response(status=status.HTTP_200_OK)
+        if user is not None and user.is_active and self.token_generator.check_token(
+            user, token
+        ):
+            try:
+                sso_settings = GlobalSettings.objects.get(
+                    name=GlobalSettings.Names.SSO
+                ).value
+            except GlobalSettings.DoesNotExist:
+                sso_settings = {}
+            if sso_settings.get("is_enabled", False) and sso_settings.get(
+                "force_sso", False
+            ):
+                user.keep_local_login = True
+            user.set_password(new_password)
+            user.save()
+            return Response(status=status.HTTP_200_OK)
         return Response(
             data={"error": "The link is invalid or has expired."},
             status=status.HTTP_400_BAD_REQUEST,
