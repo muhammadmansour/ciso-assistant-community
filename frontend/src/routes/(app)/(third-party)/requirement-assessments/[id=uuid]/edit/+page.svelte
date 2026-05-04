@@ -730,6 +730,33 @@
 		'riskassessment', 'risk_assessment', 'note', 'aimodel', 'ai_model',
 	]);
 
+	// Keys to always hide from any generic key/value renderer in the report.
+	// Used to suppress implementation details (e.g. underlying model name) from
+	// the rendered output regardless of where they appear in the response tree.
+	const hiddenRenderKeys = new Set([
+		'aimodel', 'ai_model', 'model', 'modelname', 'model_name',
+		'provider', 'llm', 'llmmodel', 'llm_model',
+	]);
+
+	const shouldHideKey = (k: string): boolean =>
+		hiddenRenderKeys.has(k) || hiddenRenderKeys.has(k.toLowerCase());
+
+	// Recursively strip hidden keys from an arbitrary object tree. Used
+	// before dumping raw JSON so nested implementation-detail fields never
+	// surface in the rendered report.
+	function stripHiddenKeys(value: any): any {
+		if (Array.isArray(value)) return value.map(stripHiddenKeys);
+		if (value !== null && typeof value === 'object') {
+			const out: Record<string, any> = {};
+			for (const [k, v] of Object.entries(value)) {
+				if (shouldHideKey(k)) continue;
+				out[k] = stripHiddenKeys(v);
+			}
+			return out;
+		}
+		return value;
+	}
+
 	const isReportSection = (key: string, value: any) =>
 		typeof value === 'object' && value !== null && !metadataKeys.has(key) && !metadataKeys.has(key.toLowerCase());
 
@@ -2355,11 +2382,11 @@
 														{/if}
 														<!-- Fallback: show remaining fields not already displayed -->
 														{#if typeof item === 'object'}
-															{@const shownKeys = new Set(['questionnumber', 'number', 'question', 'text', 'questiontext', 'answer', 'answered', 'selectedchoice', 'source', 'sourcefile', 'appliedcontrol', 'justification', 'explanation', 'notes', 'reasoning', 'evidence', 'evidencefound', 'evidencefile', 'confidence'])}
-															{#each Object.entries(item).filter(([k]) => !shownKeys.has(k.toLowerCase())) as [k, v]}
+														{@const shownKeys = new Set(['questionnumber', 'number', 'question', 'text', 'questiontext', 'answer', 'answered', 'selectedchoice', 'source', 'sourcefile', 'appliedcontrol', 'justification', 'explanation', 'notes', 'reasoning', 'evidence', 'evidencefound', 'evidencefile', 'confidence'])}
+														{#each Object.entries(item).filter(([k]) => !shownKeys.has(k.toLowerCase()) && !shouldHideKey(k)) as [k, v]}
 																<div class="flex items-start gap-2 text-sm">
 																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px] capitalize">{k.replace(/_/g, ' ')}:</span>
-																	<span class="text-gray-700">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																	<span class="text-gray-700">{typeof v === 'object' ? JSON.stringify(stripHiddenKeys(v)) : v}</span>
 																</div>
 															{/each}
 														{/if}
@@ -2490,37 +2517,37 @@
 													</li>
 												{:else if typeof item === 'object' && item !== null}
 													<li class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-														{#each Object.entries(item) as [k, v]}
+														{#each Object.entries(item).filter(([k]) => !shouldHideKey(k)) as [k, v]}
 															<div class="mb-1">
 																<span class="font-medium text-gray-600 capitalize">{k.replace(/_/g, ' ')}:</span>
-																<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(stripHiddenKeys(v)) : v}</span>
 															</div>
 														{/each}
 													</li>
 												{:else}
-													<li class="text-gray-700">{JSON.stringify(item)}</li>
+													<li class="text-gray-700">{JSON.stringify(stripHiddenKeys(item))}</li>
 												{/if}
 											{/each}
 										</ul>
 									{/if}
 
-								<!-- Object section (overallAssessment, etc.) -->
-								{:else if typeof sectionValue === 'object' && sectionValue !== null}
-									<div class="space-y-2">
-										{#each Object.entries(sectionValue) as [k, v]}
-											<div class="flex items-start gap-2">
-												<span class="font-medium text-gray-600 capitalize min-w-[140px] shrink-0">{k.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</span>
+							<!-- Object section (overallAssessment, etc.) -->
+							{:else if typeof sectionValue === 'object' && sectionValue !== null}
+								<div class="space-y-2">
+									{#each Object.entries(sectionValue).filter(([k]) => !shouldHideKey(k)) as [k, v]}
+										<div class="flex items-start gap-2">
+											<span class="font-medium text-gray-600 capitalize min-w-[140px] shrink-0">{k.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</span>
 												{#if typeof v === 'string'}
 													<span class="text-gray-700">{v}</span>
 												{:else}
-													<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(v, null, 2)}</pre>
+													<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(stripHiddenKeys(v), null, 2)}</pre>
 												{/if}
 											</div>
 										{/each}
 									</div>
 
 								{:else}
-									<p class="text-gray-700">{JSON.stringify(sectionValue)}</p>
+									<p class="text-gray-700">{JSON.stringify(stripHiddenKeys(sectionValue))}</p>
 								{/if}
 							</div>
 						</div>
@@ -2542,9 +2569,9 @@
 
 					<!-- Fallback: if no sections were rendered, show raw -->
 					{#if getOrderedSections(result).length === 0 && !summaryText && !detailedAnalysis}
-						{@const displayResult = Object.fromEntries(
+						{@const displayResult = stripHiddenKeys(Object.fromEntries(
 							Object.entries(result).filter(([k]) => !metadataKeys.has(k) && !metadataKeys.has(k.toLowerCase()))
-						)}
+						))}
 						<div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
 							<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(displayResult, null, 2)}</pre>
 						</div>
