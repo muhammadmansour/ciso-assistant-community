@@ -27,6 +27,7 @@ from core.base_models import (
 from core.utils import UserGroupCodename, RoleCodename
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
+from .invitation_tokens import invitation_token_generator
 from django.utils.encoding import force_bytes
 from django.template.loader import render_to_string
 from django.core.mail import send_mail, get_connection, EmailMessage
@@ -627,12 +628,18 @@ class User(ActorSyncMixin, AbstractBaseUser, AbstractBaseModel, FolderMixin):
         """
         Sending a mail to a user for password resetting or creation
         """
+        invite_template = "registration/first_connexion_email.html"
+        token_str = (
+            invitation_token_generator.make_token(self)
+            if email_template_name == invite_template
+            else default_token_generator.make_token(self)
+        )
         header = {
             "email": self.email,
             "root_url": CISO_ASSISTANT_URL,
             "uid": urlsafe_base64_encode(force_bytes(self.pk)),
             "user": self,
-            "token": default_token_generator.make_token(self),
+            "token": token_str,
             "protocol": "https",
             "pk": str(pk) if pk else None,
             "object": object,

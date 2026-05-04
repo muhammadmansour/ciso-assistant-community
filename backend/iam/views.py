@@ -30,6 +30,7 @@ from rest_framework.status import (
 from ciso_assistant.settings import EMAIL_HOST, EMAIL_HOST_RESCUE
 
 from global_settings.models import GlobalSettings
+from .invitation_tokens import invitation_token_generator
 from .models import Folder, PersonalAccessToken, Role, RoleAssignment
 from .serializers import (
     ChangePasswordSerializer,
@@ -388,7 +389,10 @@ class ResetPasswordConfirmView(views.APIView):
                 reason="user_inactive",
                 user_id=str(user.pk),
             )
-        elif not self.token_generator.check_token(user, token):
+        elif not (
+            self.token_generator.check_token(user, token)
+            or invitation_token_generator.check_token(user, token)
+        ):
             logger.warning(
                 "password_reset_confirm_rejected",
                 reason="invalid_or_expired_token",
