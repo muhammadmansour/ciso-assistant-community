@@ -387,6 +387,9 @@ export const UserEditSchema = z.object({
 
 export const UserCreateSchema = z.object({
 	email: z.string().email(),
+	first_name: z.string().optional(),
+	last_name: z.string().optional(),
+	user_groups: z.array(z.string().uuid().optional()).optional(),
 	observation: z.string().optional().nullable(),
 	expiry_date: z
 		.union([z.literal('').transform(() => null), z.string().date()])

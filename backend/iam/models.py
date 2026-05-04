@@ -433,6 +433,7 @@ class UserManager(BaseUserManager):
         """
         validate_email(email)
         email = self.normalize_email(email)
+        user_groups = extra_fields.pop("user_groups", None)
         user = self.model(
             email=email,
             first_name=extra_fields.get("first_name", ""),
@@ -445,12 +446,13 @@ class UserManager(BaseUserManager):
             expiry_date=extra_fields.get("expiry_date"),
             is_published=True,
         )
-        user.user_groups.set(extra_fields.get("user_groups", []))
         if password:
             user.password = make_password(password)
         else:
             user.set_unusable_password()
         user.save(using=self._db)
+        if user_groups is not None:
+            user.user_groups.set(user_groups)
         if initial_group:
             initial_group.user_set.add(user)
 
