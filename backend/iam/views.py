@@ -1,4 +1,4 @@
-from base64 import urlsafe_b64decode
+from django.utils.http import urlsafe_base64_decode
 from datetime import timedelta
 
 import structlog
@@ -353,8 +353,7 @@ class ResetPasswordConfirmView(views.APIView):
 
     def get_user(self, uidb64):
         try:
-            # urlsafe_base64_decode() decodes to bytestring
-            uid = urlsafe_b64decode(uidb64).decode()
+            uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
         except (
             TypeError,
@@ -369,8 +368,8 @@ class ResetPasswordConfirmView(views.APIView):
     def post(self, request, *args, **kwargs):
         serializer = ResetPasswordConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uidb64 = serializer.validated_data.get("uidb64")
-        token = serializer.validated_data.get("token")
+        uidb64 = (serializer.validated_data.get("uidb64") or "").strip()
+        token = (serializer.validated_data.get("token") or "").strip()
         new_password = serializer.validated_data.get("new_password")
         user = self.get_user(uidb64)
         if user is not None and user.is_active and self.token_generator.check_token(

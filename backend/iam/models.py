@@ -593,7 +593,10 @@ class User(ActorSyncMixin, AbstractBaseUser, AbstractBaseModel, FolderMixin):
         if self.is_superuser and not self.is_active:
             # avoid deactivation of superuser
             self.is_active = True
-        if not self.is_local:
+        # Only strip local password when the user must not have one. Calling
+        # set_unusable_password() on every save rotates the hash (salted), which
+        # invalidates PasswordResetTokenGenerator tokens issued for invited users.
+        if not self.is_local and self.has_usable_password():
             self.set_unusable_password()
         super().save(*args, **kwargs)
         logger.info("user saved", user=self)
