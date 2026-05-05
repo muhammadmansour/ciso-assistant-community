@@ -38,6 +38,8 @@ VERSION = os.getenv("CISO_ASSISTANT_VERSION", "unset")
 BUILD = os.getenv("CISO_ASSISTANT_BUILD", "unset")
 SCHEMA_VERSION = meta.SCHEMA_VERSION
 
+# Default WARNING hides logger.info bootstrap lines (DEFAULT_FROM_EMAIL, mailing success, …).
+# Set LOG_LEVEL=INFO when debugging email delivery.
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING")
 LOG_FORMAT = os.environ.get("LOG_FORMAT", "plain")
 LOG_OUTFILE = os.environ.get("LOG_OUTFILE", "")
@@ -652,7 +654,27 @@ EMAIL_OUTBOUND_CONFIGURED = bool(
         and MS_GRAPH_CLIENT_SECRET
     ),
 )
-logger.info("EMAIL_OUTBOUND_CONFIGURED: %s", EMAIL_OUTBOUND_CONFIGURED)
+_mail_mode = (
+    "console_mail_debug"
+    if MAIL_DEBUG
+    else (
+        "microsoft_graph"
+        if MS_GRAPH_CLIENT_ID and MS_GRAPH_TENANT_ID and MS_GRAPH_CLIENT_SECRET
+        else "smtp"
+    )
+)
+# WARNING so operators see mail posture when LOG_LEVEL defaults to WARNING.
+logger.warning(
+    "email_outbound_configured=%s mode=%s has_smtp=%s has_smtp_rescue=%s "
+    "has_graph_triple=%s default_from_email_set=%s log_level=%s",
+    EMAIL_OUTBOUND_CONFIGURED,
+    _mail_mode,
+    bool(EMAIL_HOST),
+    bool(EMAIL_HOST_RESCUE),
+    bool(MS_GRAPH_CLIENT_ID and MS_GRAPH_TENANT_ID and MS_GRAPH_CLIENT_SECRET),
+    bool(DEFAULT_FROM_EMAIL),
+    LOG_LEVEL,
+)
 
 
 ## Huey settings
