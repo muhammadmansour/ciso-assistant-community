@@ -42,11 +42,9 @@ function readPasswordResetLinkCookie(event: RequestEvent): { uidb64: string; tok
 /**
  * Recover uidb64/token for password-reset / first-connexion.
  *
- * 1. Full pair on POST URL → use it (bookmark / full form.action URL).
- * 2. POST has NO uid/token in URL → prefer httpOnly cookie (set on GET from the email link) over the
- *    request body. Hidden fields / superforms sometimes send stale or truncated values while still non-empty,
- *    which would incorrectly block the cookie fallback if we merged form before cookie.
- * 3. Otherwise merge body, partial URL, Referer, then fill gaps from cookie.
+ * 1. Full pair on POST URL (CISO default: form action preserves `?uidb64=&token=` from the email link).
+ * 2. Else merge hidden fields / body, partial URL, Referer, then httpOnly cookie for any missing fragment.
+ * 3. If both body and cookie have a token but the cookie’s is strictly longer (truncation bugs), prefer the cookie token.
  */
 export function resolveResetUidAndToken(
 	event: RequestEvent,
@@ -64,13 +62,6 @@ export function resolveResetUidAndToken(
 
 	if (urlUid && urlTok) {
 		return { uidb64: urlUid, token: urlTok };
-	}
-
-	const cookiePair = readPasswordResetLinkCookie(event);
-	// POST landed without any uid/token on the URL (common): trust the cookie from the GET, not possibly-wrong bodies.
-	const missingBothUrlParams = !urlUid && !urlTok;
-	if (missingBothUrlParams && cookiePair) {
-		return cookiePair;
 	}
 
 	let uidb64 = (fromForm.uidb64 ?? '').trim();
@@ -92,10 +83,19 @@ export function resolveResetUidAndToken(
 		}
 	}
 
-	if ((!uidb64 || !token) && cookiePair) {
+	const cookiePair = readPasswordResetLinkCookie(event);
+	if (cookiePair) {
 		if (!uidb64) uidb64 = cookiePair.uidb64;
 		if (!token) token = cookiePair.token;
+		else if (
+			cookiePair.token.length > token.length &&
+			token.length > 0 &&
+			token === (fromForm.token ?? '').trim()
+		) {
+			// Prefer full token from cookie when the submitted body looks truncated vs the GET snapshot.
+			token = cookiePair.token;
+		}
 	}
 
-	return { uidb64, token };
+	return { uidb64: uidb64.trim(), token: token.trim() };
 }

@@ -45,7 +45,12 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const { uidb64, token } = resolveResetUidAndToken(event, form.data);
+		// CISO default: uid/token from POST URL (requires form action to keep ?uidb64=&token=); resolve merges fallbacks.
+		const { uidb64, token } = resolveResetUidAndToken(event, {
+			...form.data,
+			uidb64: event.url.searchParams.get('uidb64') ?? form.data.uidb64 ?? '',
+			token: event.url.searchParams.get('token') ?? form.data.token ?? ''
+		});
 		if (!uidb64 || !token) {
 			setFlash(
 				{

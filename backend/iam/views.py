@@ -11,7 +11,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from knox import crypto
 from knox.auth import TokenAuthentication, get_token_model, knox_settings
 from knox.models import AuthToken
@@ -343,12 +343,14 @@ class PasswordResetView(views.APIView):
         )
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ResetPasswordConfirmView(views.APIView):
     """
     API Endpoint for reset password confirm
     """
 
     default_token_generator = PasswordResetTokenGenerator()
+    authentication_classes = ()
     permission_classes = [permissions.AllowAny]
     serialier_class = ResetPasswordConfirmSerializer
     token_generator = default_token_generator
@@ -368,7 +370,6 @@ class ResetPasswordConfirmView(views.APIView):
             user = None
         return user
 
-    @method_decorator(ensure_csrf_cookie)
     def post(self, request, *args, **kwargs):
         serializer = ResetPasswordConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import SuperForm from '$lib/components/Forms/Form.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
@@ -69,6 +70,7 @@
 
 					<div class="w-full">
 						<SuperForm
+							action={`${page.url.pathname}${page.url.search}`}
 							class="flex flex-col space-y-4"
 							data={data?.form}
 							dataType="form"
