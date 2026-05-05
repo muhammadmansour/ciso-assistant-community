@@ -1,0 +1,65 @@
+import { B as BASE_API_URL } from './constants-lv6aycRl.js';
+import './shared-server-BU2DVf8Q.js';
+import './runtime-BKo9q3Zd.js';
+
+const load = async ({ fetch, params }) => {
+  const biaResponse = await fetch(
+    `${BASE_API_URL}/resilience/business-impact-analysis/${params.id}/`
+  );
+  const bia = await biaResponse.json();
+  const timelineResponse = await fetch(
+    `${BASE_API_URL}/resilience/business-impact-analysis/${params.id}/build-table/`
+  );
+  const timelineData = await timelineResponse.json();
+  const metricsResponse = await fetch(
+    `${BASE_API_URL}/resilience/business-impact-analysis/${params.id}/metrics/`
+  );
+  const metrics = await metricsResponse.json();
+  const assetsResponse = await fetch(
+    `${BASE_API_URL}/resilience/asset-assessments/?bia=${params.id}`
+  );
+  const assetsData = await assetsResponse.json();
+  const assetAssessments = assetsData.results || [];
+  const assetsWithDetails = await Promise.all(
+    assetAssessments.map(async (assetAssessment) => {
+      const assetResponse = await fetch(`${BASE_API_URL}/assets/${assetAssessment.asset.id}/`);
+      const assetDetails = await assetResponse.json();
+      return {
+        ...assetAssessment,
+        asset: assetDetails
+      };
+    })
+  );
+  assetsWithDetails.sort((a, b) => a.asset.name.localeCompare(b.asset.name));
+  const allControls = /* @__PURE__ */ new Map();
+  assetAssessments.forEach((aa) => {
+    aa.associated_controls?.forEach((control) => {
+      if (!allControls.has(control.id)) {
+        allControls.set(control.id, control);
+      }
+    });
+  });
+  return {
+    bia,
+    timelineData,
+    metrics,
+    assets: assetsWithDetails,
+    appliedControls: Array.from(allControls.values())
+  };
+};
+
+var _page_server_ts = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  load: load
+});
+
+const index = 42;
+let component_cache;
+const component = async () => component_cache ??= (await import('./_page.svelte-r6Z--HlR.js')).default;
+const server_id = "src/routes/(app)/(internal)/business-impact-analysis/[id=uuid]/report/+page.server.ts";
+const imports = ["_app/immutable/nodes/42.UWw3tV_a.js","_app/immutable/chunks/Bzak7iHL.js","_app/immutable/chunks/2pWo5_dW.js","_app/immutable/chunks/DIeogL5L.js","_app/immutable/chunks/C2HK-5eJ.js","_app/immutable/chunks/CWz7oro_.js","_app/immutable/chunks/CELL7CsF.js","_app/immutable/chunks/B1TJtPpf.js","_app/immutable/chunks/MSPxrDcO.js","_app/immutable/chunks/DqfuwWXu.js","_app/immutable/chunks/DaFf4ri-.js","_app/immutable/chunks/69_IOA4Y.js","_app/immutable/chunks/CY_JNAng.js","_app/immutable/chunks/ClXf1tSH.js","_app/immutable/chunks/BBSWRWbi.js","_app/immutable/chunks/G4f472Dc.js","_app/immutable/chunks/DgaPM2MU.js","_app/immutable/chunks/Ck4BDG7B.js","_app/immutable/chunks/Dmqg17Dx.js","_app/immutable/chunks/DkXIEkz8.js","_app/immutable/chunks/DMjP-jzq.js","_app/immutable/chunks/Dg3aPyBA.js","_app/immutable/chunks/BQSXIl_l.js","_app/immutable/chunks/Bik8CDZR.js","_app/immutable/chunks/7JscrOa6.js","_app/immutable/chunks/_OU96EF_.js","_app/immutable/chunks/CUe0d672.js","_app/immutable/chunks/C1FmrZbK.js","_app/immutable/chunks/CjH7Vkj0.js","_app/immutable/chunks/BNMuJmHr.js","_app/immutable/chunks/BosuxZz1.js","_app/immutable/chunks/DctZKI0X.js","_app/immutable/chunks/B7RV26bt.js","_app/immutable/chunks/DNDGWuBT.js"];
+const stylesheets = ["_app/immutable/assets/stores.CinladYX.css","_app/immutable/assets/TimelineTable.DVo8JVRr.css","_app/immutable/assets/42.DMRD3Yfp.css"];
+const fonts = [];
+
+export { component, fonts, imports, index, _page_server_ts as server, server_id, stylesheets };
+//# sourceMappingURL=42-B4FyoOpz.js.map

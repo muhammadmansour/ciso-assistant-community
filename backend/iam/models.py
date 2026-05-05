@@ -26,7 +26,7 @@ from core.base_models import (
 )
 from core.utils import UserGroupCodename, RoleCodename
 from django.utils.http import urlsafe_base64_encode
-from django.contrib.auth.tokens import default_token_generator
+from .invitation_tokens import invitation_token_generator
 from django.utils.encoding import force_bytes
 from django.template.loader import render_to_string
 from django.core.mail import send_mail, get_connection, EmailMessage
@@ -434,6 +434,7 @@ class UserManager(BaseUserManager):
         """
         validate_email(email)
         email = self.normalize_email(email)
+        user_groups = extra_fields.pop("user_groups", None)
         user = self.model(
             email=email,
             first_name=extra_fields.get("first_name", ""),
@@ -446,12 +447,13 @@ class UserManager(BaseUserManager):
             expiry_date=extra_fields.get("expiry_date"),
             is_published=True,
         )
-        user.user_groups.set(extra_fields.get("user_groups", []))
         if password:
             user.password = make_password(password)
         else:
             user.set_unusable_password()
         user.save(using=self._db)
+        if user_groups is not None:
+            user.user_groups.set(user_groups)
         if initial_group:
             initial_group.user_set.add(user)
 
@@ -480,6 +482,18 @@ class UserManager(BaseUserManager):
             except Exception as exception:
                 print(f"sending email to {email} failed")
                 raise exception
+        else:
+            logger.warning(
+                "welcome_email_skipped",
+                reason="email_outbound_not_configured",
+                recipient=email,
+                user_id=str(user.pk),
+                hint=(
+                    "Set MAIL_DEBUG, SMTP (EMAIL_HOST or EMAIL_HOST_RESCUE), or all "
+                    "MS_GRAPH_* in backend/.env and restart workers; check startup log "
+                    "email_outbound_configured=..."
+                ),
+            )
         return user
 
     def create_user(self, email: str, password: str = None, **extra_fields):
@@ -592,7 +606,10 @@ class User(ActorSyncMixin, AbstractBaseUser, AbstractBaseModel, FolderMixin):
         if self.is_superuser and not self.is_active:
             # avoid deactivation of superuser
             self.is_active = True
-        if not self.is_local:
+        # Only strip local password when the user must not have one. Calling
+        # set_unusable_password() on every save rotates the hash (salted), which
+        # invalidates PasswordResetTokenGenerator tokens issued for invited users.
+        if not self.is_local and self.has_usable_password():
             self.set_unusable_password()
         super().save(*args, **kwargs)
         logger.info("user saved", user=self)
@@ -628,7 +645,10 @@ class User(ActorSyncMixin, AbstractBaseUser, AbstractBaseModel, FolderMixin):
             "root_url": CISO_ASSISTANT_URL,
             "uid": urlsafe_base64_encode(force_bytes(self.pk)),
             "user": self,
-            "token": default_token_generator.make_token(self),
+            # Must match validators on ResetPasswordConfirmView. Django's default generator
+            # invalidates tokens on last_login/email changes (Django 5.2+), which breaks invite
+            # links if the user signs in before completing first-connexion / reset.
+            "token": invitation_token_generator.make_token(self),
             "protocol": "https",
             "pk": str(pk) if pk else None,
             "object": object,

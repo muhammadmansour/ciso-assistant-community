@@ -42,7 +42,8 @@ module.exports = {
           process.env.POSTGRES_SEARCH_PATH !== undefined
             ? process.env.POSTGRES_SEARCH_PATH
             : 'grc-stage',
-        // Microsoft Graph API email configuration (set in .env on server)
+        // Graph mail: sourced from ~/.ciso-staging.env when using start-pm2.sh,
+        // or inherited shell env; Django also loads backend/.env (may override).
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
         MS_GRAPH_CLIENT_SECRET: process.env.MS_GRAPH_CLIENT_SECRET || '',
@@ -79,7 +80,8 @@ module.exports = {
           process.env.POSTGRES_SEARCH_PATH !== undefined
             ? process.env.POSTGRES_SEARCH_PATH
             : 'grc-stage',
-        // Microsoft Graph API email configuration (set in .env on server)
+        // Graph mail: sourced from ~/.ciso-staging.env when using start-pm2.sh,
+        // or inherited shell env; Django also loads backend/.env (may override).
         MS_GRAPH_CLIENT_ID: process.env.MS_GRAPH_CLIENT_ID || '',
         MS_GRAPH_TENANT_ID: process.env.MS_GRAPH_TENANT_ID || '',
         MS_GRAPH_CLIENT_SECRET: process.env.MS_GRAPH_CLIENT_SECRET || '',

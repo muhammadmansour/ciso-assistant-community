@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import Logo from '$lib/components/Logo/Logo.svelte';
 	import SuperForm from '$lib/components/Forms/Form.svelte';
@@ -27,12 +28,15 @@
 			<!-- SuperForm with dataType 'form' -->
 			<div class="flex w-full">
 				<SuperForm
+					action={`${page.url.pathname}${page.url.search}`}
 					class="flex flex-col space-y-3 w-full"
 					data={data?.form}
 					dataType="form"
 					validators={zod(ResetPasswordSchema)}
 				>
 					{#snippet children({ form })}
+						<TextField type="hidden" hidden {form} field="uidb64" label="" />
+						<TextField type="hidden" hidden {form} field="token" label="" />
 						<TextField type="password" {form} field="new_password" label={m.newPassword()} />
 						<TextField
 							type="password"

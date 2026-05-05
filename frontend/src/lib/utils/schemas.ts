@@ -412,6 +412,9 @@ export const ChangePasswordSchema = z.object({
 });
 
 export const ResetPasswordSchema = z.object({
+	// Filled from URL + hidden fields; may be empty in POST body until resolved in the action
+	uidb64: z.string().optional().default(''),
+	token: z.string().optional().default(''),
 	new_password: z.string(),
 	confirm_new_password: z.string()
 });

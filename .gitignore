@@ -24,6 +24,9 @@ charts/ciso-assistant-next/custom.yaml
 __pycache__
 cli/db_backup
 
+# Local adapter-node build backups (never commit)
+frontend/build.bak-*/
+
 # GCP service-account keys (must never be committed)
 *service-account*.json
 *service_account*.json
