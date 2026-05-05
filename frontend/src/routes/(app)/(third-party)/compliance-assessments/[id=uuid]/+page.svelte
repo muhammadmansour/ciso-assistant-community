@@ -498,28 +498,38 @@
 		return agg;
 	}
 
-	function domainCompletionPercent(agg: DomainProgressAgg): number {
+	function domainSidebarBarPercent(agg: DomainProgressAgg): number {
 		const t = agg.totalAssessable;
 		if (t <= 0) return 0;
-		if (compliance_assessment.progress_status_enabled) {
-			return Math.min(100, Math.round((agg.statusDone / t) * 100));
-		}
+		// Same notion as the tree “segmented” bar for parent nodes: share of assessable leaves
+		// that already have a compliance result (not “not assessed”). Matches visible progress there.
+		const compliance = Math.round((agg.assessedResultCount / t) * 100);
+		if (compliance > 0) return Math.min(100, compliance);
+		// No results yet but scored leaves (rare): fall back to maturity spread.
 		if (agg.maxScoreSum > 0) {
 			return Math.min(100, Math.round((agg.scoreSum / agg.maxScoreSum) * 100));
 		}
-		return Math.min(100, Math.round((agg.assessedResultCount / t) * 100));
+		return 0;
+	}
+
+	function domainWorkflowDonePercent(agg: DomainProgressAgg): number {
+		const t = agg.totalAssessable;
+		if (t <= 0 || !compliance_assessment.progress_status_enabled) return 0;
+		return Math.min(100, Math.round((agg.statusDone / t) * 100));
 	}
 
 	let treeCategories = $derived(
 		tree
 			? Object.entries(tree).map(([id, node]: [string, any], index: number) => {
 					const agg = accumulateDomainProgress(node as Node);
-					const progressPct = domainCompletionPercent(agg);
+					const progressPct = domainSidebarBarPercent(agg);
+					const workflowDonePct = domainWorkflowDonePercent(agg);
 					return {
 						id,
 						name: node.name || node.ref_id || `Category ${index + 1}`,
 						agg,
 						progressPct,
+						workflowDonePct,
 						index: index + 1
 					};
 				})
@@ -1101,8 +1111,12 @@
 					</span>
 				</div>
 				<p class="text-[11px] text-gray-400 mb-3 leading-snug">
-					{m.progress()} · {totalAssessableRequirements}
+					{safeTranslate('compliance')}
+					· {totalAssessableRequirements}
 					{safeTranslate('requirements')}
+					{#if compliance_assessment.progress_status_enabled}
+						<span class="text-gray-400"> · {m.progress()} ({safeTranslate('done')})</span>
+					{/if}
 				</p>
 				<div class="space-y-2">
 					{#each treeCategories as cat}
@@ -1111,16 +1125,14 @@
 						<div>
 							<div class="flex items-center justify-between gap-2 text-xs mb-1">
 								<span class="text-gray-600 truncate">{cat.index}. {cat.name}</span>
-								<span class="text-gray-700 font-medium tabular-nums flex-shrink-0">
+								<span class="text-gray-700 font-medium tabular-nums flex-shrink-0 text-right">
+									{cat.agg.assessedResultCount}/{t}
+									<span class="text-gray-400 font-normal"> · </span>{cat.progressPct}%
 									{#if compliance_assessment.progress_status_enabled}
-										{cat.agg.statusDone}/{t}
-										<span class="text-gray-400 font-normal"> · </span>{cat.progressPct}%
-									{:else if cat.agg.maxScoreSum > 0}
-										{m.maturity()}
-										{cat.progressPct}%
-									{:else}
-										{cat.agg.assessedResultCount}/{t}
-										<span class="text-gray-400 font-normal"> · </span>{cat.progressPct}%
+										<br />
+										<span class="text-gray-400 font-normal text-[10px]">
+											{cat.agg.statusDone}/{t} {safeTranslate('done')} · {cat.workflowDonePct}%
+										</span>
 									{/if}
 								</span>
 							</div>

@@ -138,8 +138,10 @@ ALLOWED_HOSTS = os.environ.get(
 for _host in [
     "grc.wathbah.dev",
     "grc.wathbahs.com",
+    "grc-stage.wathbahs.com",
     "grc-hrsd.wathbahs.com",
     "grc-admin.wathbahs.com",
+    "grc-admin-stage.wathbahs.com",
     "localhost",
 ]:
     if _host not in ALLOWED_HOSTS:
@@ -153,8 +155,10 @@ for _origin in [
     "http://localhost:5555",
     "https://grc.wathbah.dev",
     "https://grc.wathbahs.com",
+    "https://grc-stage.wathbahs.com",
     "https://grc-hrsd.wathbahs.com",
     "https://grc-admin.wathbahs.com",
+    "https://grc-admin-stage.wathbahs.com",
 ]:
     if _origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_origin)
