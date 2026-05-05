@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { m } from '$paraglide/messages';
+	import { WATHBAH_ADMIN_CONSOLE_URL } from '$lib/utils/constants';
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
 
 	import { getModalStore, type ModalSettings } from '$lib/components/Modals/stores';
@@ -106,4 +107,17 @@
 			>
 		{/if}
 	</div>
+
+	{#if WATHBAH_ADMIN_CONSOLE_URL && page.data.user}
+		<a
+			href={WATHBAH_ADMIN_CONSOLE_URL}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg border border-white/25 text-white/90 hover:bg-white/10 hover:text-white hover:border-white/40 transition-colors text-sm"
+			data-testid="sidebar-wathbah-admin-console"
+		>
+			<i class="fa-solid fa-gear text-white/80"></i>
+			<span class="font-medium">WathbahGRC Admin</span>
+		</a>
+	{/if}
 </div>

@@ -22,6 +22,13 @@ export const BACKEND_API_EXPOSED_URL = `${
 		: BASE_API_URL
 }`;
 
+/** External Wathbah GRC admin console (opens in a new tab). Override per environment with PUBLIC_WATHBAH_ADMIN_CONSOLE_URL. */
+export const WATHBAH_ADMIN_CONSOLE_URL =
+	typeof env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL === 'string' &&
+	env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().length > 0
+		? env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().replace(/\/$/, '') + '/'
+		: 'https://grc-admin-stage.wathbahs.com/';
+
 export const complianceResultColorMap: { [key: string]: string } = {
 	not_assessed: '#d1d5db',
 	partially_compliant: '#fde047',

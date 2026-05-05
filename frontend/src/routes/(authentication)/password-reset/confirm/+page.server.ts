@@ -1,7 +1,11 @@
 import { BASE_API_URL } from '$lib/utils/constants';
 import { safeTranslate } from '$lib/utils/i18n';
 import { ResetPasswordSchema } from '$lib/utils/schemas';
-import { resolveResetUidAndToken } from '$lib/utils/password-reset-token';
+import {
+	clearPasswordResetLinkCookie,
+	persistPasswordResetLinkCookie,
+	resolveResetUidAndToken
+} from '$lib/utils/password-reset-token';
 import { m } from '$paraglide/messages';
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { setFlash } from 'sveltekit-flash-message/server';
@@ -14,10 +18,16 @@ export const load: PageServerLoad = async (event) => {
 	event.cookies.delete('token', { path: '/' });
 	event.cookies.delete('allauth_session_token', { path: '/' });
 
+	const qpUid = event.url.searchParams.get('uidb64') ?? '';
+	const qpTok = event.url.searchParams.get('token') ?? '';
+	if (qpUid && qpTok) {
+		persistPasswordResetLinkCookie(event, qpUid, qpTok);
+	}
+
 	const form = await superValidate(
 		{
-			uidb64: event.url.searchParams.get('uidb64') ?? '',
-			token: event.url.searchParams.get('token') ?? '',
+			uidb64: qpUid,
+			token: qpTok,
 			new_password: '',
 			confirm_new_password: ''
 		},
@@ -79,6 +89,8 @@ export const actions: Actions = {
 			}
 			return fail(400, { form });
 		}
+
+		clearPasswordResetLinkCookie(event);
 
 		setFlash({ type: 'success', message: m.passwordSuccessfullyReset() }, event);
 		redirect(302, '/login');
