@@ -458,32 +458,85 @@
 		return false;
 	});
 
-	// Helper: count assessable requirements in a tree node
-	function countTreeReqs(node: any): number {
-		let count = 0;
-		if (node.assessable) count++;
-		if (node.children) {
-			for (const child of Object.values(node.children)) {
-				count += countTreeReqs(child as any);
+	type DomainProgressAgg = {
+		totalAssessable: number;
+		statusDone: number;
+		assessedResultCount: number;
+		scoreSum: number;
+		maxScoreSum: number;
+	};
+
+	function accumulateDomainProgress(node: Node): DomainProgressAgg {
+		const agg: DomainProgressAgg = {
+			totalAssessable: 0,
+			statusDone: 0,
+			assessedResultCount: 0,
+			scoreSum: 0,
+			maxScoreSum: 0
+		};
+		function walk(n: Node) {
+			if (n.assessable) {
+				agg.totalAssessable += 1;
+				if (compliance_assessment.progress_status_enabled && n.status === 'done') {
+					agg.statusDone += 1;
+				}
+				if (n.result && n.result !== 'not_assessed') {
+					agg.assessedResultCount += 1;
+				}
+				if (n.is_scored && n.result !== 'not_applicable') {
+					agg.scoreSum += n.score ?? 0;
+					agg.maxScoreSum += n.max_score ?? 0;
+				}
+			}
+			if (n.children) {
+				for (const c of Object.values(n.children)) {
+					walk(c as Node);
+				}
 			}
 		}
-		return count;
+		walk(node);
+		return agg;
 	}
 
-	// Compute tree categories for domains coverage
+	function domainCompletionPercent(agg: DomainProgressAgg): number {
+		const t = agg.totalAssessable;
+		if (t <= 0) return 0;
+		if (compliance_assessment.progress_status_enabled) {
+			return Math.min(100, Math.round((agg.statusDone / t) * 100));
+		}
+		if (agg.maxScoreSum > 0) {
+			return Math.min(100, Math.round((agg.scoreSum / agg.maxScoreSum) * 100));
+		}
+		return Math.min(100, Math.round((agg.assessedResultCount / t) * 100));
+	}
+
 	let treeCategories = $derived(
 		tree
 			? Object.entries(tree).map(([id, node]: [string, any], index: number) => {
-					const reqCount = countTreeReqs(node);
+					const agg = accumulateDomainProgress(node as Node);
+					const progressPct = domainCompletionPercent(agg);
 					return {
 						id,
 						name: node.name || node.ref_id || `Category ${index + 1}`,
-						reqCount,
+						agg,
+						progressPct,
 						index: index + 1
 					};
 				})
 			: []
 	);
+
+	let overallDomainsWeightedProgressPct = $derived.by(() => {
+		let wSum = 0;
+		let w = 0;
+		for (const cat of treeCategories) {
+			const t = cat.agg.totalAssessable;
+			if (t <= 0) continue;
+			wSum += cat.progressPct * t;
+			w += t;
+		}
+		return w > 0 ? Math.round(wSum / w) : 0;
+	});
 
 	// Same total as the "Associated requirements" badge: count assessable nodes in the displayed tree.
 	let totalAssessableRequirements = $derived(assessableNodesCount(treeViewNodes ?? []));
@@ -1038,23 +1091,38 @@
 
 		{#if treeCategories.length > 0 && treeViewNodes}
 			<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-				<div class="flex items-center justify-between gap-2 mb-3">
+				<div class="flex items-center justify-between gap-2 mb-1">
 					<h3 class="text-sm font-semibold text-gray-900">{m.domainsCoverage()}</h3>
 					<span
 						class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-						title={m.associatedRequirements()}
+						title={m.progress()}
 					>
-						{totalAssessableRequirements}
+						{overallDomainsWeightedProgressPct}%
 					</span>
 				</div>
+				<p class="text-[11px] text-gray-400 mb-3 leading-snug">
+					{m.progress()} · {totalAssessableRequirements}
+					{safeTranslate('requirements')}
+				</p>
 				<div class="space-y-2">
 					{#each treeCategories as cat}
-						{@const barWidth =
-							totalAssessableRequirements > 0 ? (cat.reqCount / totalAssessableRequirements) * 100 : 0}
+						{@const t = cat.agg.totalAssessable}
+						{@const barWidth = cat.progressPct}
 						<div>
-							<div class="flex items-center justify-between text-xs mb-1">
-								<span class="text-gray-600 truncate mr-2">{cat.index}. {cat.name}</span>
-								<span class="text-gray-400 flex-shrink-0">{cat.reqCount}</span>
+							<div class="flex items-center justify-between gap-2 text-xs mb-1">
+								<span class="text-gray-600 truncate">{cat.index}. {cat.name}</span>
+								<span class="text-gray-700 font-medium tabular-nums flex-shrink-0">
+									{#if compliance_assessment.progress_status_enabled}
+										{cat.agg.statusDone}/{t}
+										<span class="text-gray-400 font-normal"> · </span>{cat.progressPct}%
+									{:else if cat.agg.maxScoreSum > 0}
+										{m.maturity()}
+										{cat.progressPct}%
+									{:else}
+										{cat.agg.assessedResultCount}/{t}
+										<span class="text-gray-400 font-normal"> · </span>{cat.progressPct}%
+									{/if}
+								</span>
 							</div>
 							<div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
 								<div
