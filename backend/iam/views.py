@@ -390,29 +390,33 @@ class ResetPasswordConfirmView(views.APIView):
                 reason="user_inactive",
                 user_id=str(user.pk),
             )
-        elif not (
-            self.token_generator.check_token(user, token)
-            or invitation_token_generator.check_token(user, token)
-        ):
-            logger.warning(
-                "password_reset_confirm_rejected",
-                reason="invalid_or_expired_token",
-                user_id=str(user.pk),
-            )
         else:
-            try:
-                sso_settings = GlobalSettings.objects.get(
-                    name=GlobalSettings.Names.SSO
-                ).value
-            except GlobalSettings.DoesNotExist:
-                sso_settings = {}
-            if sso_settings.get("is_enabled", False) and sso_settings.get(
-                "force_sso", False
-            ):
-                user.keep_local_login = True
-            user.set_password(new_password)
-            user.save()
-            return Response(status=status.HTTP_200_OK)
+            default_ok = self.token_generator.check_token(user, token)
+            invite_ok = invitation_token_generator.check_token(user, token)
+            if not (default_ok or invite_ok):
+                logger.warning(
+                    "password_reset_confirm_rejected",
+                    reason="invalid_or_expired_token",
+                    user_id=str(user.pk),
+                    default_token_valid=default_ok,
+                    invitation_token_valid=invite_ok,
+                    token_length=len(token),
+                    uidb64_length=len(uidb64),
+                )
+            else:
+                try:
+                    sso_settings = GlobalSettings.objects.get(
+                        name=GlobalSettings.Names.SSO
+                    ).value
+                except GlobalSettings.DoesNotExist:
+                    sso_settings = {}
+                if sso_settings.get("is_enabled", False) and sso_settings.get(
+                    "force_sso", False
+                ):
+                    user.keep_local_login = True
+                user.set_password(new_password)
+                user.save()
+                return Response(status=status.HTTP_200_OK)
         return Response(
             data={"error": "The link is invalid or has expired."},
             status=status.HTTP_400_BAD_REQUEST,
