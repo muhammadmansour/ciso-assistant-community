@@ -44,10 +44,7 @@ import pytz
 from uuid import UUID
 from itertools import chain, cycle
 import django_filters as df
-from ciso_assistant.settings import (
-    EMAIL_HOST,
-    EMAIL_HOST_RESCUE,
-)
+from ciso_assistant.settings import EMAIL_OUTBOUND_CONFIGURED
 
 import shutil
 from pathlib import Path
@@ -8980,7 +8977,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
     )
     def mailing(self, request, pk):
         instance = self.get_object()
-        if EMAIL_HOST or EMAIL_HOST_RESCUE:
+        if EMAIL_OUTBOUND_CONFIGURED:
             for author in instance.authors.all():
                 try:
                     author.mailing(

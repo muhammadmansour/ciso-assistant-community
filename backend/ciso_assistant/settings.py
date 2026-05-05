@@ -641,6 +641,19 @@ if MAIL_DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     DEFAULT_FROM_EMAIL = "noreply@ciso.assistant"
 
+# True when any outbound path can deliver mail (SMTP, Graph API, or MAIL_DEBUG console).
+EMAIL_OUTBOUND_CONFIGURED = bool(
+    MAIL_DEBUG
+    or EMAIL_HOST
+    or EMAIL_HOST_RESCUE
+    or (
+        MS_GRAPH_CLIENT_ID
+        and MS_GRAPH_TENANT_ID
+        and MS_GRAPH_CLIENT_SECRET
+    ),
+)
+logger.info("EMAIL_OUTBOUND_CONFIGURED: %s", EMAIL_OUTBOUND_CONFIGURED)
+
 
 ## Huey settings
 HUEY_FILE_PATH = os.environ.get("HUEY_FILE_PATH", BASE_DIR / "db" / "huey.db")

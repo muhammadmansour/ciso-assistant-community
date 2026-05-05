@@ -5,7 +5,7 @@ import structlog
 from django.db import models
 from django.db.models import F
 
-from ciso_assistant.settings import EMAIL_HOST, EMAIL_HOST_RESCUE
+from ciso_assistant.settings import EMAIL_OUTBOUND_CONFIGURED
 from core.models import *
 from core.serializer_fields import (
     FieldsRelatedField,
@@ -1322,7 +1322,7 @@ class UserWriteSerializer(BaseModelSerializer):
         return email
 
     def create(self, validated_data):
-        send_mail = EMAIL_HOST or EMAIL_HOST_RESCUE
+        send_mail = EMAIL_OUTBOUND_CONFIGURED
         if not RoleAssignment.is_access_allowed(
             user=self.context["request"].user,
             perm=Permission.objects.get(

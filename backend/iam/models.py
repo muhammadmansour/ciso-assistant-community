@@ -38,6 +38,7 @@ from ciso_assistant.settings import (
     EMAIL_HOST_USER_RESCUE,
     EMAIL_HOST_PASSWORD_RESCUE,
     EMAIL_HOST_RESCUE,
+    EMAIL_OUTBOUND_CONFIGURED,
     EMAIL_PORT,
     EMAIL_PORT_RESCUE,
     EMAIL_USE_TLS,
@@ -488,7 +489,7 @@ class UserManager(BaseUserManager):
         return self._create_user(
             email=email,
             password=password,
-            mailing=(EMAIL_HOST or EMAIL_HOST_RESCUE),
+            mailing=EMAIL_OUTBOUND_CONFIGURED,
             initial_group=None,
             **extra_fields,
         )
@@ -502,7 +503,7 @@ class UserManager(BaseUserManager):
         superuser = self._create_user(
             email=email,
             password=password,
-            mailing=not (password) and (EMAIL_HOST or EMAIL_HOST_RESCUE),
+            mailing=not (password) and EMAIL_OUTBOUND_CONFIGURED,
             initial_group=UserGroup.objects.get(name="BI-UG-ADM"),
             keep_local_login=True,
             **extra_fields,

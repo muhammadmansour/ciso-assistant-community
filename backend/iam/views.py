@@ -26,7 +26,7 @@ from rest_framework.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
-from ciso_assistant.settings import EMAIL_HOST, EMAIL_HOST_RESCUE
+from ciso_assistant.settings import EMAIL_OUTBOUND_CONFIGURED
 
 from global_settings.models import GlobalSettings
 from .models import Folder, PersonalAccessToken, Role, RoleAssignment
@@ -277,7 +277,7 @@ class PasswordResetView(views.APIView):
     def post(self, request):
         email = request.data["email"]  # type: ignore
         associated_user = User.objects.filter(email__iexact=email).first()
-        if EMAIL_HOST or EMAIL_HOST_RESCUE:
+        if EMAIL_OUTBOUND_CONFIGURED:
             if associated_user is not None and associated_user.is_local:
                 try:
                     logger.info(
