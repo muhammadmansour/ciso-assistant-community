@@ -96,8 +96,8 @@ class ResetPasswordConfirmSerializer(serializers.Serializer):
     Serializer for password reset endpoint.
     """
 
-    uidb64 = serializers.CharField(write_only=True)
-    token = serializers.CharField(write_only=True)
+    uidb64 = serializers.CharField(write_only=True, trim_whitespace=False)
+    token = serializers.CharField(write_only=True, trim_whitespace=False)
     new_password = serializers.CharField(
         max_length=128, write_only=True, required=True, style={"input_type": "password"}
     )

@@ -485,9 +485,8 @@
 			: []
 	);
 
-	let totalTreeRequirements = $derived(
-		treeCategories.reduce((sum: number, cat: any) => sum + cat.reqCount, 0)
-	);
+	// Same total as the "Associated requirements" badge: count assessable nodes in the displayed tree.
+	let totalAssessableRequirements = $derived(assessableNodesCount(treeViewNodes ?? []));
 
 	// Map status donut values to progress breakdown items
 	const progressStatusMap: Record<string, { label: string; dotColor: string }> = {
@@ -752,7 +751,7 @@
 						<h2 class="text-base font-semibold text-gray-900">{m.associatedRequirements()}</h2>
 						<span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-medium">
 							{#if treeViewNodes}
-								{assessableNodesCount(treeViewNodes)}
+								{totalAssessableRequirements}
 							{/if}
 						</span>
 					</div>
@@ -1037,16 +1036,21 @@
 			</div>
 		{/key}
 
-		<!--
-			Hidden per request: Domains Coverage card.
-			Re-enable by removing the {#if false} guard below.
-		-->
-		{#if false && treeCategories.length > 0}
+		{#if treeCategories.length > 0 && treeViewNodes}
 			<div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-				<h3 class="text-sm font-semibold text-gray-900 mb-3">{m.domainsCoverage()}</h3>
+				<div class="flex items-center justify-between gap-2 mb-3">
+					<h3 class="text-sm font-semibold text-gray-900">{m.domainsCoverage()}</h3>
+					<span
+						class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+						title={m.associatedRequirements()}
+					>
+						{totalAssessableRequirements}
+					</span>
+				</div>
 				<div class="space-y-2">
 					{#each treeCategories as cat}
-						{@const barWidth = totalTreeRequirements > 0 ? (cat.reqCount / totalTreeRequirements) * 100 : 0}
+						{@const barWidth =
+							totalAssessableRequirements > 0 ? (cat.reqCount / totalAssessableRequirements) * 100 : 0}
 						<div>
 							<div class="flex items-center justify-between text-xs mb-1">
 								<span class="text-gray-600 truncate mr-2">{cat.index}. {cat.name}</span>
