@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { BASE_API_URL } from '$lib/utils/constants';
+	import { getCSRFToken } from '$lib/django';
 
 	interface PolicyFile {
 		id: string;
@@ -62,14 +64,19 @@
 		loading = true;
 		error = '';
 		try {
-			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections');
+			const res = await fetch(`${BASE_API_URL}/policy-collections/`, {
+				credentials: 'include'
+			});
 			const json = await res.json();
-			if (json.success) {
-				collections = Array.isArray(json.data) ? json.data : [json.data];
-				expandedCollections = new Set(collections.map((c) => c.id));
-			} else {
-				error = 'Failed to load collections';
+			if (!res.ok || !json.success) {
+				error =
+					(typeof json.message === 'string' && json.message) ||
+					(!res.ok ? `Request failed (${res.status})` : 'Failed to load collections');
+				collections = [];
+				return;
 			}
+			collections = Array.isArray(json.data) ? json.data : json.data ? [json.data] : [];
+			expandedCollections = new Set(collections.map((c) => c.id));
 		} catch (e) {
 			error = 'Failed to connect to server';
 		} finally {
@@ -175,9 +182,13 @@
 				body.sessionId = chatSessionId;
 			}
 
-			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections/chat', {
+			const res = await fetch(`${BASE_API_URL}/policy-collections/chat/`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRFToken': getCSRFToken() || ''
+				},
 				body: JSON.stringify(body)
 			});
 

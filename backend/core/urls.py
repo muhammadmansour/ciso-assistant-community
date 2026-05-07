@@ -1,4 +1,8 @@
 from .views import *
+from .views_policy_collections import (
+    PolicyCollectionsGeminiView,
+    PolicyCollectionsChatView,
+)
 from tprm.views import (
     EntityViewSet,
     RepresentativeViewSet,
@@ -19,8 +23,6 @@ from rest_framework import routers
 
 from ciso_assistant.settings import DEBUG
 from django.conf import settings
-
-from .gemini_views import GeminiPolicyCollectionsView
 
 router = routers.DefaultRouter()
 router.register(r"folders", FolderViewSet, basename="folders")
@@ -119,11 +121,6 @@ router.register(r"timeline-entries", TimelineEntryViewSet, basename="timeline-en
 router.register(r"task-templates", TaskTemplateViewSet, basename="task-templates")
 router.register(r"task-nodes", TaskNodeViewSet, basename="task-nodes")
 router.register(r"terminologies", TerminologyViewSet, basename="terminologies")
-router.register(
-    r"organization-contexts",
-    OrganizationContextViewSet,
-    basename="organization-contexts",
-)
 
 ROUTES = settings.ROUTES
 MODULES = settings.MODULES.values()
@@ -153,11 +150,6 @@ urlpatterns = [
     path("csrf/", get_csrf_token, name="get_csrf_token"),
     path("health/", healthcheck, name="healthcheck"),
     path("build/", get_build, name="get_build"),
-    path(
-        "gemini/policy-collections/",
-        GeminiPolicyCollectionsView.as_view(),
-        name="gemini-policy-collections",
-    ),
     path(
         "evidences/<uuid:pk>/upload/",
         UploadAttachmentView.as_view(),
@@ -221,6 +213,8 @@ urlpatterns = [
         name="user-perms-on-folder-list",
     ),
     path("quick-start/", QuickStartView.as_view(), name="quick-start"),
+    path("policy-collections/", PolicyCollectionsGeminiView.as_view()),
+    path("policy-collections/chat/", PolicyCollectionsChatView.as_view()),
     path("content-types/", ContentTypeListView.as_view(), name="content-types-list"),
     path(
         "task-nodes/<uuid:pk>/evidences/",
