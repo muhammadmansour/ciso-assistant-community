@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Persist local SQLite artefact Huey/cache/secret-key files (dirs are gitignored and not COPY'd into images).
+mkdir -p db
+
 # wait for database to be ready
 if [ ! -n "$DJANGO_SETTINGS_MODULE" ]; then
   export DJANGO_SETTINGS_MODULE=ciso_assistant.settings

@@ -2,6 +2,8 @@
 # ============================================================
 # Fast dev startup — skips heavy library operations after first run
 # ============================================================
+mkdir -p db
+
 if [ ! -n "$DJANGO_SETTINGS_MODULE" ]; then
   export DJANGO_SETTINGS_MODULE=ciso_assistant.settings
 fi
