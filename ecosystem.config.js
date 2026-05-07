@@ -3,7 +3,7 @@ const path = require('path');
 // Staging: ports 8020 (Django) / 3020 (SvelteKit) avoid dev defaults 8000/3000 and PM2 dev 8001/3001.
 const STAGE_BACKEND_PORT = '8020';
 const STAGE_FRONTEND_PORT = '3020';
-const STAGE_PUBLIC_URL = 'https://grc-hrsd.wathbahs.com';
+const STAGE_PUBLIC_URL = 'https://grc-stage.wathbahs.com';
 
 // Resolve paths for Windows
 const projectRoot = __dirname;
@@ -25,10 +25,10 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS:
-          'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com',
+          'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: STAGE_PUBLIC_URL,
         CSRF_TRUSTED_ORIGINS:
-          'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com',
+          'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -67,7 +67,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS:
-          'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com',
+          'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: STAGE_PUBLIC_URL,
         // Database
         POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',

@@ -1,6 +1,6 @@
 #!/bin/bash
 # CISO Assistant - PM2 staging (Linux)
-# Public URL: https://grc-hrsd.wathbahs.com
+# Public URL: https://grc-stage.wathbahs.com (grc-hrsd.wathbahs.com still allowed in ALLOWED_HOSTS)
 # Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
 # Before start: cd frontend && pnpm run build:staging
 #
@@ -39,7 +39,7 @@ if [ -f "$HOME/.ciso-staging.env" ]; then
 fi
 
 # Configuration
-DOMAIN="grc-hrsd.wathbahs.com"
+DOMAIN="grc-stage.wathbahs.com"
 PUBLIC_URL="https://${DOMAIN}"
 BACKEND_PORT=8020
 FRONTEND_PORT=3020
@@ -164,9 +164,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-hrsd.wathbahs.com',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -204,8 +204,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-hrsd.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
@@ -244,8 +244,8 @@ module.exports = {
         PORT: '3020',
         NODE_ENV: 'production',
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-hrsd.wathbahs.com/api',
-        ORIGIN: 'https://grc-hrsd.wathbahs.com',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
+        ORIGIN: 'https://grc-stage.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600'
@@ -276,7 +276,7 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
