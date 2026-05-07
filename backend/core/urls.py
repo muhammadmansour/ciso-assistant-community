@@ -215,6 +215,9 @@ urlpatterns = [
     path("quick-start/", QuickStartView.as_view(), name="quick-start"),
     path("policy-collections/", PolicyCollectionsGeminiView.as_view()),
     path("policy-collections/chat/", PolicyCollectionsChatView.as_view()),
+    # Same handlers as before refactor (c08d11d8a); use if proxies/clients still expect this prefix.
+    path("gemini/policy-collections/", PolicyCollectionsGeminiView.as_view()),
+    path("gemini/policy-collections/chat/", PolicyCollectionsChatView.as_view()),
     path("content-types/", ContentTypeListView.as_view(), name="content-types-list"),
     path(
         "task-nodes/<uuid:pk>/evidences/",
