@@ -20,6 +20,8 @@ from rest_framework import routers
 from ciso_assistant.settings import DEBUG
 from django.conf import settings
 
+from .gemini_views import GeminiPolicyCollectionsView
+
 router = routers.DefaultRouter()
 router.register(r"folders", FolderViewSet, basename="folders")
 router.register(r"entities", EntityViewSet, basename="entities")
@@ -146,6 +148,11 @@ urlpatterns = [
     path("csrf/", get_csrf_token, name="get_csrf_token"),
     path("health/", healthcheck, name="healthcheck"),
     path("build/", get_build, name="get_build"),
+    path(
+        "gemini/policy-collections/",
+        GeminiPolicyCollectionsView.as_view(),
+        name="gemini-policy-collections",
+    ),
     path(
         "evidences/<uuid:pk>/upload/",
         UploadAttachmentView.as_view(),

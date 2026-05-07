@@ -11,10 +11,22 @@ grounded ``fileSearch`` tool against these documents.
 import os
 import time
 import structlog
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from django.conf import settings
 
 logger = structlog.get_logger(__name__)
+
+
+def _iso_or_none(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+    return str(value)
+
 
 # Gemini API configuration
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
@@ -290,6 +302,77 @@ class GeminiFileSearchClient:
                 error=str(e),
             )
             return False
+
+
+def list_gemini_file_search_stores_metadata(
+    *,
+    include_document_counts: bool = True,
+    max_stores: int = 200,
+) -> List[Dict[str, Any]]:
+    """Return File Search stores from the Gemini developer API (live), not from GRC.
+
+    Used for UIs that let users pick a store/collection to chat against grounded
+    documents. ``display_name`` and ``name`` come from ``client.file_search_stores.list()``.
+    Document counts use ``file_search_stores.documents.list(parent=store.name)``.
+    """
+    if not GEMINI_API_KEY:
+        return []
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as exc:
+        logger.error("list_gemini_file_search_stores_metadata: failed to init client", error=str(exc))
+        return []
+
+    out: List[Dict[str, Any]] = []
+    try:
+        n_stores = 0
+        for store in client.file_search_stores.list():
+            n_stores += 1
+            if n_stores > max_stores:
+                logger.warning(
+                    "list_gemini_file_search_stores_metadata: max_stores cap reached",
+                    max_stores=max_stores,
+                )
+                break
+
+            name = getattr(store, "name", None) or ""
+            display_name = getattr(store, "display_name", None) or ""
+            create_time = getattr(store, "create_time", None)
+            update_time = getattr(store, "update_time", None)
+
+            file_count: Optional[int] = None
+            if include_document_counts and name:
+                try:
+                    file_count = 0
+                    for _doc in client.file_search_stores.documents.list(parent=name):
+                        file_count += 1
+                except Exception as doc_exc:
+                    logger.warning(
+                        "Could not list documents for store",
+                        store=name,
+                        error=str(doc_exc),
+                    )
+                    file_count = None
+
+            out.append(
+                {
+                    "name": name,
+                    "display_name": display_name,
+                    "title": display_name or name,
+                    "file_count": file_count,
+                    "create_time": _iso_or_none(create_time),
+                    "update_time": _iso_or_none(update_time),
+                }
+            )
+    except Exception as exc:
+        logger.error("list_gemini_file_search_stores_metadata failed", error=str(exc))
+        raise
+
+    return out
+
 
 def get_gemini_client() -> Optional[GeminiFileSearchClient]:
     """Get a configured Gemini client, or None if not configured"""
