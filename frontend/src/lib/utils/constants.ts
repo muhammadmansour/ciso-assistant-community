@@ -22,6 +22,30 @@ export const BACKEND_API_EXPOSED_URL = `${
 		: BASE_API_URL
 }`;
 
+/** Hostnames where the SPA and Django API share one origin (reverse proxy serves `/api`). */
+const SAME_ORIGIN_API_HOSTS = new Set([
+	'grc-stage.wathbahs.com',
+	'grc-hrsd.wathbahs.com',
+	'grc.wathbahs.com',
+	'grc.wathbah.dev',
+	'ciso.wathbahs.com'
+]);
+
+/**
+ * API base URL for **browser** fetches (e.g. Policy widget). Uses same-origin `/api`
+ * on known GRC hosts so staging works even if `PUBLIC_BACKEND_API_EXPOSED_URL` was
+ * baked wrong at build time. SSR / Node still uses `BASE_API_URL` / env as usual.
+ */
+export function getBrowserApiBase(): string {
+	if (typeof window === 'undefined') {
+		return BACKEND_API_EXPOSED_URL;
+	}
+	if (SAME_ORIGIN_API_HOSTS.has(window.location.hostname)) {
+		return `${window.location.origin}/api`;
+	}
+	return BACKEND_API_EXPOSED_URL;
+}
+
 /** External Wathbah GRC admin console (opens in a new tab). Override per environment with PUBLIC_WATHBAH_ADMIN_CONSOLE_URL. */
 export const WATHBAH_ADMIN_CONSOLE_URL =
 	typeof env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL === 'string' &&

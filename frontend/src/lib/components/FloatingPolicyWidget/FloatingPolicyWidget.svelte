@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { BACKEND_API_EXPOSED_URL } from '$lib/utils/constants';
+	import { getBrowserApiBase } from '$lib/utils/constants';
 	import { getCSRFToken } from '$lib/django';
 
 	interface PolicyFile {
@@ -64,7 +64,7 @@
 		loading = true;
 		error = '';
 		try {
-			const res = await fetch(`${BACKEND_API_EXPOSED_URL}/policy-collections/`, {
+			const res = await fetch(`${getBrowserApiBase()}/policy-collections/`, {
 				credentials: 'include'
 			});
 			const json = await res.json();
@@ -182,7 +182,7 @@
 				body.sessionId = chatSessionId;
 			}
 
-			const res = await fetch(`${BACKEND_API_EXPOSED_URL}/policy-collections/chat/`, {
+			const res = await fetch(`${getBrowserApiBase()}/policy-collections/chat/`, {
 				method: 'POST',
 				credentials: 'include',
 				headers: {
