@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { getCSRFToken } from '$lib/django';
+	import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
 
 	interface PolicyFile {
 		id: string;
@@ -335,7 +336,15 @@
 										? 'bg-[#0077CC] text-white rounded-br-md'
 										: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
 								>
-									<div class="whitespace-pre-wrap">{msg.content}</div>
+									{#if msg.role === 'user'}
+										<div class="whitespace-pre-wrap">{msg.content}</div>
+									{:else}
+										<MarkdownRenderer
+											content={msg.content}
+											emptyDisplay="none"
+											class="policy-chat-prose text-gray-700 [&_p]:my-1.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h4]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_strong]:text-gray-800 [&_a]:text-[#0077CC]"
+										/>
+									{/if}
 									{#if msg.sources && msg.sources.length > 0}
 										<div class="mt-2 pt-2 border-t border-gray-100">
 											<p

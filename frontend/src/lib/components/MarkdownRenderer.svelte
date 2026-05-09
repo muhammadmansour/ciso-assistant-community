@@ -5,9 +5,11 @@
 	interface Props {
 		content: string | null | undefined;
 		class?: string;
+		/** When content is empty: show em dash placeholder (default) or nothing */
+		emptyDisplay?: 'dash' | 'none';
 	}
 
-	let { content, class: className = '' }: Props = $props();
+	let { content, class: className = '', emptyDisplay = 'dash' }: Props = $props();
 
 	const sanitizeConfig: sanitizeHtml.IOptions = {
 		allowedTags: [
@@ -77,6 +79,6 @@
 	<div class="prose prose-sm max-w-none wrap-break-word whitespace-pre-line {className}">
 		{@html renderedContent}
 	</div>
-{:else}
+{:else if emptyDisplay === 'dash'}
 	<span class="text-gray-500 italic">--</span>
 {/if}
