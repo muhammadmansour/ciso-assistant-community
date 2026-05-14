@@ -31,7 +31,7 @@ DB_PORT="${DB_PORT:-5432}"
 POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
-CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
+CISO_APPS="dev-backend dev-frontend dev-huey"
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
@@ -64,10 +64,10 @@ module.exports = {
   apps: [
     {
       // BACKEND - Gunicorn on staging port 8020
-      name: 'ciso-stage-backend',
+      name: 'dev-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/dev-gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
@@ -92,7 +92,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      name: 'ciso-stage-huey',
+      name: 'dev-huey',
       cwd: './backend',
       script: 'poetry',
       args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
@@ -117,7 +117,7 @@ module.exports = {
     },
     {
       // FRONTEND - adapter-node (run: pnpm run build:staging)
-      name: 'ciso-stage-frontend',
+      name: 'dev-frontend',
       cwd: './frontend',
       script: 'node',
       args: 'build/index.js',
@@ -135,8 +135,8 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/stage-frontend-error.log',
-      out_file: './logs/stage-frontend-out.log',
+      error_file: './logs/dev-frontend-error.log',
+      out_file: './logs/dev-frontend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     }
   ]
@@ -229,9 +229,9 @@ case "${1:-start}" in
         ;;
     logs)
         if [ -n "$2" ]; then
-            pm2 logs "ciso-stage-$2"
+            pm2 logs "dev-$2"
         else
-            pm2 logs ciso-stage-backend ciso-stage-frontend ciso-stage-huey
+            pm2 logs dev-backend dev-frontend dev-huey
         fi
         ;;
     delete)
