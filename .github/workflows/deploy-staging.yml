@@ -15,15 +15,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # pnpm 11+ needs Node >= 22.13; `version: latest` also drifted from package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: latest
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Create frontend .env
         run: echo "${{ secrets.FRONTEND_ENV }}" > ./frontend/.env.staging
