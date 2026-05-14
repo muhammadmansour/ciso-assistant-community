@@ -21,6 +21,7 @@ from django.contrib.auth.models import Permission
 
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist
 
 from integrations.models import IntegrationConfiguration, SyncMapping
 
@@ -1563,6 +1564,13 @@ class EvidenceReadSerializer(BaseModelSerializer):
     indexing_error = serializers.SerializerMethodField()
     indexing_updated_at = serializers.SerializerMethodField()
 
+    def _latest_revision_for_indexing(self, obj):
+        """Latest EvidenceRevision by version (aligns with attachment / FileSearchTable)."""
+        revs = list(obj.revisions.all())
+        if not revs:
+            return None
+        return max(revs, key=lambda r: (r.version, str(r.pk)))
+
     def get_attachment(self, obj):
         last_revision = obj.last_revision
         if last_revision and last_revision.attachment:
@@ -1574,20 +1582,20 @@ class EvidenceReadSerializer(BaseModelSerializer):
         return last_revision.link if last_revision else None
 
     def _get_file_search(self, obj):
-        """Return the FileSearchTable row for the latest revision with an attachment.
-
-        Returns None when there is no attachment yet (nothing to index)."""
-        last_revision = obj.last_revision
-        if not last_revision or not last_revision.attachment:
+        """Return FileSearchTable for the latest revision with a file attachment."""
+        rev = self._latest_revision_for_indexing(obj)
+        if not rev or not rev.attachment:
             return None
         try:
-            return last_revision.file_search
+            return rev.file_search
+        except ObjectDoesNotExist:
+            return None
         except Exception:
             return None
 
     def get_indexing_status(self, obj):
-        last_revision = obj.last_revision
-        if not last_revision or not last_revision.attachment:
+        rev = self._latest_revision_for_indexing(obj)
+        if not rev or not rev.attachment:
             return None
         fs = self._get_file_search(obj)
         if fs is None:
@@ -1601,6 +1609,19 @@ class EvidenceReadSerializer(BaseModelSerializer):
     def get_indexing_updated_at(self, obj):
         fs = self._get_file_search(obj)
         return fs.updated_at.isoformat() if fs and fs.updated_at else None
+
+    def to_representation(self, instance):
+        """
+        List/table views map a fixed set of keys from JSON (`tableSourceMapper`).
+        With Meta.fields = '__all__', extra SerializerMethodFields may be omitted
+        from the output; merge indexing fields explicitly so they match
+        FileSearchTable.upload_status.
+        """
+        data = super().to_representation(instance)
+        data["indexing_status"] = self.get_indexing_status(instance)
+        data["indexing_error"] = self.get_indexing_error(instance)
+        data["indexing_updated_at"] = self.get_indexing_updated_at(instance)
+        return data
 
     class Meta:
         model = Evidence

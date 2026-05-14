@@ -8052,6 +8052,18 @@ class EvidenceViewSet(BaseModelViewSet):
         "processings",
     ]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # One FileSearchTable row per EvidenceRevision (Gemini upload status)
+        return qs.prefetch_related(
+            Prefetch(
+                "revisions",
+                queryset=EvidenceRevision.objects.select_related(
+                    "file_search"
+                ).order_by("-version"),
+            )
+        )
+
     def perform_create(self, serializer):
         """Create evidence and trigger auto-analysis if attachment is uploaded."""
         instance = super().perform_create(serializer)
@@ -13749,6 +13761,13 @@ class TaskNodeEvidenceList(generics.ListAPIView):
             id__in=task_template.evidences.filter(
                 id__in=viewable_evidences
             ).values_list("id", flat=True)
+        ).prefetch_related(
+            Prefetch(
+                "revisions",
+                queryset=EvidenceRevision.objects.select_related(
+                    "file_search"
+                ).order_by("-version"),
+            )
         )
 
 
