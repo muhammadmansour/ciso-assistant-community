@@ -33,6 +33,13 @@ GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_FILE_SEARCH_STORE_NAME = os.getenv('GEMINI_FILE_SEARCH_STORE_NAME', '')
 GEMINI_ENABLED = bool(GEMINI_API_KEY)  # Only API key is required for files.upload()
 
+# HTTP timeout for the Gemini SDK in milliseconds. The SDK's default (~90s)
+# tears down large resumable uploads with "Upload has already been terminated"
+# before a >10MB file finishes streaming, so we raise it well past anything we
+# expect a single upload/index request to take. Operators can tune this via
+# the GEMINI_HTTP_TIMEOUT_MS env var without touching code.
+GEMINI_HTTP_TIMEOUT_MS = int(os.getenv('GEMINI_HTTP_TIMEOUT_MS', '600000'))
+
 
 class GeminiFileSearchClient:
     """Client for interacting with Gemini Files API"""
@@ -47,9 +54,18 @@ class GeminiFileSearchClient:
         
         try:
             from google import genai
-            self.client = genai.Client(api_key=GEMINI_API_KEY)
+            from google.genai.types import HttpOptions
+
+            self.client = genai.Client(
+                api_key=GEMINI_API_KEY,
+                http_options=HttpOptions(timeout=GEMINI_HTTP_TIMEOUT_MS),
+            )
             self.store_name = GEMINI_FILE_SEARCH_STORE_NAME or None
-            logger.info("Gemini client initialized", store_name=self.store_name)
+            logger.info(
+                "Gemini client initialized",
+                store_name=self.store_name,
+                http_timeout_ms=GEMINI_HTTP_TIMEOUT_MS,
+            )
         except ImportError:
             logger.error("google-genai package not installed. Install with: pip install google-genai")
             raise
@@ -320,8 +336,12 @@ def list_gemini_file_search_stores_metadata(
 
     try:
         from google import genai
+        from google.genai.types import HttpOptions
 
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        client = genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options=HttpOptions(timeout=GEMINI_HTTP_TIMEOUT_MS),
+        )
     except Exception as exc:
         logger.error("list_gemini_file_search_stores_metadata: failed to init client", error=str(exc))
         return []
