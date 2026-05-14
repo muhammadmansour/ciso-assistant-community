@@ -30,7 +30,8 @@ DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
 POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
 
-# CISO PM2 process names (only restart these, not all PM2 services)
+# PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
+# Other PM2 apps on the host (e.g. ciso-stage-*, production) are left running.
 CISO_APPS="dev-backend dev-frontend dev-huey"
 
 # Directories
@@ -87,8 +88,8 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '2G',
-      error_file: './logs/stage-backend-error.log',
-      out_file: './logs/stage-backend-out.log',
+      error_file: './logs/dev-backend-error.log',
+      out_file: './logs/dev-backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
@@ -111,8 +112,8 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '500M',
-      error_file: './logs/stage-huey-error.log',
-      out_file: './logs/stage-huey-out.log',
+      error_file: './logs/dev-huey-error.log',
+      out_file: './logs/dev-huey-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
@@ -193,7 +194,7 @@ case "${1:-start}" in
         ensure_gunicorn
         run_migrations
         cd "$SCRIPT_DIR"
-        pm2 start ecosystem.config.js
+        pm2 start ecosystem.config.js --only "dev-backend,dev-frontend,dev-huey"
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
@@ -220,7 +221,7 @@ case "${1:-start}" in
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || true
         done
-        pm2 start ecosystem.config.js
+        pm2 start ecosystem.config.js --only "dev-backend,dev-frontend,dev-huey"
         pm2 save
         pm2 status
         ;;
