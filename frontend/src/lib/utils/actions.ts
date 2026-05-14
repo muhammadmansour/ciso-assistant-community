@@ -167,6 +167,7 @@ export async function defaultWriteFormAction({
 	const writtenObject = await res.json();
 
 	// Handle file uploads
+	let lastFileUploadJson: any = null;
 	if (fileFields) {
 		let fileUploadSuccess = true;
 		let fileUploadError: Response | null = null;
@@ -190,6 +191,8 @@ export async function defaultWriteFormAction({
 				fileUploadError = fileUploadRes;
 				break;
 			}
+			// Capture the upload response so we can surface indexing status to the user.
+			lastFileUploadJson = await fileUploadRes.clone().json().catch(() => null);
 		}
 
 		// If file upload failed, delete the created record and return error
@@ -200,6 +203,33 @@ export async function defaultWriteFormAction({
 			
 			setFlash({ type: 'error', message: safeTranslate('fileUploadFailed') }, event);
 			return await handleErrorResponse({ event, response: fileUploadError, form });
+		}
+	}
+
+	// Surface a toast for Gemini File Search indexing outcome on evidence upload.
+	// The /upload/ endpoint returns {indexing_status, indexing_error} for evidences.
+	if (
+		(urlModel === 'evidences' || urlModel === 'evidence-revisions') &&
+		lastFileUploadJson &&
+		typeof lastFileUploadJson === 'object'
+	) {
+		const indexingStatus = lastFileUploadJson.indexing_status as string | null;
+		const indexingError = lastFileUploadJson.indexing_error as string | null;
+		if (indexingStatus === 'completed') {
+			setFlash(
+				{ type: 'success', message: safeTranslate('evidenceIndexingSuccess') },
+				event
+			);
+		} else if (indexingStatus === 'failed') {
+			setFlash(
+				{
+					type: 'warning',
+					message: indexingError
+						? `${safeTranslate('evidenceIndexingFailed')}: ${indexingError}`
+						: safeTranslate('evidenceIndexingFailed')
+				},
+				event
+			);
 		}
 	}
 

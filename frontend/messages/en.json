@@ -3341,5 +3341,12 @@
 	"viewTeam": "View team",
 	"changeTeam": "Change team",
 	"deleteTeam": "Delete team",
-	"appliedControlsPlaceholder": "Select applied controls..."
+	"appliedControlsPlaceholder": "Select applied controls...",
+	"indexing": "Indexing",
+	"indexingCompleted": "Indexed",
+	"indexingInProgress": "Indexing...",
+	"indexingFailed": "Indexing failed",
+	"indexingNotStarted": "Not indexed",
+	"evidenceIndexingSuccess": "Evidence was successfully indexed for AI analysis.",
+	"evidenceIndexingFailed": "Evidence file could not be indexed for AI analysis."
 }

@@ -4170,6 +4170,26 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         print(f"[AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
         print(f"[AI-ANALYSIS] File IDs: {[f['gemini_file_id'] for f in gemini_file_ids]}")
 
+        # Pre-flight: if there are evidences with attachments but none could be
+        # indexed by Gemini, bail out with a clear error so the UI can prompt
+        # the user to retry indexing instead of running a useless analysis.
+        attachments_present = any(
+            any(r.attachment for r in evidence.revisions.all())
+            for evidence in applied_control.evidences.all()
+        )
+        if attachments_present and len(gemini_file_ids) == 0:
+            return Response(
+                {
+                    "code": "all_indexing_failed",
+                    "message": (
+                        "No evidence file could be indexed for AI analysis. "
+                        "Open each evidence and re-upload it, or check Gemini "
+                        "configuration, then try again."
+                    ),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         # Gather requirements, questions, typical evidence
         questions = []
         typical_evidence = []
@@ -8337,6 +8357,10 @@ class UploadAttachmentView(APIView):
                 "-version"
             ).first() or EvidenceRevision.objects.create(evidence=evidence)
 
+        # Track Gemini indexing outcome so the client can surface a toast/alert.
+        indexing_status: str | None = None
+        indexing_error: str | None = None
+
         attachment = request.FILES.get("file")
         if attachment and attachment.name != "undefined":
             if not revision.attachment or revision.attachment != attachment:
@@ -8372,34 +8396,47 @@ class UploadAttachmentView(APIView):
                                 gemini_store_id=result.get('gemini_store_id', ''),
                                 upload_status=FileSearchTable.UploadStatus.COMPLETED,
                             )
+                            indexing_status = FileSearchTable.UploadStatus.COMPLETED
                             logger.info(
                                 "Gemini file uploaded successfully",
                                 revision_id=str(revision.id),
                                 gemini_file_id=result['gemini_file_id'],
                             )
                         else:
+                            indexing_error = result.get('error', 'Upload did not return valid file ID')
                             FileSearchTable.objects.create(
                                 evidence_revision=revision,
                                 gemini_file_id='',
                                 gemini_store_id='',
                                 upload_status=FileSearchTable.UploadStatus.FAILED,
-                                error_message=result.get('error', 'Upload did not return valid file ID'),
+                                error_message=indexing_error,
                             )
+                            indexing_status = FileSearchTable.UploadStatus.FAILED
                             logger.warning(
                                 "Gemini file upload did not succeed",
                                 revision_id=str(revision.id),
                                 result=str(result),
                             )
                     else:
+                        # Gemini not configured: indexing is not attempted.
+                        indexing_status = None
                         logger.info("Gemini not configured, skipping upload")
                 except Exception as e:
+                    indexing_status = "failed"
+                    indexing_error = str(e)
                     logger.warning(
                         "Failed to upload to Gemini",
                         revision_id=str(revision.id),
                         error=str(e)
                     )
 
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            {
+                "indexing_status": indexing_status,
+                "indexing_error": indexing_error,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class QuickStartView(APIView):
@@ -10153,6 +10190,27 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         print(f"[RA-AI-ANALYSIS] Total gemini_file_ids collected: {len(gemini_file_ids)}")
         print(f"[RA-AI-ANALYSIS] From ACs: {len(gemini_file_ids) - direct_ev_count}, Direct on RA: {direct_ev_count}")
+
+        # Pre-flight: if there were evidences with attachments but none could
+        # be indexed by Gemini, surface a 422 so the UI can alert the user to
+        # retry indexing before running the analysis.
+        attachments_present = any(
+            any(r.attachment for r in evidence.revisions.all())
+            for evidence in list(direct_evidences)
+            + [e for ac in applied_controls for e in ac.evidences.all()]
+        )
+        if attachments_present and len(gemini_file_ids) == 0:
+            return Response(
+                {
+                    "code": "all_indexing_failed",
+                    "message": (
+                        "No evidence file could be indexed for AI analysis. "
+                        "Open each evidence and re-upload it, or check Gemini "
+                        "configuration, then try again."
+                    ),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
         # 3. Extract questions from the requirement (skip excluded ones)
         questions = []

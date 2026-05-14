@@ -1095,5 +1095,12 @@
 	"metricDefinitions": "تعريفات المقاييس",
 	"metricInstances": "مؤشرات القياس",
 	"dashboards": "لوحات المعلومات",
-	"tprmOverview": "نظرة عامة"
+	"tprmOverview": "نظرة عامة",
+	"indexing": "الفهرسة",
+	"indexingCompleted": "تمت الفهرسة",
+	"indexingInProgress": "جارٍ الفهرسة...",
+	"indexingFailed": "فشلت الفهرسة",
+	"indexingNotStarted": "غير مفهرس",
+	"evidenceIndexingSuccess": "تمت فهرسة الدليل بنجاح للتحليل بالذكاء الاصطناعي.",
+	"evidenceIndexingFailed": "تعذرت فهرسة ملف الدليل للتحليل بالذكاء الاصطناعي."
 }
