@@ -6,8 +6,9 @@ import type { RequestHandler } from './$types';
  * Streams the Django attachment bytes through unchanged.
  * See evidences/[id]/attachment/+server.ts for rationale (backpressure-safe).
  */
-export const GET: RequestHandler = async ({ fetch: kitFetch, params }) => {
-	const endpoint = `${BASE_API_URL}/evidence-revisions/${params.id}/attachment/`;
+export const GET: RequestHandler = async ({ fetch: kitFetch, params, url }) => {
+	const qs = url.searchParams.get('disposition') === 'attachment' ? '?disposition=attachment' : '';
+	const endpoint = `${BASE_API_URL}/evidence-revisions/${params.id}/attachment/${qs}`;
 
 	let attachmentResponse: Response;
 	try {
