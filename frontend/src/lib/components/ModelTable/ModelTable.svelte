@@ -2,7 +2,7 @@
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
 	import { run } from 'svelte/legacy';
 
-	import { goto as _goto } from '$app/navigation';
+	import { goto as _goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import TableRowActions from '$lib/components/TableRowActions/TableRowActions.svelte';
 	import { ISO_8601_REGEX } from '$lib/utils/constants';
@@ -164,6 +164,19 @@
 		actionsHead,
 		tail
 	}: Props = $props();
+
+	// Gemini indexing updates run in the background; refresh evidence rows periodically
+	// so the indexing badge moves to "Indexed" without a full page reload.
+	$effect(() => {
+		if (!browser || URLModel !== 'evidences') {
+			return;
+		}
+		const id = window.setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			void invalidateAll();
+		}, 10_000);
+		return () => clearInterval(id);
+	});
 
 	const modalStore: ModalStore = getModalStore();
 
