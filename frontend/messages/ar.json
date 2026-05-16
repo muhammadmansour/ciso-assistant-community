@@ -784,6 +784,7 @@
 	"ShowAllNodesMessage": "إظهار الكل",
 	"ShowOnlyAssessable": "قابلة للتقييم فقط",
 	"NoPreviewMessage": "لا يوجد معاينة متاحة.",
+	"attachmentPreviewFailed": "تعذر تحميل المعاينة (خطأ شبكة أو تم إيقاف التنزيل). حدّث الصفحة أو أعد المحاولة.",
 	"licenseExpiredMessage": "انتهت صلاحية ترخيصك. عمليات الكتابة معطلة. يرجى الاتصال بالمسؤول لتجديد الترخيص.",
 	"experimental": "تجريبي",
 	"timeline": "الخط الزمني",
