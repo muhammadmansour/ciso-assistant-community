@@ -150,6 +150,8 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # Create PM2 ecosystem config (Gunicorn + adapter-node).
+# Gunicorn --timeout must exceed Muraji/outbound AI HTTP waits (views use requests timeout=300s)
+# or workers die mid-request with CRITICAL WORKER TIMEOUT while the upstream call is still alive.
 # Unquoted EOF: substitute POSTGRES_* / DB_*; PATH uses require('os') so bash does not expand $PATH.
 cat > "$SCRIPT_DIR/ecosystem.config.js" << EOF
 const os = require('os');
@@ -160,7 +162,7 @@ module.exports = {
       name: 'ciso-stage-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 120 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 360 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',

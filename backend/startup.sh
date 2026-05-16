@@ -24,9 +24,8 @@ if [ -n "$DJANGO_SUPERUSER_EMAIL" ]; then
   poetry run python manage.py createsuperuser --noinput --settings="${DJANGO_SETTINGS_MODULE}"
 fi
 
-# Set default values for Gunicorn configuration
-GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
-GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-100}
+# Sync AI analysis endpoints call Muraji with requests timeout=300s — worker must survive until then.
+GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-360}
 GUNICORN_KEEPALIVE=${GUNICORN_KEEPALIVE:-30}
 GUNICORN_LIMIT_REQUEST_LINE=${GUNICORN_LIMIT_REQUEST_LINE:-5120}
 GUNICORN_PORT=${PORT:-8000}
