@@ -9,6 +9,9 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { mfaAuthenticateSchema } from './mfa/utils/schemas';
 
+/** Fallback when SSO info cannot be fetched (wrong API URL, HTML error body, etc.). */
+const defaultSSOInfo = { is_enabled: false };
+
 interface AuthenticationFlow {
 	id:
 		| 'verify_email'
@@ -33,7 +36,22 @@ export const load: PageServerLoad = async ({ fetch, request, locals }) => {
 
 	const form = await superValidate(request, zod(loginSchema));
 
-	const SSOInfo = await fetch(`${BASE_API_URL}/settings/sso/info/`).then((res) => res.json());
+	let SSOInfo: Record<string, unknown> = defaultSSOInfo;
+	try {
+		const ssoRes = await fetch(`${BASE_API_URL}/settings/sso/info/`);
+		const ct = ssoRes.headers.get('content-type') ?? '';
+		if (ssoRes.ok && ct.includes('application/json')) {
+			SSOInfo = await ssoRes.json();
+		} else {
+			console.warn(
+				'[login] /settings/sso/info/ not JSON or not OK — check PUBLIC_BACKEND_API_URL for SSR.',
+				ssoRes.status,
+				BASE_API_URL
+			);
+		}
+	} catch (e) {
+		console.error('[login] /settings/sso/info/ failed', e);
+	}
 
 	const mfaAuthenticateForm = await superValidate(request, zod(mfaAuthenticateSchema));
 
