@@ -8334,6 +8334,10 @@ class UploadAttachmentView(APIView):
                 "-version"
             ).first() or EvidenceRevision.objects.create(evidence=evidence)
 
+        # Track Gemini indexing outcome so the client can surface a toast/alert.
+        indexing_status: str | None = None
+        indexing_error: str | None = None
+
         attachment = request.FILES.get("file")
         if attachment and attachment.name != "undefined":
             if not revision.attachment or revision.attachment != attachment:
@@ -8347,24 +8351,33 @@ class UploadAttachmentView(APIView):
                 # durable gemini_document_id is recorded on FileSearchTable. Any
                 # stale row from a previous revision is cleared first so the
                 # task starts from a clean slate.
-                try:
-                    from core.models import FileSearchTable
-                    from core.tasks_gemini import upload_evidence_to_gemini
+                from core.models import FileSearchTable
+                from core.tasks_gemini import upload_evidence_to_gemini
 
+                try:
                     FileSearchTable.objects.filter(evidence_revision=revision).delete()
                     upload_evidence_to_gemini(str(revision.id))
+                    indexing_status = FileSearchTable.UploadStatus.PENDING
                     logger.info(
                         "Enqueued Gemini File Search Store upload",
                         revision_id=str(revision.id),
                     )
                 except Exception as e:
+                    indexing_status = FileSearchTable.UploadStatus.FAILED
+                    indexing_error = str(e)
                     logger.warning(
                         "Failed to enqueue Gemini File Search Store upload",
                         revision_id=str(revision.id),
                         error=str(e)
                     )
 
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            {
+                "indexing_status": indexing_status,
+                "indexing_error": indexing_error,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class QuickStartView(APIView):

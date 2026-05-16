@@ -2,6 +2,7 @@
 
 import EvidenceFilePreview from '$lib/components/ModelTable/EvidenceFilePreview.svelte';
 import GeminiFileIdDisplay from '$lib/components/ModelTable/GeminiFileIdDisplay.svelte';
+import IndexingStatusDisplay from '$lib/components/ModelTable/IndexingStatusDisplay.svelte';
 import LanguageDisplay from '$lib/components/ModelTable/LanguageDisplay.svelte';
 import LibraryActions from '$lib/components/ModelTable/LibraryActions.svelte';
 import UserGroupNameDisplay from '$lib/components/ModelTable/UserGroupNameDisplay.svelte';
@@ -2377,7 +2378,8 @@ export const CUSTOM_ACTIONS_COMPONENT = Symbol('CustomActions');
 
 const FIELD_COMPONENT_MAP = {
 	evidences: {
-		attachment: EvidenceFilePreview
+		attachment: EvidenceFilePreview,
+		indexing_status: IndexingStatusDisplay
 	},
 	'evidence-revisions': {
 		attachment: EvidenceFilePreview,

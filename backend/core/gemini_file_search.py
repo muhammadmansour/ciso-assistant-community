@@ -12,7 +12,6 @@ import os
 import time
 import structlog
 from typing import Optional, Dict, Any, List
-from django.conf import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -39,6 +38,11 @@ GEMINI_ENABLED = bool(GEMINI_API_KEY)  # Only API key is required for files.uplo
 # expect a single upload/index request to take. Operators can tune this via
 # the GEMINI_HTTP_TIMEOUT_MS env var without touching code.
 GEMINI_HTTP_TIMEOUT_MS = int(os.getenv('GEMINI_HTTP_TIMEOUT_MS', '600000'))
+
+# How long the worker polls the Gemini long-running indexing operation before
+# giving up with "Indexing did not complete within …". Large PDFs or API
+# backpressure can exceed 300s; tune via GEMINI_INDEX_MAX_WAIT_SECONDS on the host.
+GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '900'))
 
 
 class GeminiFileSearchClient:
@@ -75,7 +79,7 @@ class GeminiFileSearchClient:
         file_path: str,
         display_name: str,
         custom_metadata: Optional[Dict[str, Any]] = None,
-        max_wait_seconds: int = 300,
+        max_wait_seconds: int = GEMINI_INDEX_MAX_WAIT_SECONDS,
         poll_interval: int = 3,
     ) -> Dict[str, Any]:
         """Upload a file to the configured File Search Store and wait for indexing.

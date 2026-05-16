@@ -260,8 +260,6 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
                 file_path=file_path,
                 display_name=display_name,
                 custom_metadata=custom_metadata,
-                max_wait_seconds=300,
-                poll_interval=3,
             )
 
         if result['status'] == 'completed':
