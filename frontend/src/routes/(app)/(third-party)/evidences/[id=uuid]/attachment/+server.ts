@@ -9,8 +9,9 @@ import type { RequestHandler } from './$types';
  * for write-side backpressure balloons memory on large PDFs and can kill the Node
  * stream mid-response (Chrome: net::ERR_FAILED after 200 OK).
  */
-export const GET: RequestHandler = async ({ fetch: kitFetch, params }) => {
-	const endpoint = `${BASE_API_URL}/evidences/${params.id}/attachment/`;
+export const GET: RequestHandler = async ({ fetch: kitFetch, params, url }) => {
+	const qs = url.searchParams.get('disposition') === 'attachment' ? '?disposition=attachment' : '';
+	const endpoint = `${BASE_API_URL}/evidences/${params.id}/attachment/${qs}`;
 
 	let attachmentResponse: Response;
 	try {

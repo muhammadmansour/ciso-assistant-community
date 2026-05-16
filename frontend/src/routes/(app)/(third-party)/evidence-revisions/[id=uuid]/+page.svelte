@@ -109,7 +109,8 @@
 			</h4>
 			<div class="space-x-2">
 				<Anchor
-					href={`./${data.data.id}/attachment`}
+					href={`./${data.data.id}/attachment?disposition=attachment`}
+					download
 					class="btn preset-filled-primary-500 h-fit"
 					data-testid="attachment-download-button"
 					><i class="fa-solid fa-download mr-2"></i> {m.download()}</Anchor

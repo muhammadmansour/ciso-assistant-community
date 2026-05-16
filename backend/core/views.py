@@ -8079,11 +8079,17 @@ class EvidenceViewSet(BaseModelViewSet):
                 content_type = mimetypes.guess_type(evidence.last_revision.filename())[
                     0
                 ]
+                # Serve inline by default so <embed>/<img> previews render in
+                # the browser. Download buttons opt-in via ?disposition=attachment
+                # so they keep forcing a save-as dialog.
+                as_attachment = (
+                    request.query_params.get("disposition", "").lower() == "attachment"
+                )
                 file_handle = evidence.last_revision.attachment.open("rb")
                 return FileResponse(
                     file_handle,
                     content_type=content_type or "application/octet-stream",
-                    as_attachment=True,
+                    as_attachment=as_attachment,
                     filename=evidence.last_revision.filename(),
                 )
         return response
@@ -8280,11 +8286,16 @@ class EvidenceRevisionViewSet(BaseModelViewSet):
                 return Response(status=status.HTTP_404_NOT_FOUND)
             if request.method == "GET":
                 content_type = mimetypes.guess_type(evidence.filename())[0]
+                # Inline by default; download buttons pass ?disposition=attachment
+                # to force a save-as dialog. Mirrors EvidenceViewSet.attachment.
+                as_attachment = (
+                    request.query_params.get("disposition", "").lower() == "attachment"
+                )
                 file_handle = evidence.attachment.open("rb")
                 return FileResponse(
                     file_handle,
                     content_type=content_type or "application/octet-stream",
-                    as_attachment=True,
+                    as_attachment=as_attachment,
                     filename=evidence.filename(),
                 )
         return response
