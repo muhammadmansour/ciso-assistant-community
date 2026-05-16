@@ -9,6 +9,7 @@
 	import { CUSTOM_ACTIONS_COMPONENT, getFieldComponentMap, URL_MODEL_MAP } from '$lib/utils/crud';
 	import { safeTranslate, unsafeTranslate } from '$lib/utils/i18n';
 	import { toCamelCase } from '$lib/utils/locales.js';
+	import { get } from 'svelte/store';
 	import { onMount } from 'svelte';
 
 	import { tableA11y } from '$lib/components/ModelTable/actions';
@@ -165,19 +166,6 @@
 		tail
 	}: Props = $props();
 
-	// Gemini indexing updates run in the background; refresh evidence rows periodically
-	// so the indexing badge moves to "Indexed" without a full page reload.
-	$effect(() => {
-		if (!browser || URLModel !== 'evidences') {
-			return;
-		}
-		const id = window.setInterval(() => {
-			if (document.visibilityState !== 'visible') return;
-			void invalidateAll();
-		}, 10_000);
-		return () => clearInterval(id);
-	});
-
 	const modalStore: ModalStore = getModalStore();
 
 	let model = $derived(URL_MODEL_MAP[URLModel]);
@@ -260,6 +248,25 @@
 	);
 	const rows = handler.getRows();
 	let invalidateTable = $state(false);
+
+	// Evidences: reload while Gemini indexing is pending/uploading; stop polling once all visible rows settle.
+	const EVIDENCE_INDEXING_ACTIVE = new Set(['pending', 'uploading']);
+	$effect(() => {
+		if (!browser || URLModel !== 'evidences') {
+			return;
+		}
+		const POLL_MS = 10_000;
+		const id = window.setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			const rowList = get(rows);
+			const anyInFlight = rowList.some((r) =>
+				EVIDENCE_INDEXING_ACTIVE.has(String((r.meta as { indexing_status?: string } | undefined)?.indexing_status ?? ''))
+			);
+			if (!anyInFlight) return;
+			void invalidateAll();
+		}, POLL_MS);
+		return () => clearInterval(id);
+	});
 
 	const relatedFieldNames = $derived(
 		new Set(model?.foreignKeyFields?.map((field) => field.field) ?? [])
