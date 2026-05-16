@@ -16,6 +16,8 @@
 	}
 
 	let attachment: Attachment | undefined = $state(undefined);
+	/** Fetch rejected (browser net::ERR_FAILED, timeouts, aborted) — not the same as HTTP 404. */
+	let previewLoadFailed = $state(false);
 
 	/** Stable identity — do not include full `meta.attachment` (GCS/S3 signed URLs get new query params every list refresh). */
 	function attachmentPathFingerprint(raw: string): string {
@@ -50,15 +52,24 @@
 		const key = attachmentStableKey;
 		if (!key) {
 			attachment = undefined;
+			previewLoadFailed = false;
 			return;
 		}
 
 		let cancelled = false;
+		previewLoadFailed = false;
 
-		void loadAttachmentCached(key, fetchAttachment).then((next) => {
-			if (cancelled) return;
-			attachment = next;
-		});
+		void loadAttachmentCached(key, fetchAttachment)
+			.then((next) => {
+				if (cancelled) return;
+				attachment = next;
+				previewLoadFailed = false;
+			})
+			.catch(() => {
+				if (cancelled) return;
+				attachment = undefined;
+				previewLoadFailed = true;
+			});
 
 		return () => {
 			cancelled = true;
@@ -116,6 +127,8 @@
 		{:else}
 			<p>{m.NoPreviewMessage()}</p>
 		{/if}
+	{:else if previewLoadFailed}
+		<p class="text-error-500 font-bold">{m.attachmentPreviewFailed()}</p>
 	{:else}
 		<span data-testid="loading-field">
 			{m.loading()}...
