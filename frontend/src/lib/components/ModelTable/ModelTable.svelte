@@ -695,7 +695,7 @@
 			<ContextMenu.Trigger>
 				{#snippet child({ props })}
 					<tbody {...props} class="w-full divide-y divide-gray-100 {regionBody}">
-						{#each $rows as row, rowIndex}
+						{#each $rows as row, rowIndex (row.meta?.id ?? rowIndex)}
 							{@const meta = row?.meta ?? row}
 							<tr
 								onclick={(e) => onRowClick(e, rowIndex)}

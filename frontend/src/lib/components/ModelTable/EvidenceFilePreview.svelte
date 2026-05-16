@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
+	import { loadAttachmentCached } from './evidenceAttachmentCache';
 
 	interface Props {
 		cell: any;
@@ -45,30 +46,17 @@
 		};
 	};
 
-	/** Tracks blob URLs for revoke; not reactive — avoids re-running this effect when `attachment` updates. */
-	let lastBlobUrl: string | undefined;
-
 	$effect(() => {
 		const key = attachmentStableKey;
 		if (!key) {
-			if (lastBlobUrl) {
-				URL.revokeObjectURL(lastBlobUrl);
-				lastBlobUrl = undefined;
-			}
 			attachment = undefined;
 			return;
 		}
 
 		let cancelled = false;
-		const revokeWhenReplaced = lastBlobUrl;
 
-		void fetchAttachment().then((next) => {
-			if (cancelled) {
-				URL.revokeObjectURL(next.url);
-				return;
-			}
-			if (revokeWhenReplaced) URL.revokeObjectURL(revokeWhenReplaced);
-			lastBlobUrl = next.url;
+		void loadAttachmentCached(key, fetchAttachment).then((next) => {
+			if (cancelled) return;
 			attachment = next;
 		});
 
