@@ -8079,13 +8079,12 @@ class EvidenceViewSet(BaseModelViewSet):
                 content_type = mimetypes.guess_type(evidence.last_revision.filename())[
                     0
                 ]
-                response = HttpResponse(
-                    evidence.last_revision.attachment,
-                    content_type=content_type,
-                    headers={
-                        "Content-Disposition": f"attachment; filename={evidence.last_revision.filename()}"
-                    },
-                    status=status.HTTP_200_OK,
+                file_handle = evidence.last_revision.attachment.open("rb")
+                return FileResponse(
+                    file_handle,
+                    content_type=content_type or "application/octet-stream",
+                    as_attachment=True,
+                    filename=evidence.last_revision.filename(),
                 )
         return response
 
@@ -8281,13 +8280,12 @@ class EvidenceRevisionViewSet(BaseModelViewSet):
                 return Response(status=status.HTTP_404_NOT_FOUND)
             if request.method == "GET":
                 content_type = mimetypes.guess_type(evidence.filename())[0]
-                response = HttpResponse(
-                    evidence.attachment,
-                    content_type=content_type,
-                    headers={
-                        "Content-Disposition": f"attachment; filename={evidence.filename()}"
-                    },
-                    status=status.HTTP_200_OK,
+                file_handle = evidence.attachment.open("rb")
+                return FileResponse(
+                    file_handle,
+                    content_type=content_type or "application/octet-stream",
+                    as_attachment=True,
+                    filename=evidence.filename(),
                 )
         return response
 
