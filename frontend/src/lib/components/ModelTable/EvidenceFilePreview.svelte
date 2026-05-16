@@ -16,9 +16,21 @@
 
 	let attachment: Attachment | undefined = $state(undefined);
 
-	/** Stable identity so indexing-status polls do not refetch blobs for unrelated `meta` churn. */
+	/** Stable identity — do not include full `meta.attachment` (GCS/S3 signed URLs get new query params every list refresh). */
+	function attachmentPathFingerprint(raw: string): string {
+		if (!raw) return '';
+		try {
+			const u = new URL(raw, 'http://_/');
+			return u.pathname;
+		} catch {
+			return raw;
+		}
+	}
+
 	const attachmentStableKey = $derived(
-		meta?.attachment ? `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${String(meta.attachment)}` : null
+		meta?.attachment && meta?.id != null
+			? `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${attachmentPathFingerprint(String(meta.attachment))}`
+			: null
 	);
 
 	const fetchAttachment = async (): Promise<Attachment> => {
