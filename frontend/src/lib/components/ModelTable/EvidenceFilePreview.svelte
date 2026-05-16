@@ -32,11 +32,13 @@
 		}
 	}
 
-	const attachmentStableKey = $derived(
-		meta?.attachment && meta?.id != null
-			? `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${attachmentPathFingerprint(String(meta.attachment))}`
-			: null
-	);
+	/** Version when URL is omitted (private storage lists); include size/status so swaps invalidate cache. */
+	const attachmentStableKey = $derived.by(() => {
+		if (meta?.id == null) return null;
+		const pathTag = attachmentPathFingerprint(String(meta?.attachment ?? cell ?? ''));
+		const bump = `${meta.updated_at ?? meta.updatedAt ?? ''}:${meta.indexing_status ?? meta.indexingStatus ?? ''}:${meta.size ?? ''}`;
+		return `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${pathTag}:${bump}`;
+	});
 
 	const attachmentPath = $derived(
 		meta?.id != null
@@ -74,6 +76,10 @@
 		const probe = async (): Promise<Attachment> => {
 			const res = await fetch(path, { method: 'HEAD', credentials: 'include' });
 			let ct = normalizedMime(res.headers.get('Content-Type'));
+			const cd = res.headers.get('Content-Disposition')?.toLowerCase() ?? '';
+			if (ct === 'application/octet-stream' && /\.pdf(\W|$)/.test(cd)) {
+				ct = 'application/pdf';
+			}
 			if (ct === 'application/octet-stream') {
 				ct = guessed !== 'application/octet-stream' ? guessed : ct;
 			}
@@ -143,7 +149,7 @@
 	</div>
 {/snippet}
 
-{#if cell}
+{#if meta?.id}
 	{#if attachment}
 		{#if attachment.type.startsWith('image') || attachment.type === 'application/pdf'}
 			{@render displayPreview()}
