@@ -2,7 +2,7 @@
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
 	import { run } from 'svelte/legacy';
 
-	import { goto as _goto, invalidateAll } from '$app/navigation';
+	import { goto as _goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import TableRowActions from '$lib/components/TableRowActions/TableRowActions.svelte';
 	import { ISO_8601_REGEX } from '$lib/utils/constants';
@@ -263,7 +263,8 @@
 				EVIDENCE_INDEXING_ACTIVE.has(String((r.meta as { indexing_status?: string } | undefined)?.indexing_status ?? ''))
 			);
 			if (!anyInFlight) return;
-			void invalidateAll();
+			// Reload list API only — avoid invalidateAll(), which reloads layout + retriggers attachment fetches.
+			handler.invalidate();
 		}, POLL_MS);
 		return () => clearInterval(id);
 	});

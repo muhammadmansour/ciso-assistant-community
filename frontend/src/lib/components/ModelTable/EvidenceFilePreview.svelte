@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
-	import { onMount } from 'svelte';
 	import { m } from '$paraglide/messages';
 
 	interface Props {
@@ -17,9 +14,14 @@
 		fileExists: boolean;
 	}
 
-	let attachment: Attachment | undefined = $state();
+	let attachment: Attachment | undefined = $state(undefined);
 
-	const fetchAttachment = async () => {
+	/** Stable identity so indexing-status polls do not refetch blobs for unrelated `meta` churn. */
+	const attachmentStableKey = $derived(
+		meta?.attachment ? `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${String(meta.attachment)}` : null
+	);
+
+	const fetchAttachment = async (): Promise<Attachment> => {
 		const res = await fetch(
 			`/${meta.evidence ? 'evidence-revisions' : 'evidences'}/${meta.id}/attachment`
 		);
@@ -31,20 +33,36 @@
 		};
 	};
 
-	let mounted = $state(false);
-	onMount(async () => {
-		attachment = meta.attachment ? await fetchAttachment() : undefined;
-		mounted = true;
-	});
+	/** Tracks blob URLs for revoke; not reactive — avoids re-running this effect when `attachment` updates. */
+	let lastBlobUrl: string | undefined;
 
-	run(() => {
-		if (mounted && meta.attachment) {
-			fetchAttachment().then((_attachment) => {
-				attachment = _attachment;
-			});
-		} else {
+	$effect(() => {
+		const key = attachmentStableKey;
+		if (!key) {
+			if (lastBlobUrl) {
+				URL.revokeObjectURL(lastBlobUrl);
+				lastBlobUrl = undefined;
+			}
 			attachment = undefined;
+			return;
 		}
+
+		let cancelled = false;
+		const revokeWhenReplaced = lastBlobUrl;
+
+		void fetchAttachment().then((next) => {
+			if (cancelled) {
+				URL.revokeObjectURL(next.url);
+				return;
+			}
+			if (revokeWhenReplaced) URL.revokeObjectURL(revokeWhenReplaced);
+			lastBlobUrl = next.url;
+			attachment = next;
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	let display = $state(false);
@@ -92,7 +110,7 @@
 {#if cell}
 	{#if attachment}
 		{#if attachment.type.startsWith('image') || attachment.type === 'application/pdf'}
-			{@render displayPreview(attachment)}
+			{@render displayPreview()}
 		{:else if !attachment.fileExists}
 			<p class="text-error-500 font-bold">{m.couldNotFindAttachmentMessage()}</p>
 		{:else}
