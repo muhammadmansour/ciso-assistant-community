@@ -318,8 +318,19 @@ export const actions: Actions = {
 
 			if (!response.ok) {
 				const err = await response.json().catch(() => ({}));
+				const message = err.message || err.detail || `Error ${response.status}`;
+				// Surface the alert as a flash toast in addition to the inline error
+				// — particularly useful when all evidences failed Gemini indexing.
+				setFlash(
+					{
+						type: err.code === 'all_indexing_failed' ? 'warning' : 'error',
+						message
+					},
+					event
+				);
 				return fail(response.status, {
-					aiError: err.message || err.detail || `Error ${response.status}`
+					aiError: message,
+					aiErrorCode: err.code
 				});
 			}
 

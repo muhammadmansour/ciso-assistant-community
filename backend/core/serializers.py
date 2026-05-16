@@ -1559,6 +1559,9 @@ class EvidenceReadSerializer(BaseModelSerializer):
     owner = FieldsRelatedField(many=True)
     status = serializers.CharField(source="get_status_display")
     link = serializers.SerializerMethodField()
+    indexing_status = serializers.SerializerMethodField()
+    indexing_error = serializers.SerializerMethodField()
+    indexing_updated_at = serializers.SerializerMethodField()
 
     def get_attachment(self, obj):
         last_revision = obj.last_revision
@@ -1569,6 +1572,35 @@ class EvidenceReadSerializer(BaseModelSerializer):
     def get_link(self, obj):
         last_revision = obj.last_revision
         return last_revision.link if last_revision else None
+
+    def _get_file_search(self, obj):
+        """Return the FileSearchTable row for the latest revision with an attachment.
+
+        Returns None when there is no attachment yet (nothing to index)."""
+        last_revision = obj.last_revision
+        if not last_revision or not last_revision.attachment:
+            return None
+        try:
+            return last_revision.file_search
+        except Exception:
+            return None
+
+    def get_indexing_status(self, obj):
+        last_revision = obj.last_revision
+        if not last_revision or not last_revision.attachment:
+            return None
+        fs = self._get_file_search(obj)
+        if fs is None:
+            return "not_started"
+        return fs.upload_status
+
+    def get_indexing_error(self, obj):
+        fs = self._get_file_search(obj)
+        return fs.error_message if fs else None
+
+    def get_indexing_updated_at(self, obj):
+        fs = self._get_file_search(obj)
+        return fs.updated_at.isoformat() if fs and fs.updated_at else None
 
     class Meta:
         model = Evidence

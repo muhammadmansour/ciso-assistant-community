@@ -4174,6 +4174,26 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 status=status.HTTP_409_CONFLICT
             )
 
+        # Pre-flight: if there are evidences with attachments but none could be
+        # indexed by Gemini, bail out with a clear error so the UI can prompt
+        # the user to retry indexing instead of running a useless analysis.
+        attachments_present = any(
+            any(r.attachment for r in evidence.revisions.all())
+            for evidence in applied_control.evidences.all()
+        )
+        if attachments_present and len(gemini_file_ids) == 0:
+            return Response(
+                {
+                    "code": "all_indexing_failed",
+                    "message": (
+                        "No evidence file could be indexed for AI analysis. "
+                        "Open each evidence and re-upload it, or check Gemini "
+                        "configuration, then try again."
+                    ),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         # Gather requirements, questions, typical evidence
         questions = []
         typical_evidence = []
@@ -8337,6 +8357,10 @@ class UploadAttachmentView(APIView):
                 "-version"
             ).first() or EvidenceRevision.objects.create(evidence=evidence)
 
+        # Track Gemini indexing outcome so the client can surface a toast/alert.
+        indexing_status: str | None = None
+        indexing_error: str | None = None
+
         attachment = request.FILES.get("file")
         if attachment and attachment.name != "undefined":
             if not revision.attachment or revision.attachment != attachment:
@@ -8356,18 +8380,27 @@ class UploadAttachmentView(APIView):
 
                     FileSearchTable.objects.filter(evidence_revision=revision).delete()
                     upload_evidence_to_gemini(str(revision.id))
+                    indexing_status = FileSearchTable.UploadStatus.PENDING
                     logger.info(
                         "Enqueued Gemini File Search Store upload",
                         revision_id=str(revision.id),
                     )
                 except Exception as e:
+                    indexing_status = FileSearchTable.UploadStatus.FAILED
+                    indexing_error = str(e)
                     logger.warning(
                         "Failed to enqueue Gemini File Search Store upload",
                         revision_id=str(revision.id),
                         error=str(e)
                     )
 
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            {
+                "indexing_status": indexing_status,
+                "indexing_error": indexing_error,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class QuickStartView(APIView):
@@ -10140,6 +10173,27 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                     'evidences': evidences_status,
                 },
                 status=status.HTTP_409_CONFLICT
+            )
+
+        # Pre-flight: if there were evidences with attachments but none could
+        # be indexed by Gemini, surface a 422 so the UI can alert the user to
+        # retry indexing before running the analysis.
+        attachments_present = any(
+            any(r.attachment for r in evidence.revisions.all())
+            for evidence in list(direct_evidences)
+            + [e for ac in applied_controls for e in ac.evidences.all()]
+        )
+        if attachments_present and len(gemini_file_ids) == 0:
+            return Response(
+                {
+                    "code": "all_indexing_failed",
+                    "message": (
+                        "No evidence file could be indexed for AI analysis. "
+                        "Open each evidence and re-upload it, or check Gemini "
+                        "configuration, then try again."
+                    ),
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         # 3. Extract questions from the requirement (skip excluded ones)
