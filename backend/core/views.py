@@ -4174,26 +4174,6 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 status=status.HTTP_409_CONFLICT
             )
 
-        # Pre-flight: if there are evidences with attachments but none could be
-        # indexed by Gemini, bail out with a clear error so the UI can prompt
-        # the user to retry indexing instead of running a useless analysis.
-        attachments_present = any(
-            any(r.attachment for r in evidence.revisions.all())
-            for evidence in applied_control.evidences.all()
-        )
-        if attachments_present and len(gemini_file_ids) == 0:
-            return Response(
-                {
-                    "code": "all_indexing_failed",
-                    "message": (
-                        "No evidence file could be indexed for AI analysis. "
-                        "Open each evidence and re-upload it, or check Gemini "
-                        "configuration, then try again."
-                    ),
-                },
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            )
-
         # Gather requirements, questions, typical evidence
         questions = []
         typical_evidence = []
@@ -10173,27 +10153,6 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                     'evidences': evidences_status,
                 },
                 status=status.HTTP_409_CONFLICT
-            )
-
-        # Pre-flight: if there were evidences with attachments but none could
-        # be indexed by Gemini, surface a 422 so the UI can alert the user to
-        # retry indexing before running the analysis.
-        attachments_present = any(
-            any(r.attachment for r in evidence.revisions.all())
-            for evidence in list(direct_evidences)
-            + [e for ac in applied_controls for e in ac.evidences.all()]
-        )
-        if attachments_present and len(gemini_file_ids) == 0:
-            return Response(
-                {
-                    "code": "all_indexing_failed",
-                    "message": (
-                        "No evidence file could be indexed for AI analysis. "
-                        "Open each evidence and re-upload it, or check Gemini "
-                        "configuration, then try again."
-                    ),
-                },
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         # 3. Extract questions from the requirement (skip excluded ones)
