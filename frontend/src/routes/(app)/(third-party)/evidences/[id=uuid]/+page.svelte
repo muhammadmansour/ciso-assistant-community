@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import { getModelInfo } from '$lib/utils/crud.js';
+	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
 	import type { ModalComponent, ModalSettings, ModalStore } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -291,16 +293,46 @@
 	}
 
 	onMount(async () => {
-		const fetchAttachment = async () => {
-			const res = await fetch(`./${data.data.id}/attachment`);
-			const blob = await res.blob();
-			return {
-				type: blob.type,
-				url: URL.createObjectURL(blob),
-				fileExists: res.ok
-			};
-		};
-		attachment = data.data.attachment ? await fetchAttachment() : undefined;
+		async function primeAttachmentPreview() {
+			if (!browser || !data.data.attachment) {
+				attachment = undefined;
+				return;
+			}
+			const rel = `./${data.data.id}/attachment`;
+			const absUrl = new URL(rel, window.location.href).href;
+			const guessed = guessMimeFromEvidenceField(data.data.attachment);
+			const streamInline = guessed === 'application/pdf' || guessed.startsWith('image/');
+
+			if (streamInline) {
+				attachment = {
+					type: guessed,
+					url: absUrl,
+					fileExists: true
+				};
+				return;
+			}
+
+			try {
+				const res = await fetch(rel, { method: 'HEAD', credentials: 'include' });
+				let ct = normalizedMime(res.headers.get('Content-Type'));
+				if (ct === 'application/octet-stream' && guessed !== 'application/octet-stream') {
+					ct = guessed;
+				}
+				attachment = {
+					type: ct,
+					url: absUrl,
+					fileExists: res.ok
+				};
+			} catch {
+				attachment = {
+					type: guessed,
+					url: absUrl,
+					fileExists: true
+				};
+			}
+		}
+
+		await primeAttachmentPreview();
 		
 		// Check if auto-analysis should run (via URL param from redirect after creation)
 		const urlParams = new URLSearchParams(window.location.search);

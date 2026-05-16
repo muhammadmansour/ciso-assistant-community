@@ -1,6 +1,7 @@
 /**
- * Deduplicate evidence table attachment fetches across list refreshes (e.g. indexing
- * polling) so unchanged files are not re-downloaded on every `/evidences` refetch.
+ * Deduplicate evidence attachment probing across list refreshes (e.g. indexing polling).
+ *
+ * Entries may use blob: URLs or same-origin HTTPS URLs; only blob: URLs are revoked on LRU evict.
  */
 
 export interface CachedAttachment {
@@ -15,6 +16,10 @@ const resolved = new Map<string, CachedAttachment>();
 const inFlight = new Map<string, Promise<CachedAttachment>>();
 const lru: string[] = [];
 
+function revokeIfBlobUrl(entry: CachedAttachment | undefined) {
+	if (entry?.url?.startsWith('blob:')) URL.revokeObjectURL(entry.url);
+}
+
 function touch(key: string) {
 	const i = lru.indexOf(key);
 	if (i >= 0) lru.splice(i, 1);
@@ -24,7 +29,7 @@ function touch(key: string) {
 		if (!evict) break;
 		const entry = resolved.get(evict);
 		if (entry) {
-			URL.revokeObjectURL(entry.url);
+			revokeIfBlobUrl(entry);
 			resolved.delete(evict);
 		}
 	}
@@ -32,7 +37,7 @@ function touch(key: string) {
 
 function remember(key: string, value: CachedAttachment) {
 	const prev = resolved.get(key);
-	if (prev && prev.url !== value.url) URL.revokeObjectURL(prev.url);
+	if (prev && prev.url !== value.url) revokeIfBlobUrl(prev);
 	resolved.set(key, value);
 	touch(key);
 }

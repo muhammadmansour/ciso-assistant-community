@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { m } from '$paraglide/messages';
+	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
 	import { loadAttachmentCached } from './evidenceAttachmentCache';
 
 	interface Props {
@@ -36,30 +38,53 @@
 			: null
 	);
 
-	const fetchAttachment = async (): Promise<Attachment> => {
-		const res = await fetch(
-			`/${meta.evidence ? 'evidence-revisions' : 'evidences'}/${meta.id}/attachment`
-		);
-		const blob = await res.blob();
-		return {
-			type: blob.type,
-			url: URL.createObjectURL(blob),
-			fileExists: res.ok
-		};
-	};
+	const attachmentPath = $derived(
+		meta?.id != null
+			? `/${meta.evidence ? 'evidence-revisions' : 'evidences'}/${meta.id}/attachment`
+			: null
+	);
 
 	$effect(() => {
 		const key = attachmentStableKey;
-		if (!key) {
+		const path = attachmentPath;
+
+		if (!browser || !key || !path) {
 			attachment = undefined;
 			previewLoadFailed = false;
 			return;
 		}
 
+		const absUrl = new URL(path, window.location.origin).href;
+		const guessed = guessMimeFromEvidenceField(String(meta?.attachment ?? cell ?? ''));
+		const streamInline = guessed === 'application/pdf' || guessed.startsWith('image/');
+
+		if (streamInline) {
+			previewLoadFailed = false;
+			attachment = {
+				type: guessed,
+				url: absUrl,
+				fileExists: true
+			};
+			return () => {};
+		}
+
 		let cancelled = false;
 		previewLoadFailed = false;
 
-		void loadAttachmentCached(key, fetchAttachment)
+		const probe = async (): Promise<Attachment> => {
+			const res = await fetch(path, { method: 'HEAD', credentials: 'include' });
+			let ct = normalizedMime(res.headers.get('Content-Type'));
+			if (ct === 'application/octet-stream') {
+				ct = guessed !== 'application/octet-stream' ? guessed : ct;
+			}
+			return {
+				type: ct,
+				url: absUrl,
+				fileExists: res.ok
+			};
+		};
+
+		void loadAttachmentCached(key, probe)
 			.then((next) => {
 				if (cancelled) return;
 				attachment = next;
@@ -106,8 +131,8 @@
 			/>
 		{:else if attachment.type === 'application/pdf'}
 			{#if !display}
-				<!-- This div prevents the <embed> element from stopping the click event propagation. -->
-				<div class="absolute w-full h-full top-0 left-0"></div>
+				<!-- This div prevents the `<embed>` element from stopping the click event propagation. -->
+				<div class="absolute h-full top-0 w-full"></div>
 			{/if}
 			<embed
 				src={attachment.url}
@@ -123,12 +148,12 @@
 		{#if attachment.type.startsWith('image') || attachment.type === 'application/pdf'}
 			{@render displayPreview()}
 		{:else if !attachment.fileExists}
-			<p class="text-error-500 font-bold">{m.couldNotFindAttachmentMessage()}</p>
+			<p class="font-bold text-error-500">{m.couldNotFindAttachmentMessage()}</p>
 		{:else}
 			<p>{m.NoPreviewMessage()}</p>
 		{/if}
 	{:else if previewLoadFailed}
-		<p class="text-error-500 font-bold">{m.attachmentPreviewFailed()}</p>
+		<p class="font-bold text-error-500">{m.attachmentPreviewFailed()}</p>
 	{:else}
 		<span data-testid="loading-field">
 			{m.loading()}...
