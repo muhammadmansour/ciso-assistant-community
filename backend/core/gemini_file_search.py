@@ -403,3 +403,205 @@ def get_gemini_client() -> Optional[GeminiFileSearchClient]:
     except Exception as e:
         logger.error("Failed to initialize Gemini client", error=str(e))
         return None
+
+
+def get_genai_raw_client():
+    """Return ``google.genai.Client`` when ``GEMINI_API_KEY`` is set, else ``None``."""
+    if not GEMINI_API_KEY:
+        return None
+    try:
+        from google import genai
+        from google.genai.types import HttpOptions
+
+        return genai.Client(
+            api_key=GEMINI_API_KEY,
+            http_options=HttpOptions(timeout=GEMINI_HTTP_TIMEOUT_MS),
+        )
+    except Exception as exc:
+        logger.error("Failed to create raw GenAI client", error=str(exc))
+        return None
+
+
+def _format_bytes(num: Optional[int]) -> str:
+    if num is None:
+        return "--"
+    n = float(num)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024.0 or unit == "TB":
+            if unit == "B":
+                return f"{int(n)} B"
+            return f"{n:.1f} {unit}"
+        n /= 1024.0
+    return f"{n:.1f} TB"
+
+
+def _doc_file_kind(display_name: str, mime: str) -> str:
+    lower = (display_name or "").lower()
+    if lower.endswith(".pdf"):
+        return "pdf"
+    if lower.endswith(".docx"):
+        return "docx"
+    if lower.endswith(".doc"):
+        return "doc"
+    if mime and "pdf" in mime:
+        return "pdf"
+    if mime and "word" in mime:
+        return "docx"
+    return "file"
+
+
+def list_policy_collections_from_gemini() -> list:
+    """List File Search stores and documents from Gemini (FloatingPolicyWidget schema)."""
+    client = get_genai_raw_client()
+    if not client:
+        raise ValueError("GEMINI_API_KEY is not configured")
+
+    out = []
+    try:
+        for store in client.file_search_stores.list():
+            name = getattr(store, "name", "") or ""
+            display = getattr(store, "display_name", None) or name
+            if not name:
+                continue
+
+            files = []
+            try:
+                for doc in client.file_search_stores.documents.list(parent=name):
+                    dname = getattr(doc, "name", "") or ""
+                    disp = getattr(doc, "display_name", None) or dname.rsplit("/", maxsplit=1)[-1] or dname
+                    mime = getattr(doc, "mime_type", None) or getattr(doc, "mimeType", None) or ""
+                    size_raw = getattr(doc, "size_bytes", None)
+                    if not isinstance(size_raw, int):
+                        size_raw = None
+                    updated = (
+                        getattr(doc, "update_time", None)
+                        or getattr(doc, "updateTime", None)
+                        or getattr(doc, "create_time", None)
+                        or getattr(doc, "createTime", None)
+                    )
+                    ts = ""
+                    if updated is not None:
+                        ts = str(updated)
+                        if hasattr(updated, "isoformat"):
+                            ts = updated.isoformat()
+
+                    files.append(
+                        {
+                            "id": dname,
+                            "name": disp,
+                            "type": _doc_file_kind(str(disp), str(mime)),
+                            "mimeType": str(mime) if mime else "application/octet-stream",
+                            "size": _format_bytes(size_raw if isinstance(size_raw, int) else None),
+                            "uploadedAt": ts or "--",
+                        }
+                    )
+            except Exception as doc_exc:
+                logger.warning(
+                    "list documents for store failed",
+                    store=name,
+                    error=str(doc_exc),
+                )
+
+            updated_store = (
+                getattr(store, "update_time", None)
+                or getattr(store, "updateTime", None)
+                or getattr(store, "create_time", None)
+                or getattr(store, "createTime", None)
+            )
+            last_updated = ""
+            if updated_store is not None:
+                last_updated = (
+                    updated_store.isoformat()
+                    if hasattr(updated_store, "isoformat")
+                    else str(updated_store)
+                )
+
+            out.append(
+                {
+                    "id": name,
+                    "name": display,
+                    "description": getattr(store, "description", None) or "",
+                    "storeId": name,
+                    "status": getattr(store, "state", None) or "ACTIVE",
+                    "files": files,
+                    "fileCount": len(files),
+                    "lastUpdated": last_updated,
+                }
+            )
+    except Exception as exc:
+        logger.error("list file_search_stores failed", error=str(exc))
+        raise
+
+    return out
+
+
+def policy_chat_with_file_search_stores(
+    store_names: List[str],
+    contents: List[Any],
+) -> Dict[str, Any]:
+    """Run a Gemini turn with File Search over the given stores.
+
+    ``contents`` is a list of ``google.genai.types.Content`` (full conversation).
+    """
+    client = get_genai_raw_client()
+    if not client:
+        raise ValueError("GEMINI_API_KEY is not configured")
+    if not store_names:
+        raise ValueError("At least one file search store is required")
+    if not contents:
+        raise ValueError("contents must not be empty")
+
+    from google.genai import types
+
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            tools=[
+                types.Tool(
+                    file_search=types.FileSearch(
+                        file_search_store_names=list(store_names),
+                    )
+                )
+            ]
+        ),
+    )
+
+    text = getattr(response, "text", None) or ""
+    if not text and getattr(response, "candidates", None):
+        try:
+            parts = response.candidates[0].content.parts
+            text = "".join(getattr(p, "text", "") or "" for p in parts)
+        except (IndexError, AttributeError, TypeError):
+            text = ""
+
+    sources = []
+    try:
+        gm = getattr(response, "grounding_metadata", None)
+        chunks = getattr(gm, "grounding_chunks", None) if gm else None
+        if chunks:
+            for ch in chunks:
+                web = getattr(ch, "web", None)
+                title = getattr(web, "title", None) if web else None
+                uri = getattr(web, "uri", None) if web else None
+                if title or uri:
+                    sources.append(
+                        {"title": title or "Source", "uri": uri or "#"}
+                    )
+        ctx = getattr(gm, "retrieval_metadata", None) if gm else None
+        docs = getattr(ctx, "grounding_file_metadata", None) if ctx else None
+        if docs:
+            for d in docs:
+                t = getattr(d, "display_name", None) or getattr(d, "uri", None)
+                u = getattr(d, "uri", None) or "#"
+                if t:
+                    sources.append({"title": str(t), "uri": str(u)})
+    except Exception:
+        pass
+
+    return {
+        "text": text.strip() or "No response from model.",
+        "sources": sources[:20],
+    }
