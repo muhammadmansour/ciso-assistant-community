@@ -83,7 +83,7 @@ GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
 # Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
-MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-stage.wathbahs.com/api/audit/analyze}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbah.dev/api/audit/analyze}"
 
 # PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
 # Other PM2 apps on the host (e.g. ciso-stage-*, production) are left running.

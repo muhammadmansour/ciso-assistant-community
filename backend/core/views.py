@@ -4264,7 +4264,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-stage.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         from core.models import AiAnalysisResult
@@ -10334,7 +10334,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-stage.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
