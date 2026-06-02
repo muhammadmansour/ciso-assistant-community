@@ -12,18 +12,11 @@ import('$lib/utils/constants')
 	.catch(() => {});
 
 defineCustomClientStrategy('custom-userPreference', {
-	getLocale: () => {
-		return page?.data?.user?.preferences?.lang;
-	},
-	/**
-	 * NOTE: setLocale is delegated to paraglide's cookie strategy
-	 */
+	getLocale: () => 'en',
 	setLocale: async () => {}
 });
 
 defineCustomClientStrategy('custom-fallback', {
-	getLocale: () => {
-		return defaultLanguage;
-	},
+	getLocale: () => 'en',
 	setLocale: async () => {}
 });

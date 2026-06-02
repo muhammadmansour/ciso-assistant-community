@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LOCALE_MAP, language, defaultLangLabels } from '$lib/utils/locales';
 	import { m } from '$paraglide/messages';
-	import { getLocale, locales, setLocale } from '$paraglide/runtime';
+	import { WATHBAH_ADMIN_CONSOLE_URL } from '$lib/utils/constants';
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
 
 	import { getModalStore, type ModalSettings } from '$lib/components/Modals/stores';
@@ -10,17 +9,6 @@
 	const dispatch = createEventDispatcher();
 
 	const modalStore = getModalStore();
-
-	let value = $state(getLocale());
-	async function handleLocaleChange(event: Event) {
-		value = event?.target?.value;
-		await fetch('/fe-api/user-preferences', {
-			method: 'PATCH',
-			body: JSON.stringify({
-				lang: value
-			})
-		}).then(() => setLocale(value));
-	}
 
 	async function modalBuildInfo() {
 		const res = await fetch('/fe-api/build').then((res) => res.json());
@@ -44,19 +32,6 @@
 </script>
 
 <div class="border-t border-white/10 pt-3 mt-auto space-y-3">
-	{#if page.data.user?.is_admin}
-		<a
-			href="https://grc-admin.wathbah.dev/"
-			target="_blank"
-			rel="noopener noreferrer"
-			class="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-white/15 text-white/80 hover:bg-white/8 hover:text-white transition-all duration-150 group"
-		>
-			<div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center group-hover:bg-white/15 transition-colors">
-				<i class="fa-solid fa-gear text-xs text-white/70 group-hover:text-white"></i>
-			</div>
-			<span class="text-[13px] font-medium tracking-wide">WathbahGRC Admin</span>
-		</a>
-	{/if}
 	<div class="flex flex-row items-center justify-between">
 		<div class="flex flex-col w-3/4 min-w-0">
 			{#if page.data.user}
@@ -105,42 +80,13 @@
 							data-testid="profile-button"
 							><i class="fa-solid fa-address-card mr-2"></i>{m.myProfile()}</a
 						>
-						<select
-							{value}
-							onchange={handleLocaleChange}
-							class="border-y-white border-x-gray-100 focus:border-y-white focus:border-x-gray-100 w-full px-4 py-2.5 cursor-pointer block text-sm text-gray-800 bg-white focus:ring-0"
-							data-testid="language-select"
-						>
-							{#each locales as lang}
-								<option value={lang} selected={lang === getLocale()}>
-									{defaultLangLabels[lang]} ({language[LOCALE_MAP[lang].name]})
-								</option>
-							{/each}
-						</select>
-						<button
-							onclick={() => dispatch('triggerGT')}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="gt-button"
-							><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>{m.guidedTour()}</button
-						>
-						<button
-							onclick={() => dispatch('loadDemoDomain')}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="load-demo-data-button"
-							><i class="fa-solid fa-file-import mr-2"></i>{m.loadDemoData()}</button
-						>
-						<button
-							onclick={modalBuildInfo}
-							class="cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="about-button"
-							><i class="fa-solid fa-circle-info mr-2"></i>{m.aboutCiso()}</button
-						>
-						<a
-							href="https://intuitem.gitbook.io/ciso-assistant"
-							target="_blank"
-							class="unstyled cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-							data-testid="docs-button"><i class="fa-solid fa-book mr-2"></i>{m.onlineDocs()}</a
-						>
+						<!--
+							Wathbah customisation: hide Guided tour, Load demo data, About,
+							and Online documentation entries from the user popover. Keep the
+							handlers and `modalBuildInfo` intact so upstream behaviour is easy
+							to restore by removing this comment block and re-adding the
+							buttons below.
+						-->
 						<form action="/logout" method="POST">
 							<button class="w-full" type="submit" data-testid="logout-button">
 								<span
@@ -161,4 +107,17 @@
 			>
 		{/if}
 	</div>
+
+	{#if WATHBAH_ADMIN_CONSOLE_URL && page.data.user}
+		<a
+			href={WATHBAH_ADMIN_CONSOLE_URL}
+			target="_blank"
+			rel="noopener noreferrer"
+			class="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg border border-white/25 text-white/90 hover:bg-white/10 hover:text-white hover:border-white/40 transition-colors text-sm"
+			data-testid="sidebar-wathbah-admin-console"
+		>
+			<i class="fa-solid fa-gear text-white/80"></i>
+			<span class="font-medium">WathbahGRC Admin</span>
+		</a>
+	{/if}
 </div>

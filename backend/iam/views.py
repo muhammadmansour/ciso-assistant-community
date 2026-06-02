@@ -1,4 +1,5 @@
-from base64 import urlsafe_b64decode
+import binascii
+from django.utils.http import urlsafe_base64_decode
 from datetime import timedelta
 
 import structlog
@@ -10,7 +11,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from knox import crypto
 from knox.auth import TokenAuthentication, get_token_model, knox_settings
 from knox.models import AuthToken
@@ -29,6 +30,7 @@ from rest_framework.status import (
 from ciso_assistant.settings import EMAIL_HOST, EMAIL_HOST_RESCUE
 
 from global_settings.models import GlobalSettings
+from .invitation_tokens import invitation_token_generator
 from .models import Folder, PersonalAccessToken, Role, RoleAssignment
 from .serializers import (
     ChangePasswordSerializer,
@@ -341,42 +343,77 @@ class PasswordResetView(views.APIView):
         )
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ResetPasswordConfirmView(views.APIView):
     """
     API Endpoint for reset password confirm
     """
 
     default_token_generator = PasswordResetTokenGenerator()
+    authentication_classes = ()
     permission_classes = [permissions.AllowAny]
     serialier_class = ResetPasswordConfirmSerializer
     token_generator = default_token_generator
 
     def get_user(self, uidb64):
         try:
-            # urlsafe_base64_decode() decodes to bytestring
-            uid = urlsafe_b64decode(uidb64).decode()
+            uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
         except (
             TypeError,
             ValueError,
             OverflowError,
+            binascii.Error,
+            UnicodeDecodeError,
             User.DoesNotExist,
         ):
             user = None
         return user
 
-    @method_decorator(ensure_csrf_cookie)
     def post(self, request, *args, **kwargs):
         serializer = ResetPasswordConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        uidb64 = serializer.validated_data.get("uidb64")
-        token = serializer.validated_data.get("token")
+        uidb64 = (serializer.validated_data.get("uidb64") or "").strip()
+        token = (serializer.validated_data.get("token") or "").strip()
         new_password = serializer.validated_data.get("new_password")
         user = self.get_user(uidb64)
-        if (
-            user is not None and user.is_local
-        ):  # Only local user can reset their password.
-            if self.token_generator.check_token(user, token):
+        if user is None:
+            logger.warning(
+                "password_reset_confirm_rejected",
+                reason="user_not_found",
+                uidb64_length=len(uidb64),
+                token_length=len(token),
+            )
+        elif not user.is_active:
+            logger.warning(
+                "password_reset_confirm_rejected",
+                reason="user_inactive",
+                user_id=str(user.pk),
+            )
+        else:
+            default_ok = self.token_generator.check_token(user, token)
+            invite_ok = invitation_token_generator.check_token(user, token)
+            if not (default_ok or invite_ok):
+                logger.warning(
+                    "password_reset_confirm_rejected",
+                    reason="invalid_or_expired_token",
+                    user_id=str(user.pk),
+                    default_token_valid=default_ok,
+                    invitation_token_valid=invite_ok,
+                    token_length=len(token),
+                    uidb64_length=len(uidb64),
+                )
+            else:
+                try:
+                    sso_settings = GlobalSettings.objects.get(
+                        name=GlobalSettings.Names.SSO
+                    ).value
+                except GlobalSettings.DoesNotExist:
+                    sso_settings = {}
+                if sso_settings.get("is_enabled", False) and sso_settings.get(
+                    "force_sso", False
+                ):
+                    user.keep_local_login = True
                 user.set_password(new_password)
                 user.save()
                 return Response(status=status.HTTP_200_OK)

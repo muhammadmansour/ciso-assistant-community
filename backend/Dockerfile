@@ -48,5 +48,8 @@ RUN poetry install --no-root \
 #watch out for local files during dev and maintenance of .dockerignore
 COPY . .
 
+# Runtime artefact dirs (see .dockerignore db/ — not baked in).
+RUN mkdir -p /code/db
+
 EXPOSE 8000
 ENTRYPOINT ["poetry", "run", "bash", "startup.sh"]

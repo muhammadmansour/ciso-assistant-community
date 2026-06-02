@@ -31,7 +31,6 @@
 	let { data, form }: Props = $props();
 	let URLModel = $derived(data.URLModel);
 	let exportPopupOpen = $state(false);
-	let isDeletingAll = $state(false);
 	let isFetchingMuraji = $state(false);
 
 	const modalStore: ModalStore = getModalStore();
@@ -303,16 +302,23 @@
 									: URLModel === 'frameworks'
 										? m.importFrameworks()
 										: m.importMappings()}
-							<Anchor
-								{href}
-								onclick={handleClickForGT}
-								label={m.libraries()}
-								class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
-								data-testid="import-button"
-								id="add-button"
-								{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
-							>
-							{#if URLModel === 'frameworks'}
+							<!--
+								Hidden per request: import-libraries button and Muraji sync button
+								on the frameworks list. Re-enable by removing the {#if false} guards
+								and restoring the URLModel !== 'frameworks' check.
+							-->
+							{#if URLModel !== 'frameworks'}
+								<Anchor
+									{href}
+									onclick={handleClickForGT}
+									label={m.libraries()}
+									class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
+									data-testid="import-button"
+									id="add-button"
+									{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
+								>
+							{/if}
+							{#if false && URLModel === 'frameworks'}
 								<form
 									method="POST"
 									action="?/fetchMuraji"
@@ -337,36 +343,6 @@
 										{:else}
 											<i class="fa-solid fa-cloud-arrow-down"></i>
 											<span>مزامنة مع مراجع</span>
-										{/if}
-									</button>
-								</form>
-								<form
-									method="POST"
-									action="?/deleteAll"
-									use:enhance={() => {
-										isDeletingAll = true;
-										return async ({ result, update }) => {
-											isDeletingAll = false;
-											await update();
-											await invalidateAll();
-										};
-									}}
-								>
-									<button
-										type="submit"
-										class="inline-block p-3 text-red-600 hover:bg-red-50 w-12 focus:relative"
-										title="Delete all frameworks"
-										disabled={isDeletingAll}
-										onclick={(e) => {
-											if (!confirm('Are you sure you want to delete ALL frameworks? This action cannot be undone.')) {
-												e.preventDefault();
-											}
-										}}
-									>
-										{#if isDeletingAll}
-											<i class="fa-solid fa-spinner fa-spin"></i>
-										{:else}
-											<i class="fa-solid fa-trash-can"></i>
 										{/if}
 									</button>
 								</form>

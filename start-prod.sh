@@ -62,9 +62,9 @@ export DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-info@wathbahs.com}
 # Gemini
 export GEMINI_API_KEY=${GEMINI_API_KEY:-}
 
-# Gunicorn settings (adjust based on your GCP VM)
+# Gunicorn: must exceed synchronous AI analysis outbound HTTP waits (views use timeout=300s).
 export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}  # 2 * num_cores + 1
-export GUNICORN_TIMEOUT=120
+export GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-360}
 export GUNICORN_KEEPALIVE=30
 
 # Colors for output

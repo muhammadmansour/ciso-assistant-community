@@ -1667,11 +1667,19 @@ class EvidenceWriteSerializer(BaseModelSerializer):
             evidence=evidence, defaults={"link": link, "attachment": attachment}
         )
 
+        # Notify newly-assigned owners. The owner M2M was already written by
+        # super().create(), so we read it back from the instance.
+        owner_ids = list(evidence.owner.values_list("id", flat=True))
+        if owner_ids:
+            self._send_assignment_notifications(evidence, owner_ids)
+
         return evidence
 
     def update(self, instance, validated_data):
         # Track old folder before update
         old_folder_id = instance.folder_id
+        # Snapshot existing owners so we only notify newly-added ones.
+        old_owner_ids = set(instance.owner.values_list("id", flat=True))
 
         # Handle properly owner field cleaning
         owners = validated_data.get("owner", None)
@@ -1685,7 +1693,38 @@ class EvidenceWriteSerializer(BaseModelSerializer):
                 folder=instance.folder
             )
 
+        new_owner_ids = set(instance.owner.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(instance, list(newly_assigned_ids))
+
         return instance
+
+    def _send_assignment_notifications(self, evidence, owner_ids):
+        """Send assignment notifications to the specified owners.
+
+        Mirrors AppliedControlWriteSerializer._send_assignment_notifications:
+        a synchronous call into core.tasks via the Muraji email API. Failures
+        are caught so a flaky email path never blocks the write.
+        """
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_evidence_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_evidence_assignment_notification(evidence.id, assigned_emails)
+        except Exception as e:
+            logger.error(
+                f"Failed to send Evidence assignment notification: {str(e)}"
+            )
 
     def to_representation(self, instance):
         """Include link and attachment from the latest revision in the response"""
@@ -1735,17 +1774,17 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
         fields = "__all__"
     
     def get_file_search(self, obj):
-        """Get Gemini File Search data if available"""
+        """Get Gemini File Search Store data if available."""
         try:
-            if hasattr(obj, 'file_search'):
-                fs = obj.file_search
+            fs = getattr(obj, 'file_search', None)
+            if fs is not None:
                 return {
-                    'gemini_file_id': fs.gemini_file_id,
+                    'gemini_document_id': fs.gemini_document_id,
                     'gemini_store_id': fs.gemini_store_id,
                     'upload_status': fs.upload_status,
-                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None
+                    'updated_at': fs.updated_at.isoformat() if fs.updated_at else None,
                 }
-        except:
+        except Exception:
             pass
         return None
 

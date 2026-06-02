@@ -3954,35 +3954,48 @@ class AiAnalysisResult(models.Model):
 
 
 class FileSearchTable(models.Model):
-    """Stores Gemini File Search IDs for uploaded evidence files"""
-    
+    """Records the durable Gemini File Search Store reference for an evidence file.
+
+    Each row tracks the indexed ``gemini_document_id`` produced by uploading the
+    evidence to a File Search Store. These document names are durable: they
+    persist until explicitly deleted and never expire, so a single reference is
+    sufficient for any future analysis.
+    """
+
     class UploadStatus(models.TextChoices):
         PENDING = "pending", "Pending"
         UPLOADING = "uploading", "Uploading"
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created at"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated at"))
-    
+
     evidence_revision = models.OneToOneField(
         "EvidenceRevision",
         on_delete=models.CASCADE,
         related_name="file_search",
         verbose_name=_("Evidence Revision")
     )
-    
-    # Gemini File Search IDs
-    gemini_file_id = models.CharField(
-        max_length=255,
-        verbose_name=_("Gemini File ID"),
-        help_text=_("The file ID returned by Gemini File Search")
+
+    gemini_document_id = models.CharField(
+        max_length=512,
+        blank=True,
+        default="",
+        verbose_name=_("Gemini Store Document ID"),
+        help_text=_(
+            "File Search Store document name "
+            "(fileSearchStores/<store>/documents/<doc-id>). Durable — does not expire."
+        ),
     )
+
     gemini_store_id = models.CharField(
         max_length=255,
+        blank=True,
+        default="",
         verbose_name=_("Gemini File Search Store ID"),
-        help_text=_("The File Search Store this file belongs to")
+        help_text=_("The File Search Store this document belongs to")
     )
     operation_id = models.CharField(
         max_length=255,
@@ -3991,7 +4004,7 @@ class FileSearchTable(models.Model):
         verbose_name=_("Gemini Operation ID"),
         help_text=_("The operation ID for tracking upload status")
     )
-    
+
     upload_status = models.CharField(
         max_length=20,
         choices=UploadStatus.choices,
@@ -4003,17 +4016,24 @@ class FileSearchTable(models.Model):
         blank=True,
         verbose_name=_("Error Message")
     )
-    
+
     class Meta:
         verbose_name = _("File Search Entry")
         verbose_name_plural = _("File Search Entries")
         indexes = [
-            models.Index(fields=['gemini_file_id']),
+            models.Index(fields=['gemini_document_id'], name='core_filese_gemini__idx'),
             models.Index(fields=['upload_status']),
         ]
-    
+
     def __str__(self):
         return f"FileSearch for {self.evidence_revision.evidence.name} - {self.upload_status}"
+
+    def has_durable_document(self) -> bool:
+        """True when an indexed File Search Store document is recorded."""
+        return bool(
+            self.gemini_document_id
+            and self.gemini_document_id.startswith("fileSearchStores/")
+        )
 
 
 class EvidenceRevision(AbstractBaseModel, FolderMixin):

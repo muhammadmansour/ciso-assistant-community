@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { getCSRFToken } from '$lib/django';
+	import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
 
 	interface PolicyFile {
 		id: string;
@@ -62,14 +64,19 @@
 		loading = true;
 		error = '';
 		try {
-			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections');
+			const res = await fetch('/fe-api/policy-collections/', {
+				credentials: 'include'
+			});
 			const json = await res.json();
-			if (json.success) {
-				collections = Array.isArray(json.data) ? json.data : [json.data];
-				expandedCollections = new Set(collections.map((c) => c.id));
-			} else {
-				error = 'Failed to load collections';
+			if (!res.ok || !json.success) {
+				error =
+					(typeof json.message === 'string' && json.message) ||
+					(!res.ok ? `Request failed (${res.status})` : 'Failed to load collections');
+				collections = [];
+				return;
 			}
+			collections = Array.isArray(json.data) ? json.data : json.data ? [json.data] : [];
+			expandedCollections = new Set(collections.map((c) => c.id));
 		} catch (e) {
 			error = 'Failed to connect to server';
 		} finally {
@@ -175,9 +182,13 @@
 				body.sessionId = chatSessionId;
 			}
 
-			const res = await fetch('https://grc-admin.wathbah.dev/api/policy-collections/chat', {
+			const res = await fetch('/fe-api/policy-collections/chat/', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRFToken': getCSRFToken() || ''
+				},
 				body: JSON.stringify(body)
 			});
 
@@ -325,7 +336,15 @@
 										? 'bg-[#0077CC] text-white rounded-br-md'
 										: 'bg-white text-gray-700 border border-gray-200 rounded-bl-md shadow-sm'}"
 								>
-									<div class="whitespace-pre-wrap">{msg.content}</div>
+									{#if msg.role === 'user'}
+										<div class="whitespace-pre-wrap">{msg.content}</div>
+									{:else}
+										<MarkdownRenderer
+											content={msg.content}
+											emptyDisplay="none"
+											class="policy-chat-prose text-gray-700 [&_p]:my-1.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h4]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold [&_h1]:mt-2 [&_h1]:mb-1 [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:mt-1.5 [&_h3]:mb-0.5 [&_strong]:text-gray-800 [&_a]:text-[#0077CC]"
+										/>
+									{/if}
 									{#if msg.sources && msg.sources.length > 0}
 										<div class="mt-2 pt-2 border-t border-gray-100">
 											<p

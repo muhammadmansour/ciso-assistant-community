@@ -251,7 +251,7 @@
 		complianceResultColorMap[mappingInference.result] === '#000000' ? 'text-white' : ''
 	);
 
-	let group = $state(page.data.user.is_third_party ? 'evidences' : 'applied_controls');
+	let group = $state('applied_controls');
 
 	// Refresh AutompleteSelect to assign created applied control/evidence
 	let refreshKey = $state(false);
@@ -730,6 +730,33 @@
 		'riskassessment', 'risk_assessment', 'note', 'aimodel', 'ai_model',
 	]);
 
+	// Keys to always hide from any generic key/value renderer in the report.
+	// Used to suppress implementation details (e.g. underlying model name) from
+	// the rendered output regardless of where they appear in the response tree.
+	const hiddenRenderKeys = new Set([
+		'aimodel', 'ai_model', 'model', 'modelname', 'model_name',
+		'provider', 'llm', 'llmmodel', 'llm_model',
+	]);
+
+	const shouldHideKey = (k: string): boolean =>
+		hiddenRenderKeys.has(k) || hiddenRenderKeys.has(k.toLowerCase());
+
+	// Recursively strip hidden keys from an arbitrary object tree. Used
+	// before dumping raw JSON so nested implementation-detail fields never
+	// surface in the rendered report.
+	function stripHiddenKeys(value: any): any {
+		if (Array.isArray(value)) return value.map(stripHiddenKeys);
+		if (value !== null && typeof value === 'object') {
+			const out: Record<string, any> = {};
+			for (const [k, v] of Object.entries(value)) {
+				if (shouldHideKey(k)) continue;
+				out[k] = stripHiddenKeys(v);
+			}
+			return out;
+		}
+		return value;
+	}
+
 	const isReportSection = (key: string, value: any) =>
 		typeof value === 'object' && value !== null && !metadataKeys.has(key) && !metadataKeys.has(key.toLowerCase());
 
@@ -967,9 +994,6 @@
 		<div>
 			<div class="flex items-center gap-3 mb-1">
 				<h1 class="text-2xl font-bold text-gray-900">{data.requirement.ref_id}</h1>
-				<span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-white border border-[#005FA3]/20 text-[#005FA3]">
-					{data.requirement.urn}
-				</span>
 			</div>
 			<p class="text-sm text-gray-500">{data.requirementAssessment.name}</p>
 		</div>
@@ -1266,14 +1290,20 @@
 									onclick={() => (group = 'applied_controls')}
 								>{m.appliedControls()}</button>
 							{/if}
-							<button type="button"
-								class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-								onclick={() => (group = 'evidences')}
-							>{m.evidences()}</button>
-						<button type="button"
-							class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-							onclick={() => (group = 'security_exceptions')}
-						>{m.securityExceptions()}</button>
+							<!--
+								Hidden per request: Evidences and Security Exceptions tab triggers.
+								Re-enable by removing the {#if false} guards below.
+							-->
+							{#if false}
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'evidences' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'evidences')}
+								>{m.evidences()}</button>
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'security_exceptions' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'security_exceptions')}
+								>{m.securityExceptions()}</button>
+							{/if}
 					</div>
 					{/snippet}
 						{#snippet content()}
@@ -1341,70 +1371,76 @@
 									/>
 								</div>
 							</Tabs.Panel>
-							<Tabs.Panel value="evidences">
-								<div class="flex items-center mb-2 px-2 text-xs space-x-2">
-									<i class="fa-solid fa-info-circle"></i>
-									<p>{m.requirementEvidenceHelpText()}</p>
-								</div>
-								<div class="h-full flex flex-col space-y-2 rounded-container p-4">
-									<span class="flex flex-row justify-end items-center">
-										<button
-											class="btn preset-filled-primary-500 self-end"
-											onclick={modalEvidenceCreateForm}
-											type="button"><i class="fa-solid fa-plus mr-2"></i>{m.addEvidence()}</button
-										>
-									</span>
-									{#key refreshKey}
-										<AutocompleteSelect
-											multiple
-											{form}
-											optionsEndpoint="evidences"
-											optionsExtraFields={[['folder', 'str']]}
-											optionsDetailedUrlParameters={[
-												['scope_folder_id', page.data.requirementAssessment.folder.id]
-											]}
-											field="evidences"
+							<!--
+								Hidden per request: Evidences and Security Exceptions tab panels.
+								Re-enable by removing the {#if false} guards below.
+							-->
+							{#if false}
+								<Tabs.Panel value="evidences">
+									<div class="flex items-center mb-2 px-2 text-xs space-x-2">
+										<i class="fa-solid fa-info-circle"></i>
+										<p>{m.requirementEvidenceHelpText()}</p>
+									</div>
+									<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+										<span class="flex flex-row justify-end items-center">
+											<button
+												class="btn preset-filled-primary-500 self-end"
+												onclick={modalEvidenceCreateForm}
+												type="button"><i class="fa-solid fa-plus mr-2"></i>{m.addEvidence()}</button
+											>
+										</span>
+										{#key refreshKey}
+											<AutocompleteSelect
+												multiple
+												{form}
+												optionsEndpoint="evidences"
+												optionsExtraFields={[['folder', 'str']]}
+												optionsDetailedUrlParameters={[
+													['scope_folder_id', page.data.requirementAssessment.folder.id]
+												]}
+												field="evidences"
+											/>
+										{/key}
+										<ModelTable
+											source={page.data.tables['evidences']}
+											hideFilters={true}
+											URLModel="evidences"
+											expectedCount={countMasked(page.data.requirementAssessment.evidences)}
+											baseEndpoint="/evidences?requirement_assessments={page.data
+												.requirementAssessment.id}"
 										/>
-									{/key}
-									<ModelTable
-										source={page.data.tables['evidences']}
-										hideFilters={true}
-										URLModel="evidences"
-										expectedCount={countMasked(page.data.requirementAssessment.evidences)}
-										baseEndpoint="/evidences?requirement_assessments={page.data
-											.requirementAssessment.id}"
-									/>
-								</div>
-							</Tabs.Panel>
-						<Tabs.Panel value="security_exceptions">
-							<div class="h-full flex flex-col space-y-2 rounded-container p-4">
-								<span class="flex flex-row justify-end items-center">
-									<button
-										class="btn preset-filled-primary-500 self-end"
-										onclick={modalSecurityExceptionCreateForm}
-										type="button"
-										><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
-									>
-								</span>
-								{#key refreshKey}
-									<AutocompleteSelect
-										multiple
-										{form}
-										optionsEndpoint="security-exceptions"
-										optionsExtraFields={[['folder', 'str']]}
-										field="security_exceptions"
-									/>
-								{/key}
-								<ModelTable
-									source={page.data.tables['security-exceptions']}
-									hideFilters={true}
-									URLModel="security-exceptions"
-									expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
-									baseEndpoint="/security-exceptions?requirement_assessments={page.data
-										.requirementAssessment.id}"
-								/>
-							</div>
-					</Tabs.Panel>
+									</div>
+								</Tabs.Panel>
+								<Tabs.Panel value="security_exceptions">
+									<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+										<span class="flex flex-row justify-end items-center">
+											<button
+												class="btn preset-filled-primary-500 self-end"
+												onclick={modalSecurityExceptionCreateForm}
+												type="button"
+												><i class="fa-solid fa-plus mr-2"></i>{m.addSecurityException()}</button
+											>
+										</span>
+										{#key refreshKey}
+											<AutocompleteSelect
+												multiple
+												{form}
+												optionsEndpoint="security-exceptions"
+												optionsExtraFields={[['folder', 'str']]}
+												field="security_exceptions"
+											/>
+										{/key}
+										<ModelTable
+											source={page.data.tables['security-exceptions']}
+											hideFilters={true}
+											URLModel="security-exceptions"
+											expectedCount={countMasked(page.data.requirementAssessment.security_exceptions)}
+											baseEndpoint="/security-exceptions?requirement_assessments={page.data
+												.requirementAssessment.id}"
+										/>
+									</div>
+								</Tabs.Panel>
+							{/if}
 				{/snippet}
 			</Tabs>
 			</div>
@@ -2346,11 +2382,11 @@
 														{/if}
 														<!-- Fallback: show remaining fields not already displayed -->
 														{#if typeof item === 'object'}
-															{@const shownKeys = new Set(['questionnumber', 'number', 'question', 'text', 'questiontext', 'answer', 'answered', 'selectedchoice', 'source', 'sourcefile', 'appliedcontrol', 'justification', 'explanation', 'notes', 'reasoning', 'evidence', 'evidencefound', 'evidencefile', 'confidence'])}
-															{#each Object.entries(item).filter(([k]) => !shownKeys.has(k.toLowerCase())) as [k, v]}
+														{@const shownKeys = new Set(['questionnumber', 'number', 'question', 'text', 'questiontext', 'answer', 'answered', 'selectedchoice', 'source', 'sourcefile', 'appliedcontrol', 'justification', 'explanation', 'notes', 'reasoning', 'evidence', 'evidencefound', 'evidencefile', 'confidence'])}
+														{#each Object.entries(item).filter(([k]) => !shownKeys.has(k.toLowerCase()) && !shouldHideKey(k)) as [k, v]}
 																<div class="flex items-start gap-2 text-sm">
 																	<span class="font-medium text-gray-500 shrink-0 min-w-[100px] capitalize">{k.replace(/_/g, ' ')}:</span>
-																	<span class="text-gray-700">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																	<span class="text-gray-700">{typeof v === 'object' ? JSON.stringify(stripHiddenKeys(v)) : v}</span>
 																</div>
 															{/each}
 														{/if}
@@ -2422,8 +2458,9 @@
 												{@const eFoundIn = getField(item, 'foundIn')}
 												{@const eDetails = getField(item, 'details')}
 												{@const statusLower = (eStatus || '').toLowerCase()}
-												{@const isFound = statusLower === 'found' || statusLower === 'موجود'}
-												{@const isPartial = statusLower === 'partial' || statusLower === 'جزئي' || statusLower.includes('partial') || statusLower.includes('جزئ')}
+												{@const isPartial = statusLower.includes('partial') || statusLower.includes('جزئ')}
+												{@const isNotFound = !isPartial && (statusLower.includes('غير') || statusLower.includes('not ') || statusLower.includes('missing') || statusLower.includes('absent') || statusLower.includes('not_found') || statusLower.includes('notfound'))}
+												{@const isFound = !isPartial && !isNotFound && (statusLower.includes('found') || statusLower.includes('موجود') || statusLower.includes('present') || statusLower.includes('available') || statusLower.includes('متوفر'))}
 												<div class="border border-gray-200 rounded-lg overflow-hidden">
 													<div class="flex items-center justify-between px-4 py-2 border-b border-gray-100 {isFound ? 'bg-green-50' : isPartial ? 'bg-yellow-50' : 'bg-red-50'}">
 														<span class="font-semibold text-sm text-gray-800">
@@ -2480,37 +2517,37 @@
 													</li>
 												{:else if typeof item === 'object' && item !== null}
 													<li class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-														{#each Object.entries(item) as [k, v]}
+														{#each Object.entries(item).filter(([k]) => !shouldHideKey(k)) as [k, v]}
 															<div class="mb-1">
 																<span class="font-medium text-gray-600 capitalize">{k.replace(/_/g, ' ')}:</span>
-																<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(v) : v}</span>
+																<span class="text-gray-700 ml-1">{typeof v === 'object' ? JSON.stringify(stripHiddenKeys(v)) : v}</span>
 															</div>
 														{/each}
 													</li>
 												{:else}
-													<li class="text-gray-700">{JSON.stringify(item)}</li>
+													<li class="text-gray-700">{JSON.stringify(stripHiddenKeys(item))}</li>
 												{/if}
 											{/each}
 										</ul>
 									{/if}
 
-								<!-- Object section (overallAssessment, etc.) -->
-								{:else if typeof sectionValue === 'object' && sectionValue !== null}
-									<div class="space-y-2">
-										{#each Object.entries(sectionValue) as [k, v]}
-											<div class="flex items-start gap-2">
-												<span class="font-medium text-gray-600 capitalize min-w-[140px] shrink-0">{k.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</span>
+							<!-- Object section (overallAssessment, etc.) -->
+							{:else if typeof sectionValue === 'object' && sectionValue !== null}
+								<div class="space-y-2">
+									{#each Object.entries(sectionValue).filter(([k]) => !shouldHideKey(k)) as [k, v]}
+										<div class="flex items-start gap-2">
+											<span class="font-medium text-gray-600 capitalize min-w-[140px] shrink-0">{k.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}:</span>
 												{#if typeof v === 'string'}
 													<span class="text-gray-700">{v}</span>
 												{:else}
-													<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(v, null, 2)}</pre>
+													<pre class="text-sm text-gray-700 bg-gray-50 rounded p-2 flex-1 overflow-x-auto">{JSON.stringify(stripHiddenKeys(v), null, 2)}</pre>
 												{/if}
 											</div>
 										{/each}
 									</div>
 
 								{:else}
-									<p class="text-gray-700">{JSON.stringify(sectionValue)}</p>
+									<p class="text-gray-700">{JSON.stringify(stripHiddenKeys(sectionValue))}</p>
 								{/if}
 							</div>
 						</div>
@@ -2532,9 +2569,9 @@
 
 					<!-- Fallback: if no sections were rendered, show raw -->
 					{#if getOrderedSections(result).length === 0 && !summaryText && !detailedAnalysis}
-						{@const displayResult = Object.fromEntries(
+						{@const displayResult = stripHiddenKeys(Object.fromEntries(
 							Object.entries(result).filter(([k]) => !metadataKeys.has(k) && !metadataKeys.has(k.toLowerCase()))
-						)}
+						))}
 						<div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
 							<pre class="whitespace-pre-wrap text-gray-700 text-sm">{JSON.stringify(displayResult, null, 2)}</pre>
 						</div>

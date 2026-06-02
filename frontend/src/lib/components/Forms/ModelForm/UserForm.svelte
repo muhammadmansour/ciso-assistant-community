@@ -34,7 +34,7 @@
 	bind:cachedValue={formDataCache['email']}
 	data-focusindex="2"
 />
-{#if shape.first_name && shape.last_name}
+{#if shape.first_name}
 	<TextField
 		{form}
 		field="first_name"
@@ -42,6 +42,8 @@
 		cacheLock={cacheLocks['first_name']}
 		bind:cachedValue={formDataCache['first_name']}
 	/>
+{/if}
+{#if shape.last_name}
 	<TextField
 		{form}
 		field="last_name"

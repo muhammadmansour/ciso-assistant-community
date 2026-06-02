@@ -9,6 +9,7 @@
 	import { CUSTOM_ACTIONS_COMPONENT, getFieldComponentMap, URL_MODEL_MAP } from '$lib/utils/crud';
 	import { safeTranslate, unsafeTranslate } from '$lib/utils/i18n';
 	import { toCamelCase } from '$lib/utils/locales.js';
+	import { get } from 'svelte/store';
 	import { onMount } from 'svelte';
 
 	import { tableA11y } from '$lib/components/ModelTable/actions';
@@ -247,6 +248,26 @@
 	);
 	const rows = handler.getRows();
 	let invalidateTable = $state(false);
+
+	// Evidences: reload while Gemini indexing is pending/uploading; stop polling once all visible rows settle.
+	const EVIDENCE_INDEXING_ACTIVE = new Set(['pending', 'uploading']);
+	$effect(() => {
+		if (!browser || URLModel !== 'evidences') {
+			return;
+		}
+		const POLL_MS = 10_000;
+		const id = window.setInterval(() => {
+			if (document.visibilityState !== 'visible') return;
+			const rowList = get(rows);
+			const anyInFlight = rowList.some((r) =>
+				EVIDENCE_INDEXING_ACTIVE.has(String((r.meta as { indexing_status?: string } | undefined)?.indexing_status ?? ''))
+			);
+			if (!anyInFlight) return;
+			// Reload list API only — avoid invalidateAll(), which reloads layout + retriggers attachment fetches.
+			handler.invalidate();
+		}, POLL_MS);
+		return () => clearInterval(id);
+	});
 
 	const relatedFieldNames = $derived(
 		new Set(model?.foreignKeyFields?.map((field) => field.field) ?? [])
@@ -674,7 +695,7 @@
 			<ContextMenu.Trigger>
 				{#snippet child({ props })}
 					<tbody {...props} class="w-full divide-y divide-gray-100 {regionBody}">
-						{#each $rows as row, rowIndex}
+						{#each $rows as row, rowIndex (row.meta?.id ?? rowIndex)}
 							{@const meta = row?.meta ?? row}
 							<tr
 								onclick={(e) => onRowClick(e, rowIndex)}

@@ -429,6 +429,57 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
             logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
 
 
+def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
+    """Send notification when Evidence is assigned to owners via Muraji API.
+
+    Mirrors send_applied_control_assignment_notification: synchronous send through
+    the same Muraji /api/mail/send endpoint that already powers AppliedControl
+    assignments, so production email deliverability is unchanged.
+    """
+    logger.info(
+        f"send_evidence_assignment_notification called with evidence_id={evidence_id}, "
+        f"emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for evidence assignment notification")
+        return
+
+    try:
+        evidence = Evidence.objects.get(id=evidence_id)
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence with id {evidence_id} not found")
+        return
+
+    from .email_utils import render_email_template
+
+    context = {
+        "evidence_id": str(evidence.id),
+        "evidence_name": evidence.name,
+        "evidence_description": evidence.description or "No description provided",
+        "evidence_status": evidence.get_status_display(),
+        "evidence_expiry_date": evidence.expiry_date.strftime("%Y-%m-%d")
+        if evidence.expiry_date
+        else "Not set",
+        "folder_name": evidence.folder.name if evidence.folder else "Default",
+    }
+
+    for email in assigned_user_emails:
+        logger.info(f"Processing evidence-assignment email notification for: {email}")
+        rendered = render_email_template("evidence_assignment", context)
+        if rendered:
+            logger.info(f"Sending Muraji evidence-assignment email to {email}")
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji evidence-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render evidence_assignment email template for {email}"
+            )
+
+
 @task()
 def send_task_template_assignment_notification(task_template_id, emails):
     """Send notification when TaskTemplate is assigned to users"""
@@ -968,9 +1019,9 @@ def run_applied_control_analysis(applied_control_id: str):
             applied_control_name=applied_control.name
         )
 
-        # Gather evidence info from associated evidences
+        # Gather evidence info + durable File Search Store document references.
         evidence_data = []
-        gemini_file_ids = []
+        gemini_documents = []
         evidences = applied_control.evidences.all()
 
         for evidence in evidences:
@@ -979,17 +1030,21 @@ def run_applied_control_analysis(applied_control_id: str):
                 'description': evidence.description or '',
             }
 
-            # Try to get Gemini File Search IDs if available
             for revision in evidence.revisions.all():
                 try:
-                    if hasattr(revision, 'file_search'):
-                        fs = revision.file_search
-                        if fs and fs.upload_status == 'completed':
-                            gemini_file_ids.append({
-                                'gemini_file_id': fs.gemini_file_id,
-                                'gemini_store_id': fs.gemini_store_id,
-                                'evidence_name': evidence.name,
-                            })
+                    fs = getattr(revision, 'file_search', None)
+                    if fs and fs.has_durable_document():
+                        gemini_documents.append({
+                            'gemini_document_id': fs.gemini_document_id,
+                            'gemini_store_id': fs.gemini_store_id,
+                            'evidence_name': evidence.name,
+                            # Stable upload identifiers — Muraji filters on
+                            # evidence_revision_id (see audit.service.js
+                            # _buildMetadataFilter) so retrieval is restricted
+                            # to exactly these documents, not the whole store.
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
+                        })
                 except Exception:
                     pass
 
@@ -1035,10 +1090,9 @@ def run_applied_control_analysis(applied_control_id: str):
             },
             'evidences': evidence_data,
             'gemini_file_search': {
-                'file_ids': [fs['gemini_file_id'] for fs in gemini_file_ids],
-                'store_id': gemini_file_ids[0]['gemini_store_id'] if gemini_file_ids else '',
-                'evidences': gemini_file_ids
-            } if gemini_file_ids else None,
+                'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+                'evidences': gemini_documents,
+            } if gemini_documents else None,
             'requirements': requirements_context,
             'questions': list(set(questions)),
             'typical_evidence': list(set(typical_evidence)),
@@ -1055,7 +1109,7 @@ def run_applied_control_analysis(applied_control_id: str):
             applied_control_id=applied_control_id,
             muraji_url=MURAJI_ANALYSIS_API_URL,
             evidence_count=len(evidence_data),
-            gemini_file_count=len(gemini_file_ids),
+            gemini_document_count=len(gemini_documents),
             question_count=len(questions),
             requirement_count=len(requirements_context)
         )

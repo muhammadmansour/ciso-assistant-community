@@ -27,6 +27,7 @@ export default defineConfig({
 			'localhost',
 			'ciso.wathbahs.com',
 			'grc.wathbahs.com',
+			'grc-hrsd.wathbahs.com',
 			'grc-stage.wathbahs.com',
 			'grc.wathbah.dev'
 		],

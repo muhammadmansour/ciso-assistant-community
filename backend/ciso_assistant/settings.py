@@ -139,7 +139,9 @@ for _host in [
     "grc.wathbah.dev",
     "grc.wathbahs.com",
     "grc-stage.wathbahs.com",
+    "grc-hrsd.wathbahs.com",
     "grc-admin.wathbahs.com",
+    "grc-admin-stage.wathbahs.com",
     "localhost",
 ]:
     if _host not in ALLOWED_HOSTS:
@@ -154,7 +156,9 @@ for _origin in [
     "https://grc.wathbah.dev",
     "https://grc.wathbahs.com",
     "https://grc-stage.wathbahs.com",
+    "https://grc-hrsd.wathbahs.com",
     "https://grc-admin.wathbahs.com",
+    "https://grc-admin-stage.wathbahs.com",
 ]:
     if _origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_origin)
@@ -166,6 +170,11 @@ ATTACHMENT_MAX_SIZE_MB = os.environ.get("ATTACHMENT_MAX_SIZE_MB", 25)
 ATTACHMENT_MAX_NAME_LENGTH = int(os.environ.get("ATTACHMENT_MAX_NAME_LENGTH", 256))
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
+USE_GCS = os.getenv("USE_GCS", "False") == "True"
+
+if USE_S3 and USE_GCS:
+    logger.error("USE_S3 and USE_GCS are mutually exclusive; set only one to True.")
+    exit(1)
 
 if USE_S3:
     STORAGES = {
@@ -197,6 +206,54 @@ if USE_S3:
     logger.info("AWS_S3_ENDPOINT_URL: %s", AWS_S3_ENDPOINT_URL)
 
     AWS_S3_FILE_OVERWRITE = False
+
+elif USE_GCS:
+    # Google Cloud Storage backend (via django-storages + google-cloud-storage).
+    # Auth precedence:
+    #   1. GOOGLE_APPLICATION_CREDENTIALS pointing to a service-account JSON key file.
+    #   2. Application Default Credentials (Workload Identity / GCE / Cloud Run / GKE).
+    GS_BUCKET_NAME = os.getenv("GS_BUCKET_NAME")
+    GS_PROJECT_ID = os.getenv("GS_PROJECT_ID")
+    GS_LOCATION = os.getenv("GS_LOCATION", "")
+    GS_DEFAULT_ACL = None  # uniform bucket-level access; objects stay private
+    GS_FILE_OVERWRITE = False
+    GS_QUERYSTRING_AUTH = True  # serve attachments via short-lived signed URLs
+    GS_EXPIRATION = timedelta(
+        seconds=int(os.getenv("GS_SIGNED_URL_EXPIRATION_SECONDS", "900"))
+    )
+
+    _gcs_creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if _gcs_creds_path:
+        try:
+            from google.oauth2 import service_account
+
+            GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
+                _gcs_creds_path
+            )
+        except Exception as exc:  # pragma: no cover - fail fast on misconfiguration
+            logger.error(
+                "Failed to load GOOGLE_APPLICATION_CREDENTIALS at %s: %s",
+                _gcs_creds_path,
+                exc,
+            )
+            exit(1)
+
+    if not GS_BUCKET_NAME:
+        logger.error("GS_BUCKET_NAME must be set when USE_GCS=True")
+        exit(1)
+
+    logger.info("GS_BUCKET_NAME: %s", GS_BUCKET_NAME)
+    if GS_PROJECT_ID:
+        logger.info("GS_PROJECT_ID: %s", GS_PROJECT_ID)
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 else:
     MEDIA_ROOT = LOCAL_STORAGE_DIRECTORY

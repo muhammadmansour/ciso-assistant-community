@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import { getModelInfo } from '$lib/utils/crud.js';
+	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
 	import type { ModalComponent, ModalSettings, ModalStore } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
@@ -291,16 +293,46 @@
 	}
 
 	onMount(async () => {
-		const fetchAttachment = async () => {
-			const res = await fetch(`./${data.data.id}/attachment`);
-			const blob = await res.blob();
-			return {
-				type: blob.type,
-				url: URL.createObjectURL(blob),
-				fileExists: res.ok
-			};
-		};
-		attachment = data.data.attachment ? await fetchAttachment() : undefined;
+		async function primeAttachmentPreview() {
+			if (!browser || !data.data.attachment) {
+				attachment = undefined;
+				return;
+			}
+			const rel = `./${data.data.id}/attachment`;
+			const absUrl = new URL(rel, window.location.href).href;
+			const guessed = guessMimeFromEvidenceField(data.data.attachment);
+			const streamInline = guessed === 'application/pdf' || guessed.startsWith('image/');
+
+			if (streamInline) {
+				attachment = {
+					type: guessed,
+					url: absUrl,
+					fileExists: true
+				};
+				return;
+			}
+
+			try {
+				const res = await fetch(rel, { method: 'HEAD', credentials: 'include' });
+				let ct = normalizedMime(res.headers.get('Content-Type'));
+				if (ct === 'application/octet-stream' && guessed !== 'application/octet-stream') {
+					ct = guessed;
+				}
+				attachment = {
+					type: ct,
+					url: absUrl,
+					fileExists: res.ok
+				};
+			} catch {
+				attachment = {
+					type: guessed,
+					url: absUrl,
+					fileExists: true
+				};
+			}
+		}
+
+		await primeAttachmentPreview();
 		
 		// Check if auto-analysis should run (via URL param from redirect after creation)
 		const urlParams = new URLSearchParams(window.location.search);
@@ -369,10 +401,16 @@
 					<i class="fa-solid fa-eye mr-2"></i>
 					{m.preview ? m.preview() : 'Preview'}
 				</Tabs.Control>
-				<Tabs.Control value="entity-extraction">
-					<i class="fa-solid fa-tags mr-2"></i>
-					Entity Extraction
-				</Tabs.Control>
+				<!--
+					Hidden per request: Entity Extraction tab.
+					Re-enable by removing the {#if false} guard below.
+				-->
+				{#if false}
+					<Tabs.Control value="entity-extraction">
+						<i class="fa-solid fa-tags mr-2"></i>
+						Entity Extraction
+					</Tabs.Control>
+				{/if}
 				<Tabs.Control value="ai-analysis">
 					<i class="fa-solid fa-brain mr-2"></i>
 					AI Analysis
@@ -383,13 +421,18 @@
 				<!-- Preview Tab -->
 				<Tabs.Panel value="preview">
 					<div class="p-6 space-y-4">
-						<div class="flex flex-row justify-between">
-							<h4 class="h4 font-semibold" data-testid="attachment-name-title">
-								{data.data.attachment}
-							</h4>
+						<div class="flex flex-row justify-end">
+							<!--
+								Hidden per request: raw attachment URL/path (was rendered as a heading
+								above the PDF preview). Re-enable by restoring the <h4> below.
+								<h4 class="h4 font-semibold" data-testid="attachment-name-title">
+									{data.data.attachment}
+								</h4>
+							-->
 							<div class="space-x-2">
 								<Anchor
-									href={`./${data.data.id}/attachment`}
+									href={`./${data.data.id}/attachment?disposition=attachment`}
+									download
 									class="btn preset-filled-primary-500 h-fit"
 									data-testid="attachment-download-button"
 								>
@@ -918,12 +961,16 @@
 												</thead>
 												<tbody>
 													{#each auditResult.typicalEvidenceCheck as item}
+														{@const _statusLower = (item.status || '').toLowerCase()}
+														{@const _isPartial = _statusLower.includes('partial') || _statusLower.includes('جزئ')}
+														{@const _isNotFound = !_isPartial && (_statusLower.includes('غير') || _statusLower.includes('not ') || _statusLower.includes('missing') || _statusLower.includes('absent') || _statusLower.includes('not_found') || _statusLower.includes('notfound'))}
+														{@const _isFound = !_isPartial && !_isNotFound && (_statusLower.includes('present') || _statusLower.includes('found') || _statusLower.includes('موجود') || _statusLower.includes('available') || _statusLower.includes('متوفر'))}
 														<tr class="border-b hover:bg-gray-50">
 															<td class="p-2 font-medium">{item.evidenceItem}</td>
 															<td class="p-2">
 																<span class="px-2 py-0.5 rounded text-xs {
-																	item.status === 'Present' ? 'bg-green-100 text-green-800' :
-																	item.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
+																	_isFound ? 'bg-green-100 text-green-800' :
+																	_isPartial ? 'bg-yellow-100 text-yellow-800' :
 																	'bg-red-100 text-red-800'
 																}">
 																	{item.status}

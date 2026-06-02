@@ -25,12 +25,12 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS:
-          'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-stage.wathbahs.com',
+          'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: STAGE_PUBLIC_URL,
         CSRF_TRUSTED_ORIGINS:
-          'https://grc.wathbahs.com,https://grc-stage.wathbahs.com',
+          'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
-        ATTACHMENT_MAX_SIZE_MB: '100',
+        ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
         // Database
         POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',
@@ -67,7 +67,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'True',
         ALLOWED_HOSTS:
-          'localhost,127.0.0.1,grc.wathbahs.com,grc-stage.wathbahs.com',
+          'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
         CISO_ASSISTANT_URL: STAGE_PUBLIC_URL,
         // Database
         POSTGRES_NAME: process.env.POSTGRES_NAME || 'grc-stage',

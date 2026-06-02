@@ -1,0 +1,16 @@
+subject: "Wathbah GRC: You have been assigned to evidence '${evidence_name}'"
+body: |
+  Hello,
+
+  You have been assigned as an owner of the following evidence:
+
+  - Name: ${evidence_name}
+  - Description: ${evidence_description}
+  - Status: ${evidence_status}
+  - Expiry date: ${evidence_expiry_date}
+  - Domain: ${folder_name}
+
+  View this evidence directly:
+  ${ciso_assistant_url}/evidences/${evidence_id}
+
+  Thank you.

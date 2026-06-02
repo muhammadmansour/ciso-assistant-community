@@ -295,18 +295,32 @@
 		);
 	});
 
+	// Hidden per request: hide these tabs from the DetailView related-models tab strip.
+	// Re-enable by removing entries from the set below.
+	const HIDDEN_RELATED_MODELS = new Set([
+		'tasks',
+		'task-templates',
+		'risk-scenarios',
+		'findings',
+		'assets',
+		'compliance-assessments',
+		'follow-ups',
+		'followups',
+		'findings-assessments'
+	]);
+
 	function getSortedRelatedModels() {
-		return Object.entries(data?.relatedModels ?? {}).sort((a: [string, any], b: [string, any]) => {
-			return getRelatedModelIndex(data.model, a[1]) - getRelatedModelIndex(data.model, b[1]);
-		});
+		return Object.entries(data?.relatedModels ?? {})
+			.filter(([urlmodel]) => !HIDDEN_RELATED_MODELS.has(urlmodel))
+			.sort((a: [string, any], b: [string, any]) => {
+				return getRelatedModelIndex(data.model, a[1]) - getRelatedModelIndex(data.model, b[1]);
+			});
 	}
 
 	let relatedModels = $derived(getSortedRelatedModels());
 	let relatedModelsNames: Set<string> = $state(new Set());
 
-	let group = $state(
-		Object.keys(data?.relatedModels ?? {}).length > 0 ? getSortedRelatedModels()[0][0] : undefined
-	);
+	let group = $state(getSortedRelatedModels()[0]?.[0]);
 	$effect(() => {
 		const newRelatedModelsNames = new Set(relatedModels.map((model) => model[0]));
 

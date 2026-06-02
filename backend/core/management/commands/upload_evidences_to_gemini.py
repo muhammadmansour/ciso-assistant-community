@@ -73,29 +73,28 @@ class Command(BaseCommand):
             evidence_name = revision.evidence.name if revision.evidence else "Unknown"
             rev_id = str(revision.id)
 
-            # Check if FileSearchTable entry already exists
+            # Check if FileSearchTable entry already exists. The durable identifier
+            # is gemini_document_id (File Search Store) — Files API IDs expire after
+            # 48h and are intentionally not what this command populates.
             try:
                 existing = FileSearchTable.objects.filter(evidence_revision=revision).first()
                 if existing and not force:
+                    if existing.has_durable_document():
+                        already_done += 1
+                        self.stdout.write(
+                            f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
+                            f"already indexed (gemini_document_id: {existing.gemini_document_id[:60]})"
+                        )
+                        continue
                     if existing.upload_status == FileSearchTable.UploadStatus.COMPLETED:
-                        # Check if the file ID is actually valid (must start with 'files/')
-                        if existing.gemini_file_id and existing.gemini_file_id.startswith('files/'):
-                            already_done += 1
-                            self.stdout.write(
-                                f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                                f"already uploaded (gemini_file_id: {existing.gemini_file_id[:60]})"
+                        # Completed in legacy Files-API-only mode: still needs a
+                        # durable store document.
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  [INDEX] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"completed without store document, indexing now..."
                             )
-                            continue
-                        else:
-                            # Invalid file ID (old operation path) - needs re-upload
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"  [FIX] {evidence_name} (rev {rev_id[:8]}...) — "
-                                    f"invalid gemini_file_id: {existing.gemini_file_id[:60]}. Re-uploading..."
-                                )
-                            )
-                            # Delete the old entry so we can re-upload
-                            existing.delete()
+                        )
                     elif existing.upload_status == FileSearchTable.UploadStatus.UPLOADING:
                         skipped += 1
                         self.stdout.write(
@@ -118,45 +117,29 @@ class Command(BaseCommand):
                 skipped += 1
                 continue
 
-            # Check file exists on disk
-            try:
-                file_path = revision.attachment.path
-            except Exception as e:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"  [WARN] {evidence_name} (rev {rev_id[:8]}...) — "
-                        f"cannot resolve file path: {e}"
-                    )
-                )
-                skipped += 1
-                continue
-
             display_name = f"{evidence_name} - {revision.evidence.filename()}"
 
             if dry_run:
                 self.stdout.write(
                     f"  [DRY-RUN] Would upload: {evidence_name} (rev {rev_id[:8]}...) "
-                    f"— {file_path}"
+                    f"— {revision.attachment.name}"
                 )
                 uploaded += 1
                 continue
 
-            # Perform the upload
             self.stdout.write(
-                f"  [UPLOAD] {evidence_name} (rev {rev_id[:8]}...) — {file_path}"
+                f"  [UPLOAD] {evidence_name} (rev {rev_id[:8]}...) — {revision.attachment.name}"
             )
 
             try:
-                # Delete existing failed entry if force
                 if force:
                     FileSearchTable.objects.filter(evidence_revision=revision).delete()
 
-                # Create or update FileSearchTable entry
                 file_search, _ = FileSearchTable.objects.get_or_create(
                     evidence_revision=revision,
                     defaults={
                         "upload_status": FileSearchTable.UploadStatus.PENDING,
-                        "gemini_file_id": "",
+                        "gemini_document_id": "",
                         "gemini_store_id": "",
                     },
                 )
@@ -165,26 +148,32 @@ class Command(BaseCommand):
                 file_search.error_message = None
                 file_search.save()
 
-                # Upload to Gemini and wait for completion
-                self.stdout.write(f"           Uploading and waiting for completion...")
-                final_status = client.upload_file_and_wait(
-                    file_path=file_path,
-                    display_name=display_name,
-                    max_wait_seconds=120,
-                    poll_interval=3,
-                )
+                # Stream from storage (works for local FS, GCS, S3, …) into a
+                # tempfile and feed that to the Gemini SDK. ``attachment.path``
+                # would raise NotImplementedError on cloud backends.
+                from core.tasks_gemini import _materialize_attachment, _build_evidence_custom_metadata
+                self.stdout.write(f"           Indexing in File Search Store and waiting for completion...")
+                custom_metadata = _build_evidence_custom_metadata(revision)
+                with _materialize_attachment(revision.attachment) as file_path:
+                    final_status = client.upload_to_store_and_wait(
+                        file_path=file_path,
+                        display_name=display_name,
+                        custom_metadata=custom_metadata,
+                    )
 
                 self.stdout.write(f"           Final status: {final_status}")
 
                 if final_status["status"] == "completed":
-                    file_search.gemini_file_id = final_status.get("gemini_file_id", "")
+                    file_search.gemini_document_id = final_status.get("gemini_document_id", "")
                     file_search.gemini_store_id = final_status.get("gemini_store_id", "")
+                    if final_status.get("operation_id"):
+                        file_search.operation_id = final_status["operation_id"]
                     file_search.upload_status = FileSearchTable.UploadStatus.COMPLETED
                     file_search.save()
                     uploaded += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"           ✓ Uploaded (gemini_file_id: {file_search.gemini_file_id[:80]})"
+                            f"           ✓ Indexed (gemini_document_id: {file_search.gemini_document_id[:80]})"
                         )
                     )
                 else:
@@ -249,7 +238,7 @@ class Command(BaseCommand):
         evidences = ac.evidences.all()
         self.stdout.write(f"\nLinked Evidences: {evidences.count()}")
 
-        gemini_file_ids = []
+        gemini_documents = []
         for evidence in evidences:
             self.stdout.write(f"\n  Evidence: {evidence.name} (id={evidence.id})")
             revisions = evidence.revisions.all()
@@ -261,44 +250,35 @@ class Command(BaseCommand):
                 if revision.attachment:
                     self.stdout.write(f"      Attachment: {revision.attachment.name[:80]}")
 
-                # Check FileSearchTable via direct DB query
                 fs_entries = FileSearchTable.objects.filter(evidence_revision=revision)
                 self.stdout.write(f"      FileSearchTable entries: {fs_entries.count()}")
 
                 for fs in fs_entries:
-                    self.stdout.write(f"        upload_status: {fs.upload_status}")
-                    self.stdout.write(f"        gemini_file_id: {fs.gemini_file_id[:80] if fs.gemini_file_id else 'EMPTY'}")
-                    self.stdout.write(f"        gemini_store_id: {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
-                    self.stdout.write(f"        error_message: {fs.error_message}")
+                    self.stdout.write(f"        upload_status:      {fs.upload_status}")
+                    self.stdout.write(f"        gemini_document_id: {fs.gemini_document_id[:80] if fs.gemini_document_id else 'EMPTY'}")
+                    self.stdout.write(f"        gemini_store_id:    {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
+                    self.stdout.write(f"        has_durable_doc:    {fs.has_durable_document()}")
+                    self.stdout.write(f"        error_message:      {fs.error_message}")
 
-                    if fs.upload_status == 'completed':
-                        gemini_file_ids.append({
-                            'gemini_file_id': fs.gemini_file_id,
+                    if fs.has_durable_document():
+                        gemini_documents.append({
+                            'gemini_document_id': fs.gemini_document_id,
                             'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
+                            'evidence_revision_id': str(revision.id),
+                            'evidence_id': str(evidence.id),
                         })
 
-                # Also check via hasattr (the way run_ai_analysis does it)
-                try:
-                    has_rel = hasattr(revision, 'file_search')
-                    self.stdout.write(f"      hasattr(revision, 'file_search'): {has_rel}")
-                    if has_rel:
-                        fs_rel = revision.file_search
-                        self.stdout.write(f"      relation.upload_status: {fs_rel.upload_status}")
-                        self.stdout.write(f"      relation.gemini_file_id: {fs_rel.gemini_file_id[:80] if fs_rel.gemini_file_id else 'EMPTY'}")
-                except Exception as e:
-                    self.stdout.write(f"      Error accessing file_search relation: {e}")
-
         self.stdout.write(f"\n{'='*60}")
-        self.stdout.write(f"RESULT: Would send {len(gemini_file_ids)} gemini_file_ids to Muraji")
-        for gf in gemini_file_ids:
-            self.stdout.write(f"  - {gf['evidence_name']}: {gf['gemini_file_id'][:80]}")
+        self.stdout.write(f"RESULT: Would send {len(gemini_documents)} indexed document(s) to Muraji")
+        for gd in gemini_documents:
+            self.stdout.write(f"  - {gd['evidence_name']}: {gd['gemini_document_id'][:80]}")
         self.stdout.write(f"{'='*60}")
 
-        # Also show ALL FileSearchTable entries for reference
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(f"ALL FileSearchTable entries in DB:")
         for fs in FileSearchTable.objects.all().select_related('evidence_revision__evidence'):
             ev_name = fs.evidence_revision.evidence.name if fs.evidence_revision.evidence else 'Unknown'
-            self.stdout.write(f"  {ev_name}: status={fs.upload_status}, file_id={fs.gemini_file_id[:60]}")
+            doc_short = fs.gemini_document_id[:60] if fs.gemini_document_id else 'EMPTY'
+            self.stdout.write(f"  {ev_name}: status={fs.upload_status}, doc={doc_short}")
         self.stdout.write(f"{'='*60}")

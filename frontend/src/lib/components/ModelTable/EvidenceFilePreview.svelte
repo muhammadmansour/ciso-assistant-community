@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { run } from 'svelte/legacy';
-
-	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { m } from '$paraglide/messages';
+	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
+	import { loadAttachmentCached } from './evidenceAttachmentCache';
 
 	interface Props {
 		cell: any;
@@ -17,34 +17,94 @@
 		fileExists: boolean;
 	}
 
-	let attachment: Attachment | undefined = $state();
+	let attachment: Attachment | undefined = $state(undefined);
+	/** Fetch rejected (browser net::ERR_FAILED, timeouts, aborted) — not the same as HTTP 404. */
+	let previewLoadFailed = $state(false);
 
-	const fetchAttachment = async () => {
-		const res = await fetch(
-			`/${meta.evidence ? 'evidence-revisions' : 'evidences'}/${meta.id}/attachment`
-		);
-		const blob = await res.blob();
-		return {
-			type: blob.type,
-			url: URL.createObjectURL(blob),
-			fileExists: res.ok
-		};
-	};
+	/** Stable identity — do not include full `meta.attachment` (GCS/S3 signed URLs get new query params every list refresh). */
+	function attachmentPathFingerprint(raw: string): string {
+		if (!raw) return '';
+		try {
+			const u = new URL(raw, 'http://_/');
+			return u.pathname;
+		} catch {
+			return raw;
+		}
+	}
 
-	let mounted = $state(false);
-	onMount(async () => {
-		attachment = meta.attachment ? await fetchAttachment() : undefined;
-		mounted = true;
+	/** Version when URL is omitted (private storage lists); include size/status so swaps invalidate cache. */
+	const attachmentStableKey = $derived.by(() => {
+		if (meta?.id == null) return null;
+		const pathTag = attachmentPathFingerprint(String(meta?.attachment ?? cell ?? ''));
+		const bump = `${meta.updated_at ?? meta.updatedAt ?? ''}:${meta.indexing_status ?? meta.indexingStatus ?? ''}:${meta.size ?? ''}`;
+		return `${meta.evidence ? 'rev' : 'ev'}:${meta.id}:${pathTag}:${bump}`;
 	});
 
-	run(() => {
-		if (mounted && meta.attachment) {
-			fetchAttachment().then((_attachment) => {
-				attachment = _attachment;
-			});
-		} else {
+	const attachmentPath = $derived(
+		meta?.id != null
+			? `/${meta.evidence ? 'evidence-revisions' : 'evidences'}/${meta.id}/attachment`
+			: null
+	);
+
+	$effect(() => {
+		const key = attachmentStableKey;
+		const path = attachmentPath;
+
+		if (!browser || !key || !path) {
 			attachment = undefined;
+			previewLoadFailed = false;
+			return;
 		}
+
+		const absUrl = new URL(path, window.location.origin).href;
+		const guessed = guessMimeFromEvidenceField(String(meta?.attachment ?? cell ?? ''));
+		const streamInline = guessed === 'application/pdf' || guessed.startsWith('image/');
+
+		if (streamInline) {
+			previewLoadFailed = false;
+			attachment = {
+				type: guessed,
+				url: absUrl,
+				fileExists: true
+			};
+			return () => {};
+		}
+
+		let cancelled = false;
+		previewLoadFailed = false;
+
+		const probe = async (): Promise<Attachment> => {
+			const res = await fetch(path, { method: 'HEAD', credentials: 'include' });
+			let ct = normalizedMime(res.headers.get('Content-Type'));
+			const cd = res.headers.get('Content-Disposition')?.toLowerCase() ?? '';
+			if (ct === 'application/octet-stream' && /\.pdf(\W|$)/.test(cd)) {
+				ct = 'application/pdf';
+			}
+			if (ct === 'application/octet-stream') {
+				ct = guessed !== 'application/octet-stream' ? guessed : ct;
+			}
+			return {
+				type: ct,
+				url: absUrl,
+				fileExists: res.ok
+			};
+		};
+
+		void loadAttachmentCached(key, probe)
+			.then((next) => {
+				if (cancelled) return;
+				attachment = next;
+				previewLoadFailed = false;
+			})
+			.catch(() => {
+				if (cancelled) return;
+				attachment = undefined;
+				previewLoadFailed = true;
+			});
+
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	let display = $state(false);
@@ -77,8 +137,8 @@
 			/>
 		{:else if attachment.type === 'application/pdf'}
 			{#if !display}
-				<!-- This div prevents the <embed> element from stopping the click event propagation. -->
-				<div class="absolute w-full h-full top-0 left-0"></div>
+				<!-- This div prevents the `<embed>` element from stopping the click event propagation. -->
+				<div class="absolute h-full top-0 w-full"></div>
 			{/if}
 			<embed
 				src={attachment.url}
@@ -89,15 +149,17 @@
 	</div>
 {/snippet}
 
-{#if cell}
+{#if meta?.id}
 	{#if attachment}
 		{#if attachment.type.startsWith('image') || attachment.type === 'application/pdf'}
-			{@render displayPreview(attachment)}
+			{@render displayPreview()}
 		{:else if !attachment.fileExists}
-			<p class="text-error-500 font-bold">{m.couldNotFindAttachmentMessage()}</p>
+			<p class="font-bold text-error-500">{m.couldNotFindAttachmentMessage()}</p>
 		{:else}
 			<p>{m.NoPreviewMessage()}</p>
 		{/if}
+	{:else if previewLoadFailed}
+		<p class="font-bold text-error-500">{m.attachmentPreviewFailed()}</p>
 	{:else}
 		<span data-testid="loading-field">
 			{m.loading()}...
