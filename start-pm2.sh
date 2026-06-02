@@ -21,6 +21,7 @@ cd "$SCRIPT_DIR"
 # Use it for secrets / per-host settings, e.g.:
 #   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
 #   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
+#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> ~/.ciso-staging.env   # optional; Huey waits for indexing
 #   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
 #   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
 #   chmod 600 ~/.ciso-staging.env
@@ -79,6 +80,9 @@ GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
+# Gemini long-running indexing wait (huey worker + optional sync paths).
+# Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
+GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-stage.wathbahs.com/api/audit/analyze}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
@@ -141,6 +145,7 @@ if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
 else
     echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set — evidences cannot be indexed.${NC}"
 fi
+echo -e "${GREEN}Gemini indexing max wait: ${GEMINI_INDEX_MAX_WAIT_SECONDS}s (Huey + backend PM2 env)${NC}"
 echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
 
 # Check if PM2 is installed
@@ -189,6 +194,7 @@ module.exports = {
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
+        GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
@@ -225,6 +231,7 @@ module.exports = {
         GEMINI_API_KEY: '${GEMINI_API_KEY}',
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
+        GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },

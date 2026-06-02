@@ -41,8 +41,9 @@ GEMINI_HTTP_TIMEOUT_MS = int(os.getenv('GEMINI_HTTP_TIMEOUT_MS', '600000'))
 
 # How long the worker polls the Gemini long-running indexing operation before
 # giving up with "Indexing did not complete within …". Large PDFs or API
-# backpressure can exceed 300s; tune via GEMINI_INDEX_MAX_WAIT_SECONDS on the host.
-GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '900'))
+# backpressure often exceed minutes; tune via GEMINI_INDEX_MAX_WAIT_SECONDS on
+# the host (must include the Huey worker process — see start-pm2.sh).
+GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '1800'))
 
 
 class GeminiFileSearchClient:
