@@ -1,7 +1,7 @@
 #!/bin/bash
 # CISO Assistant - PM2 staging (Linux)
 # Public URL: https://grc-stage.wathbahs.com (grc-hrsd.wathbahs.com still allowed in ALLOWED_HOSTS)
-# Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
+# Ports: backend 8001, frontend 3001 (matches dev nginx upstream dev-backend / dev-frontend)
 # Before start: cd frontend && pnpm run build:staging
 #
 # DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
@@ -42,8 +42,8 @@ fi
 # Configuration
 DOMAIN="grc-stage.wathbahs.com"
 PUBLIC_URL="https://${DOMAIN}"
-BACKEND_PORT=8020
-FRONTEND_PORT=3020
+BACKEND_PORT=8001
+FRONTEND_PORT=3001
 
 # PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
 POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
@@ -164,11 +164,11 @@ const os = require('os');
 module.exports = {
   apps: [
     {
-      // BACKEND - Gunicorn on staging port 8020
+      // BACKEND - Gunicorn on dev port 8001 (matches nginx upstream dev-backend)
       name: 'dev-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 360 --keep-alive 30 --access-logfile ../logs/dev-gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8001 --workers 4 --timeout 360 --keep-alive 30 --access-logfile ../logs/dev-gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
@@ -243,7 +243,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - adapter-node (run: pnpm run build:staging)
+      // FRONTEND - adapter-node on dev port 3001 (matches nginx upstream dev-frontend)
       name: 'dev-frontend',
       cwd: './frontend',
       script: 'node',
@@ -251,9 +251,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         HOST: '0.0.0.0',
-        PORT: '3020',
+        PORT: '3001',
         NODE_ENV: 'production',
-        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
+        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
         ORIGIN: 'https://grc-stage.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
