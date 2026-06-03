@@ -52,20 +52,22 @@
 
 	// Localized status / impact labels (fall back to upstream label if i18n key missing).
 	function statusText(item: LegislativeUpdate): string {
-		const key = `status${item.status
+		const status = item.status ?? '';
+		if (!status) return item.status_label ?? '';
+		const key = `status${status
 			.split('_')
 			.map((p) => p.charAt(0).toUpperCase() + p.slice(1))
 			.join('')}`;
 		const translated = safeTranslate(key);
-		return translated && translated !== key ? translated : item.status_label || item.status;
+		return translated && translated !== key ? translated : item.status_label || status;
 	}
 
 	function impactText(item: LegislativeUpdate): string {
-		const key = `impact${item.impact_level.charAt(0).toUpperCase() + item.impact_level.slice(1)}`;
+		const level = item.impact_level ?? '';
+		if (!level) return item.impact_label ?? '';
+		const key = `impact${level.charAt(0).toUpperCase() + level.slice(1)}`;
 		const translated = safeTranslate(key);
-		return translated && translated !== key
-			? translated
-			: item.impact_label || item.impact_level;
+		return translated && translated !== key ? translated : item.impact_label || level;
 	}
 
 	function statusClasses(status: string): string {
@@ -120,8 +122,8 @@
 		}
 	}
 
-	function affectedPoliciesLabel(n: number): string {
-		if (n <= 0) return m.affectsPoliciesNone();
+	function affectedPoliciesLabel(n: number | null | undefined): string {
+		if (typeof n !== 'number' || n <= 0) return m.affectsPoliciesNone();
 		if (n === 1) return m.affectsPoliciesOne();
 		return m.affectsPoliciesOther({ count: n });
 	}
@@ -263,21 +265,29 @@
 							{#if item.source}
 								<span class="wgrc-badge bg-red-100 text-red-700">{item.source}</span>
 							{/if}
-							<span class="wgrc-badge border {impactClasses(item.impact_level)} inline-flex items-center gap-1.5">
-								<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
-								{impactText(item)}
-							</span>
-							<span class="wgrc-badge {statusClasses(item.status)}">
-								{statusText(item)}
-							</span>
+							{#if item.impact_level}
+								<span
+									class="wgrc-badge border {impactClasses(item.impact_level)} inline-flex items-center gap-1.5"
+								>
+									<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
+									{impactText(item)}
+								</span>
+							{/if}
+							{#if item.status}
+								<span class="wgrc-badge {statusClasses(item.status)}">
+									{statusText(item)}
+								</span>
+							{/if}
 						</div>
 						<h3
 							class="text-lg font-semibold text-gray-900 mb-1.5 leading-snug group-hover:text-blue-700 transition-colors"
-							title={item.title}
+							title={item.title ?? item.id}
 						>
-							{item.title}
+							{item.title || item.id}
 						</h3>
-						<p class="text-sm text-gray-600 leading-relaxed line-clamp-2">{item.description}</p>
+						{#if item.description}
+							<p class="text-sm text-gray-600 leading-relaxed line-clamp-2">{item.description}</p>
+						{/if}
 					</div>
 				</div>
 
