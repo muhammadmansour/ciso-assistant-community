@@ -5,16 +5,15 @@
  *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-runs
  *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-runs/<id>
  *
- * The endpoint requires the same auth as the rest of the GRC-admin app
- * (cookie/token from a successful GRC-admin login). To make that work
- * without a dedicated machine credential, we forward the incoming
- * browser request's `cookie` and `Authorization` headers to the upstream.
- * This relies on the GRC-admin session cookie being scoped to a parent
- * domain that the SvelteKit app also serves under (e.g. `.wathbah.dev`).
+ * The endpoint accepts the same Knox token the CISO Assistant backend
+ * uses (`Authorization: Token <token>`). We pull it out of the `token`
+ * cookie set on login (see hooks.server.ts) and forward it on every
+ * upstream call. Cookie/`Authorization` headers from the incoming
+ * request are forwarded too, as a belt-and-braces fallback for any
+ * session cookie scoped to a shared parent domain.
  *
- * If that isn't viable in your environment, set
- *   LEGISLATIVE_UPDATES_API_KEY=<token>
- * and the helper will send `Authorization: Bearer <token>` instead.
+ * A static API key (`LEGISLATIVE_UPDATES_API_KEY`) is also supported
+ * for service-to-service calls when there's no logged-in user.
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
@@ -58,22 +57,38 @@ export const LEGISLATIVE_UPDATE_DETAIL_API_URL =
 const API_KEY = process.env.LEGISLATIVE_UPDATES_API_KEY ?? '';
 
 /**
- * Build the headers we send upstream. We forward the user's `cookie` and
- * `Authorization` headers so the upstream sees the same session the
- * browser already has. A static API key from env wins only if the user
- * isn't sending their own Authorization (so an admin token doesn't
- * override a logged-in user's identity).
+ * Build the headers we send upstream. Priority order for the
+ * `Authorization` header:
+ *   1. Whatever the incoming request already carries (lets a future
+ *      gateway override transparently).
+ *   2. The user's Knox `token` cookie set by CISO Assistant on login —
+ *      this is the common path; the GRC-admin upstream accepts the same
+ *      `Authorization: Token <token>` scheme as the CISO backend.
+ *   3. A service-to-service Bearer key from `LEGISLATIVE_UPDATES_API_KEY`
+ *      when no user is logged in.
+ *
+ * The browser's `cookie` header is forwarded too — harmless when the
+ * upstream doesn't read it, useful if it ever wants to.
  */
 function buildUpstreamHeaders(event: RequestEvent | undefined): Record<string, string> {
 	const headers: Record<string, string> = { accept: 'application/json' };
 	const incoming = event?.request.headers;
+
 	const cookie = incoming?.get('cookie');
 	if (cookie) headers.cookie = cookie;
-	const auth = incoming?.get('authorization');
-	if (auth) headers.authorization = auth;
-	if (!headers.authorization && API_KEY) {
-		headers.authorization = `Bearer ${API_KEY}`;
+
+	const incomingAuth = incoming?.get('authorization');
+	if (incomingAuth) {
+		headers.authorization = incomingAuth;
+	} else {
+		const knoxToken = event?.cookies.get('token');
+		if (knoxToken) {
+			headers.authorization = `Token ${knoxToken}`;
+		} else if (API_KEY) {
+			headers.authorization = `Bearer ${API_KEY}`;
+		}
 	}
+
 	return headers;
 }
 
