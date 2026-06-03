@@ -21,6 +21,11 @@
 	type TabKey = 'summary' | 'impact' | 'tasks';
 	let activeTab = $state<TabKey>('summary');
 
+	// 'by_policy'    = one card per (point, impact) — amendments grouped as sub-bullets.
+	// 'by_amendment' = one card per individual amendment — higher fidelity, more rows.
+	type TaskView = 'by_policy' | 'by_amendment';
+	let taskView = $state<TaskView>('by_policy');
+
 	// ---------- shared label / class helpers ----------
 	function statusText(it: LegislativeUpdate): string {
 		const status = it.status ?? '';
@@ -80,10 +85,15 @@
 		}
 	}
 
-	function formatDate(iso: string | null | undefined): string {
+	// Renders the date in the locale of the item's content language.
+	// Arabic items use 'ar-EG' which gives Arabic-Indic numerals (٥ مارس ٢٠٢٦)
+	// with a Gregorian calendar — 'ar-SA' would default to Hijri which is
+	// the wrong calendar for our regulator publishing dates.
+	function formatDate(iso: string | null | undefined, lang: string | null | undefined): string {
 		if (!iso) return '';
 		try {
-			return new Date(iso).toLocaleDateString('en-US', {
+			const locale = lang === 'ar' ? 'ar-EG' : 'en-US';
+			return new Date(iso).toLocaleDateString(locale, {
 				year: 'numeric',
 				month: 'short',
 				day: 'numeric'
@@ -172,7 +182,7 @@
 
 	const impactAnalysis: PipelineImpactForPoint[] = $derived(pipeline?.impact_analysis ?? []);
 
-	type DerivedTask = {
+	type PolicyTask = {
 		pointId: string;
 		pointText: string;
 		policyId: string;
@@ -183,8 +193,10 @@
 		amendments: NonNullable<PipelinePolicyImpact['amendments']>;
 	};
 
-	const derivedTasks: DerivedTask[] = $derived.by(() => {
-		const out: DerivedTask[] = [];
+	// One task per (regulation point × impacted policy). Amendments to the same
+	// policy are kept together so a reviewer sees the full change set in context.
+	const policyTasks: PolicyTask[] = $derived.by(() => {
+		const out: PolicyTask[] = [];
 		for (const point of impactAnalysis) {
 			for (const imp of point.impacts ?? []) {
 				if (!imp.requires_amendment) continue;
@@ -203,12 +215,74 @@
 		return out;
 	});
 
+	type AmendmentTask = {
+		key: string;
+		pointId: string;
+		pointText: string;
+		policyId: string;
+		policyTitle: string;
+		severity: string;
+		policySection?: string;
+		currentTextSummary?: string;
+		requiredChange: string;
+		changeType?: string;
+	};
+
+	// One task per individual amendment row. Same source data as policyTasks,
+	// just flattened one level deeper so each `required_change` is its own card.
+	const amendmentTasks: AmendmentTask[] = $derived.by(() => {
+		const out: AmendmentTask[] = [];
+		for (const point of impactAnalysis) {
+			for (const imp of point.impacts ?? []) {
+				if (!imp.requires_amendment) continue;
+				const amendments = imp.amendments ?? [];
+				// Edge case: impact flagged for amendment but no amendments[] entries —
+				// emit a single placeholder task using impact_summary so it isn't lost.
+				if (amendments.length === 0) {
+					out.push({
+						key: `${point.point_id}::${imp.policy_id}::summary`,
+						pointId: point.point_id,
+						pointText: point.point_text,
+						policyId: imp.policy_id,
+						policyTitle: imp.policy_title,
+						severity: imp.severity,
+						requiredChange: imp.impact_summary
+					});
+					continue;
+				}
+				amendments.forEach((am, i) => {
+					out.push({
+						key: `${point.point_id}::${imp.policy_id}::${i}`,
+						pointId: point.point_id,
+						pointText: point.point_text,
+						policyId: imp.policy_id,
+						policyTitle: imp.policy_title,
+						severity: imp.severity,
+						policySection: am.policy_section,
+						currentTextSummary: am.current_text_summary,
+						requiredChange: am.required_change,
+						changeType: am.change_type
+					});
+				});
+			}
+		}
+		return out;
+	});
+
 	function severityRank(s: string): number {
 		return { critical: 0, high: 1, medium: 2, low: 3, none: 4 }[s] ?? 5;
 	}
 
-	const tasksSorted = $derived(
-		[...derivedTasks].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+	const policyTasksSorted = $derived(
+		[...policyTasks].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+	);
+	const amendmentTasksSorted = $derived(
+		[...amendmentTasks].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
+	);
+
+	// Tab header count = whichever view is active.
+	const tasksTabCount = $derived(
+		taskView === 'by_policy' ? policyTasksSorted.length : amendmentTasksSorted.length
 	);
 </script>
 
@@ -288,7 +362,7 @@
 			{#if item.published_at}
 				<span class="inline-flex items-center gap-1.5">
 					<i class="fa-regular fa-calendar"></i>
-					{m.publishedOn()}: {formatDate(item.published_at)}
+					{m.publishedOn()}: {formatDate(item.published_at, item.language)}
 				</span>
 			{/if}
 			{#if item.external_url}
@@ -311,7 +385,7 @@
 			{#each [
 				{ key: 'summary' as TabKey, label: m.updateSummary(), icon: 'fa-file-lines', count: null },
 				{ key: 'impact' as TabKey, label: m.impactAnalysis(), icon: 'fa-chart-line', count: impactAnalysis.length || null },
-				{ key: 'tasks' as TabKey, label: m.tasks(), icon: 'fa-list-check', count: tasksSorted.length || null }
+				{ key: 'tasks' as TabKey, label: m.tasks(), icon: 'fa-list-check', count: tasksTabCount || null }
 			] as tab}
 				<button
 					type="button"
@@ -644,62 +718,186 @@
 			</section>
 		{/if}
 	{:else}
-		{#if tasksSorted.length}
-			<section class="wgrc-card !p-4 mb-4 bg-blue-50/30 border-blue-100">
-				<p class="text-xs text-blue-700">{m.derivedTasksDescription()}</p>
+		{#if policyTasksSorted.length}
+			<!-- View toggle + descriptive caption -->
+			<section
+				class="wgrc-card !p-4 mb-4 bg-blue-50/30 border-blue-100 flex flex-wrap items-center justify-between gap-3"
+			>
+				<p class="text-xs text-blue-700 max-w-xl">{m.derivedTasksDescription()}</p>
+				<div
+					class="inline-flex rounded-lg bg-white border border-blue-200 p-0.5 text-xs font-medium"
+					role="tablist"
+					aria-label={m.taskViewToggle()}
+				>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={taskView === 'by_policy'}
+						onclick={() => (taskView = 'by_policy')}
+						class="px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 {taskView ===
+						'by_policy'
+							? 'bg-blue-600 text-white'
+							: 'text-gray-600 hover:text-blue-700'}"
+					>
+						<i class="fa-solid fa-layer-group text-[10px]"></i>
+						{m.groupByPolicy()}
+						<span
+							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[9px] {taskView ===
+							'by_policy'
+								? 'bg-white/25 text-white'
+								: 'bg-gray-100 text-gray-600'}"
+						>
+							{policyTasksSorted.length}
+						</span>
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={taskView === 'by_amendment'}
+						onclick={() => (taskView = 'by_amendment')}
+						class="px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 {taskView ===
+						'by_amendment'
+							? 'bg-blue-600 text-white'
+							: 'text-gray-600 hover:text-blue-700'}"
+					>
+						<i class="fa-solid fa-list text-[10px]"></i>
+						{m.showEachAmendment()}
+						<span
+							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[9px] {taskView ===
+							'by_amendment'
+								? 'bg-white/25 text-white'
+								: 'bg-gray-100 text-gray-600'}"
+						>
+							{amendmentTasksSorted.length}
+						</span>
+					</button>
+				</div>
 			</section>
-			<div class="space-y-3">
-				{#each tasksSorted as task, i (task.policyId + task.pointId)}
-					<section class="wgrc-card !p-5">
-						<div class="flex items-start justify-between gap-4 mb-3">
-							<div class="flex items-start gap-3 flex-1 min-w-0">
-								<span
-									class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-semibold"
-								>
-									{i + 1}
-								</span>
-								<div class="min-w-0 flex-1">
-									<p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
-										{task.policyTitle}
-									</p>
-									<p class="text-sm font-medium text-gray-900 leading-snug">{task.pointText}</p>
-								</div>
-							</div>
-							<span
-								class="shrink-0 inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
-									task.severity
-								)}"
-							>
-								{severityLabel(task.severity)}
-							</span>
-						</div>
 
-						<p class="text-sm text-gray-700 leading-relaxed mb-3">{task.impactSummary}</p>
-
-						{#if task.amendments.length}
-							<div class="space-y-2 mt-3 pt-3 border-t border-gray-100">
-								{#each task.amendments as am}
-									<div class="flex items-start gap-2 text-sm">
-										<span
-											class="shrink-0 inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium mt-0.5 {changeTypeClasses(
-												am.change_type
-											)}"
+			{#if taskView === 'by_policy'}
+				<div class="space-y-3">
+					{#each policyTasksSorted as task, i (task.policyId + task.pointId)}
+						<section class="wgrc-card !p-5">
+							<div class="flex items-start justify-between gap-4 mb-3">
+								<div class="flex items-start gap-3 flex-1 min-w-0">
+									<span
+										class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-semibold"
+									>
+										{i + 1}
+									</span>
+									<div class="min-w-0 flex-1">
+										<p
+											class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5"
 										>
-											{changeTypeLabel(am.change_type)}
-										</span>
-										<div class="min-w-0 flex-1">
-											{#if am.policy_section}
-												<span class="text-xs text-gray-500 font-mono">{am.policy_section}: </span>
-											{/if}
-											<span class="text-sm text-gray-800">{am.required_change}</span>
-										</div>
+											{task.policyTitle}
+										</p>
+										<p class="text-sm font-medium text-gray-900 leading-snug">{task.pointText}</p>
 									</div>
-								{/each}
+								</div>
+								<span
+									class="shrink-0 inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
+										task.severity
+									)}"
+								>
+									{severityLabel(task.severity)}
+								</span>
 							</div>
-						{/if}
-					</section>
-				{/each}
-			</div>
+
+							<p class="text-sm text-gray-700 leading-relaxed mb-3">{task.impactSummary}</p>
+
+							{#if task.amendments.length}
+								<div class="space-y-2 mt-3 pt-3 border-t border-gray-100">
+									{#each task.amendments as am}
+										<div class="flex items-start gap-2 text-sm">
+											<span
+												class="shrink-0 inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium mt-0.5 {changeTypeClasses(
+													am.change_type
+												)}"
+											>
+												{changeTypeLabel(am.change_type)}
+											</span>
+											<div class="min-w-0 flex-1">
+												{#if am.policy_section}
+													<span class="text-xs text-gray-500 font-mono">{am.policy_section}: </span>
+												{/if}
+												<span class="text-sm text-gray-800">{am.required_change}</span>
+											</div>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</section>
+					{/each}
+				</div>
+			{:else}
+				<div class="space-y-3">
+					{#each amendmentTasksSorted as task, i (task.key)}
+						<section class="wgrc-card !p-5">
+							<div class="flex items-start justify-between gap-4 mb-3">
+								<div class="flex items-start gap-3 flex-1 min-w-0">
+									<span
+										class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-semibold"
+									>
+										{i + 1}
+									</span>
+									<div class="min-w-0 flex-1">
+										<div class="flex flex-wrap items-center gap-2 mb-1">
+											{#if task.changeType}
+												<span
+													class="inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
+														task.changeType
+													)}"
+												>
+													{changeTypeLabel(task.changeType)}
+												</span>
+											{/if}
+											<p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+												{task.policyTitle}
+											</p>
+											{#if task.policySection}
+												<span class="text-[11px] text-gray-400">·</span>
+												<span class="text-[11px] font-mono text-gray-600">{task.policySection}</span>
+											{/if}
+										</div>
+										<p class="text-sm font-medium text-gray-900 leading-snug">
+											{task.requiredChange}
+										</p>
+									</div>
+								</div>
+								<span
+									class="shrink-0 inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
+										task.severity
+									)}"
+								>
+									{severityLabel(task.severity)}
+								</span>
+							</div>
+
+							{#if task.currentTextSummary}
+								<div class="mb-3 pb-3 border-b border-gray-100">
+									<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
+										{m.amendmentCurrent()}
+									</p>
+									<p
+										class="text-sm text-gray-600 leading-relaxed line-through decoration-gray-300"
+									>
+										{task.currentTextSummary}
+									</p>
+								</div>
+							{/if}
+
+							<div class="flex items-start gap-2 text-xs text-gray-500">
+								<span
+									class="shrink-0 inline-block px-1.5 py-0.5 rounded bg-gray-900 text-white font-mono font-semibold text-[10px] mt-0.5"
+								>
+									{task.pointId}
+								</span>
+								<p class="leading-relaxed flex-1">{task.pointText}</p>
+							</div>
+						</section>
+					{/each}
+				</div>
+			{/if}
 		{:else if impactAnalysis.length}
 			<section class="wgrc-card !p-6 text-center">
 				<i class="fa-solid fa-circle-check text-3xl text-emerald-300 mb-3"></i>
