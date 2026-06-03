@@ -57,39 +57,115 @@ export const LEGISLATIVE_UPDATE_DETAIL_API_URL =
 const API_KEY = process.env.LEGISLATIVE_UPDATES_API_KEY ?? '';
 
 /**
- * Build the headers we send upstream. Priority order for the
- * `Authorization` header:
- *   1. Whatever the incoming request already carries (lets a future
- *      gateway override transparently).
- *   2. The user's Knox `token` cookie set by CISO Assistant on login —
- *      this is the common path; the GRC-admin upstream accepts the same
- *      `Authorization: Token <token>` scheme as the CISO backend.
- *   3. A service-to-service Bearer key from `LEGISLATIVE_UPDATES_API_KEY`
- *      when no user is logged in.
+ * Auth schemes we'll try in order when calling the upstream. The first
+ * one that doesn't get a 401/403 wins. Most CISO-token-aware services
+ * accept `Token <t>` (Knox/DRF style), but some gateways expect
+ * `Bearer <t>` or send the raw value via `X-API-Key`.
  *
- * The browser's `cookie` header is forwarded too — harmless when the
- * upstream doesn't read it, useful if it ever wants to.
+ * Override with `LEGISLATIVE_UPDATES_AUTH_SCHEME=Token|Bearer|X-API-Key`
+ * to pin a single scheme and skip the auto-retry.
  */
-function buildUpstreamHeaders(event: RequestEvent | undefined): Record<string, string> {
-	const headers: Record<string, string> = { accept: 'application/json' };
-	const incoming = event?.request.headers;
+const PINNED_SCHEME = (process.env.LEGISLATIVE_UPDATES_AUTH_SCHEME ?? '').trim();
+const SCHEMES_TO_TRY: Array<'Token' | 'Bearer' | 'X-API-Key'> = PINNED_SCHEME
+	? [PINNED_SCHEME as 'Token' | 'Bearer' | 'X-API-Key']
+	: ['Token', 'Bearer', 'X-API-Key'];
 
-	const cookie = incoming?.get('cookie');
+/**
+ * Find the token to use for upstream auth. Priority:
+ *   1. The incoming request's Authorization header (a gateway can
+ *      transparently override this).
+ *   2. The user's Knox `token` cookie set by CISO Assistant on login.
+ *   3. The service-to-service `LEGISLATIVE_UPDATES_API_KEY` env.
+ */
+function resolveUpstreamToken(event: RequestEvent | undefined): {
+	token: string | null;
+	source: string;
+	pinnedHeader?: { name: string; value: string };
+} {
+	const incomingAuth = event?.request.headers.get('authorization');
+	if (incomingAuth) {
+		// Don't second-guess a value the caller already shaped — just pass it on.
+		return {
+			token: null,
+			source: 'incoming-authorization',
+			pinnedHeader: { name: 'authorization', value: incomingAuth }
+		};
+	}
+	const knoxToken = event?.cookies.get('token');
+	if (knoxToken) return { token: knoxToken, source: 'ciso-cookie' };
+	if (API_KEY) return { token: API_KEY, source: 'env-api-key' };
+	return { token: null, source: 'none' };
+}
+
+function buildHeadersForScheme(
+	event: RequestEvent | undefined,
+	scheme: 'Token' | 'Bearer' | 'X-API-Key' | null,
+	token: string | null,
+	pinnedHeader?: { name: string; value: string }
+): Record<string, string> {
+	const headers: Record<string, string> = { accept: 'application/json' };
+	const cookie = event?.request.headers.get('cookie');
 	if (cookie) headers.cookie = cookie;
 
-	const incomingAuth = incoming?.get('authorization');
-	if (incomingAuth) {
-		headers.authorization = incomingAuth;
-	} else {
-		const knoxToken = event?.cookies.get('token');
-		if (knoxToken) {
-			headers.authorization = `Token ${knoxToken}`;
-		} else if (API_KEY) {
-			headers.authorization = `Bearer ${API_KEY}`;
-		}
+	if (pinnedHeader) {
+		headers[pinnedHeader.name] = pinnedHeader.value;
+		return headers;
+	}
+	if (!token || !scheme) return headers;
+	if (scheme === 'X-API-Key') headers['x-api-key'] = token;
+	else headers.authorization = `${scheme} ${token}`;
+	return headers;
+}
+
+/**
+ * Fire one or more requests to the upstream, retrying with the next
+ * auth scheme on 401/403 until one succeeds. Returns the final
+ * Response and the scheme that "won" (or the last one tried on
+ * persistent failure).
+ */
+async function authedFetch(
+	fetchFn: typeof fetch,
+	url: string,
+	event: RequestEvent | undefined,
+	label: string
+): Promise<{ res: Response; schemeUsed: string }> {
+	const { token, source, pinnedHeader } = resolveUpstreamToken(event);
+	// When the caller pinned an Authorization header, we don't iterate.
+	if (pinnedHeader) {
+		const res = await fetchFn(url, {
+			headers: buildHeadersForScheme(event, null, null, pinnedHeader)
+		});
+		console.log(
+			`[legislative-updates] ${label} -> ${res.status} (auth=incoming-header, source=${source})`
+		);
+		return { res, schemeUsed: 'incoming' };
+	}
+	if (!token) {
+		const res = await fetchFn(url, { headers: buildHeadersForScheme(event, null, null) });
+		console.log(`[legislative-updates] ${label} -> ${res.status} (auth=none, source=${source})`);
+		return { res, schemeUsed: 'none' };
 	}
 
-	return headers;
+	let lastRes: Response | null = null;
+	let lastScheme = '';
+	for (const scheme of SCHEMES_TO_TRY) {
+		const res = await fetchFn(url, {
+			headers: buildHeadersForScheme(event, scheme, token)
+		});
+		lastRes = res;
+		lastScheme = scheme;
+		console.log(
+			`[legislative-updates] ${label} -> ${res.status} (scheme=${scheme}, source=${source}, token=${token.slice(0, 4)}…${token.slice(-4)})`
+		);
+		if (res.status !== 401 && res.status !== 403) {
+			return { res, schemeUsed: scheme };
+		}
+		// 401/403 — fall through and try the next scheme. The body of the
+		// rejected response will be GC'd; we don't drain it here because
+		// the outer caller may still want to read the *last* response's
+		// body for a diagnostic preview.
+	}
+	return { res: lastRes!, schemeUsed: lastScheme };
 }
 
 /**
@@ -123,15 +199,16 @@ export async function fetchLegislativeUpdates(
 	event?: RequestEvent
 ): Promise<{ items: LegislativeUpdate[]; upstreamStatus: UpstreamStatus }> {
 	try {
-		const res = await fetchFn(LEGISLATIVE_UPDATES_API_URL, {
-			headers: buildUpstreamHeaders(event)
-		});
+		const { res } = await authedFetch(fetchFn, LEGISLATIVE_UPDATES_API_URL, event, 'list');
 		if (res.status === 401 || res.status === 403) {
+			const body = await safeBodyPreview(res);
+			console.warn(`[legislative-updates] list got ${res.status}; upstream said: ${body}`);
 			return { items: [], upstreamStatus: 'unauthorized' };
 		}
 		if (!res.ok) {
+			const body = await safeBodyPreview(res);
 			console.error(
-				`[legislative-updates] list upstream returned ${res.status} ${res.statusText}`
+				`[legislative-updates] list upstream returned ${res.status} ${res.statusText}; body: ${body}`
 			);
 			return { items: [], upstreamStatus: 'error' };
 		}
@@ -150,16 +227,19 @@ export async function fetchLegislativeUpdateById(
 ): Promise<{ item: LegislativeUpdate | null; upstreamStatus: UpstreamStatus }> {
 	const detailUrl = `${LEGISLATIVE_UPDATE_DETAIL_API_URL.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
 	try {
-		const res = await fetchFn(detailUrl, { headers: buildUpstreamHeaders(event) });
+		const { res } = await authedFetch(fetchFn, detailUrl, event, `detail[${id}]`);
 		if (res.status === 404) {
 			return { item: null, upstreamStatus: 'ok' };
 		}
 		if (res.status === 401 || res.status === 403) {
+			const body = await safeBodyPreview(res);
+			console.warn(`[legislative-updates] detail got ${res.status}; upstream said: ${body}`);
 			return { item: null, upstreamStatus: 'unauthorized' };
 		}
 		if (!res.ok) {
+			const body = await safeBodyPreview(res);
 			console.error(
-				`[legislative-updates] detail upstream returned ${res.status} ${res.statusText} for ${id}`
+				`[legislative-updates] detail upstream returned ${res.status} ${res.statusText} for ${id}; body: ${body}`
 			);
 			return { item: null, upstreamStatus: 'error' };
 		}
@@ -167,10 +247,17 @@ export async function fetchLegislativeUpdateById(
 		return { item: extractItem(payload), upstreamStatus: 'ok' };
 	} catch (err) {
 		console.error('[legislative-updates] detail upstream fetch failed', err);
-		// Last-ditch: try the list endpoint and filter so a transient detail
-		// failure still renders content when the list is reachable.
 		const { items, upstreamStatus } = await fetchLegislativeUpdates(fetchFn, event);
 		if (upstreamStatus !== 'ok') return { item: null, upstreamStatus };
 		return { item: items.find((i) => i.id === id) ?? null, upstreamStatus: 'ok' };
+	}
+}
+
+async function safeBodyPreview(res: Response, max = 200): Promise<string> {
+	try {
+		const text = await res.text();
+		return text.length > max ? `${text.slice(0, max)}…` : text;
+	} catch {
+		return '<no body>';
 	}
 }
