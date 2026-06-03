@@ -7,12 +7,13 @@ import {
 
 export type { LegislativeUpdate };
 
-export const load: PageServerLoad = async ({ fetch }) => {
-	const { items, upstreamError } = await fetchLegislativeUpdates(fetch);
+export const load: PageServerLoad = async (event) => {
+	const { items, upstreamStatus } = await fetchLegislativeUpdates(event.fetch, event);
 	return {
 		title: 'legislativeUpdates',
 		items,
-		upstreamError,
+		upstreamError: upstreamStatus === 'error',
+		upstreamUnauthorized: upstreamStatus === 'unauthorized',
 		upstreamUrl: LEGISLATIVE_UPDATES_API_URL
 	};
 };

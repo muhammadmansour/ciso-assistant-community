@@ -109,6 +109,8 @@
 	"affectsPoliciesNone": "لا توجد سياسات متأثرة",
 	"noLegislativeUpdates": "لا توجد مستجدات تشريعية مطابقة لعوامل التصفية.",
 	"failedToLoadLegislativeUpdates": "فشل تحميل المستجدات التشريعية من المصدر.",
+	"legislativeUpdatesAuthRequired": "يرجى تسجيل الدخول إلى منصة GRC Admin لعرض المستجدات التشريعية.",
+	"signInToGrcAdmin": "تسجيل الدخول إلى GRC Admin",
 	"backToLegislativeUpdates": "العودة إلى المستجدات التشريعية",
 	"updateSummary": "ملخص التحديث",
 	"impactAnalysis": "تحليل الأثر",

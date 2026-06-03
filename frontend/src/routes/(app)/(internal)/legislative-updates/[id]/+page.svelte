@@ -97,17 +97,40 @@
 
 {#if !item}
 	<div class="wgrc-card text-center py-14">
-		<i class="fa-solid fa-triangle-exclamation text-3xl text-amber-400 mb-3"></i>
-		<p class="text-sm text-gray-600 mb-4">
-			{data.upstreamError ? m.failedToLoadLegislativeUpdates() : m.legislativeUpdateNotFound()}
-		</p>
-		<a
-			href="/legislative-updates"
-			class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-primary"
-		>
-			<i class="fa-solid fa-arrow-left rtl:rotate-180"></i>
-			{m.backToLegislativeUpdates()}
-		</a>
+		{#if data.upstreamUnauthorized}
+			<i class="fa-solid fa-lock text-3xl text-amber-400 mb-3"></i>
+			<p class="text-sm text-gray-600 mb-4">{m.legislativeUpdatesAuthRequired()}</p>
+			<div class="flex items-center justify-center gap-3">
+				<a
+					href="/legislative-updates"
+					class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-secondary"
+				>
+					<i class="fa-solid fa-arrow-left rtl:rotate-180"></i>
+					{m.backToLegislativeUpdates()}
+				</a>
+				<a
+					href="https://grc-admin.wathbah.dev/login"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-primary"
+				>
+					<i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+					{m.signInToGrcAdmin()}
+				</a>
+			</div>
+		{:else}
+			<i class="fa-solid fa-triangle-exclamation text-3xl text-amber-400 mb-3"></i>
+			<p class="text-sm text-gray-600 mb-4">
+				{data.upstreamError ? m.failedToLoadLegislativeUpdates() : m.legislativeUpdateNotFound()}
+			</p>
+			<a
+				href="/legislative-updates"
+				class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-primary"
+			>
+				<i class="fa-solid fa-arrow-left rtl:rotate-180"></i>
+				{m.backToLegislativeUpdates()}
+			</a>
+		{/if}
 	</div>
 {:else}
 	<!-- Back link -->

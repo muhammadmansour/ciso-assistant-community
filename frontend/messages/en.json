@@ -162,6 +162,8 @@
 	"affectsPoliciesNone": "No affected policies",
 	"noLegislativeUpdates": "No legislative updates match the selected filters.",
 	"failedToLoadLegislativeUpdates": "Failed to load legislative updates from upstream service.",
+	"legislativeUpdatesAuthRequired": "Please sign in to GRC Admin to view legislative updates.",
+	"signInToGrcAdmin": "Sign in to GRC Admin",
 	"backToLegislativeUpdates": "Back to legislative updates",
 	"updateSummary": "Update Summary",
 	"impactAnalysis": "Impact Analysis",
