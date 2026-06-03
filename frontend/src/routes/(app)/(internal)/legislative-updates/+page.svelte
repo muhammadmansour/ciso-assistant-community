@@ -213,7 +213,26 @@
 	</div>
 </div>
 
-{#if data.upstreamError}
+{#if data.upstreamUnauthorized}
+	<div class="wgrc-card !p-4 mb-4 border-amber-200 bg-amber-50/40">
+		<div class="flex items-start gap-3">
+			<i class="fa-solid fa-lock text-amber-500 mt-0.5"></i>
+			<div class="flex-1">
+				<p class="text-sm font-medium text-amber-800">{m.legislativeUpdatesAuthRequired()}</p>
+				<p class="text-xs text-amber-700/80 mt-1 font-mono break-all">{data.upstreamUrl}</p>
+			</div>
+			<a
+				href="https://grc-admin.wathbah.dev/login"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg"
+			>
+				<i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+				{m.signInToGrcAdmin()}
+			</a>
+		</div>
+	</div>
+{:else if data.upstreamError}
 	<div class="wgrc-card !p-4 mb-4 border-red-200 bg-red-50/40">
 		<div class="flex items-start gap-3">
 			<i class="fa-solid fa-triangle-exclamation text-red-500 mt-0.5"></i>
