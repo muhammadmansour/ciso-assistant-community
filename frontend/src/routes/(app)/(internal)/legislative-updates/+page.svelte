@@ -109,10 +109,15 @@
 		}
 	}
 
-	function formatDate(iso: string | null): string {
+	// Renders the date in the locale of the item's content language.
+	// Arabic items use 'ar-EG' which gives Arabic-Indic numerals (٥ مارس ٢٠٢٦)
+	// with a Gregorian calendar — 'ar-SA' would default to Hijri which is
+	// the wrong calendar for our regulator publishing dates.
+	function formatDate(iso: string | null, lang: string | null | undefined): string {
 		if (!iso) return '';
 		try {
-			return new Date(iso).toLocaleDateString('en-US', {
+			const locale = lang === 'ar' ? 'ar-EG' : 'en-US';
+			return new Date(iso).toLocaleDateString(locale, {
 				year: 'numeric',
 				month: 'short',
 				day: 'numeric'
@@ -310,7 +315,7 @@
 						{#if item.published_at}
 							<span class="inline-flex items-center gap-1.5">
 								<i class="fa-regular fa-calendar"></i>
-								{formatDate(item.published_at)}
+								{formatDate(item.published_at, item.language)}
 							</span>
 						{/if}
 						{#if item.source}
