@@ -23,18 +23,22 @@
 
 	// ---------- shared label / class helpers ----------
 	function statusText(it: LegislativeUpdate): string {
-		const key = `status${it.status
+		const status = it.status ?? '';
+		if (!status) return it.status_label ?? '';
+		const key = `status${status
 			.split('_')
 			.map((p) => p.charAt(0).toUpperCase() + p.slice(1))
 			.join('')}`;
 		const t = safeTranslate(key);
-		return t && t !== key ? t : it.status_label || it.status;
+		return t && t !== key ? t : it.status_label || status;
 	}
 
 	function impactText(it: LegislativeUpdate): string {
-		const key = `impact${it.impact_level.charAt(0).toUpperCase() + it.impact_level.slice(1)}`;
+		const level = it.impact_level ?? '';
+		if (!level) return it.impact_label ?? '';
+		const key = `impact${level.charAt(0).toUpperCase() + level.slice(1)}`;
 		const t = safeTranslate(key);
-		return t && t !== key ? t : it.impact_label || it.impact_level;
+		return t && t !== key ? t : it.impact_label || level;
 	}
 
 	function statusClasses(status: string): string {
@@ -263,18 +267,22 @@
 			{#if item.source}
 				<span class="wgrc-badge bg-red-100 text-red-700">{item.source}</span>
 			{/if}
-			<span
-				class="wgrc-badge border {impactClasses(item.impact_level)} inline-flex items-center gap-1.5"
-			>
-				<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
-				{impactText(item)}
-			</span>
-			<span class="wgrc-badge {statusClasses(item.status)}">
-				{statusText(item)}
-			</span>
+			{#if item.impact_level}
+				<span
+					class="wgrc-badge border {impactClasses(item.impact_level)} inline-flex items-center gap-1.5"
+				>
+					<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
+					{impactText(item)}
+				</span>
+			{/if}
+			{#if item.status}
+				<span class="wgrc-badge {statusClasses(item.status)}">
+					{statusText(item)}
+				</span>
+			{/if}
 		</div>
 
-		<h2 class="text-2xl font-bold text-gray-900 leading-snug mb-3">{item.title}</h2>
+		<h2 class="text-2xl font-bold text-gray-900 leading-snug mb-3">{item.title || item.id}</h2>
 
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
 			{#if item.published_at}
@@ -468,11 +476,11 @@
 		<section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
 			<div class="wgrc-card !p-4">
 				<p class="text-xs text-gray-500 mb-1">{m.affectedPolicies()}</p>
-				<p class="text-2xl font-semibold text-gray-900">{item.affected_policies_count}</p>
+				<p class="text-2xl font-semibold text-gray-900">{item.affected_policies_count ?? '—'}</p>
 			</div>
 			<div class="wgrc-card !p-4">
 				<p class="text-xs text-gray-500 mb-1">{m.impact()}</p>
-				<p class="text-2xl font-semibold text-gray-900">{impactText(item)}</p>
+				<p class="text-2xl font-semibold text-gray-900">{impactText(item) || '—'}</p>
 			</div>
 			<div class="wgrc-card !p-4">
 				<p class="text-xs text-gray-500 mb-1">{m.policiesIndexed()}</p>
