@@ -201,23 +201,39 @@ function normalizeLegislativeUpdate(raw: unknown): LegislativeUpdate | null {
 }
 
 function synthesizeFromLegacy(p: LegacyPipelineRun): LegislativeUpdate {
+	const f1 = p.result?.f1_relevance;
 	const snippet = (p.regulation_snippet ?? '').trim();
-	const reasoning = p.result?.f1_relevance?.reasoning ?? '';
+	const reasoning = f1?.reasoning ?? '';
 	const stage = (p.stage_reached ?? p.result?.stage_reached ?? '').toLowerCase();
-	const confidence = p.result?.f1_relevance?.confidence;
+	const confidence = f1?.confidence;
 	const impacts = p.result?.f4_impacts ?? [];
 	const matches = p.result?.f3_matches ?? [];
 
-	const synthTitle = synthTitleFromText(snippet) || `Pipeline run ${p.id.slice(0, 12)}…`;
-	const synthDescription = (reasoning && reasoning.length > 20 ? reasoning : snippet).slice(
-		0,
-		600
-	);
-	const synthSource = parseOrgName(p.org_context ?? '');
+	// Prefer the curated f1.document_* fields the AI extractor now emits.
+	// Fall back to regex-from-snippet for legacy runs that pre-date that schema
+	// so they still render something instead of a bare UUID.
+	const f1Title = (f1?.document_title ?? '').trim();
+	const f1Source = (f1?.document_source ?? '').trim();
+	const f1Summary = (f1?.document_summary ?? '').trim();
+	const f1PublishedAt = (f1?.document_published_at ?? '').trim();
+	const f1Tags = f1?.document_tags?.filter((t) => typeof t === 'string' && t.trim().length > 0);
+
+	const synthTitle = f1Title || synthTitleFromText(snippet) || `Pipeline run ${p.id.slice(0, 12)}…`;
+	const synthDescription = (
+		f1Summary || (reasoning && reasoning.length > 20 ? reasoning : snippet)
+	).slice(0, 600);
+	// We DO NOT fall back to org_context for source. That field is the reader
+	// organisation, not a regulator/publisher; using it here would mis-label
+	// every internal-policy run with the org's own name. Leave it null when F1
+	// can't extract a real publisher so the UI just hides the badge.
+	const synthSource = f1Source || null;
+	const synthPublishedAt = f1PublishedAt || (p.created_at ? p.created_at.slice(0, 10) : null);
 	const synthStatus = stageToStatus(stage);
 	const synthImpactLevel = deriveImpact(confidence, impacts);
-	const tags = p.result?.f1_relevance?.relevant_aspects?.slice(0, 8) ?? [];
-	const language = looksArabic(snippet || reasoning) ? 'ar' : 'en';
+	const tags = (f1Tags && f1Tags.length > 0 ? f1Tags : (f1?.relevant_aspects ?? [])).slice(0, 8);
+	const language = looksArabic(synthTitle || synthDescription || snippet || reasoning)
+		? 'ar'
+		: 'en';
 
 	const requiredAmendmentPolicyIds = new Set<string>();
 	for (const point of impacts) {
@@ -233,7 +249,7 @@ function synthesizeFromLegacy(p: LegacyPipelineRun): LegislativeUpdate {
 
 	const pipeline: PipelineBlock = {
 		stage_reached: stage || undefined,
-		f1_relevance: p.result?.f1_relevance,
+		f1_relevance: f1,
 		key_changes: p.result?.f2_summary?.policy_points ?? [],
 		f3_matches: matches,
 		impact_analysis: impacts,
@@ -248,7 +264,7 @@ function synthesizeFromLegacy(p: LegacyPipelineRun): LegislativeUpdate {
 		source_id: null,
 		internal_source_id: null,
 		external_url: '',
-		published_at: p.created_at ?? null,
+		published_at: synthPublishedAt,
 		status: synthStatus,
 		status_label: '',
 		impact_level: synthImpactLevel,
@@ -259,6 +275,7 @@ function synthesizeFromLegacy(p: LegacyPipelineRun): LegislativeUpdate {
 		language,
 		metadata: {
 			synthesized: true,
+			synthesized_from: f1Title || f1Summary ? 'f1_document_fields' : 'regulation_snippet',
 			stage_reached: stage || undefined,
 			policy_count_indexed: p.result?.policy_count_indexed,
 			policy_count_input: p.policy_count,
@@ -281,16 +298,6 @@ function synthTitleFromText(text: string): string {
 	const cut = sentenceEnd > 0 && sentenceEnd <= 140 ? stripped.slice(0, sentenceEnd) : stripped;
 	const trimmed = cut.length > 120 ? cut.slice(0, 117).trimEnd() + '…' : cut;
 	return trimmed;
-}
-
-function parseOrgName(orgContext: string): string | null {
-	if (!orgContext) return null;
-	// Prefer the Arabic name if present; otherwise use the English "Organization:" line.
-	const arabic = orgContext.match(/Arabic Name:\s*([^\n\r]+)/i);
-	if (arabic?.[1]) return arabic[1].trim();
-	const org = orgContext.match(/Organization:\s*([^\n\r]+)/i);
-	if (org?.[1]) return org[1].trim();
-	return null;
 }
 
 function stageToStatus(stage: string): string {
