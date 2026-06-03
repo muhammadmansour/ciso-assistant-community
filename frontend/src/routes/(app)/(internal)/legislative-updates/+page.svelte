@@ -244,7 +244,7 @@
 	</div>
 {/if}
 
-{#if filtered.length === 0 && !data.upstreamError}
+{#if filtered.length === 0 && !data.upstreamError && !data.upstreamUnauthorized}
 	<div class="wgrc-card text-center py-14">
 		<i class="fa-solid fa-inbox text-3xl text-gray-300 mb-3"></i>
 		<p class="text-sm text-gray-500">{m.noLegislativeUpdates()}</p>
