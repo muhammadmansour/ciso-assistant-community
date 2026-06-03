@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import {
 	fetchLegislativeUpdateById,
-	LEGISLATIVE_UPDATES_API_URL
+	LEGISLATIVE_UPDATE_DETAIL_API_URL
 } from '$lib/server/legislative-updates';
 
 export const load: PageServerLoad = async ({ fetch, params }) => {
@@ -10,6 +10,6 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 		title: item?.title ?? 'legislativeUpdates',
 		item,
 		upstreamError,
-		upstreamUrl: LEGISLATIVE_UPDATES_API_URL
+		upstreamUrl: `${LEGISLATIVE_UPDATE_DETAIL_API_URL.replace(/\/$/, '')}/${encodeURIComponent(params.id)}`
 	};
 };

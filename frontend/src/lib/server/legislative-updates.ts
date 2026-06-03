@@ -37,7 +37,7 @@ export type LegislativeUpdate = {
 	updated_at: string;
 };
 
-type ExtractedResponse = {
+type ExtractedListResponse = {
 	success: boolean;
 	total: number;
 	limit: number;
@@ -46,9 +46,19 @@ type ExtractedResponse = {
 	items: LegislativeUpdate[];
 };
 
+type ExtractedDetailResponse = {
+	success: boolean;
+	item: LegislativeUpdate | null;
+};
+
 export const LEGISLATIVE_UPDATES_API_URL =
 	process.env.LEGISLATIVE_UPDATES_API_URL ??
 	'https://grc-admin.wathbah.dev/api/legislative-updates/extracted';
+
+// Per-item public mirror of /api/ai-tools/pipeline-runs/:id (which requires
+// auth). Same shape as a list element, wrapped in { success, item }.
+export const LEGISLATIVE_UPDATE_DETAIL_API_URL =
+	process.env.LEGISLATIVE_UPDATE_DETAIL_API_URL ?? LEGISLATIVE_UPDATES_API_URL;
 
 export async function fetchLegislativeUpdates(
 	fetchFn: typeof fetch
@@ -61,7 +71,7 @@ export async function fetchLegislativeUpdates(
 			);
 			return { items: [], upstreamError: true };
 		}
-		const payload = (await res.json()) as ExtractedResponse;
+		const payload = (await res.json()) as ExtractedListResponse;
 		const items = Array.isArray(payload?.items) ? payload.items : [];
 		return { items, upstreamError: false };
 	} catch (err) {
@@ -74,8 +84,29 @@ export async function fetchLegislativeUpdateById(
 	fetchFn: typeof fetch,
 	id: string
 ): Promise<{ item: LegislativeUpdate | null; upstreamError: boolean }> {
-	const { items, upstreamError } = await fetchLegislativeUpdates(fetchFn);
-	if (upstreamError) return { item: null, upstreamError: true };
-	const item = items.find((i) => i.id === id) ?? null;
-	return { item, upstreamError: false };
+	const detailUrl = `${LEGISLATIVE_UPDATE_DETAIL_API_URL.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+	try {
+		const res = await fetchFn(detailUrl);
+		// 404 is "not found" (legit empty result), not an upstream failure.
+		if (res.status === 404) {
+			return { item: null, upstreamError: false };
+		}
+		if (!res.ok) {
+			console.error(
+				`[legislative-updates] detail upstream returned ${res.status} ${res.statusText} for ${id}`
+			);
+			return { item: null, upstreamError: true };
+		}
+		const payload = (await res.json()) as ExtractedDetailResponse;
+		const item = payload?.item ?? null;
+		return { item, upstreamError: false };
+	} catch (err) {
+		console.error('[legislative-updates] detail upstream fetch failed', err);
+		// Fall back to the list endpoint so a transient detail-route failure
+		// doesn't completely break the page when the list still works.
+		const { items, upstreamError } = await fetchLegislativeUpdates(fetchFn);
+		if (upstreamError) return { item: null, upstreamError: true };
+		const item = items.find((i) => i.id === id) ?? null;
+		return { item, upstreamError: false };
+	}
 }
