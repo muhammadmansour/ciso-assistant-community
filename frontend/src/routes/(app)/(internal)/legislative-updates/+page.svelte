@@ -229,7 +229,7 @@
 				<p class="text-xs text-amber-700/80 mt-1 font-mono break-all">{data.upstreamUrl}</p>
 			</div>
 			<a
-				href="https://grc-admin.wathbah.dev/login"
+				href="https://grc-admin.wathbah.dev/"
 				target="_blank"
 				rel="noopener noreferrer"
 				class="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg"
