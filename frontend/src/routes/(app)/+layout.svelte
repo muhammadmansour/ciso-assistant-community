@@ -27,6 +27,7 @@
 
 	import CommandPalette from '$lib/components/CommandPalette/CommandPalette.svelte';
 	import FloatingPolicyWidget from '$lib/components/FloatingPolicyWidget/FloatingPolicyWidget.svelte';
+	import PageReady from '$lib/components/LoadingIndicator/PageReady.svelte';
 	import {
 		interceptExternalLinks,
 		setGlobalModalStore,
@@ -221,7 +222,9 @@
 	<main
 		class="px-6 pb-8 transition-all duration-300 {classesSidebarOpen(sidebarOpen)}"
 	>
-		{@render children?.()}
+		<PageReady>
+			{@render children?.()}
+		</PageReady>
 	</main>
 
 	<!-- Floating Policy Chat Widget -->
