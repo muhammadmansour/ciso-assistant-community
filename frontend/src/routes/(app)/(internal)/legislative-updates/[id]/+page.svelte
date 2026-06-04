@@ -2,12 +2,7 @@
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { m } from '$paraglide/messages';
 	import type { PageData } from './$types';
-	import type {
-		LegislativeUpdate,
-		PipelineImpactForPoint,
-		PipelineKeyChange,
-		PipelinePolicyImpact
-	} from '$lib/server/legislative-updates';
+	import type { LegislativeUpdate } from '$lib/server/legislative-updates';
 
 	interface Props {
 		data: PageData;
@@ -21,10 +16,12 @@
 	type TabKey = 'summary' | 'impact' | 'tasks';
 	let activeTab = $state<TabKey>('summary');
 
-	// 'by_policy'    = one card per (point, impact) — amendments grouped as sub-bullets.
-	// 'by_amendment' = one card per individual amendment — higher fidelity, more rows.
-	type TaskView = 'by_policy' | 'by_amendment';
-	let taskView = $state<TaskView>('by_policy');
+	// Inline expansion for impact-analysis rows. Stores the
+	// "<point_id>::<policy_id>" of the currently-open row, or null.
+	let expandedRowKey = $state<string | null>(null);
+	function toggleRow(key: string) {
+		expandedRowKey = expandedRowKey === key ? null : key;
+	}
 
 	// ---------- shared label / class helpers ----------
 	function statusText(it: LegislativeUpdate): string {
@@ -85,10 +82,35 @@
 		}
 	}
 
-	// Renders the date in the locale of the item's content language.
-	// Arabic items use 'ar-EG' which gives Arabic-Indic numerals (٥ مارس ٢٠٢٦)
-	// with a Gregorian calendar — 'ar-SA' would default to Hijri which is
-	// the wrong calendar for our regulator publishing dates.
+	function impactTextOnlyClass(level: string | null | undefined): string {
+		switch (level) {
+			case 'high':
+				return 'text-red-600';
+			case 'medium':
+				return 'text-amber-600';
+			case 'low':
+				return 'text-green-600';
+			default:
+				return 'text-gray-600';
+		}
+	}
+
+	function confidenceBarClass(level: string | null | undefined): string {
+		switch (level) {
+			case 'high':
+				return 'bg-red-500';
+			case 'medium':
+				return 'bg-amber-500';
+			case 'low':
+				return 'bg-green-500';
+			default:
+				return 'bg-blue-500';
+		}
+	}
+
+	// Arabic items render dates as ٥ مارس ٢٠٢٦ via 'ar-EG' (forces Gregorian +
+	// Arabic-Indic numerals); 'ar-SA' would switch to Hijri which is wrong for
+	// regulator publishing dates.
 	function formatDate(iso: string | null | undefined, lang: string | null | undefined): string {
 		if (!iso) return '';
 		try {
@@ -103,7 +125,7 @@
 		}
 	}
 
-	// ---------- severity (pipeline-level) ----------
+	// ---------- severity helpers (pipeline-level) ----------
 	function severityLabel(sev: string | undefined | null): string {
 		if (!sev) return '';
 		const map: Record<string, string> = {
@@ -158,132 +180,82 @@
 		}
 	}
 
-	function formatConfidence(c: number | undefined): string {
-		if (typeof c !== 'number') return '';
-		const pct = Math.round(c * 100);
-		return `${pct}%`;
-	}
-
-	function formatSimilarity(s: number | undefined): string {
-		if (typeof s !== 'number') return '';
-		const pct = Math.round(s * 100);
-		return `${pct}%`;
-	}
-
 	// ---------- derived data for tabs ----------
-	const richKeyChanges: PipelineKeyChange[] = $derived(pipeline?.key_changes ?? []);
+	const impactAnalysis = $derived(pipeline?.impact_analysis ?? []);
+	const keyChanges = $derived(pipeline?.key_changes ?? []);
 
-	// Legacy fallback when the backend only ships metadata.key_changes: string[]
-	const legacyKeyChanges: string[] = $derived.by(() => {
-		if (richKeyChanges.length) return [];
-		const raw = item?.metadata?.key_changes;
-		return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === 'string' && !!s) : [];
-	});
-
-	const impactAnalysis: PipelineImpactForPoint[] = $derived(pipeline?.impact_analysis ?? []);
-
-	type PolicyTask = {
-		pointId: string;
-		pointText: string;
-		policyId: string;
-		policyTitle: string;
-		severity: string;
-		impactSummary: string;
-		complianceGap?: string;
-		amendments: NonNullable<PipelinePolicyImpact['amendments']>;
-	};
-
-	// One task per (regulation point × impacted policy). Amendments to the same
-	// policy are kept together so a reviewer sees the full change set in context.
-	const policyTasks: PolicyTask[] = $derived.by(() => {
-		const out: PolicyTask[] = [];
-		for (const point of impactAnalysis) {
-			for (const imp of point.impacts ?? []) {
-				if (!imp.requires_amendment) continue;
-				out.push({
-					pointId: point.point_id,
-					pointText: point.point_text,
-					policyId: imp.policy_id,
-					policyTitle: imp.policy_title,
-					severity: imp.severity,
-					impactSummary: imp.impact_summary,
-					complianceGap: imp.compliance_gap,
-					amendments: imp.amendments ?? []
-				});
-			}
+	// Plain text bullet list for the Key Changes section. Falls back to legacy
+	// metadata.key_changes if the new pipeline shape isn't present.
+	const keyChangePoints: { id?: string; text: string }[] = $derived.by(() => {
+		if (keyChanges.length) {
+			return keyChanges.map((kc) => ({ id: kc.id, text: kc.point }));
 		}
-		return out;
+		const legacy = item?.metadata?.key_changes;
+		if (Array.isArray(legacy)) {
+			return legacy
+				.filter((s): s is string => typeof s === 'string' && !!s)
+				.map((text) => ({ text }));
+		}
+		return [];
 	});
 
-	type AmendmentTask = {
+	// Tasks tab — one entry per individual amendment, falling back to one
+	// per impact when amendments[] is empty but requires_amendment is true.
+	type DerivedTask = {
 		key: string;
-		pointId: string;
-		pointText: string;
-		policyId: string;
+		title: string;
 		policyTitle: string;
 		severity: string;
-		policySection?: string;
-		currentTextSummary?: string;
-		requiredChange: string;
 		changeType?: string;
+		policySection?: string;
 	};
 
-	// One task per individual amendment row. Same source data as policyTasks,
-	// just flattened one level deeper so each `required_change` is its own card.
-	const amendmentTasks: AmendmentTask[] = $derived.by(() => {
-		const out: AmendmentTask[] = [];
+	function severityRank(s: string): number {
+		return { critical: 0, high: 1, medium: 2, low: 3, none: 4 }[s] ?? 5;
+	}
+
+	const derivedTasks: DerivedTask[] = $derived.by(() => {
+		const out: DerivedTask[] = [];
 		for (const point of impactAnalysis) {
 			for (const imp of point.impacts ?? []) {
 				if (!imp.requires_amendment) continue;
 				const amendments = imp.amendments ?? [];
-				// Edge case: impact flagged for amendment but no amendments[] entries —
-				// emit a single placeholder task using impact_summary so it isn't lost.
 				if (amendments.length === 0) {
 					out.push({
 						key: `${point.point_id}::${imp.policy_id}::summary`,
-						pointId: point.point_id,
-						pointText: point.point_text,
-						policyId: imp.policy_id,
+						title: imp.impact_summary,
 						policyTitle: imp.policy_title,
-						severity: imp.severity,
-						requiredChange: imp.impact_summary
+						severity: imp.severity
 					});
 					continue;
 				}
 				amendments.forEach((am, i) => {
 					out.push({
 						key: `${point.point_id}::${imp.policy_id}::${i}`,
-						pointId: point.point_id,
-						pointText: point.point_text,
-						policyId: imp.policy_id,
+						title: am.required_change,
 						policyTitle: imp.policy_title,
 						severity: imp.severity,
-						policySection: am.policy_section,
-						currentTextSummary: am.current_text_summary,
-						requiredChange: am.required_change,
-						changeType: am.change_type
+						changeType: am.change_type,
+						policySection: am.policy_section
 					});
 				});
 			}
 		}
-		return out;
+		return out.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
 	});
 
-	function severityRank(s: string): number {
-		return { critical: 0, high: 1, medium: 2, low: 3, none: 4 }[s] ?? 5;
-	}
+	// ---------- impact-analysis stats ----------
+	const confidencePct = $derived.by(() => {
+		const c = pipeline?.f1_relevance?.confidence;
+		return typeof c === 'number' ? Math.round(c * 100) : null;
+	});
 
-	const policyTasksSorted = $derived(
-		[...policyTasks].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
-	);
-	const amendmentTasksSorted = $derived(
-		[...amendmentTasks].sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
-	);
-
-	// Tab header count = whichever view is active.
-	const tasksTabCount = $derived(
-		taskView === 'by_policy' ? policyTasksSorted.length : amendmentTasksSorted.length
-	);
+	// Sum of all per-point impacts as a single number for the third stat card.
+	const totalImpactsCount = $derived.by(() => {
+		let n = 0;
+		for (const point of impactAnalysis) n += point.impacts?.length ?? 0;
+		return n;
+	});
 </script>
 
 {#if !item}
@@ -350,9 +322,7 @@
 				</span>
 			{/if}
 			{#if item.status}
-				<span class="wgrc-badge {statusClasses(item.status)}">
-					{statusText(item)}
-				</span>
+				<span class="wgrc-badge {statusClasses(item.status)}">{statusText(item)}</span>
 			{/if}
 		</div>
 
@@ -385,14 +355,15 @@
 			{#each [
 				{ key: 'summary' as TabKey, label: m.updateSummary(), icon: 'fa-file-lines', count: null },
 				{ key: 'impact' as TabKey, label: m.impactAnalysis(), icon: 'fa-chart-line', count: impactAnalysis.length || null },
-				{ key: 'tasks' as TabKey, label: m.tasks(), icon: 'fa-list-check', count: tasksTabCount || null }
+				{ key: 'tasks' as TabKey, label: m.tasks(), icon: 'fa-list-check', count: derivedTasks.length || null }
 			] as tab}
 				<button
 					type="button"
 					role="tab"
 					aria-selected={activeTab === tab.key}
 					onclick={() => (activeTab = tab.key)}
-					class="px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors inline-flex items-center gap-2 {activeTab === tab.key
+					class="px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors inline-flex items-center gap-2 {activeTab ===
+					tab.key
 						? 'border-blue-600 text-blue-700'
 						: 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-200'}"
 				>
@@ -400,7 +371,8 @@
 					{tab.label}
 					{#if tab.count}
 						<span
-							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-semibold {activeTab === tab.key
+							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-semibold {activeTab ===
+							tab.key
 								? 'bg-blue-100 text-blue-700'
 								: 'bg-gray-100 text-gray-600'}"
 						>
@@ -413,59 +385,24 @@
 	</div>
 
 	{#if activeTab === 'summary'}
-		<!-- AI Summary -->
+		<!-- AI Summary: simple paragraph, no confidence/reasoning/aspects -->
 		<section class="wgrc-card !p-6 mb-4">
-			<div class="flex items-center justify-between gap-3 mb-3">
-				<div class="flex items-center gap-2">
-					<span
-						class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600"
-					>
-						<i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
-					</span>
-					<h3 class="text-sm font-semibold text-blue-700">{m.aiSummary()}</h3>
-				</div>
-				{#if pipeline?.f1_relevance && typeof pipeline.f1_relevance.confidence === 'number'}
-					<span class="text-xs text-gray-500">
-						{m.aiConfidence()}:
-						<span class="font-mono text-gray-700"
-							>{formatConfidence(pipeline.f1_relevance.confidence)}</span
-						>
-					</span>
-				{/if}
+			<div class="flex items-center gap-2 mb-3">
+				<span
+					class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600"
+				>
+					<i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+				</span>
+				<h3 class="text-sm font-semibold text-blue-700">{m.aiSummary()}</h3>
 			</div>
-
-			<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{item.description}</p>
-
-			{#if pipeline?.f1_relevance?.reasoning && pipeline.f1_relevance.reasoning !== item.description}
-				<div class="mt-4 pt-4 border-t border-gray-100">
-					<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-						{m.aiRelevanceReasoning()}
-					</p>
-					<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-						{pipeline.f1_relevance.reasoning}
-					</p>
-				</div>
-			{/if}
-
-			{#if pipeline?.f1_relevance?.relevant_aspects?.length}
-				<div class="mt-4">
-					<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-						{m.relevantAspects()}
-					</p>
-					<div class="flex flex-wrap gap-1.5">
-						{#each pipeline.f1_relevance.relevant_aspects as aspect}
-							<span
-								class="inline-block px-2 py-0.5 rounded-md bg-blue-50 text-xs text-blue-700 border border-blue-100"
-							>
-								{aspect}
-							</span>
-						{/each}
-					</div>
-				</div>
+			{#if item.description}
+				<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{item.description}</p>
+			{:else}
+				<p class="text-sm text-gray-400 italic">—</p>
 			{/if}
 		</section>
 
-		<!-- Key changes -->
+		<!-- Key Changes: clean bullet list (id/category/reference shown subtly, not as chips) -->
 		<section class="wgrc-card !p-6 mb-4">
 			<div class="flex items-center justify-between gap-3 mb-4">
 				<div class="flex items-center gap-2">
@@ -476,90 +413,97 @@
 					</span>
 					<h3 class="text-sm font-semibold text-amber-700">{m.keyChanges()}</h3>
 				</div>
-				{#if richKeyChanges.length}
+				{#if keyChangePoints.length}
 					<span
 						class="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700"
 					>
-						{richKeyChanges.length}
+						{keyChangePoints.length}
 					</span>
 				{/if}
 			</div>
 
-			{#if richKeyChanges.length}
-				<ul class="space-y-4">
-					{#each richKeyChanges as kc}
-						<li class="border border-gray-100 rounded-lg p-4 hover:border-blue-200 transition-colors">
-							<div class="flex items-start gap-3">
-								<span
-									class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] font-mono font-semibold mt-0.5"
-								>
-									{kc.id}
-								</span>
-								<p class="text-sm text-gray-800 leading-relaxed flex-1">{kc.point}</p>
-							</div>
-							{#if kc.category || kc.source_reference}
-								<div
-									class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500"
-								>
-									{#if kc.category}
-										<span class="inline-flex items-center gap-1.5">
-											<i class="fa-solid fa-tag text-[10px]"></i>
-											{m.category()}: <span class="text-gray-700 font-medium">{kc.category}</span>
-										</span>
-									{/if}
-									{#if kc.source_reference}
-										<span class="inline-flex items-center gap-1.5">
-											<i class="fa-solid fa-bookmark text-[10px]"></i>
-											{m.reference()}: <span class="text-gray-700 font-medium"
-												>{kc.source_reference}</span
-											>
-										</span>
-									{/if}
-								</div>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{:else if legacyKeyChanges.length}
+			{#if keyChangePoints.length}
 				<ul class="space-y-2.5">
-					{#each legacyKeyChanges as change}
+					{#each keyChangePoints as kc}
 						<li class="flex items-start gap-2.5 text-sm text-gray-700 leading-relaxed">
-							<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-							<span>{change}</span>
+							<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+							<span class="flex-1">{kc.text}</span>
 						</li>
 					{/each}
 				</ul>
 			{:else}
 				<p class="text-sm text-gray-400 italic">{m.noKeyChangesAvailable()}</p>
 			{/if}
-
-			{#if item.tags?.length}
-				<div class="mt-5 pt-4 border-t border-gray-100 flex flex-wrap gap-1.5">
-					{#each item.tags as tag}
-						<span
-							class="inline-block px-2 py-0.5 rounded-md bg-gray-50 text-xs text-gray-500 border border-gray-100"
-						>
-							#{tag}
-						</span>
-					{/each}
-				</div>
-			{/if}
 		</section>
+
+		<!-- Original document link (only when external_url is present) -->
+		{#if item.external_url}
+			<section class="wgrc-card !p-5 mb-4">
+				<div class="flex items-center gap-2 mb-2">
+					<span
+						class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gray-100 text-gray-600"
+					>
+						<i class="fa-solid fa-file-pdf text-xs"></i>
+					</span>
+					<h3 class="text-sm font-semibold text-gray-700">{m.viewOriginalSource()}</h3>
+				</div>
+				<a
+					href={item.external_url}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+				>
+					<i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+					{item.external_url}
+				</a>
+			</section>
+		{/if}
 	{:else if activeTab === 'impact'}
-		<!-- Impact stats -->
+		<!-- Stat row -->
 		<section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+			<!-- Impact level + confidence percentage with progress bar -->
+			<div class="wgrc-card !p-4">
+				<div class="flex items-center justify-between mb-1">
+					<span class="text-xs text-gray-500">{m.impact()}</span>
+					{#if item.impact_level}
+						<span class="text-xs font-semibold {impactTextOnlyClass(item.impact_level)}">
+							{impactText(item)}
+						</span>
+					{/if}
+				</div>
+				{#if confidencePct !== null}
+					<p class="text-2xl font-bold text-gray-900 mb-2">{confidencePct}%</p>
+					<div class="h-2 rounded-full bg-gray-100 overflow-hidden">
+						<div
+							class="h-full transition-[width] duration-500 {confidenceBarClass(item.impact_level)}"
+							style="width: {confidencePct}%"
+						></div>
+					</div>
+					<p class="text-[10px] text-gray-400 mt-1.5">{m.aiConfidence()}</p>
+				{:else}
+					<p class="text-2xl font-bold text-gray-900">{impactText(item) || '—'}</p>
+				{/if}
+			</div>
+
+			<!-- Affected policies -->
 			<div class="wgrc-card !p-4">
 				<p class="text-xs text-gray-500 mb-1">{m.affectedPolicies()}</p>
-				<p class="text-2xl font-semibold text-gray-900">{item.affected_policies_count ?? '—'}</p>
+				<p class="text-2xl font-bold text-gray-900">{item.affected_policies_count ?? '—'}</p>
+				<p class="text-[10px] text-gray-400 mt-1.5">
+					{(item.affected_policies_count ?? 0) === 1
+						? m.affectsPoliciesOne()
+						: m.affectsPoliciesOther({ count: item.affected_policies_count ?? 0 })}
+				</p>
 			</div>
+
+			<!-- Total impacts (sum across all regulation points) -->
 			<div class="wgrc-card !p-4">
-				<p class="text-xs text-gray-500 mb-1">{m.impact()}</p>
-				<p class="text-2xl font-semibold text-gray-900">{impactText(item) || '—'}</p>
-			</div>
-			<div class="wgrc-card !p-4">
-				<p class="text-xs text-gray-500 mb-1">{m.policiesIndexed()}</p>
-				<p class="text-2xl font-semibold text-gray-900">
-					{pipeline?.policy_count_indexed ?? '—'}
+				<p class="text-xs text-gray-500 mb-1">{m.policyImpacts()}</p>
+				<p class="text-2xl font-bold text-gray-900">{totalImpactsCount || '—'}</p>
+				<p class="text-[10px] text-gray-400 mt-1.5">
+					{#if pipeline?.policy_count_indexed}
+						{m.policiesIndexed()}: {pipeline.policy_count_indexed}
+					{/if}
 				</p>
 			</div>
 		</section>
@@ -567,142 +511,171 @@
 		{#if impactAnalysis.length}
 			<div class="space-y-4">
 				{#each impactAnalysis as point, idx (point.point_id)}
-					<section class="wgrc-card !p-6">
-						<div class="flex items-start gap-3 mb-4 pb-4 border-b border-gray-100">
+					<section class="wgrc-card !p-0 overflow-hidden">
+						<!-- Section header: regulation point -->
+						<div
+							class="flex items-start gap-3 p-4 border-b border-gray-100 bg-gray-50/40"
+						>
 							<span
-								class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] font-mono font-semibold mt-1"
+								class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] font-mono font-semibold mt-0.5"
 							>
 								{point.point_id}
 							</span>
 							<div class="flex-1 min-w-0">
-								<p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+								<p
+									class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5"
+								>
 									{m.newRegulationPoint()} {idx + 1}
 								</p>
 								<p class="text-sm text-gray-800 leading-relaxed">{point.point_text}</p>
 							</div>
+							<span
+								class="shrink-0 inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700"
+							>
+								{point.impacts?.length ?? 0}
+							</span>
 						</div>
 
-						<div class="flex items-center justify-between mb-3">
-							<h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-								{m.policyImpacts()}
-							</h4>
-							<span class="text-xs text-gray-400">{point.impacts?.length ?? 0}</span>
-						</div>
-
-						<div class="space-y-3">
-							{#each point.impacts ?? [] as imp}
-								<details class="group border border-gray-100 rounded-lg overflow-hidden">
-									<summary
-										class="flex items-center justify-between gap-3 p-3 cursor-pointer hover:bg-gray-50 list-none"
+						<!-- Compact policy rows -->
+						<ul class="divide-y divide-gray-100">
+							{#each point.impacts ?? [] as imp (imp.policy_id)}
+								{@const rowKey = `${point.point_id}::${imp.policy_id}`}
+								{@const isOpen = expandedRowKey === rowKey}
+								<li>
+									<button
+										type="button"
+										onclick={() => toggleRow(rowKey)}
+										class="w-full text-start flex items-center gap-3 px-4 py-3 hover:bg-blue-50/40 transition-colors"
+										aria-expanded={isOpen}
 									>
-										<div class="flex items-center gap-3 min-w-0 flex-1">
+										<span
+											class="text-sm font-medium text-gray-800 truncate shrink-0 max-w-[40%]"
+											title={imp.policy_title}
+										>
+											{imp.policy_title}
+										</span>
+										<span
+											class="inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium shrink-0 {severityClasses(
+												imp.severity
+											)}"
+										>
+											{severityLabel(imp.severity)}
+										</span>
+										<span
+											class="text-xs text-gray-500 leading-snug truncate flex-1 min-w-0"
+											title={imp.impact_summary}
+										>
+											{imp.impact_summary}
+										</span>
+										<span
+											class="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline shrink-0 ml-2 rtl:ml-0 rtl:mr-2"
+										>
+											{m.viewDetails()}
 											<i
-												class="fa-solid fa-chevron-right text-[10px] text-gray-400 transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90"
+												class="fa-solid text-[10px] transition-transform {isOpen
+													? 'fa-chevron-up'
+													: 'fa-chevron-down'}"
 											></i>
-											<span class="font-medium text-sm text-gray-800 truncate" title={imp.policy_title}
-												>{imp.policy_title}</span
-											>
-										</div>
-										<div class="flex items-center gap-2 shrink-0">
-											{#if typeof imp.similarity_score === 'number'}
-												<span class="text-[11px] text-gray-400 font-mono"
-													>{formatSimilarity(imp.similarity_score)}</span
-												>
-											{/if}
-											<span
-												class="inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
-													imp.severity
-												)}"
-											>
-												{severityLabel(imp.severity)}
-											</span>
-											{#if imp.requires_amendment}
-												<span
-													class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium bg-blue-50 text-blue-700 border-blue-200"
-												>
-													<i class="fa-solid fa-pen-to-square text-[9px]"></i>
-													{m.requiresAmendment()}
-												</span>
-											{/if}
-										</div>
-									</summary>
-									<div class="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/40 space-y-3">
-										<div>
-											<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
-												{m.impactAnalysis()}
-											</p>
-											<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-												{imp.impact_summary}
-											</p>
-										</div>
-										{#if imp.severity_reasoning}
+										</span>
+									</button>
+
+									{#if isOpen}
+										<div
+											class="px-4 pb-4 pt-1 bg-gray-50/40 border-t border-gray-100 space-y-3"
+										>
 											<div>
 												<p
 													class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
 												>
-													{m.severity()}
+													{m.impactAnalysis()}
 												</p>
-												<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-													{imp.severity_reasoning}
+												<p
+													class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+												>
+													{imp.impact_summary}
 												</p>
 											</div>
-										{/if}
-										{#if imp.compliance_gap}
-											<div>
-												<p
-													class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
-												>
-													{m.complianceGap()}
-												</p>
-												<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-													{imp.compliance_gap}
-												</p>
-											</div>
-										{/if}
-										{#if imp.amendments?.length}
-											<div>
-												<p
-													class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2"
-												>
-													{m.proposedAmendments()} ({imp.amendments.length})
-												</p>
-												<div class="space-y-2">
-													{#each imp.amendments as am}
-														<div class="bg-white border border-gray-100 rounded-md p-3 text-sm">
-															<div class="flex items-center gap-2 mb-2">
-																<span
-																	class="inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
-																		am.change_type
-																	)}"
-																>
-																	{changeTypeLabel(am.change_type)}
-																</span>
-																{#if am.policy_section}
-																	<span class="text-xs text-gray-500"
-																		>{m.amendmentSection()}:
-																		<span class="font-mono text-gray-700">{am.policy_section}</span>
-																	</span>
-																{/if}
-															</div>
-															{#if am.current_text_summary}
-																<p class="text-xs text-gray-500 mb-0.5">{m.amendmentCurrent()}:</p>
-																<p
-																	class="text-sm text-gray-600 leading-relaxed mb-2 line-through decoration-gray-300"
-																>
-																	{am.current_text_summary}
-																</p>
-															{/if}
-															<p class="text-xs text-gray-500 mb-0.5">{m.amendmentRequired()}:</p>
-															<p class="text-sm text-gray-800 leading-relaxed">{am.required_change}</p>
-														</div>
-													{/each}
+											{#if imp.severity_reasoning}
+												<div>
+													<p
+														class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
+													>
+														{m.severity()}
+													</p>
+													<p
+														class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+													>
+														{imp.severity_reasoning}
+													</p>
 												</div>
-											</div>
-										{/if}
-									</div>
-								</details>
+											{/if}
+											{#if imp.compliance_gap}
+												<div>
+													<p
+														class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
+													>
+														{m.complianceGap()}
+													</p>
+													<p
+														class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+													>
+														{imp.compliance_gap}
+													</p>
+												</div>
+											{/if}
+											{#if imp.amendments?.length}
+												<div>
+													<p
+														class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2"
+													>
+														{m.proposedAmendments()} ({imp.amendments.length})
+													</p>
+													<div class="space-y-2">
+														{#each imp.amendments as am}
+															<div
+																class="bg-white border border-gray-100 rounded-md p-3 text-sm"
+															>
+																<div class="flex items-center gap-2 mb-2">
+																	<span
+																		class="inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
+																			am.change_type
+																		)}"
+																	>
+																		{changeTypeLabel(am.change_type)}
+																	</span>
+																	{#if am.policy_section}
+																		<span class="text-xs text-gray-500">
+																			{m.amendmentSection()}:
+																			<span class="font-mono text-gray-700">{am.policy_section}</span>
+																		</span>
+																	{/if}
+																</div>
+																{#if am.current_text_summary}
+																	<p class="text-xs text-gray-500 mb-0.5">
+																		{m.amendmentCurrent()}:
+																	</p>
+																	<p
+																		class="text-sm text-gray-600 leading-relaxed mb-2 line-through decoration-gray-300"
+																	>
+																		{am.current_text_summary}
+																	</p>
+																{/if}
+																<p class="text-xs text-gray-500 mb-0.5">
+																	{m.amendmentRequired()}:
+																</p>
+																<p class="text-sm text-gray-800 leading-relaxed">
+																	{am.required_change}
+																</p>
+															</div>
+														{/each}
+													</div>
+												</div>
+											{/if}
+										</div>
+									{/if}
+								</li>
 							{/each}
-						</div>
+						</ul>
 					</section>
 				{/each}
 			</div>
@@ -718,186 +691,30 @@
 			</section>
 		{/if}
 	{:else}
-		{#if policyTasksSorted.length}
-			<!-- View toggle + descriptive caption -->
-			<section
-				class="wgrc-card !p-4 mb-4 bg-blue-50/30 border-blue-100 flex flex-wrap items-center justify-between gap-3"
-			>
-				<p class="text-xs text-blue-700 max-w-xl">{m.derivedTasksDescription()}</p>
-				<div
-					class="inline-flex rounded-lg bg-white border border-blue-200 p-0.5 text-xs font-medium"
-					role="tablist"
-					aria-label={m.taskViewToggle()}
-				>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={taskView === 'by_policy'}
-						onclick={() => (taskView = 'by_policy')}
-						class="px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 {taskView ===
-						'by_policy'
-							? 'bg-blue-600 text-white'
-							: 'text-gray-600 hover:text-blue-700'}"
-					>
-						<i class="fa-solid fa-layer-group text-[10px]"></i>
-						{m.groupByPolicy()}
+		<!-- Tasks tab: simple timeline -->
+		{#if derivedTasks.length}
+			<!-- Simple timeline: check icon + task title + policy reference below. -->
+			<ul class="space-y-2">
+				{#each derivedTasks as task (task.key)}
+					<li class="wgrc-card !p-4 flex items-start gap-3">
 						<span
-							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[9px] {taskView ===
-							'by_policy'
-								? 'bg-white/25 text-white'
-								: 'bg-gray-100 text-gray-600'}"
+							class="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600"
 						>
-							{policyTasksSorted.length}
+							<i class="fa-solid fa-circle-check text-sm"></i>
 						</span>
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={taskView === 'by_amendment'}
-						onclick={() => (taskView = 'by_amendment')}
-						class="px-3 py-1.5 rounded-md transition-colors inline-flex items-center gap-1.5 {taskView ===
-						'by_amendment'
-							? 'bg-blue-600 text-white'
-							: 'text-gray-600 hover:text-blue-700'}"
-					>
-						<i class="fa-solid fa-list text-[10px]"></i>
-						{m.showEachAmendment()}
-						<span
-							class="ml-1 rtl:ml-0 rtl:mr-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[9px] {taskView ===
-							'by_amendment'
-								? 'bg-white/25 text-white'
-								: 'bg-gray-100 text-gray-600'}"
-						>
-							{amendmentTasksSorted.length}
-						</span>
-					</button>
-				</div>
-			</section>
-
-			{#if taskView === 'by_policy'}
-				<div class="space-y-3">
-					{#each policyTasksSorted as task, i (task.policyId + task.pointId)}
-						<section class="wgrc-card !p-5">
-							<div class="flex items-start justify-between gap-4 mb-3">
-								<div class="flex items-start gap-3 flex-1 min-w-0">
-									<span
-										class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-semibold"
-									>
-										{i + 1}
-									</span>
-									<div class="min-w-0 flex-1">
-										<p
-											class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5"
-										>
-											{task.policyTitle}
-										</p>
-										<p class="text-sm font-medium text-gray-900 leading-snug">{task.pointText}</p>
-									</div>
-								</div>
-								<span
-									class="shrink-0 inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
-										task.severity
-									)}"
-								>
-									{severityLabel(task.severity)}
-								</span>
-							</div>
-
-							<p class="text-sm text-gray-700 leading-relaxed mb-3">{task.impactSummary}</p>
-
-							{#if task.amendments.length}
-								<div class="space-y-2 mt-3 pt-3 border-t border-gray-100">
-									{#each task.amendments as am}
-										<div class="flex items-start gap-2 text-sm">
-											<span
-												class="shrink-0 inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium mt-0.5 {changeTypeClasses(
-													am.change_type
-												)}"
-											>
-												{changeTypeLabel(am.change_type)}
-											</span>
-											<div class="min-w-0 flex-1">
-												{#if am.policy_section}
-													<span class="text-xs text-gray-500 font-mono">{am.policy_section}: </span>
-												{/if}
-												<span class="text-sm text-gray-800">{am.required_change}</span>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						</section>
-					{/each}
-				</div>
-			{:else}
-				<div class="space-y-3">
-					{#each amendmentTasksSorted as task, i (task.key)}
-						<section class="wgrc-card !p-5">
-							<div class="flex items-start justify-between gap-4 mb-3">
-								<div class="flex items-start gap-3 flex-1 min-w-0">
-									<span
-										class="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-semibold"
-									>
-										{i + 1}
-									</span>
-									<div class="min-w-0 flex-1">
-										<div class="flex flex-wrap items-center gap-2 mb-1">
-											{#if task.changeType}
-												<span
-													class="inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
-														task.changeType
-													)}"
-												>
-													{changeTypeLabel(task.changeType)}
-												</span>
-											{/if}
-											<p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-												{task.policyTitle}
-											</p>
-											{#if task.policySection}
-												<span class="text-[11px] text-gray-400">·</span>
-												<span class="text-[11px] font-mono text-gray-600">{task.policySection}</span>
-											{/if}
-										</div>
-										<p class="text-sm font-medium text-gray-900 leading-snug">
-											{task.requiredChange}
-										</p>
-									</div>
-								</div>
-								<span
-									class="shrink-0 inline-block px-2 py-0.5 rounded-md border text-[11px] font-medium {severityClasses(
-										task.severity
-									)}"
-								>
-									{severityLabel(task.severity)}
-								</span>
-							</div>
-
-							{#if task.currentTextSummary}
-								<div class="mb-3 pb-3 border-b border-gray-100">
-									<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
-										{m.amendmentCurrent()}
-									</p>
-									<p
-										class="text-sm text-gray-600 leading-relaxed line-through decoration-gray-300"
-									>
-										{task.currentTextSummary}
-									</p>
-								</div>
-							{/if}
-
-							<div class="flex items-start gap-2 text-xs text-gray-500">
-								<span
-									class="shrink-0 inline-block px-1.5 py-0.5 rounded bg-gray-900 text-white font-mono font-semibold text-[10px] mt-0.5"
-								>
-									{task.pointId}
-								</span>
-								<p class="leading-relaxed flex-1">{task.pointText}</p>
-							</div>
-						</section>
-					{/each}
-				</div>
-			{/if}
+						<div class="flex-1 min-w-0">
+							<p class="text-sm font-medium text-gray-900 leading-snug">{task.title}</p>
+							<p class="mt-1 text-xs text-gray-500 inline-flex items-center gap-1.5">
+								<i class="fa-regular fa-file-lines text-[10px]"></i>
+								{task.policyTitle}{#if task.policySection}
+									<span class="text-gray-400 mx-1">·</span>
+									<span class="font-mono">{task.policySection}</span>
+								{/if}
+							</p>
+						</div>
+					</li>
+				{/each}
+			</ul>
 		{:else if impactAnalysis.length}
 			<section class="wgrc-card !p-6 text-center">
 				<i class="fa-solid fa-circle-check text-3xl text-emerald-300 mb-3"></i>
