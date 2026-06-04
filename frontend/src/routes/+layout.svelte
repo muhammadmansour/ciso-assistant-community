@@ -9,6 +9,7 @@
 
 	import Toast from '$lib/components/Toast/Toast.svelte';
 	import Modal from '$lib/components/Modals/Modal.svelte';
+	import NavigationProgress from '$lib/components/LoadingIndicator/NavigationProgress.svelte';
 	import DisplayJSONModal from '$lib/components/Modals/DisplayJSONModal.svelte';
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import DeleteConfirmModal from '$lib/components/Modals/DeleteConfirmModal.svelte';
@@ -98,6 +99,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </svelte:head>
+<NavigationProgress />
 <Modal components={modalRegistry} />
 <Toast />
 {@render children?.()}

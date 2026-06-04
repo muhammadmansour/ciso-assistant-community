@@ -248,6 +248,10 @@
 	);
 	const rows = handler.getRows();
 	let invalidateTable = $state(false);
+	// True while the table is fetching rows from the backend. Initialised to
+	// `true` so the first paint (before the DataHandler's initial onChange has
+	// resolved) already shows the loading indicator instead of an empty table.
+	let isLoading = $state(true);
 
 	// Evidences: reload while Gemini indexing is pending/uploading; stop polling once all visible rows settle.
 	const EVIDENCE_INDEXING_ACTIVE = new Set(['pending', 'uploading']);
@@ -277,27 +281,32 @@
 
 	$tableHandlers[baseEndpoint] = handler;
 
-	handler.onChange((state: State) =>
-		loadTableData({
-			state,
-			URLModel,
-			endpoint: baseEndpoint,
-			fields:
-				fields.length > 0
-					? { head: fields, body: fields }
-					: {
-							head:
-								typeof tableSource.head[0] === 'string'
-									? Object.values(tableSource.head)
-									: Object.keys(tableSource.head),
-							body:
-								typeof tableSource.body[0] === 'string'
-									? Object.values(tableSource.body)
-									: Object.keys(tableSource.body)
-						},
-			featureFlags: page.data?.featureflags
-		})
-	);
+	handler.onChange(async (state: State) => {
+		isLoading = true;
+		try {
+			return await loadTableData({
+				state,
+				URLModel,
+				endpoint: baseEndpoint,
+				fields:
+					fields.length > 0
+						? { head: fields, body: fields }
+						: {
+								head:
+									typeof tableSource.head[0] === 'string'
+										? Object.values(tableSource.head)
+										: Object.keys(tableSource.head),
+								body:
+									typeof tableSource.body[0] === 'string'
+										? Object.values(tableSource.body)
+										: Object.keys(tableSource.body)
+							},
+				featureFlags: page.data?.featureflags
+			});
+		} finally {
+			isLoading = false;
+		}
+	});
 
 	onMount(() => {
 		if (orderBy) {
@@ -583,7 +592,18 @@
 	let openState = $state(false);
 </script>
 
-<div class="table-wrap {classesBase} rounded-lg overflow-hidden">
+<div class="table-wrap {classesBase} rounded-lg overflow-hidden relative">
+	{#if isLoading}
+		<!-- Slim indeterminate progress bar across the top of the table card.
+		     Shows during initial load AND subsequent refetches (filter changes,
+		     pagination, sort). Pointer events disabled so it never blocks UI. -->
+		<div
+			class="absolute top-0 left-0 right-0 h-0.5 z-30 pointer-events-none overflow-hidden bg-blue-100/60"
+			aria-hidden="true"
+		>
+			<div class="model-table-indeterminate-bar absolute h-full bg-blue-500"></div>
+		</div>
+	{/if}
 	<header class="flex justify-between items-center space-x-8 p-3 border-b border-gray-100">
 		{#if !hideFilters}
 			<Popover
@@ -1005,4 +1025,42 @@
 			<Pagination {handler} {URLModel} />
 		{/if}
 	</footer>
+
+	{#if isLoading && $rows.length === 0}
+		<!-- Full overlay shown only while the table is empty AND fetching, i.e.
+		     the initial load. Once any rows exist, refetches show only the slim
+		     top bar so the user can still see (and act on) previous data. -->
+		<div
+			class="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[1px] z-20"
+			role="status"
+			aria-live="polite"
+			aria-label={m.loading()}
+		>
+			<div class="flex flex-col items-center gap-3 text-gray-500">
+				<i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-500"></i>
+				<span class="text-sm font-medium">{m.loading()}…</span>
+			</div>
+		</div>
+	{/if}
 </div>
+
+<style>
+	@keyframes model-table-indeterminate {
+		0% {
+			left: -35%;
+			width: 35%;
+		}
+		60% {
+			left: 100%;
+			width: 45%;
+		}
+		100% {
+			left: 100%;
+			width: 35%;
+		}
+	}
+	.model-table-indeterminate-bar {
+		animation: model-table-indeterminate 1.4s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+		will-change: left, width;
+	}
+</style>
