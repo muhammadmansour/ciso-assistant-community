@@ -1,13 +1,13 @@
 #!/bin/bash
 # CISO Assistant - PM2 staging (Linux)
-# Public URL: https://grc-stage.wathbahs.com (grc-hrsd.wathbahs.com still allowed in ALLOWED_HOSTS)
+# Public URL: https://singleview-grc.wathbahs.com
 # Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
 # Before start: cd frontend && pnpm run build:staging
 #
-# DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
+# DB name is POSTGRES_NAME (default: singleview). Schema for tables is POSTGRES_SEARCH_PATH (matches DB name by default).
 # If migrate fails on public, once as postgres:
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS "grc-stage" AUTHORIZATION "grc-stage";'
-# Default POSTGRES_SEARCH_PATH=grc-stage. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
+#   sudo -u postgres psql -d "singleview" -c 'CREATE SCHEMA IF NOT EXISTS "singleview" AUTHORIZATION "singleview";'
+# Default POSTGRES_SEARCH_PATH=singleview. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
 
 set -e
 
@@ -15,47 +15,50 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Source server-local env overrides if present.
-# This file is NOT tracked in git, lives outside the repo, and survives
-# `git reset --hard origin/staging-version` from the deploy workflow.
-# Use it for secrets / per-host settings, e.g.:
-#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
-#   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
-#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> ~/.ciso-staging.env   # optional; Huey waits for indexing
-#   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
-#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
-#   chmod 600 ~/.ciso-staging.env
+# Source server-local env overrides from backend/.env if present.
+# .env is gitignored, so it is preserved across `git reset --hard
+# origin/<branch>` from the deploy workflow. Use it for secrets and
+# per-host settings, e.g.:
+#   echo 'POSTGRES_PASSWORD=...'                    >> backend/.env
+#   echo 'USE_GCS=True'                             >> backend/.env
+#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> backend/.env   # optional; Huey waits for indexing
+#   echo 'GS_BUCKET_NAME=singleview-grc-env'        >> backend/.env
+#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> backend/.env
+#   chmod 600 backend/.env
 #
 # GCS authentication: leave GOOGLE_APPLICATION_CREDENTIALS UNSET to use
 # Application Default Credentials (the GCE VM's attached service account).
 # Only set it if you have a service-account JSON key file you want to use
 # explicitly:
 #   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
-#                                                   >> ~/.ciso-staging.env
-if [ -f "$HOME/.ciso-staging.env" ]; then
+#                                                   >> backend/.env
+if [ -f "$SCRIPT_DIR/backend/.env" ]; then
     set -a
     # shellcheck disable=SC1090
-    . "$HOME/.ciso-staging.env"
+    . "$SCRIPT_DIR/backend/.env"
     set +a
 fi
 
 # Configuration
-DOMAIN="grc-stage.wathbahs.com"
+DOMAIN="singleview-grc.wathbahs.com"
 PUBLIC_URL="https://${DOMAIN}"
 BACKEND_PORT=8020
 FRONTEND_PORT=3020
 
 # PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
-POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
-POSTGRES_USER="${POSTGRES_USER:-grc-stage}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
+# SingleView deployment defaults: db, user and password are all "singleview".
+# DB_HOST defaults to localhost; on split app+data deployments set it to the
+# data VM internal IP via backend/.env (e.g. DB_HOST=10.0.0.5).
+POSTGRES_NAME="${POSTGRES_NAME:-singleview}"
+POSTGRES_USER="${POSTGRES_USER:-singleview}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-singleview}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
-POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
+POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-singleview}"
 
 # Object storage (S3 / Google Cloud Storage). Default = local filesystem.
-# Set via ~/.ciso-staging.env on the server to flip to GCS without editing
+# Set via backend/.env on the server to flip to GCS without editing
 # this script. USE_S3 and USE_GCS are mutually exclusive (settings.py exits
 # fast if both are True).
 USE_S3="${USE_S3:-False}"
@@ -63,7 +66,7 @@ USE_GCS="${USE_GCS:-False}"
 GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
 GS_PROJECT_ID="${GS_PROJECT_ID:-}"
 # Empty default → Application Default Credentials (GCE VM service account).
-# Set explicitly in ~/.ciso-staging.env if you want to use a JSON key file.
+# Set explicitly in backend/.env if you want to use a JSON key file.
 GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
@@ -76,12 +79,12 @@ GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 
 # Gemini File Search (used by the AI analysis flow). Both must reach the
 # huey worker AND the gunicorn process (the analysis HTTP endpoint also
-# instantiates the client). Sourced from ~/.ciso-staging.env above.
+# instantiates the client). Sourced from backend/.env above.
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
-# Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
+# Override in backend/.env if needed; indexing must reach the Huey process.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-stage.wathbahs.com/api/audit/analyze}"
 
@@ -138,7 +141,7 @@ if [ -n "$GEMINI_API_KEY" ]; then
     masked="${GEMINI_API_KEY:0:6}…${GEMINI_API_KEY: -4}"
     echo -e "${GREEN}Gemini API key: ${masked}${NC}"
 else
-    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-staging.env — AI analysis will fail with a 'client not configured' error.${NC}"
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in backend/.env — AI analysis will fail with a 'client not configured' error.${NC}"
 fi
 if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
     echo -e "${GREEN}Gemini File Search store: ${GEMINI_FILE_SEARCH_STORE_NAME}${NC}"
@@ -171,9 +174,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,singleview-grc.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://singleview-grc.wathbahs.com',
+        CSRF_TRUSTED_ORIGINS: 'https://singleview-grc.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -212,8 +215,8 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,singleview-grc.wathbahs.com',
+        CISO_ASSISTANT_URL: 'https://singleview-grc.wathbahs.com',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
@@ -253,8 +256,8 @@ module.exports = {
         PORT: '3020',
         NODE_ENV: 'production',
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
-        ORIGIN: 'https://grc-stage.wathbahs.com',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://singleview-grc.wathbahs.com/api',
+        ORIGIN: 'https://singleview-grc.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600'
@@ -285,7 +288,7 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,singleview-grc.wathbahs.com"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
