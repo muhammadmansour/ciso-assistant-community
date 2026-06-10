@@ -304,6 +304,42 @@
 		if (typeof score !== 'number' || !Number.isFinite(score)) return null;
 		return Math.round(score * 100);
 	}
+
+	// Header tint for the Severity panel — keeps the panel framed in the
+	// severity colour so reviewers can scan many regulation points without
+	// re-reading the badge each time.
+	function severityHeaderClass(level: string | undefined | null): string {
+		switch (level) {
+			case 'critical':
+				return 'bg-red-50 border-red-100 text-red-700';
+			case 'high':
+				return 'bg-red-50/70 border-red-100 text-red-700';
+			case 'medium':
+				return 'bg-amber-50 border-amber-100 text-amber-700';
+			case 'low':
+				return 'bg-green-50 border-green-100 text-green-700';
+			default:
+				return 'bg-gray-50 border-gray-100 text-gray-600';
+		}
+	}
+
+	// Vertical accent stripe (`border-s-4`) on each section card. Stripe colour
+	// telegraphs section purpose at a glance — much easier to skim than the
+	// previous flat list of headings + paragraphs.
+	function sectionAccentClass(kind: 'impact' | 'severity' | 'gap' | 'amendments'): string {
+		switch (kind) {
+			case 'impact':
+				return 'border-blue-400';
+			case 'severity':
+				return 'border-amber-400';
+			case 'gap':
+				return 'border-orange-400';
+			case 'amendments':
+				return 'border-emerald-400';
+			default:
+				return 'border-gray-300';
+		}
+	}
 </script>
 
 {#if !item}
@@ -561,6 +597,21 @@
 		</section>
 
 		{#if impactsByPolicy.length}
+			<!-- Section heading above the policy list — replaces the per-card eyebrow -->
+			<div class="flex items-center justify-between gap-3 mb-3 px-1">
+				<h3 class="text-sm font-semibold text-gray-700 inline-flex items-center gap-2">
+					<i class="fa-solid fa-file-shield text-blue-600 text-xs"></i>
+					{m.affectedPolicies()}
+				</h3>
+				<span class="text-xs text-gray-500">
+					{#if analyzedPoliciesCount > 0}
+						{(item.affected_policies_count ?? 0)} / {analyzedPoliciesCount}
+					{:else}
+						{(item.affected_policies_count ?? 0)}
+					{/if}
+				</span>
+			</div>
+
 			<div class="space-y-4">
 				{#each impactsByPolicy as policy (policy.policy_id)}
 					{@const isPolicyOpen = !collapsedPolicies[policy.policy_id]}
@@ -581,11 +632,6 @@
 								<i class="fa-solid fa-file-shield text-sm"></i>
 							</span>
 							<div class="flex-1 min-w-0">
-								<p
-									class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5"
-								>
-									{m.affectedPolicies()}
-								</p>
 								<p
 									class="text-sm font-semibold text-gray-900 leading-snug truncate"
 									title={policy.policy_title}
@@ -721,97 +767,213 @@
 
 										{#if isOpen}
 											<div
-												class="px-4 pb-4 pt-1 bg-gray-50/40 border-t border-gray-100 space-y-3"
+												class="px-4 pb-5 pt-4 bg-gradient-to-b from-blue-50/40 to-transparent border-t border-gray-100 space-y-3"
 											>
-												<div>
-													<p
-														class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
+												<!-- Impact Analysis panel -->
+												<article
+													class="rounded-lg bg-white border border-gray-200/80 border-s-4 {sectionAccentClass(
+														'impact'
+													)} shadow-sm overflow-hidden"
+												>
+													<header
+														class="px-3 py-2 bg-blue-50/60 border-b border-blue-100 flex items-center gap-2"
 													>
-														{m.impactAnalysis()}
-													</p>
+														<span
+															class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 text-blue-600"
+														>
+															<i class="fa-solid fa-magnifying-glass-chart text-[11px]"></i>
+														</span>
+														<h4
+															class="text-[11px] font-semibold uppercase tracking-wide text-blue-700"
+														>
+															{m.impactAnalysis()}
+														</h4>
+													</header>
 													<p
-														class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+														class="p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line"
 													>
 														{pt.impact_summary}
 													</p>
-												</div>
+												</article>
+
+												<!-- Severity reasoning panel — tinted to the severity colour -->
 												{#if pt.severity_reasoning}
-													<div>
-														<p
-															class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
+													<article
+														class="rounded-lg bg-white border border-gray-200/80 border-s-4 {sectionAccentClass(
+															'severity'
+														)} shadow-sm overflow-hidden"
+													>
+														<header
+															class="px-3 py-2 border-b {severityHeaderClass(
+																pt.severity
+															)} flex items-center justify-between gap-2"
 														>
-															{m.severity()}
-														</p>
+															<div class="flex items-center gap-2">
+																<span
+																	class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-white/70"
+																>
+																	<i class="fa-solid fa-signal text-[11px]"></i>
+																</span>
+																<h4
+																	class="text-[11px] font-semibold uppercase tracking-wide"
+																>
+																	{m.severity()}
+																</h4>
+															</div>
+															{#if !ptMuted && pt.severity}
+																<span
+																	class="inline-flex items-center gap-1 text-[11px] font-semibold"
+																>
+																	<span
+																		class="w-1.5 h-1.5 rounded-full {impactDotClass(
+																			pt.severity
+																		)}"
+																	></span>
+																	{pointSeverityLabel(pt)}
+																</span>
+															{/if}
+														</header>
 														<p
-															class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+															class="p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line"
 														>
 															{pt.severity_reasoning}
 														</p>
-													</div>
+													</article>
 												{/if}
+
+												<!-- Compliance gap panel -->
 												{#if pt.compliance_gap}
-													<div>
-														<p
-															class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1"
+													<article
+														class="rounded-lg bg-white border border-orange-200 border-s-4 {sectionAccentClass(
+															'gap'
+														)} shadow-sm overflow-hidden"
+													>
+														<header
+															class="px-3 py-2 bg-orange-50 border-b border-orange-100 flex items-center gap-2"
 														>
-															{m.complianceGap()}
-														</p>
+															<span
+																class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-orange-100 text-orange-600"
+															>
+																<i class="fa-solid fa-triangle-exclamation text-[11px]"></i>
+															</span>
+															<h4
+																class="text-[11px] font-semibold uppercase tracking-wide text-orange-700"
+															>
+																{m.complianceGap()}
+															</h4>
+														</header>
 														<p
-															class="text-sm text-gray-700 leading-relaxed whitespace-pre-line"
+															class="p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-line"
 														>
 															{pt.compliance_gap}
 														</p>
-													</div>
+													</article>
 												{/if}
+
+												<!-- Proposed amendments panel — current vs required side-by-side -->
 												{#if pt.amendments?.length}
-													<div>
-														<p
-															class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2"
+													<article
+														class="rounded-lg bg-white border border-emerald-200 border-s-4 {sectionAccentClass(
+															'amendments'
+														)} shadow-sm overflow-hidden"
+													>
+														<header
+															class="px-3 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between gap-2"
 														>
-															{m.proposedAmendments()} ({pt.amendments.length})
-														</p>
-														<div class="space-y-2">
-															{#each pt.amendments as am}
-																<div
-																	class="bg-white border border-gray-100 rounded-md p-3 text-sm"
+															<div class="flex items-center gap-2">
+																<span
+																	class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-100 text-emerald-600"
 																>
-																	<div class="flex items-center gap-2 mb-2">
-																		<span
-																			class="inline-block px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
-																				am.change_type
-																			)}"
-																		>
-																			{changeTypeLabel(am.change_type)}
-																		</span>
-																		{#if am.policy_section}
-																			<span class="text-xs text-gray-500">
-																				{m.amendmentSection()}:
-																				<span class="font-mono text-gray-700"
-																					>{am.policy_section}</span
-																				>
+																	<i class="fa-solid fa-pen-to-square text-[11px]"></i>
+																</span>
+																<h4
+																	class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700"
+																>
+																	{m.proposedAmendments()}
+																</h4>
+															</div>
+															<span
+																class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700"
+															>
+																{pt.amendments.length}
+															</span>
+														</header>
+														<div class="p-3 space-y-3">
+															{#each pt.amendments as am, amIdx}
+																<div
+																	class="border border-gray-200 rounded-md overflow-hidden"
+																>
+																	<!-- Amendment meta strip -->
+																	<div
+																		class="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100"
+																	>
+																		<div class="flex items-center gap-2 flex-wrap">
+																			<span
+																				class="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium {changeTypeClasses(
+																					am.change_type
+																				)}"
+																			>
+																				{changeTypeLabel(am.change_type)}
 																			</span>
-																		{/if}
-																	</div>
-																	{#if am.current_text_summary}
-																		<p class="text-xs text-gray-500 mb-0.5">
-																			{m.amendmentCurrent()}:
-																		</p>
-																		<p
-																			class="text-sm text-gray-600 leading-relaxed mb-2 line-through decoration-gray-300"
+																			{#if am.policy_section}
+																				<span
+																					class="inline-flex items-center gap-1 text-[11px] text-gray-500"
+																				>
+																					<i
+																						class="fa-regular fa-bookmark text-[10px] text-gray-400"
+																					></i>
+																					{m.amendmentSection()}:
+																					<span
+																						class="font-mono text-gray-700 bg-white px-1 py-0.5 rounded border border-gray-200"
+																						>{am.policy_section}</span
+																					>
+																				</span>
+																			{/if}
+																		</div>
+																		<span class="text-[10px] text-gray-400 font-mono"
+																			>#{amIdx + 1}</span
 																		>
-																			{am.current_text_summary}
-																		</p>
-																	{/if}
-																	<p class="text-xs text-gray-500 mb-0.5">
-																		{m.amendmentRequired()}:
-																	</p>
-																	<p class="text-sm text-gray-800 leading-relaxed">
-																		{am.required_change}
-																	</p>
+																	</div>
+
+																	<!-- Current ↔ Required diff-style columns -->
+																	<div
+																		class="grid {am.current_text_summary
+																			? 'md:grid-cols-2'
+																			: ''} divide-y md:divide-y-0 md:divide-x rtl:md:divide-x-reverse divide-gray-100"
+																	>
+																		{#if am.current_text_summary}
+																			<div class="p-3 bg-red-50/30">
+																				<p
+																					class="text-[10px] font-semibold uppercase tracking-wide text-red-600 mb-1.5 inline-flex items-center gap-1.5"
+																				>
+																					<i class="fa-solid fa-circle-minus"></i>
+																					{m.amendmentCurrent()}
+																				</p>
+																				<p
+																					class="text-sm text-gray-600 leading-relaxed line-through decoration-red-300/70"
+																				>
+																					{am.current_text_summary}
+																				</p>
+																			</div>
+																		{/if}
+																		<div class="p-3 bg-emerald-50/30">
+																			<p
+																				class="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 mb-1.5 inline-flex items-center gap-1.5"
+																			>
+																				<i
+																					class="fa-solid fa-arrow-right-long rtl:rotate-180"
+																				></i>
+																				{m.amendmentRequired()}
+																			</p>
+																			<p class="text-sm text-gray-800 leading-relaxed">
+																				{am.required_change}
+																			</p>
+																		</div>
+																	</div>
 																</div>
 															{/each}
 														</div>
-													</div>
+													</article>
 												{/if}
 											</div>
 										{/if}
