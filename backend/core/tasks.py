@@ -583,7 +583,7 @@ def send_compliance_assessment_status_notification(
         logger.error(f"ComplianceAssessment with id {assessment_id} not found")
         return
 
-    from .email_utils import render_email_template, render_html_email
+    from .email_utils import render_audit_status_html_email, render_email_template
 
     status_labels = dict(ComplianceAssessment.Status.choices)
 
@@ -618,7 +618,24 @@ def send_compliance_assessment_status_notification(
             continue
         rendered = render_email_template(template_name, context)
         if rendered:
-            html_body = render_html_email(rendered["body"])
+            html_body = render_audit_status_html_email(
+                intro=rendered.get("intro", ""),
+                action=rendered.get("action", ""),
+                assessment_name=context["assessment_name"],
+                framework_name=context["framework_name"],
+                folder_name=context["folder_name"],
+                old_status=context["old_status"],
+                new_status=context["new_status"],
+                assessment_url=context["assessment_url"],
+                details_heading=rendered.get("details_heading", "Audit details"),
+                status_heading=rendered.get("status_heading", "Status change"),
+                name_label=rendered.get("name_label", "Name"),
+                framework_label=rendered.get("framework_label", "Framework"),
+                domain_label=rendered.get("domain_label", "Domain"),
+                cta_label=rendered.get("cta_label", "Open audit"),
+                greeting=rendered.get("greeting", "Hello,"),
+                closing=rendered.get("closing", "Thank you."),
+            )
             send_notification_email(
                 rendered["subject"],
                 rendered["body"],

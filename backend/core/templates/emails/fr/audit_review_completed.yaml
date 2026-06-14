@@ -1,13 +1,24 @@
 subject: "Wathbah GRC : revue de l'audit terminée — '${assessment_name}'"
+intro: "Le statut de l'audit suivant a changé suite à une revue concluante."
+action: "L'audit est désormais marqué comme Terminé. Ouvrez-le pour consulter le résultat."
+details_heading: "Détails de l'audit"
+status_heading: "Changement de statut"
+name_label: "Nom"
+framework_label: "Référentiel"
+domain_label: "Domaine"
+cta_label: "Ouvrir l'audit"
+greeting: "Bonjour,"
+closing: "Merci."
 body: |
   Bonjour,
 
   Le statut de l'audit suivant a changé suite à une revue concluante.
 
-  Détails de l'audit :
-  - Nom : ${assessment_name}
-  - Référentiel : ${framework_name}
-  - Domaine : ${folder_name}
+  Détails de l'audit
+
+  Nom : ${assessment_name}
+  Référentiel : ${framework_name}
+  Domaine : ${folder_name}
 
   Changement de statut : ${old_status} → ${new_status}
 

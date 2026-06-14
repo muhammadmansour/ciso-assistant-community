@@ -31,6 +31,126 @@ def get_logo_url() -> str:
     return f"{base_url}/{LOGO_FILENAME}"
 
 
+def render_audit_status_html_email(
+    intro: str,
+    action: str,
+    assessment_name: str,
+    framework_name: str,
+    folder_name: str,
+    old_status: str,
+    new_status: str,
+    assessment_url: str,
+    logo_url: Optional[str] = None,
+    *,
+    details_heading: str = "Audit details",
+    status_heading: str = "Status change",
+    name_label: str = "Name",
+    framework_label: str = "Framework",
+    domain_label: str = "Domain",
+    cta_label: str = "Open audit",
+    greeting: str = "Hello,",
+    closing: str = "Thank you.",
+) -> str:
+    """Rich HTML layout for audit status-change notifications."""
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    safe_intro = escape(intro)
+    safe_action = escape(action)
+    safe_name = escape(assessment_name)
+    safe_framework = escape(framework_name)
+    safe_folder = escape(folder_name)
+    safe_old = escape(old_status)
+    safe_new = escape(new_status)
+    safe_url = escape(assessment_url, quote=True)
+
+    detail_row = (
+        lambda label, value: f"""
+              <tr>
+                <td style="padding:8px 12px;color:#6b7280;font-size:13px;width:120px;vertical-align:top;">
+                  <strong style="color:#374151;">{label}</strong>
+                </td>
+                <td style="padding:8px 12px;color:#111827;font-size:14px;vertical-align:top;">{value}</td>
+              </tr>"""
+    )
+
+    details_table = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+              style="margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fafafa;">
+              {detail_row(name_label, safe_name)}
+              {detail_row(framework_label, safe_framework)}
+              {detail_row(domain_label, safe_folder)}
+            </table>"""
+
+    status_block = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+              style="margin:16px 0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+              <tr>
+                <td style="padding:14px 16px;">
+                  <p style="margin:0 0 6px;color:#1e40af;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:0.04em;">
+                    {escape(status_heading)}
+                  </p>
+                  <p style="margin:0;color:#111827;font-size:16px;font-weight:bold;">
+                    {safe_old} &rarr; {safe_new}
+                  </p>
+                </td>
+              </tr>
+            </table>"""
+
+    cta_button = f"""
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+              <tr>
+                <td style="border-radius:6px;background:#2563eb;">
+                  <a href="{safe_url}"
+                    style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;">
+                    {escape(cta_label)}
+                  </a>
+                </td>
+              </tr>
+            </table>"""
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+            style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td align="center" style="padding:24px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;">
+                <img src="{logo_url}" alt="Wathbah GRC" height="48"
+                  style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">
+                <p style="margin:0 0 8px;font-size:15px;">{escape(greeting)}</p>
+                <p style="margin:0 0 4px;font-size:15px;font-weight:bold;">{safe_intro}</p>
+                <p style="margin:16px 0 8px;font-size:13px;font-weight:bold;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">
+                  {escape(details_heading)}
+                </p>
+                {details_table}
+                {status_block}
+                <p style="margin:16px 0 8px;">{safe_action}</p>
+                {cta_button}
+                <p style="margin:0;color:#6b7280;">{escape(closing)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px;background-color:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
+                Powered by Wathbah
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
+
+
 def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
     """Wrap a plain-text email body in a simple, client-friendly HTML layout
     with the Wathbah logo as a header.
@@ -158,7 +278,25 @@ def render_email_template(
         subject = Template(template_data["subject"]).safe_substitute(full_context)
         body = Template(template_data["body"]).safe_substitute(full_context)
 
-        return {"subject": subject, "body": body}
+        rendered = {"subject": subject, "body": body}
+        for optional_key in (
+            "intro",
+            "action",
+            "details_heading",
+            "status_heading",
+            "name_label",
+            "framework_label",
+            "domain_label",
+            "cta_label",
+            "greeting",
+            "closing",
+        ):
+            if optional_key in template_data:
+                rendered[optional_key] = Template(
+                    template_data[optional_key]
+                ).safe_substitute(full_context)
+
+        return rendered
     except Exception as e:
         logger.error(f"Error rendering template {template_name}: {str(e)}")
         return {}

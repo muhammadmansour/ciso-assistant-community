@@ -1,13 +1,24 @@
 subject: "Wathbah GRC: Audit review rejected — '${assessment_name}'"
+intro: "The status of the following Audit has changed. The review did not pass and the audit has been sent back for rework."
+action: "As an author, please address the reviewer's feedback and resubmit the audit."
+details_heading: "Audit details"
+status_heading: "Status change"
+name_label: "Name"
+framework_label: "Framework"
+domain_label: "Domain"
+cta_label: "Open audit"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
   The status of the following Audit has changed. The review did not pass and the audit has been sent back for rework.
 
-  Audit details:
-  - Name: ${assessment_name}
-  - Framework: ${framework_name}
-  - Domain: ${folder_name}
+  Audit details
+
+  Name: ${assessment_name}
+  Framework: ${framework_name}
+  Domain: ${folder_name}
 
   Status change: ${old_status} → ${new_status}
 
