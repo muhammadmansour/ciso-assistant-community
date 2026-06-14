@@ -1,0 +1,29 @@
+subject: "Wathbah GRC: Exception '${exception_name}' has expired"
+intro: "A security exception assigned to you has expired."
+action: "Open the exception in Wathbah GRC to review its status and renew or close it if needed."
+details_heading: "Exception details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+status_label: "Status"
+expiration_label: "Expiration date"
+domain_label: "Domain"
+cta_label: "Open exception"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  A security exception assigned to you has expired:
+
+  - Name: ${exception_name}
+  - Description: ${exception_description}
+  - Reference ID: ${exception_ref_id}
+  - Status: ${exception_status}
+  - Expiration date: ${exception_expiration_date}
+  - Domain: ${folder_name}
+
+  Open the exception in Wathbah GRC:
+  ${ciso_assistant_url}/security-exceptions/${exception_id}
+
+  Thank you.

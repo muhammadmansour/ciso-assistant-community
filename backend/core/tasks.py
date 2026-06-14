@@ -189,31 +189,6 @@ def check_evidences_expiring_tomorrow():
 
 # @db_periodic_task(crontab(minute="*/1"))  # for testing
 @db_periodic_task(crontab(hour="6", minute="40"))
-def check_evidences_expired():
-    """Check for expired Evidences"""
-    expired_evidences = Evidence.objects.filter(
-        expiry_date__lt=date.today()
-    ).prefetch_related("owner")
-
-    # Group by individual owner
-    owner_evidences = defaultdict(list)
-    for evidence in expired_evidences:
-        for owner in evidence.owner.all():
-            for email in owner.get_emails():
-                owner_evidences[email].append(evidence)
-
-    # Send personalized email to each owner
-    for owner_email, evidences in owner_evidences.items():
-        days = 0
-        days_list = [(date.today() - ev.expiry_date).days for ev in evidences]
-        if days_list:
-            days = max(days_list)
-
-        send_notification_email_expired_evidence(owner_email, evidences, days=days)
-
-
-# @db_periodic_task(crontab(minute="*/1"))  # for testing
-@db_periodic_task(crontab(hour="6", minute="40"))
 def check_validation_flows_deadline_in_week():
     """Check for ValidationFlows with deadline in 7 days (only submitted status)"""
     target_date = date.today() + timedelta(days=7)
@@ -1018,6 +993,190 @@ def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
         )
 
 
+# ------ Evidence lifecycle outcomes (approved / rejected / expired) -------------
+
+
+_EVIDENCE_OUTCOME_TEMPLATES = {
+    Evidence.Status.APPROVED: "evidence_approved",
+    Evidence.Status.REJECTED: "evidence_rejected",
+    Evidence.Status.EXPIRED: "evidence_expired",
+}
+
+
+def _collect_actor_emails(actors) -> set:
+    """Return a deduplicated set of non-empty emails for a queryset/list of Actors."""
+    emails = set()
+    for actor in actors:
+        for email in actor.get_emails():
+            if email:
+                emails.add(email)
+    return emails
+
+
+def _evidence_common_context(evidence) -> dict:
+    return {
+        "evidence_id": str(evidence.id),
+        "evidence_name": evidence.name,
+        "evidence_description": evidence.description or "No description provided",
+        "evidence_status": evidence.get_status_display(),
+        "evidence_expiry_date": evidence.expiry_date.strftime("%Y-%m-%d")
+        if evidence.expiry_date
+        else "Not set",
+        "folder_name": evidence.folder.name if evidence.folder else "Default",
+    }
+
+
+def _evidence_outcome_recipient_emails(evidence, new_status: str) -> set:
+    """Evidence owners; for approved, also owners of every linked AppliedControl."""
+    emails = _collect_actor_emails(evidence.owner.all())
+    if new_status == Evidence.Status.APPROVED:
+        for control in evidence.applied_controls.prefetch_related("owner").all():
+            emails |= _collect_actor_emails(control.owner.all())
+    return emails
+
+
+@task()
+def send_evidence_outcome_notification(
+    evidence_id, new_status, decider_user_id=None
+):
+    """Notify evidence owners (and linked control owners on approval) of a
+    lifecycle outcome: approved, rejected, or expired.
+
+    Fired from EvidenceWriteSerializer on manual status transitions and from
+    mark_expired_evidences when the cron auto-flips status on expiry_date.
+    """
+    template_name = _EVIDENCE_OUTCOME_TEMPLATES.get(new_status)
+    if not template_name:
+        logger.debug(
+            "No outcome template for evidence status %s; skipping email",
+            new_status,
+        )
+        return
+
+    try:
+        evidence = Evidence.objects.select_related("folder").prefetch_related(
+            "owner", "applied_controls__owner"
+        ).get(id=evidence_id)
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence with id {evidence_id} not found for outcome email")
+        return
+
+    recipient_emails = _evidence_outcome_recipient_emails(evidence, new_status)
+    if not recipient_emails:
+        logger.warning(
+            f"No recipient emails for evidence outcome {new_status}: "
+            f"{evidence.name} (ID: {evidence.id})"
+        )
+        return
+
+    context = _evidence_common_context(evidence)
+    decider_name = None
+    if decider_user_id and new_status in (
+        Evidence.Status.APPROVED,
+        Evidence.Status.REJECTED,
+    ):
+        decider = User.objects.filter(id=decider_user_id).first()
+        decider_name = _format_validation_user(decider)
+        context["decider_name"] = decider_name
+
+    detail_specs = [
+        ("name_label", context["evidence_name"]),
+        ("description_label", evidence.description or ""),
+        ("status_label", context["evidence_status"]),
+    ]
+    if decider_name:
+        detail_specs.append(("decider_label", decider_name))
+    detail_specs.extend(
+        [
+            ("expiry_label", context["evidence_expiry_date"]),
+            ("domain_label", context["folder_name"]),
+        ]
+    )
+
+    object_url = _assignment_url(f"evidences/{evidence.id}")
+
+    for email in recipient_emails:
+        if not check_email_configuration(email, [evidence]):
+            continue
+        _deliver_assignment_email(
+            template_name, context, detail_specs, object_url, email
+        )
+
+
+# ------ SecurityException lifecycle outcomes (expired) --------------------------
+
+
+def _security_exception_common_context(exception) -> dict:
+    return {
+        "exception_id": str(exception.id),
+        "exception_name": exception.name,
+        "exception_description": exception.description or "No description provided",
+        "exception_ref_id": exception.ref_id or "N/A",
+        "exception_status": exception.get_status_display(),
+        "exception_expiration_date": exception.expiration_date.strftime("%Y-%m-%d")
+        if exception.expiration_date
+        else "Not set",
+        "folder_name": exception.folder.name if exception.folder else "Default",
+    }
+
+
+@task()
+def send_security_exception_outcome_notification(exception_id, new_status):
+    """Notify exception owners when a SecurityException expires.
+
+    Only `expired` is wired today; the helper is structured so in_review /
+    approved outcomes (spec #4) can reuse the same entry point later.
+    """
+    if new_status != "expired":
+        logger.debug(
+            "No outcome template for security exception status %s; skipping",
+            new_status,
+        )
+        return
+
+    try:
+        from core.models import SecurityException
+
+        exception = SecurityException.objects.select_related("folder").prefetch_related(
+            "owners"
+        ).get(id=exception_id)
+    except Exception as exc:
+        logger.error(
+            f"SecurityException with id {exception_id} not found: {exc}"
+        )
+        return
+
+    recipient_emails = _collect_actor_emails(exception.owners.all())
+    if not recipient_emails:
+        logger.warning(
+            f"No owner emails for expired security exception {exception.name} "
+            f"(ID: {exception.id})"
+        )
+        return
+
+    context = _security_exception_common_context(exception)
+    detail_specs = [
+        ("name_label", context["exception_name"]),
+        ("description_label", exception.description or ""),
+        ("ref_id_label", context["exception_ref_id"]),
+        ("status_label", context["exception_status"]),
+        ("expiration_label", context["exception_expiration_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"security-exceptions/{exception.id}")
+
+    for email in recipient_emails:
+        if not check_email_configuration(email, [exception]):
+            continue
+        _deliver_assignment_email(
+            "security_exception_expired",
+            context,
+            detail_specs,
+            object_url,
+            email,
+        )
+
+
 def send_policy_assignment_notification(policy_id, assigned_user_emails):
     """Notify newly-assigned Policy owners with a branded email.
 
@@ -1451,29 +1610,6 @@ def send_applied_control_expiring_soon_notification(owner_email, controls, days)
 
 
 @task()
-def send_notification_email_expired_evidence(owner_email, evidences, days=0):
-    if not check_email_configuration(owner_email, evidences):
-        return
-
-    from .email_utils import render_email_template, format_evidence_list
-
-    context = {
-        "evidence_count": len(evidences),
-        "evidence_list": format_evidence_list(evidences),
-        "expired_since": days,
-        "days_text": "day" if days == 1 else "days",
-    }
-
-    rendered = render_email_template("expired_evidences", context)
-    if rendered:
-        send_notification_email(rendered["subject"], rendered["body"], owner_email)
-    else:
-        logger.error(
-            f"Failed to render expired_evidences email template for {owner_email}"
-        )
-
-
-@task()
 def send_evidence_expiring_soon_notification(owner_email, evidences, days):
     """Send notification when Evidence is expiring soon"""
     if not check_email_configuration(owner_email, evidences):
@@ -1660,7 +1796,7 @@ def deactivate_expired_users():
 # @db_periodic_task(crontab(minute="*/1"))  # for testing
 @db_periodic_task(crontab(hour="3", minute="35"))
 def mark_expired_evidences():
-    """Mark evidences as expired when their expiry_date has passed"""
+    """Mark evidences as expired when their expiry_date has passed and notify owners."""
     today = date.today()
     expired_evidences = Evidence.objects.filter(
         expiry_date__lt=today,
@@ -1673,13 +1809,50 @@ def mark_expired_evidences():
         evidence.save()
         count += 1
         logger.info(
-            f"Marked evidence as expired: {evidence.name} (ID: {evidence.id}), expiry date: {evidence.expiry_date}"
+            f"Marked evidence as expired: {evidence.name} (ID: {evidence.id}), "
+            f"expiry date: {evidence.expiry_date}"
         )
+        send_evidence_outcome_notification(evidence.id, Evidence.Status.EXPIRED)
 
     if count > 0:
         logger.info(f"Successfully marked {count} evidences as expired")
     else:
         logger.debug("No expired evidences found to mark")
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="3", minute="40"))
+def mark_expired_security_exceptions():
+    """Mark security exceptions as expired when expiration_date has passed."""
+    today = date.today()
+    try:
+        from core.models import SecurityException
+    except Exception as exc:
+        logger.warning(f"SecurityException expiry cron skipped: {exc}")
+        return
+
+    expired_exceptions = SecurityException.objects.filter(
+        expiration_date__lt=today,
+        expiration_date__isnull=False,
+    ).exclude(status=SecurityException.Status.EXPIRED)
+
+    count = 0
+    for exception in expired_exceptions:
+        exception.status = SecurityException.Status.EXPIRED
+        exception.save()
+        count += 1
+        logger.info(
+            f"Marked security exception as expired: {exception.name} "
+            f"(ID: {exception.id}), expiration date: {exception.expiration_date}"
+        )
+        send_security_exception_outcome_notification(
+            exception.id, SecurityException.Status.EXPIRED
+        )
+
+    if count > 0:
+        logger.info(f"Successfully marked {count} security exceptions as expired")
+    else:
+        logger.debug("No expired security exceptions found to mark")
 
 
 @task()

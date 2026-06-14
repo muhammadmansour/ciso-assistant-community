@@ -353,6 +353,7 @@ def render_email_template(
             "deadline_label",
             "notes_label",
             "approver_label",
+            "decider_label",
             "cta_label",
             "greeting",
             "closing",

@@ -1,0 +1,27 @@
+subject: "Wathbah GRC: Evidence '${evidence_name}' has expired"
+intro: "An evidence record assigned to you has expired."
+action: "Open the evidence in Wathbah GRC to renew it or replace it with an updated version."
+details_heading: "Evidence details"
+name_label: "Name"
+description_label: "Description"
+status_label: "Status"
+expiry_label: "Expiry date"
+domain_label: "Domain"
+cta_label: "Open evidence"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  An evidence record assigned to you has expired:
+
+  - Name: ${evidence_name}
+  - Description: ${evidence_description}
+  - Status: ${evidence_status}
+  - Expiry date: ${evidence_expiry_date}
+  - Domain: ${folder_name}
+
+  Open the evidence in Wathbah GRC:
+  ${ciso_assistant_url}/evidences/${evidence_id}
+
+  Thank you.

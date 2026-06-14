@@ -1751,6 +1751,7 @@ class EvidenceWriteSerializer(BaseModelSerializer):
         old_folder_id = instance.folder_id
         # Snapshot existing owners so we only notify newly-added ones.
         old_owner_ids = set(instance.owner.values_list("id", flat=True))
+        old_status = instance.status
 
         # Handle properly owner field cleaning
         owners = validated_data.get("owner", None)
@@ -1769,7 +1770,31 @@ class EvidenceWriteSerializer(BaseModelSerializer):
         if newly_assigned_ids:
             self._send_assignment_notifications(instance, list(newly_assigned_ids))
 
+        if old_status != instance.status and instance.status in (
+            Evidence.Status.APPROVED,
+            Evidence.Status.REJECTED,
+            Evidence.Status.EXPIRED,
+        ):
+            request_user = self.context.get("request", None)
+            decider_id = request_user.id if request_user else None
+            self._send_outcome_notification(instance, instance.status, decider_id)
+
         return instance
+
+    def _send_outcome_notification(self, evidence, new_status, decider_user_id=None):
+        """Notify owners (and linked control owners on approval) of lifecycle outcomes."""
+        try:
+            from .tasks import send_evidence_outcome_notification
+
+            send_evidence_outcome_notification(
+                evidence.id, new_status, decider_user_id=decider_user_id
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send Evidence outcome notification: {str(e)}",
+                evidence_id=str(evidence.id),
+                new_status=new_status,
+            )
 
     def _send_assignment_notifications(self, evidence, owner_ids):
         """Send assignment notifications to the specified owners.
@@ -2582,6 +2607,7 @@ class SecurityExceptionWriteSerializer(BaseModelSerializer):
 
     def update(self, instance, validated_data):
         old_owner_ids = set(instance.owners.values_list("id", flat=True))
+        old_status = instance.status
 
         updated_instance = super().update(instance, validated_data)
 
@@ -2592,7 +2618,26 @@ class SecurityExceptionWriteSerializer(BaseModelSerializer):
                 updated_instance, list(newly_assigned_ids)
             )
 
+        if (
+            old_status != updated_instance.status
+            and updated_instance.status == "expired"
+        ):
+            self._send_outcome_notification(updated_instance, updated_instance.status)
+
         return updated_instance
+
+    def _send_outcome_notification(self, exception, new_status):
+        """Notify owners when a security exception reaches a terminal lifecycle state."""
+        try:
+            from .tasks import send_security_exception_outcome_notification
+
+            send_security_exception_outcome_notification(exception.id, new_status)
+        except Exception as e:
+            logger.error(
+                f"Failed to send SecurityException outcome notification: {str(e)}",
+                exception_id=str(exception.id),
+                new_status=new_status,
+            )
 
     def _send_assignment_notifications(self, exception, owner_ids):
         """Send assignment notifications to newly-assigned exception owners."""
