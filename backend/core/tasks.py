@@ -559,7 +559,7 @@ def send_compliance_assessment_assignment_notification(
 
 @task()
 def send_compliance_assessment_status_notification(
-    assessment_id, recipient_emails, template_name
+    assessment_id, recipient_emails, template_name, old_status="", new_status=""
 ):
     """Send a notification when a ComplianceAssessment (Audit) changes status.
 
@@ -585,6 +585,13 @@ def send_compliance_assessment_status_notification(
 
     from .email_utils import render_email_template, render_html_email
 
+    status_labels = dict(ComplianceAssessment.Status.choices)
+
+    def status_label(status: str) -> str:
+        if not status:
+            return "—"
+        return status_labels.get(status, status.replace("_", " ").title())
+
     base_url = getattr(
         settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
     ).rstrip("/")
@@ -594,6 +601,8 @@ def send_compliance_assessment_status_notification(
         if assessment.framework
         else "No framework",
         "assessment_status": assessment.get_status_display(),
+        "old_status": status_label(old_status),
+        "new_status": status_label(new_status),
         "folder_name": assessment.folder.name if assessment.folder else "Default",
         "assessment_url": f"{base_url}/compliance-assessments/{assessment.id}",
     }

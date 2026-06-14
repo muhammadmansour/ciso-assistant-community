@@ -2074,7 +2074,11 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
 
             if emails:
                 send_compliance_assessment_status_notification(
-                    assessment.id, emails, template_name
+                    assessment.id,
+                    emails,
+                    template_name,
+                    old_status,
+                    new_status,
                 )
         except Exception as e:
             logger.error(

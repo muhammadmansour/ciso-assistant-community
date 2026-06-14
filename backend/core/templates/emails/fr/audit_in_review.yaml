@@ -1,15 +1,17 @@
-subject: "Wathbah GRC : '${assessment_name}' en attente de votre revue"
+subject: "Wathbah GRC : statut de l'audit passé à En revue — '${assessment_name}'"
 body: |
   Bonjour,
 
-  L'audit suivant a été soumis et est en attente de votre revue :
+  Le statut de l'audit suivant a changé et nécessite désormais votre revue.
 
+  Détails de l'audit :
   - Nom : ${assessment_name}
   - Référentiel : ${framework_name}
-  - Statut : ${assessment_status}
   - Domaine : ${folder_name}
 
-  Ouvrez l'audit pour commencer votre revue :
+  Changement de statut : ${old_status} → ${new_status}
+
+  En tant que relecteur, veuillez ouvrir l'audit et effectuer votre revue :
   ${assessment_url}
 
   Merci.

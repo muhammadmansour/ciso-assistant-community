@@ -1,13 +1,15 @@
-subject: "Wathbah GRC: '${assessment_name}' deprecated"
+subject: "Wathbah GRC: Audit status changed to Deprecated — '${assessment_name}'"
 body: |
   Hello,
 
-  The following Audit has been marked as Deprecated:
+  The status of the following Audit has changed and it is no longer active.
 
+  Audit details:
   - Name: ${assessment_name}
   - Framework: ${framework_name}
-  - Status: ${assessment_status}
   - Domain: ${folder_name}
+
+  Status change: ${old_status} → ${new_status}
 
   Open the audit for details:
   ${assessment_url}

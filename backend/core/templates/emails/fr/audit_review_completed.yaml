@@ -1,15 +1,17 @@
-subject: "Wathbah GRC : revue de '${assessment_name}' terminée"
+subject: "Wathbah GRC : revue de l'audit terminée — '${assessment_name}'"
 body: |
   Bonjour,
 
-  La revue de l'audit suivant est terminée et il est désormais marqué comme Terminé :
+  Le statut de l'audit suivant a changé suite à une revue concluante.
 
+  Détails de l'audit :
   - Nom : ${assessment_name}
   - Référentiel : ${framework_name}
-  - Statut : ${assessment_status}
   - Domaine : ${folder_name}
 
-  Ouvrez l'audit pour consulter le résultat :
+  Changement de statut : ${old_status} → ${new_status}
+
+  L'audit est désormais marqué comme Terminé. Ouvrez-le pour consulter le résultat :
   ${assessment_url}
 
   Merci.

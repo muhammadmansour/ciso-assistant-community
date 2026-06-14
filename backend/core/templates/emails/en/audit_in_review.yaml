@@ -1,15 +1,17 @@
-subject: "Wathbah GRC: '${assessment_name}' awaiting your review"
+subject: "Wathbah GRC: Audit status changed to In Review — '${assessment_name}'"
 body: |
   Hello,
 
-  The following Audit has been submitted and is awaiting your review:
+  The status of the following Audit has changed and now requires your review.
 
+  Audit details:
   - Name: ${assessment_name}
   - Framework: ${framework_name}
-  - Status: ${assessment_status}
   - Domain: ${folder_name}
 
-  Open the audit to start your review:
+  Status change: ${old_status} → ${new_status}
+
+  As a reviewer, please open the audit and complete your review:
   ${assessment_url}
 
   Thank you.

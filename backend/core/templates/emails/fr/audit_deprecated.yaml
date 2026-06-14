@@ -1,13 +1,15 @@
-subject: "Wathbah GRC : '${assessment_name}' déprécié"
+subject: "Wathbah GRC : statut de l'audit passé à Déprécié — '${assessment_name}'"
 body: |
   Bonjour,
 
-  L'audit suivant a été marqué comme Déprécié :
+  Le statut de l'audit suivant a changé et il n'est plus actif.
 
+  Détails de l'audit :
   - Nom : ${assessment_name}
   - Référentiel : ${framework_name}
-  - Statut : ${assessment_status}
   - Domaine : ${folder_name}
+
+  Changement de statut : ${old_status} → ${new_status}
 
   Ouvrez l'audit pour plus de détails :
   ${assessment_url}

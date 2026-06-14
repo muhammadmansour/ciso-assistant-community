@@ -1,15 +1,17 @@
-subject: "Wathbah GRC: '${assessment_name}' rejected — changes requested"
+subject: "Wathbah GRC: Audit review rejected — '${assessment_name}'"
 body: |
   Hello,
 
-  The following Audit did not pass review and has been moved back to In Progress:
+  The status of the following Audit has changed. The review did not pass and the audit has been sent back for rework.
 
+  Audit details:
   - Name: ${assessment_name}
   - Framework: ${framework_name}
-  - Status: ${assessment_status}
   - Domain: ${folder_name}
 
-  Open the audit to address the reviewer's feedback and resubmit:
+  Status change: ${old_status} → ${new_status}
+
+  As an author, please address the reviewer's feedback and resubmit the audit:
   ${assessment_url}
 
   Thank you.

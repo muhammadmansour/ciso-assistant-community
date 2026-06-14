@@ -1,15 +1,17 @@
-subject: "Wathbah GRC: '${assessment_name}' review completed"
+subject: "Wathbah GRC: Audit review completed — '${assessment_name}'"
 body: |
   Hello,
 
-  The review of the following Audit has been completed and it is now marked as Done:
+  The status of the following Audit has changed following a successful review.
 
+  Audit details:
   - Name: ${assessment_name}
   - Framework: ${framework_name}
-  - Status: ${assessment_status}
   - Domain: ${folder_name}
 
-  Open the audit to view the outcome:
+  Status change: ${old_status} → ${new_status}
+
+  The audit is now marked as Done. Open it to view the outcome:
   ${assessment_url}
 
   Thank you.
