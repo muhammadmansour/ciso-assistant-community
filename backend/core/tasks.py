@@ -258,6 +258,168 @@ def check_validation_flows_deadline_tomorrow():
         send_validation_deadline_notification(approver_email, validations, days=1)
 
 
+# ------ ValidationFlow: deadline today (per-validation, branded HTML) ----------
+
+
+# Statuses a ValidationFlow can still be acted on (deadline reminder is pointless
+# for terminal states). For now only "submitted" actually waits on the approver,
+# matching the existing -7d/-1d jobs.
+_VALIDATION_OPEN_STATUSES = (ValidationFlow.Status.SUBMITTED,)
+
+
+def _format_validation_user(user) -> str:
+    """Render a User as 'First Last' or fall back to email, mirroring the
+    rendering used by `send_validation_flow_created_notification`."""
+    if not user:
+        return "Unknown"
+    name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
+    return name or (user.email or "Unknown")
+
+
+def _validation_common_context(validation) -> dict:
+    """Base context shared by every validation-flow email (created / deadline /
+    outcome). Subject lines and detail tables can pick whichever keys they need.
+    """
+    return {
+        "validation_ref_id": validation.ref_id or "",
+        "validation_deadline": validation.validation_deadline.strftime("%Y-%m-%d")
+        if validation.validation_deadline
+        else "Not set",
+        "folder_name": validation.folder.name if validation.folder else "Unknown",
+        "request_notes": validation.request_notes or "",
+        "validation_url": _assignment_url(f"validation-flows/{validation.id}"),
+    }
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="18"))
+def check_validation_flows_deadline_today():
+    """Notify each approver when one of their validations is due *today*.
+
+    Sends one branded HTML email per (validation, approver) pair so the
+    approver sees the full validation details and a CTA, matching the
+    style of the "created" and reminder emails. Naturally idempotent
+    under a daily cron because the filter is `validation_deadline = today`.
+    """
+    queryset = ValidationFlow.objects.filter(
+        validation_deadline=date.today(),
+        status__in=_VALIDATION_OPEN_STATUSES,
+    ).select_related("approver", "requester", "folder")
+
+    for validation in queryset:
+        if not validation.approver or not validation.approver.email:
+            continue
+        approver_email = validation.approver.email
+        if not check_email_configuration(approver_email, [validation]):
+            continue
+
+        context = _validation_common_context(validation)
+        context["requester_name"] = _format_validation_user(validation.requester)
+
+        detail_specs = [
+            ("ref_id_label", context["validation_ref_id"]),
+            ("requester_label", context["requester_name"]),
+            ("deadline_label", context["validation_deadline"]),
+            ("domain_label", context["folder_name"]),
+            ("notes_label", context["request_notes"]),
+        ]
+
+        _deliver_assignment_email(
+            "validation_deadline_today",
+            context,
+            detail_specs,
+            context["validation_url"],
+            approver_email,
+        )
+
+
+# ------ ValidationFlow: outcome -> requester (per-validation, branded HTML) -----
+
+
+# Map terminal/feedback statuses to the YAML template used for the requester
+# notification. Statuses not in the map don't fire an email (e.g. revoked /
+# expired / dropped — these are out of scope per the spec wording
+# "Approved / rejected / changes requested").
+_VALIDATION_OUTCOME_TEMPLATES = {
+    ValidationFlow.Status.ACCEPTED: "validation_accepted",
+    ValidationFlow.Status.REJECTED: "validation_rejected",
+    ValidationFlow.Status.CHANGE_REQUESTED: "validation_change_requested",
+}
+
+
+@task()
+def send_validation_outcome_notification(
+    validation_flow_id, new_status, decider_user_id=None, event_notes=""
+):
+    """Notify the requester when an approver settles a validation flow.
+
+    Picks the template by the new status (accepted / rejected /
+    change_requested). Other transitions (revoked / expired / dropped) are
+    intentionally ignored — those happen on the requester's own action or
+    via cleanup, so a notification back to the requester is redundant.
+
+    Decider + notes are passed in (rather than re-read from FlowEvent)
+    because this is called from the serializer right after the transition
+    and we already have both values in hand.
+    """
+    template_name = _VALIDATION_OUTCOME_TEMPLATES.get(new_status)
+    if not template_name:
+        logger.debug(
+            "No outcome template for validation status %s; skipping email",
+            new_status,
+        )
+        return
+
+    try:
+        validation = ValidationFlow.objects.select_related(
+            "requester", "folder"
+        ).get(id=validation_flow_id)
+    except ValidationFlow.DoesNotExist:
+        logger.error(
+            f"ValidationFlow with id {validation_flow_id} not found "
+            "for outcome notification"
+        )
+        return
+
+    if not validation.requester or not validation.requester.email:
+        logger.warning(
+            f"No requester email for validation flow {validation.ref_id}; "
+            "outcome email skipped"
+        )
+        return
+
+    requester_email = validation.requester.email
+    if not check_email_configuration(requester_email, [validation]):
+        return
+
+    decider = None
+    if decider_user_id:
+        decider = User.objects.filter(id=decider_user_id).first()
+    approver_name = _format_validation_user(decider or validation.approver)
+
+    context = _validation_common_context(validation)
+    context["approver_name"] = approver_name
+    # Outcome-specific notes override request_notes so the requester sees the
+    # decision-time message (approver feedback / rejection reason / change
+    # request body) rather than what they originally submitted.
+    context["request_notes"] = event_notes or ""
+
+    detail_specs = [
+        ("ref_id_label", context["validation_ref_id"]),
+        ("approver_label", approver_name),
+        ("domain_label", context["folder_name"]),
+        ("notes_label", context["request_notes"]),
+    ]
+
+    _deliver_assignment_email(
+        template_name,
+        context,
+        detail_specs,
+        context["validation_url"],
+        requester_email,
+    )
+
+
 @task()
 def send_notification_email_expired_eta(owner_email, controls):
     if not check_email_configuration(owner_email, controls):

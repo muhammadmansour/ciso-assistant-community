@@ -352,6 +352,7 @@ def render_email_template(
             "requester_label",
             "deadline_label",
             "notes_label",
+            "approver_label",
             "cta_label",
             "greeting",
             "closing",

@@ -3291,9 +3291,44 @@ class ValidationFlowWriteSerializer(BaseModelSerializer):
                 updated_instance, current_status, new_status
             )
 
+            # Notify the requester on settled-by-approver transitions
+            # (accepted / rejected / change_requested). Other transitions
+            # (revoked / expired / dropped) don't email - the requester
+            # either triggered them or the system did.
+            if current_status != new_status:
+                self._send_outcome_notification(
+                    updated_instance, new_status, request_user, event_notes
+                )
+
             return updated_instance
 
         return super().update(instance, validated_data)
+
+    def _send_outcome_notification(
+        self, validation_flow, new_status, decider_user, event_notes
+    ):
+        """Fire-and-forget outcome email to the requester.
+
+        Wrapped in try/except so a notification problem never breaks the
+        status transition the user is performing, mirroring the pattern
+        used in `create()` for the initial approver email.
+        """
+        try:
+            from core.tasks import send_validation_outcome_notification
+
+            send_validation_outcome_notification(
+                validation_flow.id,
+                new_status,
+                decider_user_id=decider_user.id if decider_user else None,
+                event_notes=event_notes or "",
+            )
+        except Exception:
+            logger.error(
+                "Failed to send validation outcome notification",
+                validation_flow_id=str(validation_flow.id),
+                ref_id=validation_flow.ref_id,
+                new_status=new_status,
+            )
 
     def _manage_associated_objects_lock(
         self, validation_flow, old_status: str, new_status: str

@@ -1,0 +1,24 @@
+subject: "Wathbah GRC: Changes requested on validation '${validation_ref_id}'"
+intro: "The approver has requested changes on your validation request before they can decide."
+action: "Open the validation in Wathbah GRC to address the feedback and resubmit, or drop the request."
+details_heading: "Validation details"
+ref_id_label: "Reference"
+approver_label: "Approver"
+domain_label: "Domain"
+notes_label: "Requested changes"
+cta_label: "Open validation"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  Changes have been requested on your validation request before approval:
+
+  - Reference: ${validation_ref_id}
+  - Approver: ${approver_name}
+  - Domain: ${folder_name}
+
+  Open the validation in Wathbah GRC:
+  ${validation_url}
+
+  Thank you.

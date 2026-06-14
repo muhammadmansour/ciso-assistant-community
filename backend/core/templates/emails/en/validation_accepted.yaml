@@ -1,0 +1,24 @@
+subject: "Wathbah GRC: Validation '${validation_ref_id}' was approved"
+intro: "Your validation request has been approved."
+action: "Open the validation in Wathbah GRC to view the approval details and any reviewer notes."
+details_heading: "Validation details"
+ref_id_label: "Reference"
+approver_label: "Approver"
+domain_label: "Domain"
+notes_label: "Approver notes"
+cta_label: "Open validation"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  Your validation request has been approved:
+
+  - Reference: ${validation_ref_id}
+  - Approver: ${approver_name}
+  - Domain: ${folder_name}
+
+  Open the validation in Wathbah GRC:
+  ${validation_url}
+
+  Thank you.
