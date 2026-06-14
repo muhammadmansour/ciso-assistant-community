@@ -1775,30 +1775,34 @@ class EvidenceWriteSerializer(BaseModelSerializer):
             Evidence.Status.REJECTED,
             Evidence.Status.EXPIRED,
         ):
-            decider_id = None
-            request = self.context.get("request")
-            if request is not None:
-                user = request.user
-                if getattr(user, "is_authenticated", False):
-                    decider_id = user.pk
-            self._send_outcome_notification(instance, instance.status, decider_id)
+            # Best-effort only — email failures must never block status updates.
+            try:
+                self._send_outcome_notification(instance, instance.status)
+            except Exception as e:
+                logger.error(
+                    "Failed to send Evidence outcome notification",
+                    evidence_id=str(instance.id),
+                    new_status=instance.status,
+                    error=str(e),
+                )
 
         return instance
 
-    def _send_outcome_notification(self, evidence, new_status, decider_user_id=None):
+    def _send_outcome_notification(self, evidence, new_status):
         """Notify owners (and linked control owners on approval) of lifecycle outcomes."""
-        try:
-            from .tasks import send_evidence_outcome_notification
+        from .tasks import send_evidence_outcome_notification
 
-            send_evidence_outcome_notification(
-                evidence.id, new_status, decider_user_id=decider_user_id
-            )
-        except Exception as e:
-            logger.error(
-                f"Failed to send Evidence outcome notification: {str(e)}",
-                evidence_id=str(evidence.id),
-                new_status=new_status,
-            )
+        decider_user_id = None
+        try:
+            user = self.context["request"].user
+            if user and getattr(user, "is_authenticated", False):
+                decider_user_id = user.pk
+        except (KeyError, AttributeError, TypeError):
+            pass
+
+        send_evidence_outcome_notification(
+            evidence.pk, new_status, decider_user_id=decider_user_id
+        )
 
     def _send_assignment_notifications(self, evidence, owner_ids):
         """Send assignment notifications to the specified owners.
