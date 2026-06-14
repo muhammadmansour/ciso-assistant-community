@@ -1,0 +1,15 @@
+subject: "Wathbah GRC : revue de '${assessment_name}' terminée"
+body: |
+  Bonjour,
+
+  La revue de l'audit suivant est terminée et il est désormais marqué comme Terminé :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Statut : ${assessment_status}
+  - Domaine : ${folder_name}
+
+  Ouvrez l'audit pour consulter le résultat :
+  ${assessment_url}
+
+  Merci.

@@ -1,0 +1,15 @@
+subject: "Wathbah GRC : '${assessment_name}' rejeté — modifications demandées"
+body: |
+  Bonjour,
+
+  L'audit suivant n'a pas passé la revue et a été replacé en cours :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Statut : ${assessment_status}
+  - Domaine : ${folder_name}
+
+  Ouvrez l'audit pour traiter les retours du relecteur et le soumettre à nouveau :
+  ${assessment_url}
+
+  Merci.

@@ -1,0 +1,15 @@
+subject: "Wathbah GRC : '${assessment_name}' en attente de votre revue"
+body: |
+  Bonjour,
+
+  L'audit suivant a été soumis et est en attente de votre revue :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Statut : ${assessment_status}
+  - Domaine : ${folder_name}
+
+  Ouvrez l'audit pour commencer votre revue :
+  ${assessment_url}
+
+  Merci.

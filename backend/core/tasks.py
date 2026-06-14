@@ -557,6 +557,63 @@ def send_compliance_assessment_assignment_notification(
 
 
 @task()
+def send_compliance_assessment_status_notification(
+    assessment_id, recipient_emails, template_name
+):
+    """Send a notification when a ComplianceAssessment (Audit) changes status.
+
+    Drives the review cycle described in the spec:
+      - audit_in_review        -> reviewers ("awaiting your review")
+      - audit_review_completed -> authors   ("review completed")
+      - audit_rejected         -> authors   ("rejected", back to In Progress)
+      - audit_deprecated       -> authors   ("deprecated")
+
+    Deduplicates recipient emails and renders the given template with a deep
+    link to the audit detail page.
+    """
+    if not recipient_emails:
+        return
+
+    try:
+        from core.models import ComplianceAssessment
+
+        assessment = ComplianceAssessment.objects.get(id=assessment_id)
+    except ComplianceAssessment.DoesNotExist:
+        logger.error(f"ComplianceAssessment with id {assessment_id} not found")
+        return
+
+    from .email_utils import render_email_template
+
+    base_url = getattr(settings, "CISO_ASSISTANT_URL", "http://localhost:5173")
+    context = {
+        "assessment_name": assessment.name,
+        "framework_name": assessment.framework.name
+        if assessment.framework
+        else "No framework",
+        "assessment_status": assessment.get_status_display(),
+        "folder_name": assessment.folder.name if assessment.folder else "Default",
+        "assessment_url": f"{base_url}/compliance-assessments/{assessment.id}",
+    }
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_emails = [
+        e for e in recipient_emails if e and not (e in seen or seen.add(e))
+    ]
+
+    for email in unique_emails:
+        if not check_email_configuration(email, [assessment]):
+            continue
+        rendered = render_email_template(template_name, context)
+        if rendered:
+            send_notification_email(rendered["subject"], rendered["body"], email)
+        else:
+            logger.error(
+                f"Failed to render {template_name} email template for {email}"
+            )
+
+
+@task()
 def send_compliance_assessment_due_soon_notification(author_email, assessments, days):
     """Send notification when ComplianceAssessment is due soon"""
     if not check_email_configuration(author_email, assessments):

@@ -1,0 +1,15 @@
+subject: "Wathbah GRC: '${assessment_name}' awaiting your review"
+body: |
+  Hello,
+
+  The following Audit has been submitted and is awaiting your review:
+
+  - Name: ${assessment_name}
+  - Framework: ${framework_name}
+  - Status: ${assessment_status}
+  - Domain: ${folder_name}
+
+  Open the audit to start your review:
+  ${assessment_url}
+
+  Thank you.

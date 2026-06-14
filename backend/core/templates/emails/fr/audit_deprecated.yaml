@@ -1,0 +1,15 @@
+subject: "Wathbah GRC : '${assessment_name}' déprécié"
+body: |
+  Bonjour,
+
+  L'audit suivant a été marqué comme Déprécié :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Statut : ${assessment_status}
+  - Domaine : ${folder_name}
+
+  Ouvrez l'audit pour plus de détails :
+  ${assessment_url}
+
+  Merci.

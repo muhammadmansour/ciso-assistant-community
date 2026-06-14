@@ -2030,7 +2030,57 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
                 updated_instance, list(newly_assigned_ids)
             )
 
+        # Send review-cycle notifications when the status transitions
+        if new_status != old_status:
+            self._send_status_transition_notifications(
+                updated_instance, old_status, new_status
+            )
+
         return updated_instance
+
+    def _send_status_transition_notifications(self, assessment, old_status, new_status):
+        """Notify reviewers/authors when an Audit moves through the review cycle.
+
+        - any -> in_review    : reviewers, "awaiting your review"
+        - in_review -> done   : authors, "review completed" (review passed)
+        - in_review -> in_progress : authors, "rejected" (review failed)
+        - any -> deprecated   : authors, "deprecated"
+        """
+        recipients_relation = None
+        template_name = None
+
+        if new_status == "in_review":
+            recipients_relation = "reviewers"
+            template_name = "audit_in_review"
+        elif old_status == "in_review" and new_status == "done":
+            recipients_relation = "authors"
+            template_name = "audit_review_completed"
+        elif old_status == "in_review" and new_status == "in_progress":
+            recipients_relation = "authors"
+            template_name = "audit_rejected"
+        elif new_status == "deprecated":
+            recipients_relation = "authors"
+            template_name = "audit_deprecated"
+
+        if not template_name:
+            return
+
+        try:
+            from .tasks import send_compliance_assessment_status_notification
+
+            emails = []
+            for actor in getattr(assessment, recipients_relation).all():
+                emails.extend(actor.get_emails())
+
+            if emails:
+                send_compliance_assessment_status_notification(
+                    assessment.id, emails, template_name
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send ComplianceAssessment status notification "
+                f"({template_name}): {str(e)}"
+            )
 
     def _send_assignment_notifications(self, assessment, author_ids):
         """Send assignment notifications to the specified authors"""

@@ -1,0 +1,15 @@
+subject: "Wathbah GRC: '${assessment_name}' deprecated"
+body: |
+  Hello,
+
+  The following Audit has been marked as Deprecated:
+
+  - Name: ${assessment_name}
+  - Framework: ${framework_name}
+  - Status: ${assessment_status}
+  - Domain: ${folder_name}
+
+  Open the audit for details:
+  ${assessment_url}
+
+  Thank you.
