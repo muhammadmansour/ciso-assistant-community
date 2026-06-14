@@ -280,7 +280,7 @@ def send_notification_email_expired_eta(owner_email, controls):
 
 
 @task()
-def send_notification_email(subject, message, owner_email):
+def send_notification_email(subject, message, owner_email, html_message=None):
     try:
         logger.debug(
             "Sending notification email",
@@ -294,6 +294,7 @@ def send_notification_email(subject, message, owner_email):
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[owner_email],
             fail_silently=False,
+            html_message=html_message,
         )
         logger.info(
             "Notification email sent successfully",
@@ -582,9 +583,11 @@ def send_compliance_assessment_status_notification(
         logger.error(f"ComplianceAssessment with id {assessment_id} not found")
         return
 
-    from .email_utils import render_email_template
+    from .email_utils import render_email_template, render_html_email
 
-    base_url = getattr(settings, "CISO_ASSISTANT_URL", "http://localhost:5173")
+    base_url = getattr(
+        settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
+    ).rstrip("/")
     context = {
         "assessment_name": assessment.name,
         "framework_name": assessment.framework.name
@@ -606,7 +609,13 @@ def send_compliance_assessment_status_notification(
             continue
         rendered = render_email_template(template_name, context)
         if rendered:
-            send_notification_email(rendered["subject"], rendered["body"], email)
+            html_body = render_html_email(rendered["body"])
+            send_notification_email(
+                rendered["subject"],
+                rendered["body"],
+                email,
+                html_message=html_body,
+            )
         else:
             logger.error(
                 f"Failed to render {template_name} email template for {email}"

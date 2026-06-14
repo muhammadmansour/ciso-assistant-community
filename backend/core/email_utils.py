@@ -2,10 +2,13 @@
 Email template utilities for CISO Assistant
 """
 
-import yaml
+import re
+from html import escape
 from pathlib import Path
 from string import Template
 from typing import Dict, Optional
+
+import yaml
 from django.conf import settings
 from django.utils.translation import get_language
 import structlog
@@ -13,6 +16,66 @@ import structlog
 logger = structlog.getLogger(__name__)
 
 TEMPLATE_BASE_PATH = Path(__file__).parent / "templates" / "emails"
+
+# Logo lives in the frontend static root, served at <CISO_ASSISTANT_URL>/<file>.
+LOGO_FILENAME = "wathba_logo_full.png"
+
+_URL_RE = re.compile(r"(https?://[^\s<]+)")
+
+
+def get_logo_url() -> str:
+    """Public URL of the Wathbah logo, derived from CISO_ASSISTANT_URL (.env)."""
+    base_url = getattr(
+        settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
+    ).rstrip("/")
+    return f"{base_url}/{LOGO_FILENAME}"
+
+
+def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
+    """Wrap a plain-text email body in a simple, client-friendly HTML layout
+    with the Wathbah logo as a header.
+
+    The body is HTML-escaped, bare URLs are turned into links, and newlines are
+    converted to <br> so the YAML templates remain the single source of content.
+    """
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    safe_body = escape(body)
+    safe_body = _URL_RE.sub(
+        r'<a href="\1" style="color:#2563eb;">\1</a>', safe_body
+    )
+    safe_body = safe_body.replace("\n", "<br>")
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td align="center" style="padding:24px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;">
+                <img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">
+                {safe_body}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px;background-color:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
+                Powered by Wathbah
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
 
 
 def load_email_template(
