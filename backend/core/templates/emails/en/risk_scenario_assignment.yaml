@@ -1,4 +1,16 @@
 subject: "Wathbah GRC: You have been assigned to risk scenario '${scenario_name}'"
+intro: "You have been assigned as an owner of the following Risk Scenario."
+action: "Open the scenario in Wathbah GRC to update its treatment, controls or owners."
+details_heading: "Risk scenario details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+risk_assessment_label: "Risk assessment"
+treatment_label: "Treatment"
+domain_label: "Domain"
+cta_label: "Open risk scenario"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -11,7 +23,7 @@ body: |
   - Treatment: ${scenario_treatment}
   - Domain: ${folder_name}
 
-  View this risk scenario directly:
+  Open the scenario in Wathbah GRC:
   ${ciso_assistant_url}/risk-scenarios/${scenario_id}
 
   Thank you.

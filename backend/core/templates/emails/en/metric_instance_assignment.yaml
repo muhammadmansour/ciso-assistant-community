@@ -1,4 +1,17 @@
 subject: "Wathbah GRC: You have been assigned to metric '${metric_name}'"
+intro: "You have been assigned as an owner of the following Metric Instance."
+action: "Open the metric in Wathbah GRC to log a new sample or adjust the target."
+details_heading: "Metric details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+status_label: "Status"
+target_value_label: "Target value"
+frequency_label: "Collection frequency"
+domain_label: "Domain"
+cta_label: "Open metric"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -12,7 +25,7 @@ body: |
   - Collection frequency: ${metric_collection_frequency}
   - Domain: ${folder_name}
 
-  View this metric directly:
+  Open the metric in Wathbah GRC:
   ${ciso_assistant_url}/metric-instances/${metric_id}
 
   Thank you.

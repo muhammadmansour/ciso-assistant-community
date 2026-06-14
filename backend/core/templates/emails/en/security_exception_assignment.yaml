@@ -1,4 +1,17 @@
 subject: "Wathbah GRC: You have been assigned to exception '${exception_name}'"
+intro: "You have been assigned as an owner of the following Security Exception."
+action: "Open the exception in Wathbah GRC to review the justification, approver and expiry."
+details_heading: "Exception details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+severity_label: "Severity"
+status_label: "Status"
+expiration_label: "Expiration date"
+domain_label: "Domain"
+cta_label: "Open exception"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -12,7 +25,7 @@ body: |
   - Expiration date: ${exception_expiration_date}
   - Domain: ${folder_name}
 
-  View this exception directly:
+  Open the exception in Wathbah GRC:
   ${ciso_assistant_url}/security-exceptions/${exception_id}
 
   Thank you.

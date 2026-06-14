@@ -1,4 +1,17 @@
 subject: "Wathbah GRC: You have been assigned to policy '${policy_name}'"
+intro: "You have been assigned as an owner of the following Policy."
+action: "Open the policy in Wathbah GRC to review or update its details."
+details_heading: "Policy details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+status_label: "Status"
+priority_label: "Priority"
+eta_label: "ETA"
+domain_label: "Domain"
+cta_label: "Open policy"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -12,7 +25,7 @@ body: |
   - ETA: ${policy_eta}
   - Domain: ${folder_name}
 
-  View this policy directly:
+  Open the policy in Wathbah GRC:
   ${ciso_assistant_url}/policies/${policy_id}
 
   Thank you.
