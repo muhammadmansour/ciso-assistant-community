@@ -82,73 +82,32 @@ def render_audit_status_html_email(
               {detail_row(domain_label, safe_folder)}
             </table>"""
 
-    status_block = f"""
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-              style="margin:16px 0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
-              <tr>
-                <td style="padding:14px 16px;">
-                  <p style="margin:0 0 6px;color:#1e40af;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:0.04em;">
-                    {escape(status_heading)}
-                  </p>
-                  <p style="margin:0;color:#111827;font-size:16px;font-weight:bold;">
-                    {safe_old} &rarr; {safe_new}
-                  </p>
-                </td>
-              </tr>
-            </table>"""
+    cta_button = f"""<p style="margin:20px 0;"><a href="{safe_url}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:6px;">{escape(cta_label)}</a></p>"""
 
-    cta_button = f"""
-            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
-              <tr>
-                <td style="border-radius:6px;background:#2563eb;">
-                  <a href="{safe_url}"
-                    style="display:inline-block;padding:12px 24px;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;">
-                    {escape(cta_label)}
-                  </a>
-                </td>
-              </tr>
-            </table>"""
-
-    return f"""\
-<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 0;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0"
-            style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-            <tr>
-              <td align="center" style="padding:24px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;">
-                <img src="{logo_url}" alt="Wathbah GRC" height="48"
-                  style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">
-                <p style="margin:0 0 8px;font-size:15px;">{escape(greeting)}</p>
-                <p style="margin:0 0 4px;font-size:15px;font-weight:bold;">{safe_intro}</p>
-                <p style="margin:16px 0 8px;font-size:13px;font-weight:bold;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">
-                  {escape(details_heading)}
-                </p>
-                {details_table}
-                {status_block}
-                <p style="margin:16px 0 8px;">{safe_action}</p>
-                {cta_button}
-                <p style="margin:0;color:#6b7280;">{escape(closing)}</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:16px 24px;background-color:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
-                Powered by Wathbah
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>"""
+    return (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        f'<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">'
+        f'<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
+        f'<div style="padding:20px 24px;text-align:center;border-bottom:1px solid #e5e7eb;">'
+        f'<img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;border:0;">'
+        f"</div>"
+        f'<div style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">'
+        f"<p style=\"margin:0 0 8px;\">{escape(greeting)}</p>"
+        f'<p style="margin:0 0 16px;font-weight:bold;">{safe_intro}</p>'
+        f'<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{escape(details_heading)}</p>'
+        f"{details_table}"
+        f'<div style="margin:16px 0;padding:14px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">'
+        f'<p style="margin:0 0 6px;font-size:12px;font-weight:bold;color:#1e40af;text-transform:uppercase;">{escape(status_heading)}</p>'
+        f'<p style="margin:0;font-size:16px;font-weight:bold;">{safe_old} &rarr; {safe_new}</p>'
+        f"</div>"
+        f"<p style=\"margin:0 0 8px;\">{safe_action}</p>"
+        f"{cta_button}"
+        f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
+        f"</div>"
+        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Powered by Wathbah</div>'
+        f"</div></body></html>"
+    )
 
 
 def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
