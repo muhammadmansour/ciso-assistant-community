@@ -1775,13 +1775,12 @@ class EvidenceWriteSerializer(BaseModelSerializer):
             Evidence.Status.REJECTED,
             Evidence.Status.EXPIRED,
         ):
+            decider_id = None
             request = self.context.get("request")
-            request_user = getattr(request, "user", None) if request else None
-            decider_id = (
-                request_user.id
-                if request_user and getattr(request_user, "is_authenticated", False)
-                else None
-            )
+            if request is not None:
+                user = request.user
+                if getattr(user, "is_authenticated", False):
+                    decider_id = user.pk
             self._send_outcome_notification(instance, instance.status, decider_id)
 
         return instance
