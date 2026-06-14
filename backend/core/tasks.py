@@ -1338,7 +1338,13 @@ def send_evidence_expiring_soon_notification(owner_email, evidences, days):
 
 @task()
 def send_validation_flow_created_notification(validation_flow):
-    """Send notification to approver when validation flow is created"""
+    """Send a branded HTML notification to the approver when a validation
+    flow is submitted for review.
+
+    Uses the same Wathbah HTML layout as the assignment/audit emails so the
+    approver sees a logo header, intro, details table and CTA button rather
+    than the previous plain-text body.
+    """
     if not validation_flow.approver or not validation_flow.approver.email:
         logger.warning(
             f"No approver email for validation flow {validation_flow.ref_id}"
@@ -1348,8 +1354,6 @@ def send_validation_flow_created_notification(validation_flow):
     approver_email = validation_flow.approver.email
     if not check_email_configuration(approver_email, [validation_flow]):
         return
-
-    from .email_utils import render_email_template
 
     requester_name = (
         f"{validation_flow.requester.first_name} {validation_flow.requester.last_name}".strip()
@@ -1370,21 +1374,32 @@ def send_validation_flow_created_notification(validation_flow):
             if validation_flow.validation_deadline
             else "Not set"
         ),
+        "request_notes": validation_flow.request_notes or "",
         "folder_name": validation_flow.folder.name
         if validation_flow.folder
         else "Unknown",
-        "validation_url": f"{getattr(settings, 'CISO_ASSISTANT_URL', 'http://localhost:5173')}/validation-flows/{validation_flow.id}",
+        "validation_url": _assignment_url(f"validation-flows/{validation_flow.id}"),
     }
 
-    rendered = render_email_template("validation_flow_created", context)
-    if rendered:
-        send_notification_email(rendered["subject"], rendered["body"], approver_email)
+    detail_specs = [
+        ("ref_id_label", context["validation_ref_id"]),
+        ("requester_label", requester_name),
+        ("deadline_label", context["validation_deadline"]),
+        ("domain_label", context["folder_name"]),
+        ("notes_label", context["request_notes"]),
+    ]
+
+    delivered = _deliver_assignment_email(
+        "validation_flow_created",
+        context,
+        detail_specs,
+        context["validation_url"],
+        approver_email,
+    )
+    if delivered:
         logger.info(
-            f"Sent validation flow creation notification to {approver_email} for {validation_flow.ref_id}"
-        )
-    else:
-        logger.error(
-            f"Failed to render validation_flow_created email template for {approver_email}"
+            f"Sent validation flow creation notification to {approver_email} "
+            f"for {validation_flow.ref_id}"
         )
 
 

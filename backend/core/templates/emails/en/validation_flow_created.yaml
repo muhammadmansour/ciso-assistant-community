@@ -1,4 +1,15 @@
-subject: "Wathbah GRC: New validation request requires your approval"
+subject: "Wathbah GRC: Validation '${validation_ref_id}' requires your approval"
+intro: "A new validation request has been assigned to you for approval."
+action: "Open the validation in Wathbah GRC to review the linked items and accept, reject, or request changes."
+details_heading: "Validation details"
+ref_id_label: "Reference"
+requester_label: "Requester"
+deadline_label: "Deadline"
+domain_label: "Domain"
+notes_label: "Request notes"
+cta_label: "Open validation"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -6,10 +17,10 @@ body: |
 
   - Reference: ${validation_ref_id}
   - Requester: ${requester_name}
-  - Validation Deadline: ${validation_deadline}
+  - Deadline: ${validation_deadline}
   - Domain: ${folder_name}
 
-  Please review and take action on this validation request:
+  Open the validation in Wathbah GRC to review and act on it:
   ${validation_url}
 
   Thank you.
