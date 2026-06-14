@@ -93,6 +93,16 @@ CISO_APPS="dev-backend dev-frontend dev-huey"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 
+# Public app URL for email deep links / logo. settings.py loads backend/.env
+# with override=True, so that file is authoritative at runtime; mirror it here
+# so PM2's injected value (and /proc, logs) matches instead of a stale hardcode.
+# Precedence: backend/.env > PUBLIC_URL fallback.
+_env_ciso_url=""
+if [ -f "$BACKEND_DIR/.env" ]; then
+    _env_ciso_url="$(grep -E '^[[:space:]]*CISO_ASSISTANT_URL=' "$BACKEND_DIR/.env" | tail -1 | cut -d= -f2- | tr -d '"' | xargs)"
+fi
+CISO_ASSISTANT_URL="${_env_ciso_url:-$PUBLIC_URL}"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -148,6 +158,7 @@ else
 fi
 echo -e "${GREEN}Gemini indexing max wait: ${GEMINI_INDEX_MAX_WAIT_SECONDS}s (Huey + backend PM2 env)${NC}"
 echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
+echo -e "${GREEN}CISO_ASSISTANT_URL: ${CISO_ASSISTANT_URL}${NC}"
 
 # Check if PM2 is installed
 if ! command -v pm2 &> /dev/null; then
@@ -173,7 +184,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'False',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
         CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
@@ -214,7 +225,7 @@ module.exports = {
       env: {
         DJANGO_DEBUG: 'False',
         ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
@@ -287,7 +298,7 @@ run_migrations() {
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
     export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com"
-    export CISO_ASSISTANT_URL="${PUBLIC_URL}"
+    export CISO_ASSISTANT_URL="${CISO_ASSISTANT_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
     cd "$SCRIPT_DIR"
