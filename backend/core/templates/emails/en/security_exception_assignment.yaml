@@ -1,0 +1,18 @@
+subject: "Wathbah GRC: You have been assigned to exception '${exception_name}'"
+body: |
+  Hello,
+
+  You have been assigned as an owner of the following Security Exception:
+
+  - Name: ${exception_name}
+  - Description: ${exception_description}
+  - Reference ID: ${exception_ref_id}
+  - Severity: ${exception_severity}
+  - Status: ${exception_status}
+  - Expiration date: ${exception_expiration_date}
+  - Domain: ${folder_name}
+
+  View this exception directly:
+  ${ciso_assistant_url}/security-exceptions/${exception_id}
+
+  Thank you.

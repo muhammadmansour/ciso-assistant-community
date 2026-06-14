@@ -18,6 +18,14 @@ export const load: LayoutServerLoad = async (event) => {
 		: `${BASE_API_URL}/${event.params.model}/${event.params.id}/object/`;
 	const object = await event.fetch(objectEndpoint).then((res) => res.json());
 
+	if (
+		URLModel === 'compliance-assessments' &&
+		(!Array.isArray(object.reviewers) || object.reviewers.length === 0) &&
+		event.locals.user?.actor_id
+	) {
+		object.reviewers = [event.locals.user.actor_id];
+	}
+
 	// Block editing for validation flows
 	if (URLModel === 'validation-flows') {
 		throw redirect(302, `/${URLModel}/${event.params.id}`);
