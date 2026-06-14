@@ -1986,6 +1986,8 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
         authors_data = validated_data.get("authors", [])
         assessment = super().create(validated_data)
 
+        self._assign_default_reviewers(assessment)
+
         # Send notification to newly assigned authors
         if authors_data:
             self._send_assignment_notifications(
@@ -2005,6 +2007,22 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
             assessment.save()
 
         return assessment
+
+    def _assign_default_reviewers(self, assessment):
+        """Assign the current user's actor as reviewer when none were set."""
+        if assessment.reviewers.exists():
+            return
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return
+        try:
+            actor = request.user.actor
+            assessment.reviewers.add(actor)
+        except Exception:
+            logger.warning(
+                "Could not assign default reviewer for compliance assessment %s",
+                assessment.id,
+            )
 
     def update(self, instance, validated_data):
         # Track old authors before update
@@ -2671,6 +2689,7 @@ class QuickStartSerializer(serializers.Serializer):
         if not compliance_asssessment_serializer.is_valid(raise_exception=True):
             return None
         audit = compliance_asssessment_serializer.save()
+        compliance_asssessment_serializer._assign_default_reviewers(audit)
         audit.create_requirement_assessments()
 
         created_objects = {
