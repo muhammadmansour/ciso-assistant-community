@@ -749,6 +749,54 @@ class RiskScenarioWriteSerializer(BaseModelSerializer):
 
         return super().validate(attrs)
 
+    def create(self, validated_data: Any):
+        owner_data = validated_data.get("owner", [])
+        scenario = super().create(validated_data)
+
+        if owner_data:
+            self._send_assignment_notifications(
+                scenario, [actor.id for actor in owner_data]
+            )
+
+        return scenario
+
+    def update(self, instance, validated_data):
+        old_owner_ids = set(instance.owner.values_list("id", flat=True))
+
+        updated_instance = super().update(instance, validated_data)
+
+        new_owner_ids = set(updated_instance.owner.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_ids)
+            )
+
+        return updated_instance
+
+    def _send_assignment_notifications(self, scenario, owner_ids):
+        """Send assignment notifications to newly-assigned risk scenario owners."""
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_risk_scenario_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_risk_scenario_assignment_notification(
+                    scenario.id, assigned_emails
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send RiskScenario assignment notification: {str(e)}"
+            )
+
     class Meta:
         model = RiskScenario
         fields = "__all__"
@@ -1193,6 +1241,29 @@ class AppliedControlImportExportSerializer(BaseModelSerializer):
 
 
 class PolicyWriteSerializer(AppliedControlWriteSerializer):
+    def _send_assignment_notifications(self, policy, owner_ids):
+        """Send assignment notifications to newly-assigned policy owners.
+
+        Overrides the AppliedControl version so the email deep link points to
+        the dedicated /policies/<id> page rather than /applied-controls/<id>.
+        """
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_policy_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_policy_assignment_notification(policy.id, assigned_emails)
+        except Exception as e:
+            logger.error(f"Failed to send Policy assignment notification: {str(e)}")
+
     class Meta:
         model = Policy
         fields = "__all__"
@@ -2025,8 +2096,9 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
             )
 
     def update(self, instance, validated_data):
-        # Track old authors before update
+        # Track old authors/reviewers before update
         old_author_ids = set(instance.authors.values_list("id", flat=True))
+        old_reviewer_ids = set(instance.reviewers.values_list("id", flat=True))
 
         # Check if status is changing to deprecated
         old_status = instance.status
@@ -2038,15 +2110,28 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
 
         updated_instance = super().update(instance, validated_data)
 
-        # Get new authors after update
+        # Get new authors/reviewers after update
         new_author_ids = set(updated_instance.authors.values_list("id", flat=True))
+        new_reviewer_ids = set(updated_instance.reviewers.values_list("id", flat=True))
 
-        # Send notifications only to newly assigned authors
-        newly_assigned_ids = new_author_ids - old_author_ids
-        if newly_assigned_ids:
+        # Send notifications only to newly assigned authors/reviewers
+        newly_assigned_author_ids = new_author_ids - old_author_ids
+        if newly_assigned_author_ids:
             self._send_assignment_notifications(
-                updated_instance, list(newly_assigned_ids)
+                updated_instance, list(newly_assigned_author_ids)
             )
+
+        newly_assigned_reviewer_ids = new_reviewer_ids - old_reviewer_ids
+        status_entering_review = new_status != old_status and new_status == "in_review"
+        if newly_assigned_reviewer_ids and not status_entering_review:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_reviewer_ids)
+            )
+
+        # Ensure a reviewer exists before review-cycle emails go out
+        if new_status == "in_review" and not updated_instance.reviewers.exists():
+            self._assign_default_reviewers(updated_instance)
+            updated_instance.refresh_from_db()
 
         # Send review-cycle notifications when the status transitions
         if new_status != old_status:
@@ -2483,6 +2568,54 @@ class SecurityExceptionWriteSerializer(BaseModelSerializer):
     assets = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Asset.objects.all(), required=False
     )
+
+    def create(self, validated_data: Any):
+        owners_data = validated_data.get("owners", [])
+        exception = super().create(validated_data)
+
+        if owners_data:
+            self._send_assignment_notifications(
+                exception, [actor.id for actor in owners_data]
+            )
+
+        return exception
+
+    def update(self, instance, validated_data):
+        old_owner_ids = set(instance.owners.values_list("id", flat=True))
+
+        updated_instance = super().update(instance, validated_data)
+
+        new_owner_ids = set(updated_instance.owners.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_ids)
+            )
+
+        return updated_instance
+
+    def _send_assignment_notifications(self, exception, owner_ids):
+        """Send assignment notifications to newly-assigned exception owners."""
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_security_exception_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_security_exception_assignment_notification(
+                    exception.id, assigned_emails
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send SecurityException assignment notification: {str(e)}"
+            )
 
     class Meta:
         model = SecurityException

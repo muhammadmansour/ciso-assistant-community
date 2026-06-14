@@ -491,6 +491,218 @@ def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
             )
 
 
+def send_policy_assignment_notification(policy_id, assigned_user_emails):
+    """Send notification when a Policy is assigned to owners via Muraji API.
+
+    Policies are persisted as AppliedControl rows with category=policy. We use a
+    dedicated template so the deep link points at /policies/<id> rather than
+    /applied-controls/<id>, matching where the UI actually surfaces them.
+    """
+    logger.info(
+        f"send_policy_assignment_notification called with policy_id={policy_id}, "
+        f"emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for policy assignment notification")
+        return
+
+    try:
+        policy = AppliedControl.objects.get(id=policy_id)
+    except AppliedControl.DoesNotExist:
+        logger.error(f"Policy (AppliedControl) with id {policy_id} not found")
+        return
+
+    from .email_utils import render_email_template
+
+    context = {
+        "policy_id": str(policy.id),
+        "policy_name": policy.name,
+        "policy_description": policy.description or "No description provided",
+        "policy_ref_id": policy.ref_id or "N/A",
+        "policy_status": policy.get_status_display(),
+        "policy_priority": policy.get_priority_display()
+        if policy.priority
+        else "Not set",
+        "policy_eta": policy.eta.strftime("%Y-%m-%d") if policy.eta else "Not set",
+        "folder_name": policy.folder.name if policy.folder else "Default",
+    }
+
+    for email in assigned_user_emails:
+        rendered = render_email_template("policy_assignment", context)
+        if rendered:
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji policy-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render policy_assignment email template for {email}"
+            )
+
+
+def send_security_exception_assignment_notification(exception_id, assigned_user_emails):
+    """Send notification when a SecurityException is assigned to owners."""
+    logger.info(
+        f"send_security_exception_assignment_notification called with "
+        f"exception_id={exception_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for security exception assignment notification")
+        return
+
+    try:
+        from core.models import SecurityException
+
+        exception = SecurityException.objects.get(id=exception_id)
+    except SecurityException.DoesNotExist:
+        logger.error(f"SecurityException with id {exception_id} not found")
+        return
+
+    from .email_utils import render_email_template
+
+    context = {
+        "exception_id": str(exception.id),
+        "exception_name": exception.name,
+        "exception_description": exception.description or "No description provided",
+        "exception_ref_id": exception.ref_id or "N/A",
+        "exception_severity": exception.get_severity_display(),
+        "exception_status": exception.get_status_display(),
+        "exception_expiration_date": exception.expiration_date.strftime("%Y-%m-%d")
+        if exception.expiration_date
+        else "Not set",
+        "folder_name": exception.folder.name if exception.folder else "Default",
+    }
+
+    for email in assigned_user_emails:
+        rendered = render_email_template("security_exception_assignment", context)
+        if rendered:
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji security-exception-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render security_exception_assignment email template for {email}"
+            )
+
+
+def send_risk_scenario_assignment_notification(scenario_id, assigned_user_emails):
+    """Send notification when a RiskScenario is assigned to owners."""
+    logger.info(
+        f"send_risk_scenario_assignment_notification called with "
+        f"scenario_id={scenario_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for risk scenario assignment notification")
+        return
+
+    try:
+        from core.models import RiskScenario
+
+        scenario = RiskScenario.objects.select_related(
+            "risk_assessment", "risk_assessment__folder"
+        ).get(id=scenario_id)
+    except RiskScenario.DoesNotExist:
+        logger.error(f"RiskScenario with id {scenario_id} not found")
+        return
+
+    try:
+        treatment_display = scenario.get_treatment_display()
+    except Exception:
+        treatment_display = getattr(scenario, "treatment", "N/A") or "N/A"
+
+    folder = (
+        scenario.risk_assessment.folder
+        if scenario.risk_assessment and scenario.risk_assessment.folder
+        else None
+    )
+
+    context = {
+        "scenario_id": str(scenario.id),
+        "scenario_name": scenario.name,
+        "scenario_description": scenario.description or "No description provided",
+        "scenario_ref_id": scenario.ref_id or "N/A",
+        "risk_assessment_name": scenario.risk_assessment.name
+        if scenario.risk_assessment
+        else "N/A",
+        "scenario_treatment": treatment_display,
+        "folder_name": folder.name if folder else "Default",
+    }
+
+    from .email_utils import render_email_template
+
+    for email in assigned_user_emails:
+        rendered = render_email_template("risk_scenario_assignment", context)
+        if rendered:
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji risk-scenario-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render risk_scenario_assignment email template for {email}"
+            )
+
+
+def send_metric_instance_assignment_notification(instance_id, assigned_user_emails):
+    """Send notification when a MetricInstance is assigned to owners."""
+    logger.info(
+        f"send_metric_instance_assignment_notification called with "
+        f"instance_id={instance_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for metric instance assignment notification")
+        return
+
+    try:
+        from metrology.models import MetricInstance
+
+        instance = MetricInstance.objects.select_related("folder").get(id=instance_id)
+    except Exception as exc:
+        logger.error(f"MetricInstance with id {instance_id} not found: {exc}")
+        return
+
+    target_value = getattr(instance, "target_value", None)
+    frequency = (
+        instance.get_collection_frequency_display()
+        if instance.collection_frequency
+        else "Not set"
+    )
+
+    context = {
+        "metric_id": str(instance.id),
+        "metric_name": instance.name,
+        "metric_description": instance.description or "No description provided",
+        "metric_ref_id": instance.ref_id or "N/A",
+        "metric_status": instance.get_status_display(),
+        "metric_target_value": str(target_value) if target_value is not None else "Not set",
+        "metric_collection_frequency": frequency,
+        "folder_name": instance.folder.name if instance.folder else "Default",
+    }
+
+    from .email_utils import render_email_template
+
+    for email in assigned_user_emails:
+        rendered = render_email_template("metric_instance_assignment", context)
+        if rendered:
+            success = send_muraji_email(email, rendered["subject"], rendered["body"])
+            logger.info(
+                f"Muraji metric-instance-assignment email result for {email}: "
+                f"{'success' if success else 'failed'}"
+            )
+        else:
+            logger.error(
+                f"Failed to render metric_instance_assignment email template for {email}"
+            )
+
+
 @task()
 def send_task_template_assignment_notification(task_template_id, emails):
     """Send notification when TaskTemplate is assigned to users"""

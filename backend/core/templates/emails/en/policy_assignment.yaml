@@ -1,0 +1,18 @@
+subject: "Wathbah GRC: You have been assigned to policy '${policy_name}'"
+body: |
+  Hello,
+
+  You have been assigned as an owner of the following Policy:
+
+  - Name: ${policy_name}
+  - Description: ${policy_description}
+  - Reference ID: ${policy_ref_id}
+  - Status: ${policy_status}
+  - Priority: ${policy_priority}
+  - ETA: ${policy_eta}
+  - Domain: ${folder_name}
+
+  View this policy directly:
+  ${ciso_assistant_url}/policies/${policy_id}
+
+  Thank you.

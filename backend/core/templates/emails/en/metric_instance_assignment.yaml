@@ -1,0 +1,18 @@
+subject: "Wathbah GRC: You have been assigned to metric '${metric_name}'"
+body: |
+  Hello,
+
+  You have been assigned as an owner of the following Metric Instance:
+
+  - Name: ${metric_name}
+  - Description: ${metric_description}
+  - Reference ID: ${metric_ref_id}
+  - Status: ${metric_status}
+  - Target value: ${metric_target_value}
+  - Collection frequency: ${metric_collection_frequency}
+  - Domain: ${folder_name}
+
+  View this metric directly:
+  ${ciso_assistant_url}/metric-instances/${metric_id}
+
+  Thank you.

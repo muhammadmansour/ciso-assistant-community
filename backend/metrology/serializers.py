@@ -1,3 +1,6 @@
+from typing import Any
+
+import structlog
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 
@@ -13,6 +16,8 @@ from metrology.models import (
     DashboardWidget,
 )
 from metrology.builtin_metrics import get_available_metrics_for_model
+
+logger = structlog.getLogger(__name__)
 
 
 # MetricDefinition serializers
@@ -41,6 +46,54 @@ class MetricInstanceWriteSerializer(BaseModelSerializer):
         many=True,
         required=False,
     )
+
+    def create(self, validated_data: Any):
+        owner_data = validated_data.get("owner", [])
+        instance = super().create(validated_data)
+
+        if owner_data:
+            self._send_assignment_notifications(
+                instance, [actor.id for actor in owner_data]
+            )
+
+        return instance
+
+    def update(self, instance, validated_data):
+        old_owner_ids = set(instance.owner.values_list("id", flat=True))
+
+        updated_instance = super().update(instance, validated_data)
+
+        new_owner_ids = set(updated_instance.owner.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_ids)
+            )
+
+        return updated_instance
+
+    def _send_assignment_notifications(self, metric_instance, owner_ids):
+        """Send assignment notifications to newly-assigned metric instance owners."""
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from core.tasks import send_metric_instance_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_metric_instance_assignment_notification(
+                    metric_instance.id, assigned_emails
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send MetricInstance assignment notification: {str(e)}"
+            )
 
     class Meta:
         model = MetricInstance
