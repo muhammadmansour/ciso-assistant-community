@@ -372,6 +372,305 @@ def auditlog_prune():
         logger.error(f"Failed to prune the audit logs: {str(e)}")
 
 
+# ==============================================================================
+# Deadline / ETA reminders
+#
+# Spec (per docs/notifications):
+#   - Compliance Assessments       -> authors, at due - 3d / due / due + 3d
+#   - Risk / Findings / Entity     -> authors, at due
+#   - Applied Controls / Policies  -> owners, on the ETA day, only when status
+#                                     is still "to_do" or "in_progress"
+#
+# All reminders are suppressed when the underlying object is already in a
+# terminal status (done / deprecated for assessments; deprecated/active for
+# controls — handled per-task because the status vocabularies differ).
+#
+# Each task scans the matching rows for "today + offset" (exact-day match)
+# which makes them naturally idempotent: a daily cron will fire each reminder
+# once per object/recipient on the right day and never again.
+# ==============================================================================
+
+
+# Statuses that suppress every assessment-style reminder. Matches Assessment
+# (and subclasses RiskAssessment / FindingsAssessment / EntityAssessment) and
+# ComplianceAssessment, which share the same vocabulary.
+_ASSESSMENT_TERMINAL_STATUSES = ("done", "deprecated")
+
+# Statuses for which an Applied Control / Policy ETA reminder is still useful.
+# Excludes "active" (work delivered), "deprecated" (no longer tracked),
+# "on_hold" (intentionally paused) and "--" (undefined / placeholder).
+_CONTROL_ACTIVE_REMINDER_STATUSES = ("to_do", "in_progress")
+
+
+def _assessment_reminder_payload(assessment, *, url_prefix: str) -> tuple:
+    """Build context, detail rows, and deep link for an assessment reminder.
+
+    Shared by every assessment subtype (Compliance / Risk / Findings / Entity)
+    so each reminder email has the same shape, regardless of which periodic
+    task triggered it.
+    """
+    framework = getattr(assessment, "framework", None)
+    context = {
+        "assessment_id": str(assessment.id),
+        "assessment_name": assessment.name,
+        "assessment_status": assessment.get_status_display()
+        if assessment.status
+        else "Not set",
+        "assessment_due_date": assessment.due_date.strftime("%Y-%m-%d")
+        if assessment.due_date
+        else "Not set",
+        "framework_name": framework.name if framework else "No framework",
+        "folder_name": assessment.folder.name if assessment.folder else "Default",
+    }
+    detail_specs = [
+        ("name_label", context["assessment_name"]),
+        ("framework_label", context["framework_name"]) if framework else None,
+        ("status_label", context["assessment_status"]),
+        ("due_date_label", context["assessment_due_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    detail_specs = [spec for spec in detail_specs if spec is not None]
+    object_url = _assignment_url(f"{url_prefix}/{assessment.id}")
+    return context, detail_specs, object_url
+
+
+def _send_assessment_reminders(
+    queryset, *, template_name: str, url_prefix: str, recipient_field: str = "authors"
+) -> None:
+    """Send a reminder per (assessment, recipient) pair.
+
+    `recipient_field` resolves to an M2M of Actors on the assessment. We send
+    one branded email per recipient so each Actor's clients see the deep link
+    rendered as a CTA without merging unrelated objects into a single digest.
+    """
+    for assessment in queryset:
+        recipients = getattr(assessment, recipient_field).all()
+        if not recipients:
+            continue
+        context, detail_specs, object_url = _assessment_reminder_payload(
+            assessment, url_prefix=url_prefix
+        )
+        sent_to = set()
+        for actor in recipients:
+            for email in actor.get_emails():
+                if not email or email in sent_to:
+                    continue
+                sent_to.add(email)
+                _deliver_assignment_email(
+                    template_name, context, detail_specs, object_url, email
+                )
+
+
+def _send_control_eta_reminders(
+    queryset, *, template_name: str, url_prefix: str, prefix: str
+) -> None:
+    """Send ETA-day reminders for AppliedControl / Policy rows to their owners.
+
+    `prefix` is the YAML/context key prefix ("control" or "policy") so the
+    same code path renders both templates with their natural variable names.
+    """
+    for control in queryset:
+        owners = control.owner.all()
+        if not owners:
+            continue
+        context = {
+            f"{prefix}_id": str(control.id),
+            f"{prefix}_name": control.name,
+            f"{prefix}_description": control.description or "No description provided",
+            f"{prefix}_ref_id": control.ref_id or "N/A",
+            f"{prefix}_status": control.get_status_display(),
+            f"{prefix}_priority": control.get_priority_display()
+            if control.priority
+            else "Not set",
+            f"{prefix}_eta": control.eta.strftime("%Y-%m-%d")
+            if control.eta
+            else "Not set",
+            "folder_name": control.folder.name if control.folder else "Default",
+        }
+        detail_specs = [
+            ("name_label", context[f"{prefix}_name"]),
+            ("description_label", control.description or ""),
+            ("ref_id_label", control.ref_id or ""),
+            ("status_label", context[f"{prefix}_status"]),
+            ("priority_label", context[f"{prefix}_priority"]),
+            ("eta_label", context[f"{prefix}_eta"]),
+            ("domain_label", context["folder_name"]),
+        ]
+        object_url = _assignment_url(f"{url_prefix}/{control.id}")
+        sent_to = set()
+        for actor in owners:
+            for email in actor.get_emails():
+                if not email or email in sent_to:
+                    continue
+                sent_to.add(email)
+                _deliver_assignment_email(
+                    template_name, context, detail_specs, object_url, email
+                )
+
+
+# ------ Compliance assessments: due - 3d / due / due + 3d ----------------------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="5"))
+def check_compliance_assessments_due_in_3d():
+    """Notify authors when a ComplianceAssessment is due in exactly 3 days."""
+    target_date = date.today() + timedelta(days=3)
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=target_date)
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_due_in_3d",
+        url_prefix="compliance-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="8"))
+def check_compliance_assessments_due_today():
+    """Notify authors when a ComplianceAssessment is due today."""
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_due_today",
+        url_prefix="compliance-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="11"))
+def check_compliance_assessments_delayed_3d():
+    """Notify authors when a ComplianceAssessment is 3 days past due."""
+    target_date = date.today() - timedelta(days=3)
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=target_date)
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_delayed",
+        url_prefix="compliance-assessments",
+    )
+
+
+# ------ Risk / Findings / Entity assessments: due today ------------------------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="14"))
+def check_risk_assessments_due_today():
+    """Notify authors when a RiskAssessment is due today."""
+    from core.models import RiskAssessment
+
+    queryset = (
+        RiskAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="risk_assessment_due_today",
+        url_prefix="risk-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="17"))
+def check_findings_assessments_due_today():
+    """Notify authors when a FindingsAssessment is due today."""
+    from core.models import FindingsAssessment
+
+    queryset = (
+        FindingsAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="findings_assessment_due_today",
+        url_prefix="findings-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="20"))
+def check_entity_assessments_due_today():
+    """Notify authors when an EntityAssessment is due today."""
+    try:
+        from tprm.models import EntityAssessment
+    except Exception as exc:  # noqa: BLE001 - tprm app may be optional
+        logger.warning(f"EntityAssessment reminder skipped, import failed: {exc}")
+        return
+
+    queryset = (
+        EntityAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="entity_assessment_due_today",
+        url_prefix="entity-assessments",
+    )
+
+
+# ------ Applied Controls / Policies: ETA day, only to_do / in_progress ----------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="23"))
+def check_applied_controls_eta_today():
+    """Notify owners when an Applied Control's ETA is today and it's not yet done.
+
+    Excludes policies, which are AppliedControl rows with category='policy' and
+    are handled by `check_policies_eta_today` so they deep-link to /policies/.
+    """
+    queryset = (
+        AppliedControl.objects.filter(
+            eta=date.today(), status__in=_CONTROL_ACTIVE_REMINDER_STATUSES
+        )
+        .exclude(category="policy")
+        .prefetch_related("owner", "folder")
+    )
+    _send_control_eta_reminders(
+        queryset,
+        template_name="applied_control_eta_reached",
+        url_prefix="applied-controls",
+        prefix="control",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="26"))
+def check_policies_eta_today():
+    """Notify owners when a Policy's ETA is today and it's not yet done.
+
+    Policies share the AppliedControl table; we filter on category='policy' and
+    deep-link to /policies/ so the recipient lands on the right surface.
+    """
+    queryset = (
+        AppliedControl.objects.filter(
+            eta=date.today(),
+            status__in=_CONTROL_ACTIVE_REMINDER_STATUSES,
+            category="policy",
+        ).prefetch_related("owner", "folder")
+    )
+    _send_control_eta_reminders(
+        queryset,
+        template_name="policy_eta_reached",
+        url_prefix="policies",
+        prefix="policy",
+    )
+
+
 # Assignment notification functions
 
 

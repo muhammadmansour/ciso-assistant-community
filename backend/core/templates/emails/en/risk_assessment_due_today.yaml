@@ -1,0 +1,25 @@
+subject: "Wathbah GRC: Risk assessment '${assessment_name}' is due today"
+intro: "A risk assessment you are responsible for is due today."
+action: "Open the risk assessment in Wathbah GRC to update its status or hand it over for review."
+details_heading: "Risk assessment details"
+name_label: "Name"
+status_label: "Status"
+due_date_label: "Due date"
+domain_label: "Domain"
+cta_label: "Open risk assessment"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  A risk assessment you are responsible for is due today:
+
+  - Name: ${assessment_name}
+  - Status: ${assessment_status}
+  - Due date: ${assessment_due_date}
+  - Domain: ${folder_name}
+
+  Open the risk assessment in Wathbah GRC:
+  ${ciso_assistant_url}/risk-assessments/${assessment_id}
+
+  Thank you.
