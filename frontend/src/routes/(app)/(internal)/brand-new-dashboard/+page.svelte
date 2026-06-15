@@ -159,94 +159,84 @@
 	<!-- ══════════════════════════════════════════════════════════════ -->
 	<!-- Header                                                         -->
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-xl font-bold text-gray-900">{m.brandNewDashboard()}</h1>
-			<p class="text-sm text-gray-500 mt-0.5">{m.executiveView()}</p>
-		</div>
-		<a
-			href="/legislative-updates"
-			class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-		>
-			{m.viewAllUpdates()}
-			<i class="fa-solid fa-chevron-left text-[10px]"></i>
-		</a>
+	<div>
+		<h1 class="text-xl font-bold text-gray-900">{m.brandNewDashboard()}</h1>
+		<p class="text-sm text-gray-500 mt-0.5">{m.executiveView()}</p>
 	</div>
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- المستجدات الأخيرة — Legislative Updates (rich cards)          -->
+	<!-- المستجدات الأخيرة — Legislative Updates (unified list)        -->
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<section>
-		<h2 class="text-sm font-semibold text-gray-700 mb-3">{m.latestUpdates()}</h2>
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+		<!-- Section header -->
+		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+			<h2 class="text-sm font-semibold text-gray-900">{m.latestUpdates()}</h2>
+			<a
+				href="/legislative-updates"
+				class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+			>
+				{m.viewAllUpdates()}
+				<i class="fa-solid fa-chevron-left text-[10px]"></i>
+			</a>
+		</div>
 
 		{#if data.legislative.items.length === 0}
-			<div class="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-10 text-gray-400">
+			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.noQualificationsYet()}</p>
+				<p class="text-xs">{m.noUpdatesYet?.() ?? 'لا توجد مستجدات'}</p>
 			</div>
 		{:else}
-			<div class="space-y-3">
+			<div class="divide-y divide-gray-100">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a
 						href="/legislative-updates/{item.id}"
-						class="block bg-white rounded-xl border border-gray-200 p-5 hover:border-gray-300 hover:shadow-sm transition-all group"
+						class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors group"
 					>
-						<!-- Badge row: source · impact · status -->
-						<div class="flex items-center gap-2 mb-3 flex-wrap">
-							{#if item.source}
-								<span class="text-[10px] px-2.5 py-0.5 rounded-full bg-[#0A1628]/8 text-[#0A1628] font-medium">
-									{item.source}
+						<!-- RIGHT side: meta + title + description -->
+						<div class="flex-1 min-w-0">
+							<!-- Source · date -->
+							<div class="flex items-center gap-2 mb-1 flex-wrap">
+								{#if item.source}
+									<span class="text-[10px] text-gray-400 font-medium">({item.source})</span>
+								{/if}
+								{#if item.published_at}
+									<span class="text-[10px] text-gray-400">
+										{formatDate(item.published_at)}
+									</span>
+								{/if}
+							</div>
+							<!-- Title -->
+							<p class="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
+								{item.title}
+							</p>
+							<!-- Description -->
+							{#if item.description}
+								<p class="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
+									{item.description}
+								</p>
+							{/if}
+						</div>
+
+						<!-- LEFT side: badges + arrow -->
+						<div class="flex items-center gap-1.5 shrink-0">
+							{#if item.status}
+								<span class="text-[10px] px-2 py-0.5 rounded font-medium {statusBadgeClass(item.status)}">
+									{item.status_label || item.status}
 								</span>
 							{/if}
 							{#if item.impact_level}
-								<span class="text-[10px] px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1 {impactBadgeClass(item.impact_level)}">
+								<span class="text-[10px] px-2 py-0.5 rounded font-medium flex items-center gap-1 {impactBadgeClass(item.impact_level)}">
 									<span class="w-1.5 h-1.5 rounded-full {impactDotClass(item.impact_level)}"></span>
 									{item.impact_label || item.impact_level}
 								</span>
 							{/if}
-							{#if item.status}
-								<span class="text-[10px] px-2.5 py-0.5 rounded-full font-medium {statusBadgeClass(item.status)}">
-									{item.status_label || item.status}
-								</span>
-							{/if}
-						</div>
-
-						<!-- Title -->
-						<h3 class="text-[15px] font-bold text-gray-900 leading-relaxed mb-2 group-hover:text-blue-700 transition-colors line-clamp-2">
-							{item.title}
-						</h3>
-
-						<!-- Description -->
-						{#if item.description}
-							<p class="text-[12px] text-gray-500 leading-relaxed line-clamp-2 mb-4">
-								{item.description}
-							</p>
-						{/if}
-
-						<!-- Footer: date · policies count · view link -->
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-4 text-[11px] text-gray-400">
-								{#if item.published_at}
-									<span class="flex items-center gap-1">
-										<i class="fa-regular fa-calendar text-[10px]"></i>
-										{formatDate(item.published_at)}
-									</span>
-								{/if}
-								{#if item.affected_policies_count > 0}
-									<span class="text-blue-600 font-medium">
-										{policyCountLabel(item.affected_policies_count)}
-									</span>
-								{/if}
-							</div>
-							<span class="text-[11px] text-blue-600 font-medium group-hover:underline">
-								عرض التفاصيل
-							</span>
+							<i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
 						</div>
 					</a>
 				{/each}
 			</div>
 		{/if}
-	</section>
+	</div>
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
 	<!-- Framework Score Cards (4 donuts)                               -->
