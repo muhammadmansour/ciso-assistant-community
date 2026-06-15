@@ -369,62 +369,32 @@
 	</div>
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Highest residual risk by category — full width               -->
+	<!-- Category (right 1/3 vertical list)  +  Bottom row (2 cols)   -->
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="px-4 py-3 border-b border-gray-100">
-			<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
-		</div>
-		{#if categoryRiskMax.length === 0}
-			<div class="flex flex-col items-center justify-center py-8 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.noQualificationsYet()}</p>
-			</div>
-		{:else}
-			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 divide-x divide-x-reverse divide-gray-100">
-				{#each categoryRiskMax as cat}
-					<div class="flex items-center justify-between px-4 py-3 border-b border-gray-50">
-						<span class="text-xs font-medium text-gray-700 truncate flex-1">{cat.category}</span>
-						<div class="flex items-center gap-2 shrink-0 mr-2">
-							<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
-							<span class="text-xs font-bold px-2 py-0.5 rounded {severityStyle(cat.maxResidual)}">
-								{cat.maxResidual}
-							</span>
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
+	<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- TPRM (right)  +  Policy violations (left)                     -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-		<!-- TPRM — first → RIGHT in RTL -->
+		<!-- Category — right col (1/3), vertical list -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 			<div class="px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
+				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
 			</div>
-			{#if tprmRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+			{#if categoryRiskMax.length === 0}
+				<div class="flex flex-col items-center justify-center py-8 text-gray-400">
 					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noEntityAssessments()}</p>
+					<p class="text-xs">{m.noQualificationsYet()}</p>
 				</div>
 			{:else}
-				<div class="p-4 space-y-3">
-					{#each tprmRows as row}
-						<div>
-							<div class="flex items-center justify-between mb-1">
-								<span class="text-xs font-medium text-gray-700 truncate flex-1">{row.provider}</span>
-								<span class="text-xs font-semibold text-gray-900 ml-2 shrink-0">{row.score}%</span>
-							</div>
-							<div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-								<div
-									class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
-									style:width="{row.score}%"
-								></div>
+				<div class="divide-y divide-gray-50">
+					{#each categoryRiskMax as cat}
+						<div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
+							<!-- Category name — start (right in RTL) -->
+							<span class="text-xs font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
+							<!-- vs inherent + score badge — end (left in RTL) -->
+							<div class="flex items-center gap-2 shrink-0">
+								<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
+								<span class="inline-flex items-center justify-center min-w-[28px] h-6 rounded text-xs font-bold px-1.5 {severityStyle(cat.maxResidual)}">
+									{cat.maxResidual}
+								</span>
 							</div>
 						</div>
 					{/each}
@@ -432,14 +402,48 @@
 			{/if}
 		</div>
 
-		<!-- Policy violations — second → LEFT in RTL -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
+		<!-- Policy violations + TPRM stacked in remaining 2/3 -->
+		<div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+			<!-- Policy violations — LEFT in RTL -->
+			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+				<div class="px-4 py-3 border-b border-gray-100">
+					<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
+				</div>
+				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+				</div>
 			</div>
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+
+			<!-- TPRM — RIGHT in RTL -->
+			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+				<div class="px-4 py-3 border-b border-gray-100">
+					<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
+				</div>
+				{#if tprmRows.length === 0}
+					<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+						<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+						<p class="text-xs">{m.noEntityAssessments()}</p>
+					</div>
+				{:else}
+					<div class="p-4 space-y-3">
+						{#each tprmRows as row}
+							<div>
+								<div class="flex items-center justify-between mb-1">
+									<span class="text-xs font-medium text-gray-700 truncate flex-1">{row.provider}</span>
+									<span class="text-xs font-semibold text-gray-900 shrink-0 mr-2">{row.score}%</span>
+								</div>
+								<div class="h-1.5 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+									<div
+										class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
+										style:width="{row.score}%"
+									></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
