@@ -249,32 +249,6 @@
 	</section>
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Glance Bar                                                     -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-		<div class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all">
-			<div class="text-[32px] leading-none font-bold text-gray-900">{totalRisks}</div>
-			<div class="text-xs text-gray-500 mt-1.5">{m.totalRisksGlance()}</div>
-		</div>
-		<div class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all
-			{(data.counters.exceptions ?? 0) > 0 ? 'ring-1 ring-red-200' : ''}">
-			<div class="text-[32px] leading-none font-bold
-				{(data.counters.exceptions ?? 0) > 0 ? 'text-red-600' : 'text-gray-900'}">
-				{data.counters.exceptions ?? 0}
-			</div>
-			<div class="text-xs text-gray-500 mt-1.5">{m.activeExceptions()}</div>
-		</div>
-		<div class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all">
-			<div class="text-[32px] leading-none font-bold text-gray-900">{data.counters.policies ?? 0}</div>
-			<div class="text-xs text-gray-500 mt-1.5">{m.policiesCount()}</div>
-		</div>
-		<div class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all">
-			<div class="text-[32px] leading-none font-bold text-gray-900">{data.counters.frameworks ?? 0}</div>
-			<div class="text-xs text-gray-500 mt-1.5">{m.frameworksCount()}</div>
-		</div>
-	</div>
-
-	<!-- ══════════════════════════════════════════════════════════════ -->
 	<!-- Framework Score Cards (4 donuts)                               -->
 	<!-- ══════════════════════════════════════════════════════════════ -->
 	{#if data.frameworks.length > 0}
@@ -329,98 +303,98 @@
 	{/if}
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Category (right 1/3)  +  Heatmap (left 2/3)                   -->
+	<!-- Heatmap — full width                                          -->
 	<!-- ══════════════════════════════════════════════════════════════ -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-		<!-- Max residual by category — 1 col → RIGHT in RTL -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+			<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
+			<div class="flex rounded-lg border border-gray-200 overflow-hidden">
+				{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
+					<button
+						type="button"
+						onclick={() => (riskView = v)}
+						class="px-2.5 py-1 text-[10px] font-medium transition-colors
+							{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}"
+					>
+						{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
+					</button>
+				{/each}
 			</div>
-			{#if categoryRiskMax.length === 0}
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noQualificationsYet()}</p>
+		</div>
+
+		{#if totalRisks === 0}
+			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+				<p class="text-xs">{m.noRiskScenarios()}</p>
+			</div>
+		{:else}
+			<div class="p-4" dir="ltr">
+				<div class="flex">
+					<div class="flex flex-col gap-0.5 mr-1.5">
+						{#each [5, 4, 3, 2, 1] as l}
+							<div class="h-10 flex items-center justify-center">
+								<span class="text-[10px] text-gray-400 w-3 text-center">{l}</span>
+							</div>
+						{/each}
+					</div>
+					<div class="flex-1">
+						<div class="grid grid-cols-5 gap-1">
+							{#each [5, 4, 3, 2, 1] as l}
+								{#each [1, 2, 3, 4, 5] as imp}
+									{@const count = heatmapGrid[l - 1][imp - 1]}
+									{@const score = l * imp}
+									<div
+										class="h-12 rounded flex items-center justify-center text-sm font-bold"
+										style:background-color={cellBg(count, score)}
+										style:color={cellFg(count, score)}
+									>
+										{count > 0 ? count : ''}
+									</div>
+								{/each}
+							{/each}
+						</div>
+						<div class="flex justify-between mt-1.5 px-1">
+							{#each [1, 2, 3, 4, 5] as i}
+								<span class="text-[10px] text-gray-400">{i}</span>
+							{/each}
+						</div>
+						<div class="text-center mt-0.5">
+							<span class="text-[9px] text-gray-400">{m.impactISO()}</span>
+						</div>
+					</div>
 				</div>
-			{:else}
-				<div class="divide-y divide-gray-50">
-					{#each categoryRiskMax as cat}
-						<div class="flex items-center gap-3 px-4 py-2.5">
-							<span class="text-xs font-medium text-gray-700 flex-1 truncate">{cat.category}</span>
+				<p class="text-[9px] text-gray-400 mt-1">{m.likelihood()}</p>
+			</div>
+		{/if}
+	</div>
+
+	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- Highest residual risk by category — full width               -->
+	<!-- ══════════════════════════════════════════════════════════════ -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+		<div class="px-4 py-3 border-b border-gray-100">
+			<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+		</div>
+		{#if categoryRiskMax.length === 0}
+			<div class="flex flex-col items-center justify-center py-8 text-gray-400">
+				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+				<p class="text-xs">{m.noQualificationsYet()}</p>
+			</div>
+		{:else}
+			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 divide-x divide-x-reverse divide-gray-100">
+				{#each categoryRiskMax as cat}
+					<div class="flex items-center justify-between px-4 py-3 border-b border-gray-50">
+						<span class="text-xs font-medium text-gray-700 truncate flex-1">{cat.category}</span>
+						<div class="flex items-center gap-2 shrink-0 mr-2">
 							<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
 							<span class="text-xs font-bold px-2 py-0.5 rounded {severityStyle(cat.maxResidual)}">
 								{cat.maxResidual}
 							</span>
 						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<!-- Compact heatmap — col-span-2 → LEFT in RTL -->
-		<div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
-				<div class="flex rounded-lg border border-gray-200 overflow-hidden">
-					{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
-						<button
-							type="button"
-							onclick={() => (riskView = v)}
-							class="px-2.5 py-1 text-[10px] font-medium transition-colors
-								{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}"
-						>
-							{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			{#if totalRisks === 0}
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noRiskScenarios()}</p>
-				</div>
-			{:else}
-				<div class="p-4" dir="ltr">
-					<div class="flex">
-						<div class="flex flex-col gap-0.5 mr-1.5">
-							{#each [5, 4, 3, 2, 1] as l}
-								<div class="h-10 flex items-center justify-center">
-									<span class="text-[10px] text-gray-400 w-3 text-center">{l}</span>
-								</div>
-							{/each}
-						</div>
-						<div class="flex-1">
-							<div class="grid grid-cols-5 gap-0.5">
-								{#each [5, 4, 3, 2, 1] as l}
-									{#each [1, 2, 3, 4, 5] as imp}
-										{@const count = heatmapGrid[l - 1][imp - 1]}
-										{@const score = l * imp}
-										<div
-											class="h-10 rounded flex items-center justify-center text-xs font-bold"
-											style:background-color={cellBg(count, score)}
-											style:color={cellFg(count, score)}
-										>
-											{count > 0 ? count : ''}
-										</div>
-									{/each}
-								{/each}
-							</div>
-							<div class="flex justify-between mt-1.5 px-1">
-								{#each [1, 2, 3, 4, 5] as i}
-									<span class="text-[10px] text-gray-400">{i}</span>
-								{/each}
-							</div>
-							<div class="text-center mt-0.5">
-								<span class="text-[9px] text-gray-400">{m.impactISO()}</span>
-							</div>
-						</div>
 					</div>
-					<p class="text-[9px] text-gray-400 mt-1">{m.likelihood()}</p>
-				</div>
-			{/if}
-		</div>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	<!-- ══════════════════════════════════════════════════════════════ -->
