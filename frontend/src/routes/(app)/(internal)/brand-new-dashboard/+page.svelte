@@ -265,7 +265,32 @@
 	<!-- ═══════════════════════════════════════════════════════════ -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-		<!-- Compact heatmap -->
+		<!-- Max residual by category — 1 col, appears RIGHT in RTL -->
+		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+			<div class="px-4 py-3 border-b border-gray-100">
+				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+			</div>
+			{#if categoryRiskMax.length === 0}
+				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+					<p class="text-xs">{m.noQualificationsYet()}</p>
+				</div>
+			{:else}
+				<div class="divide-y divide-gray-50">
+					{#each categoryRiskMax as cat}
+						<div class="flex items-center gap-3 px-4 py-2.5">
+							<span class="text-xs font-medium text-gray-700 flex-1 truncate">{cat.category}</span>
+							<span class="text-[10px] text-gray-400">vs {cat.maxInherent}</span>
+							<span class="text-xs font-bold px-2 py-0.5 rounded {severityStyle(cat.maxResidual)}">
+								{cat.maxResidual}
+							</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Compact heatmap — col-span-2, appears LEFT in RTL -->
 		<div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
 			<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
@@ -328,33 +353,8 @@
 							</div>
 						</div>
 					</div>
-					<!-- Y-axis label bottom-left -->
+					<!-- Y-axis label -->
 					<p class="text-[9px] text-gray-400 mt-1">{m.likelihood()}</p>
-				</div>
-			{/if}
-		</div>
-
-		<!-- Max residual by category -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
-			</div>
-			{#if categoryRiskMax.length === 0}
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noQualificationsYet()}</p>
-				</div>
-			{:else}
-				<div class="divide-y divide-gray-50">
-					{#each categoryRiskMax as cat}
-						<div class="flex items-center gap-3 px-4 py-2.5">
-							<span class="text-xs font-medium text-gray-700 flex-1 truncate">{cat.category}</span>
-							<span class="text-[10px] text-gray-400">vs {cat.maxInherent}</span>
-							<span class="text-xs font-bold px-2 py-0.5 rounded {severityStyle(cat.maxResidual)}">
-								{cat.maxResidual}
-							</span>
-						</div>
-					{/each}
 				</div>
 			{/if}
 		</div>
