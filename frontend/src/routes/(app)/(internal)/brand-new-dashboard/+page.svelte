@@ -360,29 +360,64 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════ Category (1/3) + TPRM + Policy (2/3) ════════════════ -->
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+	<!-- ══════════════════ Highest residual risk by category — full width ═══════ -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+		<div class="px-4 py-3 border-b border-gray-100">
+			<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+		</div>
+		{#if categoryRiskMax.length === 0}
+			<div class="flex flex-col items-center justify-center py-8 text-gray-400">
+				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+				<p class="text-xs">{m.noQualificationsYet()}</p>
+			</div>
+		{:else}
+			<div class="divide-y divide-gray-100">
+				{#each categoryRiskMax as cat}
+					<div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
+						<span class="text-xs font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
+						<div class="flex items-center gap-2 shrink-0">
+							<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
+							<span class="inline-flex items-center justify-center min-w-[28px] h-6 rounded text-xs font-bold px-1.5 {severityStyle(cat.maxResidual)}">
+								{cat.maxResidual}
+							</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
-		<!-- Category — right col, vertical list -->
+	<!-- ══════════════════ TPRM (right) + Policy violations (left) ══════════════ -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+		<!-- TPRM — first in DOM = right in RTL -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 			<div class="px-4 py-3 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+				<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
 			</div>
-			{#if categoryRiskMax.length === 0}
-				<div class="flex flex-col items-center justify-center py-8 text-gray-400">
+			{#if tprmRows.length === 0}
+				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noQualificationsYet()}</p>
+					<p class="text-xs">{m.noEntityAssessments()}</p>
 				</div>
 			{:else}
-				<div class="divide-y divide-gray-50">
-					{#each categoryRiskMax as cat}
-						<div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
-							<span class="text-xs font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
-							<div class="flex items-center gap-2 shrink-0">
-								<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
-								<span class="inline-flex items-center justify-center min-w-[28px] h-6 rounded text-xs font-bold px-1.5 {severityStyle(cat.maxResidual)}">
-									{cat.maxResidual}
-								</span>
+				<div class="p-4 space-y-2.5">
+					{#each tprmRows as row}
+						<div>
+							<div class="flex items-center justify-between mb-1.5">
+								<span class="text-xs font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
+								<div class="flex items-center gap-1.5 shrink-0 mr-3">
+									{#if row.due_date}
+										<span class="text-[10px] text-gray-400">{formatDate(row.due_date)}</span>
+									{/if}
+									<span class="text-xs font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+										{row.score}%
+									</span>
+								</div>
+							</div>
+							<div class="h-2 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+								<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
+									style:width="{row.score}%"></div>
 							</div>
 						</div>
 					{/each}
@@ -390,53 +425,14 @@
 			{/if}
 		</div>
 
-		<!-- TPRM + Policy violations in remaining 2/3 -->
-		<div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
-
-			<!-- TPRM — center (first in DOM = right in RTL) -->
-			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-				<div class="px-4 py-3 border-b border-gray-100">
-					<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
-				</div>
-				{#if tprmRows.length === 0}
-					<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-						<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-						<p class="text-xs">{m.noEntityAssessments()}</p>
-					</div>
-				{:else}
-					<div class="p-4 space-y-2.5">
-						{#each tprmRows as row}
-							<div>
-								<div class="flex items-center justify-between mb-1.5">
-									<span class="text-xs font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
-									<div class="flex items-center gap-1.5 shrink-0 mr-3">
-										{#if row.due_date}
-											<span class="text-[10px] text-gray-400">{formatDate(row.due_date)}</span>
-										{/if}
-										<span class="text-xs font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
-											{row.score}%
-										</span>
-									</div>
-								</div>
-								<div class="h-2 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
-									<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
-										style:width="{row.score}%"></div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
+		<!-- Policy violations — second in DOM = left in RTL -->
+		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+			<div class="px-4 py-3 border-b border-gray-100">
+				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
 			</div>
-
-			<!-- Policy violations — left -->
-			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-				<div class="px-4 py-3 border-b border-gray-100">
-					<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
-				</div>
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
-				</div>
+			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
 			</div>
 		</div>
 	</div>
