@@ -407,23 +407,5 @@
 		</div>
 	</div>
 
-	<!-- ═══════════════════════════════════════════════════════════ -->
-	<!-- Compliance Trend (6 months)                                  -->
-	<!-- ═══════════════════════════════════════════════════════════ -->
-	<section class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-			<h3 class="text-sm font-semibold text-gray-900">{m.complianceTrend6Months()}</h3>
-			<div class="flex items-center gap-4 text-[10px] text-gray-500">
-				<span>
-					{m.activeExceptions()}:
-					<strong class="text-gray-700">{data.counters.exceptions ?? 0}</strong>
-				</span>
-			</div>
-		</div>
-		<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-			<i class="fa-solid fa-chart-line text-2xl mb-2"></i>
-			<p class="text-xs">{m.trendComingSoon()}</p>
-		</div>
-	</section>
 
 </div>
