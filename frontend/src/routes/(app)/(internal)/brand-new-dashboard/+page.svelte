@@ -219,38 +219,38 @@
 			<div class="divide-y divide-gray-100">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a href="/legislative-updates/{item.id}"
-						class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors group">
+						class="flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50/70 transition-colors group">
 						<!-- RIGHT: source · date · title · description -->
 						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-2 mb-0.5">
+							<div class="flex items-center gap-2 mb-1">
 								{#if item.source}
-									<span class="text-[10px] text-gray-400 font-medium">({item.source})</span>
+									<span class="text-xs text-gray-400 font-medium">({item.source})</span>
 								{/if}
 								{#if item.published_at}
-									<span class="text-[10px] text-gray-400">{formatDate(item.published_at)}</span>
+									<span class="text-xs text-gray-400">{formatDate(item.published_at)}</span>
 								{/if}
 							</div>
-							<p class="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
+							<p class="text-sm font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
 								{item.title}
 							</p>
 							{#if item.description}
-								<p class="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
+								<p class="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
 							{/if}
 						</div>
 						<!-- LEFT: status badge · impact badge · arrow -->
-						<div class="flex items-center gap-1.5 shrink-0">
+						<div class="flex items-center gap-2 shrink-0">
 							{#if item.status}
-								<span class="text-[10px] px-2 py-0.5 rounded font-medium {statusBadgeClass(item.status)}">
+								<span class="text-xs px-2.5 py-1 rounded font-medium {statusBadgeClass(item.status)}">
 									{item.status_label || item.status}
 								</span>
 							{/if}
 							{#if item.impact_level}
-								<span class="text-[10px] px-2 py-0.5 rounded font-medium flex items-center gap-1 {impactBadgeClass(item.impact_level)}">
+								<span class="text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1 {impactBadgeClass(item.impact_level)}">
 									<span class="w-1.5 h-1.5 rounded-full {impactDotClass(item.impact_level)}"></span>
 									{item.impact_label || item.impact_level}
 								</span>
 							{/if}
-							<i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
+							<i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
 						</div>
 					</a>
 				{/each}
@@ -268,20 +268,20 @@
 					class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all block">
 					<div class="flex items-start justify-between gap-2">
 						<div class="flex-1 min-w-0">
-							<h4 class="text-xs font-semibold text-gray-900 truncate">{fwk.name}</h4>
-							<p class="text-[10px] text-gray-400 mt-0.5">
+							<h4 class="text-sm font-semibold text-gray-900 truncate">{fwk.name}</h4>
+							<p class="text-xs text-gray-400 mt-0.5">
 								{fwk.assessmentsCount}
 								{fwk.assessmentsCount === 1 ? m.assessmentSingular() : m.assessmentPlural()}
 							</p>
 							<div class="flex items-center gap-1 mt-1">
-								<i class="fa-solid fa-arrow-trend-up text-[9px] text-emerald-500"></i>
-								<span class="text-[10px] text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
+								<i class="fa-solid fa-arrow-trend-up text-[10px] text-emerald-500"></i>
+								<span class="text-xs text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
 							</div>
 							{#if days !== null && days >= 0}
 								<div class="mt-1.5">
-									<span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full
+									<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
 										{days <= 14 ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-500'}">
-										<i class="fa-regular fa-calendar text-[9px]"></i>
+										<i class="fa-regular fa-calendar text-[10px]"></i>
 										{m.auditInDays({ count: days })}
 									</span>
 								</div>
@@ -373,11 +373,11 @@
 		{:else}
 			<div class="divide-y divide-gray-100">
 				{#each categoryRiskMax as cat}
-					<div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
-						<span class="text-xs font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
-						<div class="flex items-center gap-2 shrink-0">
-							<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
-							<span class="inline-flex items-center justify-center min-w-[28px] h-6 rounded text-xs font-bold px-1.5 {severityStyle(cat.maxResidual)}">
+					<div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 transition-colors">
+						<span class="text-sm font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
+						<div class="flex items-center gap-2.5 shrink-0">
+							<span class="text-xs text-gray-400">مقابل {cat.maxInherent}</span>
+							<span class="inline-flex items-center justify-center min-w-[32px] h-7 rounded text-sm font-bold px-2 {severityStyle(cat.maxResidual)}">
 								{cat.maxResidual}
 							</span>
 						</div>
@@ -401,21 +401,21 @@
 					<p class="text-xs">{m.noEntityAssessments()}</p>
 				</div>
 			{:else}
-				<div class="p-4 space-y-2.5">
+				<div class="p-4 space-y-3.5">
 					{#each tprmRows as row}
 						<div>
-							<div class="flex items-center justify-between mb-1.5">
-								<span class="text-xs font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
-								<div class="flex items-center gap-1.5 shrink-0 mr-3">
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
+								<div class="flex items-center gap-2 shrink-0 mr-3">
 									{#if row.due_date}
-										<span class="text-[10px] text-gray-400">{formatDate(row.due_date)}</span>
+										<span class="text-xs text-gray-400">{formatDate(row.due_date)}</span>
 									{/if}
-									<span class="text-xs font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+									<span class="text-sm font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
 										{row.score}%
 									</span>
 								</div>
 							</div>
-							<div class="h-2 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+							<div class="h-2.5 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
 								<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
 									style:width="{row.score}%"></div>
 							</div>
