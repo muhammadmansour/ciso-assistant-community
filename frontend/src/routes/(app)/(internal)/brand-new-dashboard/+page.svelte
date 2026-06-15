@@ -1,19 +1,18 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
-	import { safeTranslate } from '$lib/utils/i18n';
 	import type { PageData } from './$types';
-	import type { DashboardRiskScenario, LegislativeUpdate } from './+page.server';
+	import type { DashboardRiskScenario } from './+page.server';
 
 	interface Props { data: PageData; }
 	let { data }: Props = $props();
 
-	// ─── Legislative Updates helpers ────────────────────────────────────────────
+	// ─── Legislative Updates helpers ─────────────────────────────────────────
 	function impactBadgeClass(level: string): string {
 		switch (level) {
-			case 'high':     return 'bg-red-50 text-red-700';
-			case 'medium':   return 'bg-amber-50 text-amber-700';
-			case 'low':      return 'bg-emerald-50 text-emerald-700';
-			default:         return 'bg-gray-50 text-gray-600';
+			case 'high':   return 'bg-red-50 text-red-700';
+			case 'medium': return 'bg-amber-50 text-amber-700';
+			case 'low':    return 'bg-emerald-50 text-emerald-700';
+			default:       return 'bg-gray-50 text-gray-600';
 		}
 	}
 	function impactDotClass(level: string): string {
@@ -26,11 +25,11 @@
 	}
 	function statusBadgeClass(status: string): string {
 		switch (status) {
-			case 'new':               return 'bg-blue-50 text-blue-700';
-			case 'under_analysis':    return 'bg-amber-50 text-amber-700';
-			case 'pending_review':    return 'bg-orange-50 text-orange-700';
-			case 'completed':         return 'bg-emerald-50 text-emerald-700';
-			default:                  return 'bg-gray-50 text-gray-600';
+			case 'new':            return 'bg-blue-50 text-blue-700';
+			case 'under_analysis': return 'bg-amber-50 text-amber-700';
+			case 'pending_review': return 'bg-orange-50 text-orange-700';
+			case 'completed':      return 'bg-emerald-50 text-emerald-700';
+			default:               return 'bg-gray-50 text-gray-600';
 		}
 	}
 	function formatDate(dateStr: string | null | undefined): string {
@@ -41,14 +40,8 @@
 			});
 		} catch { return dateStr; }
 	}
-	function policyCountLabel(count: number): string {
-		if (!count) return '';
-		if (count === 1) return 'يؤثر على سياسة واحدة';
-		if (count === 2) return 'يؤثر على سياستين';
-		return `يؤثر على ${count} سياسات`;
-	}
 
-	// ─── Risk heatmap ──────────────────────────────────────────────────────────
+	// ─── Risk heatmap ─────────────────────────────────────────────────────────
 	type RiskView = 'residual' | 'inherent' | 'current';
 	let riskView = $state<RiskView>('residual');
 	const MATRIX = 5;
@@ -87,7 +80,7 @@
 
 	const totalRisks = $derived((data.scenarios as DashboardRiskScenario[]).length);
 
-	// ─── Max residual by category ──────────────────────────────────────────────
+	// ─── Max residual by category ─────────────────────────────────────────────
 	type CategoryMax = { category: string; maxResidual: number; maxInherent: number };
 
 	const categoryRiskMax = $derived.by((): CategoryMax[] => {
@@ -95,8 +88,8 @@
 		for (const s of data.scenarios as DashboardRiskScenario[]) {
 			const rv  = (s.residual_level as any)?.value ?? -1;
 			const iv  = (s.inherent_level as any)?.value ?? -1;
-			const rScore = rv  >= 0 ? (rv  + 1) * 5 : 0;
-			const iScore = iv  >= 0 ? (iv  + 1) * 5 : 0;
+			const rScore = rv >= 0 ? (rv + 1) * 5 : 0;
+			const iScore = iv >= 0 ? (iv + 1) * 5 : 0;
 			for (const q of (s.qualifications ?? [])) {
 				const name = typeof q === 'string' ? q : ((q as any)?.str ?? '');
 				if (!name) continue;
@@ -117,7 +110,7 @@
 		return 'bg-emerald-100 text-emerald-700';
 	}
 
-	// ─── TPRM ──────────────────────────────────────────────────────────────────
+	// ─── TPRM ─────────────────────────────────────────────────────────────────
 	const tprmRows = $derived(
 		(data.tprmMetrics ?? [])
 			.map((r) => ({
@@ -135,7 +128,51 @@
 		return 'bg-red-500';
 	}
 
-	// ─── Compliance donut ──────────────────────────────────────────────────────
+	// ─── Compliance trend chart ───────────────────────────────────────────────
+	const ARABIC_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+	                       'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+	function monthLabel(key: string): string {
+		const idx = parseInt(key.split('-')[1], 10) - 1;
+		return ARABIC_MONTHS[idx] ?? key;
+	}
+
+	function buildLinePath(pts: {x:number;y:number}[]): string {
+		if (!pts.length) return '';
+		let d = `M ${pts[0].x} ${pts[0].y}`;
+		for (let i = 1; i < pts.length; i++) {
+			const p = pts[i-1], c = pts[i], cx = (p.x + c.x) / 2;
+			d += ` C ${cx} ${p.y},${cx} ${c.y},${c.x} ${c.y}`;
+		}
+		return d;
+	}
+
+	function buildAreaPath(pts: {x:number;y:number}[], maxY: number): string {
+		if (!pts.length) return '';
+		return buildLinePath(pts) + ` L ${pts[pts.length-1].x} ${maxY} L ${pts[0].x} ${maxY} Z`;
+	}
+
+	const PL = 20, PR = 8, PT = 14, PB = 28;
+	const VW = 500, VH = 120;
+	const CW = VW - PL - PR;
+	const CH = VH - PT - PB;
+
+	const trendPoints = $derived.by(() => {
+		const trend = data.complianceTrend ?? [];
+		const n = trend.length;
+		return trend.map((d, i) => ({
+			label: monthLabel(d.month),
+			value: d.value,
+			x: PL + (n <= 1 ? CW / 2 : (i / (n - 1)) * CW),
+			y: PT + (d.value !== null ? (1 - d.value / 100) * CH : CH)
+		}));
+	});
+
+	const hasAnyTrendData = $derived(
+		(data.complianceTrend ?? []).some(p => p.value !== null)
+	);
+
+	// ─── Compliance donut ─────────────────────────────────────────────────────
 	function donutParams(score: number, size = 72, sw = 7) {
 		const r    = (size - sw) / 2;
 		const circ = 2 * Math.PI * r;
@@ -156,25 +193,18 @@
 
 <div class="space-y-5 p-5" dir="rtl">
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Header                                                         -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- Header -->
 	<div>
 		<h1 class="text-xl font-bold text-gray-900">{m.brandNewDashboard()}</h1>
 		<p class="text-sm text-gray-500 mt-0.5">{m.executiveView()}</p>
 	</div>
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- المستجدات الأخيرة — Legislative Updates (unified list)        -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<!-- Section header -->
 		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
 			<h2 class="text-sm font-semibold text-gray-900">{m.latestUpdates()}</h2>
-			<a
-				href="/legislative-updates"
-				class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-			>
+			<a href="/legislative-updates"
+				class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
 				{m.viewAllUpdates()}
 				<i class="fa-solid fa-chevron-left text-[10px]"></i>
 			</a>
@@ -183,41 +213,31 @@
 		{#if data.legislative.items.length === 0}
 			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.noUpdatesYet?.() ?? 'لا توجد مستجدات'}</p>
+				<p class="text-xs">لا توجد مستجدات</p>
 			</div>
 		{:else}
 			<div class="divide-y divide-gray-100">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
-					<a
-						href="/legislative-updates/{item.id}"
-						class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors group"
-					>
-						<!-- RIGHT side: meta + title + description -->
+					<a href="/legislative-updates/{item.id}"
+						class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors group">
+						<!-- RIGHT: source · date · title · description -->
 						<div class="flex-1 min-w-0">
-							<!-- Source · date -->
-							<div class="flex items-center gap-2 mb-1 flex-wrap">
+							<div class="flex items-center gap-2 mb-0.5">
 								{#if item.source}
 									<span class="text-[10px] text-gray-400 font-medium">({item.source})</span>
 								{/if}
 								{#if item.published_at}
-									<span class="text-[10px] text-gray-400">
-										{formatDate(item.published_at)}
-									</span>
+									<span class="text-[10px] text-gray-400">{formatDate(item.published_at)}</span>
 								{/if}
 							</div>
-							<!-- Title -->
 							<p class="text-[13px] font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
 								{item.title}
 							</p>
-							<!-- Description -->
 							{#if item.description}
-								<p class="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
-									{item.description}
-								</p>
+								<p class="text-[11px] text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
 							{/if}
 						</div>
-
-						<!-- LEFT side: badges + arrow -->
+						<!-- LEFT: status badge · impact badge · arrow -->
 						<div class="flex items-center gap-1.5 shrink-0">
 							{#if item.status}
 								<span class="text-[10px] px-2 py-0.5 rounded font-medium {statusBadgeClass(item.status)}">
@@ -238,18 +258,14 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Framework Score Cards (4 donuts)                               -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- ══════════════════ Framework Score Cards (4 donuts) ════════════════════ -->
 	{#if data.frameworks.length > 0}
 		<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
 			{#each data.frameworks.slice(0, 4) as fwk}
 				{@const dp   = donutParams(fwk.progress, 72, 7)}
 				{@const days = daysUntil(fwk.due_date)}
-				<a
-					href="/compliance-assessments"
-					class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all block"
-				>
+				<a href="/compliance-assessments"
+					class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all block">
 					<div class="flex items-start justify-between gap-2">
 						<div class="flex-1 min-w-0">
 							<h4 class="text-xs font-semibold text-gray-900 truncate">{fwk.name}</h4>
@@ -257,7 +273,6 @@
 								{fwk.assessmentsCount}
 								{fwk.assessmentsCount === 1 ? m.assessmentSingular() : m.assessmentPlural()}
 							</p>
-							<!-- Delta placeholder -->
 							<div class="flex items-center gap-1 mt-1">
 								<i class="fa-solid fa-arrow-trend-up text-[9px] text-emerald-500"></i>
 								<span class="text-[10px] text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
@@ -272,19 +287,13 @@
 								</div>
 							{/if}
 						</div>
-						<!-- Donut SVG -->
 						<svg width={dp.size} height={dp.size} viewBox="0 0 {dp.size} {dp.size}" class="shrink-0">
-							<circle cx={dp.cx} cy={dp.cy} r={dp.r}
-								fill="none" stroke="#f3f4f6" stroke-width={dp.sw} />
-							<circle cx={dp.cx} cy={dp.cy} r={dp.r}
-								fill="none" stroke={dp.color} stroke-width={dp.sw}
-								stroke-dasharray="{dp.fill} {dp.circ}"
-								stroke-linecap="round"
-								transform="rotate(-90 {dp.cx} {dp.cy})" />
-							<text x={dp.cx} y={dp.cy + 1}
-								text-anchor="middle" dominant-baseline="central"
-								font-size="13" font-weight="700" fill="#111827"
-							>{fwk.progress}%</text>
+							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke="#f3f4f6" stroke-width={dp.sw} />
+							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke={dp.color}
+								stroke-width={dp.sw} stroke-dasharray="{dp.fill} {dp.circ}"
+								stroke-linecap="round" transform="rotate(-90 {dp.cx} {dp.cy})" />
+							<text x={dp.cx} y={dp.cy + 1} text-anchor="middle" dominant-baseline="central"
+								font-size="13" font-weight="700" fill="#111827">{fwk.progress}%</text>
 						</svg>
 					</div>
 				</a>
@@ -292,20 +301,15 @@
 		</div>
 	{/if}
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Heatmap — full width                                          -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- ══════════════════ Heatmap — full width ════════════════════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
 			<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
 			<div class="flex rounded-lg border border-gray-200 overflow-hidden">
 				{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
-					<button
-						type="button"
-						onclick={() => (riskView = v)}
+					<button type="button" onclick={() => (riskView = v)}
 						class="px-2.5 py-1 text-[10px] font-medium transition-colors
-							{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}"
-					>
+							{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
 						{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
 					</button>
 				{/each}
@@ -333,11 +337,9 @@
 								{#each [1, 2, 3, 4, 5] as imp}
 									{@const count = heatmapGrid[l - 1][imp - 1]}
 									{@const score = l * imp}
-									<div
-										class="h-12 rounded flex items-center justify-center text-sm font-bold"
+									<div class="h-12 rounded flex items-center justify-center text-sm font-bold"
 										style:background-color={cellBg(count, score)}
-										style:color={cellFg(count, score)}
-									>
+										style:color={cellFg(count, score)}>
 										{count > 0 ? count : ''}
 									</div>
 								{/each}
@@ -358,12 +360,10 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════════════════════════════════════════════════ -->
-	<!-- Category (right 1/3 vertical list)  +  Bottom row (2 cols)   -->
-	<!-- ══════════════════════════════════════════════════════════════ -->
+	<!-- ══════════════════ Category (1/3) + TPRM + Policy (2/3) ════════════════ -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-		<!-- Category — right col (1/3), vertical list -->
+		<!-- Category — right col, vertical list -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 			<div class="px-4 py-3 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
@@ -377,9 +377,7 @@
 				<div class="divide-y divide-gray-50">
 					{#each categoryRiskMax as cat}
 						<div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
-							<!-- Category name — start (right in RTL) -->
 							<span class="text-xs font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
-							<!-- vs inherent + score badge — end (left in RTL) -->
 							<div class="flex items-center gap-2 shrink-0">
 								<span class="text-[10px] text-gray-400">مقابل {cat.maxInherent}</span>
 								<span class="inline-flex items-center justify-center min-w-[28px] h-6 rounded text-xs font-bold px-1.5 {severityStyle(cat.maxResidual)}">
@@ -395,7 +393,7 @@
 		<!-- TPRM + Policy violations in remaining 2/3 -->
 		<div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-			<!-- TPRM — CENTER (first in DOM = right in RTL) -->
+			<!-- TPRM — center (first in DOM = right in RTL) -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="px-4 py-3 border-b border-gray-100">
 					<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
@@ -409,25 +407,20 @@
 					<div class="p-4 space-y-2.5">
 						{#each tprmRows as row}
 							<div>
-								<!-- Provider name (right) · date + % (left) -->
 								<div class="flex items-center justify-between mb-1.5">
 									<span class="text-xs font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
 									<div class="flex items-center gap-1.5 shrink-0 mr-3">
 										{#if row.due_date}
 											<span class="text-[10px] text-gray-400">{formatDate(row.due_date)}</span>
 										{/if}
-										<span class="text-xs font-bold
-											{row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+										<span class="text-xs font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
 											{row.score}%
 										</span>
 									</div>
 								</div>
-								<!-- Progress bar -->
 								<div class="h-2 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
-									<div
-										class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
-										style:width="{row.score}%"
-									></div>
+									<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
+										style:width="{row.score}%"></div>
 								</div>
 							</div>
 						{/each}
@@ -435,7 +428,7 @@
 				{/if}
 			</div>
 
-			<!-- Policy violations — LEFT (second in DOM = left in RTL) -->
+			<!-- Policy violations — left -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="px-4 py-3 border-b border-gray-100">
 					<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
@@ -446,6 +439,82 @@
 				</div>
 			</div>
 		</div>
+	</div>
+
+	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+			<h3 class="text-sm font-semibold text-gray-900">اتجاه الامتثال (6 أشهر)</h3>
+			<div class="flex items-center gap-4 text-[11px] text-gray-500">
+				<span class="flex items-center gap-1.5">
+					<span class="w-4 h-0.5 rounded bg-blue-500 inline-block"></span>
+					متوسط الامتثال
+				</span>
+				{#if (data.counters.exceptions ?? 0) > 0}
+					<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium text-[10px]">
+						<i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+						{data.counters.exceptions} استثناء نشط
+					</span>
+				{/if}
+			</div>
+		</div>
+
+		{#if !hasAnyTrendData}
+			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+				<i class="fa-solid fa-chart-line text-2xl mb-2"></i>
+				<p class="text-xs">لا تتوفر بيانات اتجاه بعد — سيتم تجميع البيانات تلقائياً يومياً</p>
+			</div>
+		{:else}
+			<div class="px-2 pt-3 pb-2" dir="ltr">
+				<svg viewBox="0 0 {VW} {VH}" class="w-full" style="height:150px"
+					role="img" aria-label="Compliance trend chart">
+					<defs>
+						<linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.20"/>
+							<stop offset="100%" stop-color="#3b82f6" stop-opacity="0.01"/>
+						</linearGradient>
+					</defs>
+
+					<!-- Grid lines -->
+					{#each [0, 25, 50, 75, 100] as pct}
+						{@const gy = PT + (1 - pct / 100) * CH}
+						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
+							stroke="#f3f4f6" stroke-width="1"/>
+						<text x={PL - 4} y={gy + 3.5} text-anchor="end"
+							font-size="7.5" fill="#9ca3af">{pct}</text>
+					{/each}
+
+					<!-- Area fill -->
+					<path d={buildAreaPath(trendPoints.filter(p => p.value !== null), PT + CH)}
+						fill="url(#trendGrad)"/>
+
+					<!-- Line -->
+					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
+						fill="none" stroke="#3b82f6" stroke-width="2.5"
+						stroke-linecap="round" stroke-linejoin="round"/>
+
+					<!-- Dots + value labels -->
+					{#each trendPoints as pt}
+						{#if pt.value !== null}
+							<circle cx={pt.x} cy={pt.y} r="4.5"
+								fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+							<text x={pt.x} y={pt.y - 8}
+								text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700">
+								{pt.value}%
+							</text>
+						{/if}
+					{/each}
+
+					<!-- X-axis month labels -->
+					{#each trendPoints as pt}
+						<text x={pt.x} y={PT + CH + 18}
+							text-anchor="middle" font-size="9" fill="#6b7280">
+							{pt.label}
+						</text>
+					{/each}
+				</svg>
+			</div>
+		{/if}
 	</div>
 
 </div>

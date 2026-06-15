@@ -153,6 +153,36 @@ export const load: PageServerLoad = async (event) => {
 		};
 	}>(fetch(`${BASE_API_URL}/get_counters/`), { results: {} });
 
+	// 8) Compliance trend — 6-month monthly average of progress from BuiltinMetricSample
+	const trendSamples = await safeJson<{
+		results: Array<{ date: string; metrics: Record<string, number> }>;
+	}>(
+		fetch(`${BASE_API_URL}/metrology/builtin-metric-samples/?model=complianceassessment&page_size=1000`),
+		{ results: [] }
+	);
+
+	// Build a map of the last 6 calendar months (including current)
+	const trendMap = new Map<string, { sum: number; count: number }>();
+	const now = new Date();
+	for (let i = 5; i >= 0; i--) {
+		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+		trendMap.set(key, { sum: 0, count: 0 });
+	}
+	for (const s of trendSamples.results) {
+		const monthKey = s.date?.substring(0, 7);
+		const progress = s.metrics?.progress;
+		if (typeof progress === 'number' && monthKey && trendMap.has(monthKey)) {
+			const cur = trendMap.get(monthKey)!;
+			cur.sum += progress;
+			cur.count += 1;
+		}
+	}
+	const complianceTrend = Array.from(trendMap.entries()).map(([month, v]) => ({
+		month,
+		value: v.count > 0 ? Math.round(v.sum / v.count) : null
+	}));
+
 	return {
 		title: 'brandNewDashboard',
 		legislative: {
@@ -165,6 +195,7 @@ export const load: PageServerLoad = async (event) => {
 		qualifications,
 		tprmMetrics,
 		frameworks,
-		counters: counters.results ?? {}
+		counters: counters.results ?? {},
+		complianceTrend
 	};
 };
