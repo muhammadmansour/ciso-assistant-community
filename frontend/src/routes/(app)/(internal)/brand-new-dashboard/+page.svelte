@@ -201,7 +201,7 @@
 
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
 			<h2 class="text-sm font-semibold text-gray-900">{m.latestUpdates()}</h2>
 			<a href="/legislative-updates"
 				class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
@@ -219,7 +219,7 @@
 			<div class="divide-y divide-gray-100">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a href="/legislative-updates/{item.id}"
-						class="flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50/70 transition-colors group">
+						class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/70 transition-colors group">
 						<!-- RIGHT: source · date · title · description -->
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1">
@@ -303,7 +303,7 @@
 
 	<!-- ══════════════════ Heatmap — full width ════════════════════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
 			<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
 			<div class="flex rounded-lg border border-gray-200 overflow-hidden">
 				{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
@@ -362,22 +362,22 @@
 
 	<!-- ══════════════════ Highest residual risk by category — full width ═══════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="px-4 py-3 border-b border-gray-100">
+		<div class="px-5 py-4 border-b border-gray-100">
 			<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
 		</div>
 		{#if categoryRiskMax.length === 0}
-			<div class="flex flex-col items-center justify-center py-8 text-gray-400">
+			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
 				<p class="text-xs">{m.noQualificationsYet()}</p>
 			</div>
 		{:else}
 			<div class="divide-y divide-gray-100">
 				{#each categoryRiskMax as cat}
-					<div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60 transition-colors">
+					<div class="flex items-center justify-between px-5 py-4 hover:bg-gray-50/60 transition-colors">
 						<span class="text-sm font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
-						<div class="flex items-center gap-2.5 shrink-0">
+						<div class="flex items-center gap-3 shrink-0">
 							<span class="text-xs text-gray-400">مقابل {cat.maxInherent}</span>
-							<span class="inline-flex items-center justify-center min-w-[32px] h-7 rounded text-sm font-bold px-2 {severityStyle(cat.maxResidual)}">
+							<span class="inline-flex items-center justify-center min-w-[36px] h-8 rounded text-sm font-bold px-2.5 {severityStyle(cat.maxResidual)}">
 								{cat.maxResidual}
 							</span>
 						</div>
@@ -392,21 +392,21 @@
 
 		<!-- TPRM — first in DOM = right in RTL -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-4 py-3 border-b border-gray-100">
+			<div class="px-5 py-4 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
 			</div>
 			{#if tprmRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+				<div class="flex flex-col items-center justify-center py-12 text-gray-400">
 					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
 					<p class="text-xs">{m.noEntityAssessments()}</p>
 				</div>
 			{:else}
-				<div class="p-4 space-y-3.5">
+				<div class="px-5 py-4 space-y-5">
 					{#each tprmRows as row}
 						<div>
 							<div class="flex items-center justify-between mb-2">
 								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
-								<div class="flex items-center gap-2 shrink-0 mr-3">
+								<div class="flex items-center gap-2.5 shrink-0 mr-3">
 									{#if row.due_date}
 										<span class="text-xs text-gray-400">{formatDate(row.due_date)}</span>
 									{/if}
@@ -415,7 +415,7 @@
 									</span>
 								</div>
 							</div>
-							<div class="h-2.5 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+							<div class="h-3 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
 								<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
 									style:width="{row.score}%"></div>
 							</div>
@@ -427,10 +427,10 @@
 
 		<!-- Policy violations — second in DOM = left in RTL -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-4 py-3 border-b border-gray-100">
+			<div class="px-5 py-4 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
 			</div>
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+			<div class="flex flex-col items-center justify-center py-12 text-gray-400">
 				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
 				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
 			</div>
@@ -439,7 +439,7 @@
 
 	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
 			<h3 class="text-sm font-semibold text-gray-900">اتجاه الامتثال (6 أشهر)</h3>
 			<div class="flex items-center gap-4 text-[11px] text-gray-500">
 				<span class="flex items-center gap-1.5">
