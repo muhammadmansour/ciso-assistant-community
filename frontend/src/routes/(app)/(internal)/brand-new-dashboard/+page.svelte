@@ -16,6 +16,7 @@
 	// "not rated" bucket that we don't show on the matrix.
 	type RiskView = 'current' | 'residual' | 'inherent';
 	let riskView = $state<RiskView>('current');
+	let heatmapExpanded = $state(false);
 
 	const matrixSize = 5;
 
@@ -390,143 +391,168 @@
 	</section>
 
 	<!-- ============================================================ -->
-	<!-- Risk heatmap (with current/residual/inherent toggle)          -->
+	<!-- Risk heatmap (collapsible, compact by default)               -->
 	<!-- ============================================================ -->
-	<section class="wgrc-card !p-5">
-		<div class="flex items-center justify-between mb-4">
-			<div>
-				<h2 class="text-base font-semibold text-gray-900">{m.riskMap()}</h2>
-				<p class="text-xs text-gray-500 mt-0.5">
-					{m.totalRisksLabel({ count: totalRisks })}
-				</p>
+	<section class="wgrc-card !p-0 overflow-hidden">
+		<!-- ── Header (always visible) ── -->
+		<div class="flex items-center justify-between px-5 py-3">
+			<!-- Left: title + subtitle -->
+			<div class="flex items-center gap-3 min-w-0">
+				<div class="min-w-0">
+					<h2 class="text-base font-semibold text-gray-900 leading-tight">{m.riskMap()}</h2>
+					<p class="text-xs text-gray-500">{m.totalRisksLabel({ count: totalRisks })}</p>
+				</div>
+
+				<!-- Inline level pills (compact summary) -->
+				{#if levelSummary.length > 0}
+					<div class="hidden sm:flex items-center gap-2 flex-wrap">
+						{#each levelSummary as lvl}
+							<span class="inline-flex items-center gap-1 text-xs text-gray-600">
+								<span
+									class="w-2 h-2 rounded-full shrink-0"
+									style:background-color={lvl.color || '#9CA3AF'}
+								></span>
+								<span class="tabular-nums font-semibold text-gray-800">{lvl.value}</span>
+								<span class="text-gray-400">{safeTranslate(lvl.name)}</span>
+							</span>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
-			<div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs">
-				<button
-					type="button"
-					class="px-3 py-1 rounded-md transition-all {riskView === 'current'
-						? 'bg-white shadow-sm text-gray-900 font-medium'
-						: 'text-gray-500 hover:text-gray-700'}"
-					onclick={() => (riskView = 'current')}
-				>
-					{m.current()}
-				</button>
-				<button
-					type="button"
-					class="px-3 py-1 rounded-md transition-all {riskView === 'residual'
-						? 'bg-white shadow-sm text-gray-900 font-medium'
-						: 'text-gray-500 hover:text-gray-700'}"
-					onclick={() => (riskView = 'residual')}
-				>
-					{m.residual()}
-				</button>
-				{#if data.riskLevels?.inherent}
+			<!-- Right: view toggle + expand button -->
+			<div class="flex items-center gap-2 shrink-0">
+				<!-- Current / Residual / Inherent toggle -->
+				<div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs">
 					<button
 						type="button"
-						class="px-3 py-1 rounded-md transition-all {riskView === 'inherent'
+						class="px-2.5 py-1 rounded-md transition-all {riskView === 'current'
 							? 'bg-white shadow-sm text-gray-900 font-medium'
 							: 'text-gray-500 hover:text-gray-700'}"
-						onclick={() => (riskView = 'inherent')}
+						onclick={() => (riskView = 'current')}
 					>
-						{m.inherent()}
+						{m.current()}
 					</button>
-				{/if}
+					<button
+						type="button"
+						class="px-2.5 py-1 rounded-md transition-all {riskView === 'residual'
+							? 'bg-white shadow-sm text-gray-900 font-medium'
+							: 'text-gray-500 hover:text-gray-700'}"
+						onclick={() => (riskView = 'residual')}
+					>
+						{m.residual()}
+					</button>
+					{#if data.riskLevels?.inherent}
+						<button
+							type="button"
+							class="px-2.5 py-1 rounded-md transition-all {riskView === 'inherent'
+								? 'bg-white shadow-sm text-gray-900 font-medium'
+								: 'text-gray-500 hover:text-gray-700'}"
+							onclick={() => (riskView = 'inherent')}
+						>
+							{m.inherent()}
+						</button>
+					{/if}
+				</div>
+
+				<!-- Expand / collapse chevron -->
+				<button
+					type="button"
+					onclick={() => (heatmapExpanded = !heatmapExpanded)}
+					class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1 bg-gray-50 hover:bg-gray-100 transition-all"
+					aria-label={heatmapExpanded ? m.collapse() : m.expand()}
+				>
+					<i class="fa-solid {heatmapExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} text-[10px]"></i>
+					<span class="hidden sm:inline">{heatmapExpanded ? m.collapse() : m.expand()}</span>
+				</button>
 			</div>
 		</div>
 
-		{#if totalRisks > 0 && matrix.every((row) => row.every((c) => c.count === 0))}
-			<div class="mb-4 flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
-				<i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
-				<div class="min-w-0">
-					<p class="text-sm font-medium text-amber-800">{m.scenariosNotScored({ count: totalRisks })}</p>
-					<p class="text-xs text-amber-700/80 mt-0.5">{m.scenariosNotScoredHint()}</p>
-					<a
-						href="/risk-scenarios"
-						class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:underline mt-1"
-					>
-						{m.scoreNow()}
-						<i class="fa-solid fa-arrow-left text-[10px]"></i>
-					</a>
+		<!-- ── Expanded body ── -->
+		{#if heatmapExpanded}
+			<div class="border-t border-gray-100 px-5 pb-5 pt-4">
+				{#if totalRisks > 0 && matrix.every((row) => row.every((c) => c.count === 0))}
+					<div class="mb-4 flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+						<i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
+						<div class="min-w-0">
+							<p class="text-sm font-medium text-amber-800">{m.scenariosNotScored({ count: totalRisks })}</p>
+							<p class="text-xs text-amber-700/80 mt-0.5">{m.scenariosNotScoredHint()}</p>
+							<a
+								href="/risk-scenarios"
+								class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:underline mt-1"
+							>
+								{m.scoreNow()}
+								<i class="fa-solid fa-arrow-left text-[10px]"></i>
+							</a>
+						</div>
+					</div>
+				{/if}
+
+				<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+					<!-- Heatmap grid -->
+					<div class="lg:col-span-2">
+						<div class="flex">
+							<!-- Y-axis label -->
+							<div
+								class="flex items-center justify-center text-xs text-gray-500 font-medium pr-2"
+								style="writing-mode: vertical-rl; transform: rotate(180deg);"
+							>
+								{m.likelihood()}
+							</div>
+
+							<div class="flex-1">
+								<div
+									class="grid gap-1"
+									style="grid-template-columns: auto repeat({matrixSize}, minmax(0, 1fr));"
+								>
+									{#each Array.from({ length: matrixSize }) as _, p (p)}
+										{@const probaIdx = matrixSize - 1 - p}
+										<div class="flex items-center justify-end pr-2 text-[10px] text-gray-500">
+											{probaLabels[probaIdx]}
+										</div>
+										{#each Array.from({ length: matrixSize }) as _, i (i)}
+											{@const cell = matrix[probaIdx][i]}
+											<div
+												class="aspect-square flex items-center justify-center rounded-md text-xs font-semibold transition-transform hover:scale-105"
+												style:background-color={cell.count > 0 ? levelGradient[cell.level] : '#F9FAFB'}
+												style:color={cell.count > 0 && cell.level >= 3 ? '#fff' : '#374151'}
+											>
+												{cell.count > 0 ? cell.count : ''}
+											</div>
+										{/each}
+									{/each}
+									<div></div>
+									{#each Array.from({ length: matrixSize }) as _, i (i)}
+										<div class="text-[10px] text-gray-500 text-center pt-1">
+											{impactLabels[i]}
+										</div>
+									{/each}
+								</div>
+								<div class="text-xs text-gray-500 font-medium text-center mt-2">{m.impactISO()}</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Level legend (expanded detail) -->
+					<div class="space-y-2">
+						<p class="text-xs text-gray-500 font-medium mb-2">{m.byLevel()}</p>
+						{#if levelSummary.length === 0}
+							<p class="text-xs text-gray-400 italic">{m.noRiskScenarios()}</p>
+						{:else}
+							{#each levelSummary as lvl}
+								<div class="flex items-center justify-between text-sm">
+									<span class="inline-flex items-center gap-2">
+										<span class="w-3 h-3 rounded-full" style:background-color={lvl.color || '#9CA3AF'}></span>
+										<span class="text-gray-700">{safeTranslate(lvl.name)}</span>
+									</span>
+									<span class="font-semibold text-gray-900 tabular-nums">{lvl.value}</span>
+								</div>
+							{/each}
+						{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
-
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-			<!-- Heatmap -->
-			<div class="lg:col-span-2">
-				<div class="flex">
-					<!-- Y-axis label -->
-					<div
-						class="flex items-center justify-center text-xs text-gray-500 font-medium pr-2"
-						style="writing-mode: vertical-rl; transform: rotate(180deg);"
-					>
-						{m.likelihood()}
-					</div>
-
-					<div class="flex-1">
-						<!-- Grid -->
-						<div
-							class="grid gap-1"
-							style="grid-template-columns: auto repeat({matrixSize}, minmax(0, 1fr));"
-						>
-							<!-- header row blank corner + impact axis labels (top, left→right) -->
-							{#each Array.from({ length: matrixSize }) as _, p (p)}
-								{@const probaIdx = matrixSize - 1 - p}
-								<!-- proba label -->
-								<div class="flex items-center justify-end pr-2 text-[10px] text-gray-500">
-									{probaLabels[probaIdx]}
-								</div>
-								<!-- cells for this proba row -->
-								{#each Array.from({ length: matrixSize }) as _, i (i)}
-									{@const cell = matrix[probaIdx][i]}
-									<div
-										class="aspect-square flex items-center justify-center rounded-md text-xs font-semibold transition-transform hover:scale-105"
-										style:background-color={cell.count > 0
-											? levelGradient[cell.level]
-											: '#F9FAFB'}
-										style:color={cell.count > 0 && cell.level >= 3 ? '#fff' : '#374151'}
-									>
-										{cell.count > 0 ? cell.count : ''}
-									</div>
-								{/each}
-							{/each}
-							<!-- bottom-left corner spacer -->
-							<div></div>
-							{#each Array.from({ length: matrixSize }) as _, i (i)}
-								<div class="text-[10px] text-gray-500 text-center pt-1">
-									{impactLabels[i]}
-								</div>
-							{/each}
-						</div>
-						<!-- X-axis label -->
-						<div class="text-xs text-gray-500 font-medium text-center mt-2">
-							{m.impactISO()}
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Level summary / legend -->
-			<div class="space-y-2">
-				<p class="text-xs text-gray-500 font-medium mb-2">{m.byLevel()}</p>
-				{#if levelSummary.length === 0}
-					<p class="text-xs text-gray-400 italic">{m.noRiskScenarios()}</p>
-				{:else}
-					{#each levelSummary as lvl}
-						<div class="flex items-center justify-between text-sm">
-							<span class="inline-flex items-center gap-2">
-								<span
-									class="w-3 h-3 rounded-full"
-									style:background-color={lvl.color || '#9CA3AF'}
-								></span>
-								<span class="text-gray-700">{safeTranslate(lvl.name)}</span>
-							</span>
-							<span class="font-semibold text-gray-900 tabular-nums">{lvl.value}</span>
-						</div>
-					{/each}
-				{/if}
-			</div>
-		</div>
 	</section>
 
 	<!-- ============================================================ -->
