@@ -392,21 +392,10 @@
 			{/if}
 		</div>
 
-		<!-- Policy violations + TPRM stacked in remaining 2/3 -->
+		<!-- TPRM + Policy violations in remaining 2/3 -->
 		<div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-			<!-- Policy violations — LEFT in RTL -->
-			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-				<div class="px-4 py-3 border-b border-gray-100">
-					<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
-				</div>
-				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
-				</div>
-			</div>
-
-			<!-- TPRM — RIGHT in RTL -->
+			<!-- TPRM — CENTER (first in DOM = right in RTL) -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="px-4 py-3 border-b border-gray-100">
 					<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
@@ -417,14 +406,24 @@
 						<p class="text-xs">{m.noEntityAssessments()}</p>
 					</div>
 				{:else}
-					<div class="p-4 space-y-3">
+					<div class="p-4 space-y-2.5">
 						{#each tprmRows as row}
 							<div>
-								<div class="flex items-center justify-between mb-1">
-									<span class="text-xs font-medium text-gray-700 truncate flex-1">{row.provider}</span>
-									<span class="text-xs font-semibold text-gray-900 shrink-0 mr-2">{row.score}%</span>
+								<!-- Provider name (right) · date + % (left) -->
+								<div class="flex items-center justify-between mb-1.5">
+									<span class="text-xs font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
+									<div class="flex items-center gap-1.5 shrink-0 mr-3">
+										{#if row.due_date}
+											<span class="text-[10px] text-gray-400">{formatDate(row.due_date)}</span>
+										{/if}
+										<span class="text-xs font-bold
+											{row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+											{row.score}%
+										</span>
+									</div>
 								</div>
-								<div class="h-1.5 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+								<!-- Progress bar -->
+								<div class="h-2 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
 									<div
 										class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
 										style:width="{row.score}%"
@@ -434,6 +433,17 @@
 						{/each}
 					</div>
 				{/if}
+			</div>
+
+			<!-- Policy violations — LEFT (second in DOM = left in RTL) -->
+			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+				<div class="px-4 py-3 border-b border-gray-100">
+					<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
+				</div>
+				<div class="flex flex-col items-center justify-center py-10 text-gray-400">
+					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+				</div>
 			</div>
 		</div>
 	</div>
