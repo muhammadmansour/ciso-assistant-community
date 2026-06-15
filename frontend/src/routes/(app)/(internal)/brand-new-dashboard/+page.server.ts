@@ -80,20 +80,25 @@ export const load: PageServerLoad = async (event) => {
 		results: { current: [], residual: [] }
 	});
 
-	// 3) All viewable risk scenarios — used to aggregate the proba × impact heatmap
+	// 3) All viewable risk scenarios — used to aggregate the proba × impact heatmap.
 	//    page_size=1000 is enough for any realistic dashboard scope; if more exist
 	//    they're truncated, which is acceptable for a portfolio view.
-	const scenarios = await safeJson<{ results: DashboardRiskScenario[] }>(
-		fetch(`${BASE_API_URL}/risk-scenarios/?page_size=1000`),
+	//    Fields filter keeps the payload small: only coordinates + qualifications needed.
+	const scenarios = await safeJson<{ results: DashboardRiskScenario[]; count?: number }>(
+		fetch(
+			`${BASE_API_URL}/risk-scenarios/?page_size=1000&fields=id,name,ref_id,current_proba,current_impact,current_level,residual_proba,residual_impact,residual_level,inherent_proba,inherent_impact,inherent_level,qualifications`
+		),
 		{ results: [] }
 	);
 
 	// 4) Risk qualifications grouped by name — drives the "highest risk by category"
-	//    bar list. Returns labels[] and values[].
-	const qualifications = await safeJson<{ labels: string[]; values: number[] }>(
-		fetch(`${BASE_API_URL}/risk-scenarios/qualifications_count/`),
-		{ labels: [], values: [] }
-	);
+	//    bar list. The endpoint wraps the payload in `results`.
+	const qualificationsRaw = await safeJson<{
+		results: { labels: string[]; values: number[] };
+	}>(fetch(`${BASE_API_URL}/risk-scenarios/qualifications_count/`), {
+		results: { labels: [], values: [] }
+	});
+	const qualifications = qualificationsRaw.results ?? { labels: [], values: [] };
 
 	// 5) Third-party (TPRM) entity assessment results
 	const tprmMetrics = await safeJson<EntityAssessmentMetric[]>(

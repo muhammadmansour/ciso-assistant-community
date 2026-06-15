@@ -1,6 +1,10 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"brandNewDashboard": "لوحة CISO",
+	"notRated": "غير مقيّم",
+	"scenariosNotScored": "يوجد {count, plural, one {سيناريو مخاطر واحد} other {{count} سيناريوهات مخاطر}} لم يُعيَّن لها احتمالية/تأثير بعد",
+	"scenariosNotScoredHint": "افتح كل سيناريو وحدد الاحتمالية والتأثير لعرضه على خريطة الحرارة.",
+	"scoreNow": "انتقل إلى سيناريوهات المخاطر",
 	"latestUpdates": "المستجدات الأخيرة",
 	"viewAllUpdates": "عرض جميع المستجدات",
 	"viewAll": "عرض الكل",

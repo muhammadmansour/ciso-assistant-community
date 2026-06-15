@@ -1,6 +1,10 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"brandNewDashboard": "CISO Dashboard",
+	"notRated": "Not rated",
+	"scenariosNotScored": "{count, plural, one {1 risk scenario} other {{count} risk scenarios}} exist but have no likelihood/impact assigned",
+	"scenariosNotScoredHint": "Open each scenario and set its probability and impact to see them placed on the heatmap.",
+	"scoreNow": "Go to risk scenarios",
 	"latestUpdates": "Latest Updates",
 	"viewAllUpdates": "View all updates",
 	"viewAll": "View all",

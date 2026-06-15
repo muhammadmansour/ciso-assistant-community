@@ -79,14 +79,25 @@
 	);
 
 	// Aggregate risk-level summary for the legend ("19 risks", level breakdown).
+	// We append an "unrated" bucket manually so the user can see their scenarios
+	// even before likelihood/impact has been scored.
 	const levelSummary = $derived.by(() => {
-		const list =
+		const list: Array<{ name: string; value: number; color: string }> =
 			riskView === 'current'
-				? data.riskLevels?.current
+				? (data.riskLevels?.current ?? [])
 				: riskView === 'residual'
-					? data.riskLevels?.residual
-					: (data.riskLevels?.inherent ?? data.riskLevels?.current);
-		return list ?? [];
+					? (data.riskLevels?.residual ?? [])
+					: (data.riskLevels?.inherent ?? data.riskLevels?.current ?? []);
+
+		const rated = list.reduce((s, r) => s + (r.value ?? 0), 0);
+		const unrated = totalRisks - rated;
+		if (unrated > 0) {
+			return [
+				...list,
+				{ name: m.notRated(), value: unrated, color: '#D1D5DB' }
+			];
+		}
+		return list;
 	});
 
 	// --- Highest residual risk by category (qualifications) -------------------
@@ -422,6 +433,23 @@
 				{/if}
 			</div>
 		</div>
+
+		{#if totalRisks > 0 && matrix.every((row) => row.every((c) => c.count === 0))}
+			<div class="mb-4 flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+				<i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
+				<div class="min-w-0">
+					<p class="text-sm font-medium text-amber-800">{m.scenariosNotScored({ count: totalRisks })}</p>
+					<p class="text-xs text-amber-700/80 mt-0.5">{m.scenariosNotScoredHint()}</p>
+					<a
+						href="/risk-scenarios"
+						class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:underline mt-1"
+					>
+						{m.scoreNow()}
+						<i class="fa-solid fa-arrow-left text-[10px]"></i>
+					</a>
+				</div>
+			</div>
+		{/if}
 
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<!-- Heatmap -->
