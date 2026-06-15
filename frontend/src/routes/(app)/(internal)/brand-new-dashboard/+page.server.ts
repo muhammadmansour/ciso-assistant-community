@@ -80,14 +80,9 @@ export const load: PageServerLoad = async (event) => {
 		results: { current: [], residual: [] }
 	});
 
-	// 3) All viewable risk scenarios — used to aggregate the proba × impact heatmap.
-	//    page_size=1000 is enough for any realistic dashboard scope; if more exist
-	//    they're truncated, which is acceptable for a portfolio view.
-	//    Fields filter keeps the payload small: only coordinates + qualifications needed.
+	// 3) All viewable risk scenarios — used for the heatmap and top-risk bar chart.
 	const scenarios = await safeJson<{ results: DashboardRiskScenario[]; count?: number }>(
-		fetch(
-			`${BASE_API_URL}/risk-scenarios/?page_size=1000&fields=id,name,ref_id,current_proba,current_impact,current_level,residual_proba,residual_impact,residual_level,inherent_proba,inherent_impact,inherent_level,qualifications`
-		),
+		fetch(`${BASE_API_URL}/risk-scenarios/?page_size=1000`),
 		{ results: [] }
 	);
 
