@@ -11,7 +11,7 @@ export const load: PageServerLoad = async (event) => {
 		event
 	);
 	return {
-		title: item?.title ?? 'legislativeUpdates',
+		title: null,
 		item,
 		upstreamError: upstreamStatus === 'error',
 		upstreamUnauthorized: upstreamStatus === 'unauthorized',

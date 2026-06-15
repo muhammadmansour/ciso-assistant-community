@@ -134,18 +134,11 @@
 	}
 </script>
 
-<!-- Subtitle + monitoring settings -->
-<div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+<!-- Subtitle -->
+<div class="mb-4">
 	<p class="text-sm text-gray-500 max-w-3xl">
 		{m.legislativeUpdatesDescription()}
 	</p>
-	<button
-		type="button"
-		class="inline-flex items-center gap-2 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 shadow-sm"
-	>
-		<i class="fa-solid fa-gear text-xs"></i>
-		{m.monitoringSettings()}
-	</button>
 </div>
 
 <!-- Filter bar -->
