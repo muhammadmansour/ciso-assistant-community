@@ -34,23 +34,6 @@ html[lang="ar"] {
   direction: rtl;
 }
 
-/* Dashboard entrance animation (mirrors the reference GRC interface) */
-@keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-slide-up {
-  opacity: 0;
-  animation: fadeSlideUp 0.5s ease-out forwards;
-}
-
 /* RTL specific adjustments */
 [dir="rtl"] .ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .mr-auto { margin-right: unset; margin-left: auto; }
