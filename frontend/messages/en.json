@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"brandNewDashboard": "CISO Dashboard",
+	"brandNewDashboard": "Dashboard",
 	"notRated": "Not rated",
 	"expand": "Expand",
 	"collapse": "Collapse",

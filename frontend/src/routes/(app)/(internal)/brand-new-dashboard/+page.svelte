@@ -193,64 +193,58 @@
 
 <div class="space-y-5 p-5" dir="rtl">
 
-	<!-- Header -->
-	<div>
-		<h1 class="text-xl font-bold text-gray-900">{m.brandNewDashboard()}</h1>
-		<p class="text-sm text-gray-500 mt-0.5">{m.executiveView()}</p>
-	</div>
-
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-			<h2 class="text-sm font-semibold text-gray-900">{m.latestUpdates()}</h2>
+			<h2 class="text-base font-semibold text-gray-900">{m.latestUpdates()}</h2>
 			<a href="/legislative-updates"
-				class="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+				class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
 				{m.viewAllUpdates()}
-				<i class="fa-solid fa-chevron-left text-[10px]"></i>
+				<i class="fa-solid fa-chevron-left text-xs"></i>
 			</a>
 		</div>
 
 		{#if data.legislative.items.length === 0}
 			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">لا توجد مستجدات</p>
+				<p class="text-sm">لا توجد مستجدات</p>
 			</div>
 		{:else}
 			<div class="divide-y divide-gray-100">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a href="/legislative-updates/{item.id}"
-						class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/70 transition-colors group">
+						class="flex items-center gap-4 px-5 py-5 hover:bg-gray-50/70 transition-colors group">
 						<!-- RIGHT: source · date · title · description -->
 						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-2 mb-1">
+							<div class="flex items-center gap-2 mb-1.5">
 								{#if item.source}
-									<span class="text-xs text-gray-400 font-medium">({item.source})</span>
+									<span class="text-sm text-gray-400 font-medium">({item.source})</span>
 								{/if}
 								{#if item.published_at}
-									<span class="text-xs text-gray-400">{formatDate(item.published_at)}</span>
+									<span class="text-sm text-gray-400">{formatDate(item.published_at)}</span>
 								{/if}
 							</div>
-							<p class="text-sm font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
+							<p class="text-base font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
 								{item.title}
 							</p>
 							{#if item.description}
-								<p class="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
+								<p class="text-sm text-gray-500 mt-1 line-clamp-1">{item.description}</p>
 							{/if}
 						</div>
 						<!-- LEFT: status badge · impact badge · arrow -->
-						<div class="flex items-center gap-2 shrink-0">
+						<div class="flex items-center gap-2.5 shrink-0">
 							{#if item.status}
-								<span class="text-xs px-2.5 py-1 rounded font-medium {statusBadgeClass(item.status)}">
+								<span class="text-sm px-3 py-1.5 rounded font-medium {statusBadgeClass(item.status)}">
 									{item.status_label || item.status}
 								</span>
 							{/if}
 							{#if item.impact_level}
-								<span class="text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1 {impactBadgeClass(item.impact_level)}">
-									<span class="w-1.5 h-1.5 rounded-full {impactDotClass(item.impact_level)}"></span>
+								<span class="text-sm px-3 py-1.5 rounded font-medium flex items-center gap-1.5 {impactBadgeClass(item.impact_level)}">
+									<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
 									{item.impact_label || item.impact_level}
 								</span>
 							{/if}
-							<i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
+							<i class="fa-solid fa-arrow-up-right-from-square text-sm text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
 						</div>
 					</a>
 				{/each}
@@ -260,28 +254,28 @@
 
 	<!-- ══════════════════ Framework Score Cards (4 donuts) ════════════════════ -->
 	{#if data.frameworks.length > 0}
-		<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
 			{#each data.frameworks.slice(0, 4) as fwk}
-				{@const dp   = donutParams(fwk.progress, 72, 7)}
+				{@const dp   = donutParams(fwk.progress, 96, 8)}
 				{@const days = daysUntil(fwk.due_date)}
 				<a href="/compliance-assessments"
-					class="bg-white rounded-xl border border-gray-200 p-4 text-right hover:shadow-sm transition-all block">
-					<div class="flex items-start justify-between gap-2">
+					class="bg-white rounded-xl border border-gray-200 p-5 min-h-[140px] text-right hover:shadow-sm transition-all block">
+					<div class="flex items-start justify-between gap-3">
 						<div class="flex-1 min-w-0">
-							<h4 class="text-sm font-semibold text-gray-900 truncate">{fwk.name}</h4>
-							<p class="text-xs text-gray-400 mt-0.5">
+							<h4 class="text-base font-semibold text-gray-900 truncate">{fwk.name}</h4>
+							<p class="text-sm text-gray-400 mt-1">
 								{fwk.assessmentsCount}
 								{fwk.assessmentsCount === 1 ? m.assessmentSingular() : m.assessmentPlural()}
 							</p>
-							<div class="flex items-center gap-1 mt-1">
-								<i class="fa-solid fa-arrow-trend-up text-[10px] text-emerald-500"></i>
-								<span class="text-xs text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
+							<div class="flex items-center gap-1.5 mt-1.5">
+								<i class="fa-solid fa-arrow-trend-up text-xs text-emerald-500"></i>
+								<span class="text-sm text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
 							</div>
 							{#if days !== null && days >= 0}
-								<div class="mt-1.5">
-									<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
+								<div class="mt-2">
+									<span class="inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded-full
 										{days <= 14 ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-500'}">
-										<i class="fa-regular fa-calendar text-[10px]"></i>
+										<i class="fa-regular fa-calendar text-xs"></i>
 										{m.auditInDays({ count: days })}
 									</span>
 								</div>
@@ -293,7 +287,7 @@
 								stroke-width={dp.sw} stroke-dasharray="{dp.fill} {dp.circ}"
 								stroke-linecap="round" transform="rotate(-90 {dp.cx} {dp.cy})" />
 							<text x={dp.cx} y={dp.cy + 1} text-anchor="middle" dominant-baseline="central"
-								font-size="13" font-weight="700" fill="#111827">{fwk.progress}%</text>
+								font-size="16" font-weight="700" fill="#111827">{fwk.progress}%</text>
 						</svg>
 					</div>
 				</a>
