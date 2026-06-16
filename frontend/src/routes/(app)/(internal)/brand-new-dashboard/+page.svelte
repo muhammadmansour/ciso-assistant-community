@@ -104,6 +104,9 @@
 		if (count === 0) return '#9CA3AF';
 		return score >= 7 ? '#fff' : '#374151';
 	}
+	function cellStyle(count: number, score: number): string {
+		return `background-color: ${cellBg(count, score)}; color: ${cellFg(count, score)};`;
+	}
 
 	const heatmapCellScenarios = $derived.by(() => {
 		const grid: DashboardRiskScenario[][] = Array.from({ length: MATRIX }, () =>
@@ -425,8 +428,7 @@
 										<Anchor
 											href="/risk-scenarios/{scenarios[0].id}"
 											class="{cellClass} cursor-pointer hover:ring-2 hover:ring-blue-400/70"
-											style:background-color={cellBg(count, score)}
-											style:color={cellFg(count, score)}
+											style={cellStyle(count, score)}
 										>
 											{count}
 										</Anchor>
@@ -440,8 +442,7 @@
 												<button
 													type="button"
 													class="{cellClass} w-full cursor-pointer hover:ring-2 hover:ring-blue-400/70"
-													style:background-color={cellBg(count, score)}
-													style:color={cellFg(count, score)}
+													style={cellStyle(count, score)}
 												>
 													{count}
 												</button>
@@ -460,11 +461,7 @@
 											{/snippet}
 										</Popover>
 									{:else}
-										<div
-											class={cellClass}
-											style:background-color={cellBg(count, score)}
-											style:color={cellFg(count, score)}
-										></div>
+										<div class={cellClass} style={cellStyle(count, score)}></div>
 									{/if}
 								{/each}
 							{/each}
