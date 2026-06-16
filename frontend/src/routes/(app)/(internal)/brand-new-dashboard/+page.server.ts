@@ -50,6 +50,33 @@ export type ComplianceFrameworkSummary = {
 	assessmentsCount: number;
 };
 
+/** A control row used by the Tasks / Overdue / Upcoming sections. */
+export type ControlRow = {
+	id: string;
+	ref_id: string;
+	name: string;
+	scope: string;
+	eta: string | null;
+	daysUntil: number | null;
+	status: string;
+	owner: string;
+};
+
+export type EvidenceStatusBreakdown = {
+	missing: number;
+	inReview: number;
+	expired: number;
+	rejected: number;
+	total: number;
+};
+
+export type ValidationRow = {
+	id: string;
+	name: string;
+	scope: string;
+	updated: string | null;
+};
+
 async function safeJson<T>(p: Promise<Response>, fallback: T): Promise<T> {
 	try {
 		const res = await p;
@@ -183,8 +210,108 @@ export const load: PageServerLoad = async (event) => {
 		value: v.count > 0 ? Math.round(v.sum / v.count) : null
 	}));
 
+	// 9) Applied controls "todo" — controls with an ETA in the near term (excludes
+	//    active). Drives My Tasks, Overdue controls, and Upcoming deadlines.
+	type RawControl = {
+		id: string;
+		name?: string;
+		ref_id?: string;
+		eta?: string | null;
+		status?: string;
+		csf_function?: string;
+		category?: string;
+		folder?: { str?: string } | string;
+		owner?: Array<{ str?: string }>;
+	};
+	const todoRaw = await safeJson<{ results: RawControl[] }>(
+		fetch(`${BASE_API_URL}/applied-controls/todo/`),
+		{ results: [] }
+	);
+
+	const MS_DAY = 1000 * 60 * 60 * 24;
+	const startOfToday = new Date();
+	startOfToday.setHours(0, 0, 0, 0);
+
+	const controlRows: ControlRow[] = (todoRaw.results ?? []).map((c) => {
+		const scope =
+			(c.csf_function && c.csf_function !== '--' ? c.csf_function : '') ||
+			(typeof c.folder === 'object' ? (c.folder?.str ?? '') : (c.folder ?? '')) ||
+			(c.category ?? '');
+		const owner = (c.owner ?? []).map((o) => o?.str).filter(Boolean).join(', ');
+		let daysUntil: number | null = null;
+		if (c.eta) {
+			const eta = new Date(c.eta);
+			if (!Number.isNaN(eta.getTime())) {
+				eta.setHours(0, 0, 0, 0);
+				daysUntil = Math.round((eta.getTime() - startOfToday.getTime()) / MS_DAY);
+			}
+		}
+		return {
+			id: c.id,
+			ref_id: c.ref_id ?? '',
+			name: c.name ?? '',
+			scope: scope || '—',
+			eta: c.eta ?? null,
+			daysUntil,
+			status: c.status ?? '',
+			owner: owner || '—'
+		};
+	});
+
+	const overdueControls = controlRows
+		.filter((c) => c.daysUntil !== null && c.daysUntil < 0)
+		.sort((a, b) => (a.daysUntil ?? 0) - (b.daysUntil ?? 0));
+
+	const upcomingDeadlines = controlRows
+		.filter((c) => c.daysUntil !== null && c.daysUntil >= 0 && c.daysUntil <= 14)
+		.sort((a, b) => (a.daysUntil ?? 0) - (b.daysUntil ?? 0));
+
+	const tasks = controlRows.slice(0, 8);
+
+	// 10) Evidence status breakdown — counts per status. in_review is fetched with
+	//     items so it can double as the "validations" (awaiting review) list.
+	async function evidenceCount(status: string): Promise<number> {
+		const r = await safeJson<{ count?: number }>(
+			fetch(`${BASE_API_URL}/evidences/?status=${status}&page_size=1`),
+			{ count: 0 }
+		);
+		return r.count ?? 0;
+	}
+
+	type RawEvidence = {
+		id: string;
+		name?: string;
+		folder?: { str?: string } | string;
+		updated_at?: string;
+	};
+	const inReviewRes = await safeJson<{ count?: number; results: RawEvidence[] }>(
+		fetch(`${BASE_API_URL}/evidences/?status=in_review&page_size=8`),
+		{ count: 0, results: [] }
+	);
+	const [missingCount, expiredCount, rejectedCount] = await Promise.all([
+		evidenceCount('missing'),
+		evidenceCount('expired'),
+		evidenceCount('rejected')
+	]);
+
+	const inReviewCount = inReviewRes.count ?? 0;
+	const evidenceStatus: EvidenceStatusBreakdown = {
+		missing: missingCount,
+		inReview: inReviewCount,
+		expired: expiredCount,
+		rejected: rejectedCount,
+		total: missingCount + inReviewCount + expiredCount + rejectedCount
+	};
+
+	const validations: ValidationRow[] = (inReviewRes.results ?? []).map((e) => ({
+		id: e.id,
+		name: e.name ?? '',
+		scope: typeof e.folder === 'object' ? (e.folder?.str ?? '') : (e.folder ?? ''),
+		updated: e.updated_at ?? null
+	}));
+
 	return {
-		title: 'brandNewDashboard',
+		title: null,
 		legislative: {
 			items: (legislative.items ?? []).slice(0, 5),
 			upstreamError: legislative.upstreamStatus === 'error',
@@ -196,6 +323,11 @@ export const load: PageServerLoad = async (event) => {
 		tprmMetrics,
 		frameworks,
 		counters: counters.results ?? {},
-		complianceTrend
+		complianceTrend,
+		tasks,
+		validations,
+		overdueControls,
+		upcomingDeadlines,
+		evidenceStatus
 	};
 };
