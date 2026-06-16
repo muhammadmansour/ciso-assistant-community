@@ -1,5 +1,8 @@
 <script lang="ts">
+	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 	import { m } from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
+	import { Popover } from '@skeletonlabs/skeleton-svelte';
 	import type { PageData } from './$types';
 	import type { DashboardRiskScenario } from './+page.server';
 
@@ -43,8 +46,51 @@
 
 	// ─── Risk heatmap ─────────────────────────────────────────────────────────
 	type RiskView = 'residual' | 'inherent' | 'current';
+	type RiskScope = 'internal' | 'external';
 	let riskView = $state<RiskView>('residual');
+	let riskScope = $state<RiskScope>('internal');
 	const MATRIX = 5;
+
+	function isExternalScenario(s: DashboardRiskScenario): boolean {
+		for (const q of s.qualifications ?? []) {
+			const name = typeof q === 'string' ? q : ((q as { str?: string })?.str ?? '');
+			if (/third.?party|external|vendor|supplier|outsourc|خارج|طرف\s*ثالث|مورد/i.test(name)) {
+				return true;
+			}
+		}
+		return !!(s.name && /third.?party|external|vendor|supplier|outsourc|خارج|طرف\s*ثالث|مورد/i.test(s.name));
+	}
+
+	const scopedScenarios = $derived.by(() => {
+		const all = data.scenarios as DashboardRiskScenario[];
+		return riskScope === 'external'
+			? all.filter(isExternalScenario)
+			: all.filter((s) => !isExternalScenario(s));
+	});
+
+	function getProbaImpact(s: DashboardRiskScenario, view: RiskView): { p: number; imp: number } {
+		let p = -1;
+		let imp = -1;
+		if (view === 'current') {
+			p = (s.current_proba as { value?: number })?.value ?? -1;
+			imp = (s.current_impact as { value?: number })?.value ?? -1;
+		} else if (view === 'residual') {
+			p = (s.residual_proba as { value?: number })?.value ?? -1;
+			imp = (s.residual_impact as { value?: number })?.value ?? -1;
+		} else {
+			p = (s.inherent_proba as { value?: number })?.value ?? -1;
+			imp = (s.inherent_impact as { value?: number })?.value ?? -1;
+		}
+		return { p, imp };
+	}
+
+	function scoreBucket(p: number, imp: number): 'low' | 'medium' | 'high' | null {
+		if (p < 0 || imp < 0) return null;
+		const score = (p + 1) * (imp + 1);
+		if (score >= 12) return 'high';
+		if (score >= 6) return 'medium';
+		return 'low';
+	}
 
 	function cellBg(count: number, score: number): string {
 		if (count === 0) return '#F9FAFB';
@@ -59,26 +105,32 @@
 		return score >= 7 ? '#fff' : '#374151';
 	}
 
-	const heatmapGrid = $derived.by(() => {
-		const grid: number[][] = Array.from({ length: MATRIX }, () => Array(MATRIX).fill(0));
-		for (const s of data.scenarios as DashboardRiskScenario[]) {
-			let p = -1, imp = -1;
-			if (riskView === 'current') {
-				p   = (s.current_proba  as any)?.value ?? -1;
-				imp = (s.current_impact as any)?.value ?? -1;
-			} else if (riskView === 'residual') {
-				p   = (s.residual_proba  as any)?.value ?? -1;
-				imp = (s.residual_impact as any)?.value ?? -1;
-			} else {
-				p   = (s.inherent_proba  as any)?.value ?? -1;
-				imp = (s.inherent_impact as any)?.value ?? -1;
-			}
-			if (p >= 0 && imp >= 0 && p < MATRIX && imp < MATRIX) grid[p][imp]++;
+	const heatmapCellScenarios = $derived.by(() => {
+		const grid: DashboardRiskScenario[][] = Array.from({ length: MATRIX }, () =>
+			Array.from({ length: MATRIX }, () => [])
+		);
+		for (const s of scopedScenarios) {
+			const { p, imp } = getProbaImpact(s, riskView);
+			if (p >= 0 && imp >= 0 && p < MATRIX && imp < MATRIX) grid[p][imp].push(s);
 		}
 		return grid;
 	});
 
-	const totalRisks = $derived((data.scenarios as DashboardRiskScenario[]).length);
+	const heatmapGrid = $derived.by(() =>
+		heatmapCellScenarios.map((row) => row.map((cell) => cell.length))
+	);
+
+	const totalRisks = $derived(scopedScenarios.length);
+
+	const riskLevelCounts = $derived.by(() => {
+		const counts = { low: 0, medium: 0, high: 0 };
+		for (const s of scopedScenarios) {
+			const { p, imp } = getProbaImpact(s, riskView);
+			const bucket = scoreBucket(p, imp);
+			if (bucket) counts[bucket]++;
+		}
+		return counts;
+	});
 
 	// ─── Max residual by category ─────────────────────────────────────────────
 	type CategoryMax = { category: string; maxResidual: number; maxInherent: number };
@@ -137,6 +189,10 @@
 		return ARABIC_MONTHS[idx] ?? key;
 	}
 
+	function trendNum(n: number): string {
+		return n.toLocaleString(getLocale().startsWith('ar') ? 'ar-EG' : undefined);
+	}
+
 	function buildLinePath(pts: {x:number;y:number}[]): string {
 		if (!pts.length) return '';
 		let d = `M ${pts[0].x} ${pts[0].y}`;
@@ -191,7 +247,7 @@
 	}
 </script>
 
-<div class="space-y-5 p-5" dir="rtl">
+<div class="space-y-5 p-5" dir="ltr">
 
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -200,7 +256,7 @@
 			<a href="/legislative-updates"
 				class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
 				{m.viewAllUpdates()}
-				<i class="fa-solid fa-chevron-left text-xs"></i>
+				<i class="fa-solid fa-chevron-right text-xs"></i>
 			</a>
 		</div>
 
@@ -214,7 +270,7 @@
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a href="/legislative-updates/{item.id}"
 						class="flex items-center gap-4 px-5 py-5 hover:bg-gray-50/70 transition-colors group">
-						<!-- RIGHT: source · date · title · description -->
+						<!-- Content: source · date · title · description -->
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1.5">
 								{#if item.source}
@@ -231,7 +287,7 @@
 								<p class="text-sm text-gray-500 mt-1 line-clamp-1">{item.description}</p>
 							{/if}
 						</div>
-						<!-- LEFT: status badge · impact badge · arrow -->
+						<!-- Badges: status · impact · link -->
 						<div class="flex items-center gap-2.5 shrink-0">
 							{#if item.status}
 								<span class="text-sm px-3 py-1.5 rounded font-medium {statusBadgeClass(item.status)}">
@@ -244,7 +300,7 @@
 									{item.impact_label || item.impact_level}
 								</span>
 							{/if}
-							<i class="fa-solid fa-arrow-up-right-from-square text-sm text-gray-300 group-hover:text-blue-500 transition-colors mr-1"></i>
+							<i class="fa-solid fa-arrow-up-right-from-square text-sm text-gray-300 group-hover:text-blue-500 transition-colors ml-1"></i>
 						</div>
 					</a>
 				{/each}
@@ -259,7 +315,7 @@
 				{@const dp   = donutParams(fwk.progress, 96, 8)}
 				{@const days = daysUntil(fwk.due_date)}
 				<a href="/compliance-assessments"
-					class="bg-white rounded-xl border border-gray-200 p-5 min-h-[140px] text-right hover:shadow-sm transition-all block">
+					class="bg-white rounded-xl border border-gray-200 p-5 min-h-[140px] text-left hover:shadow-sm transition-all block">
 					<div class="flex items-start justify-between gap-3">
 						<div class="flex-1 min-w-0">
 							<h4 class="text-base font-semibold text-gray-900 truncate">{fwk.name}</h4>
@@ -297,16 +353,47 @@
 
 	<!-- ══════════════════ Heatmap — full width ════════════════════════════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 gap-3 flex-wrap">
 			<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
-			<div class="flex rounded-lg border border-gray-200 overflow-hidden">
-				{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
-					<button type="button" onclick={() => (riskView = v)}
-						class="px-2.5 py-1 text-[10px] font-medium transition-colors
-							{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
-						{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
+			<div class="flex items-center gap-3 flex-wrap">
+				<div class="flex rounded-lg border border-gray-200 overflow-hidden">
+					<button type="button" onclick={() => (riskScope = 'internal')}
+						class="px-3 py-1.5 text-xs font-medium transition-colors
+							{riskScope === 'internal' ? 'bg-[#0077CC] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+						{m.internal()}
 					</button>
-				{/each}
+					<button type="button" onclick={() => (riskScope = 'external')}
+						class="px-3 py-1.5 text-xs font-medium transition-colors
+							{riskScope === 'external' ? 'bg-[#0077CC] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+						{m.external()}
+					</button>
+				</div>
+				<div class="flex items-center gap-2.5">
+					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
+						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+						{m.low()}
+						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.low}</span>
+					</span>
+					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
+						<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+						{m.medium()}
+						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.medium}</span>
+					</span>
+					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
+						<span class="w-2 h-2 rounded-full bg-red-500"></span>
+						{m.high()}
+						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.high}</span>
+					</span>
+				</div>
+				<div class="flex rounded-lg border border-gray-200 overflow-hidden">
+					{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
+						<button type="button" onclick={() => (riskView = v)}
+							class="px-2.5 py-1 text-[10px] font-medium transition-colors
+								{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+							{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
+						</button>
+					{/each}
+				</div>
 			</div>
 		</div>
 
@@ -330,12 +417,55 @@
 							{#each [5, 4, 3, 2, 1] as l}
 								{#each [1, 2, 3, 4, 5] as imp}
 									{@const count = heatmapGrid[l - 1][imp - 1]}
+									{@const scenarios = heatmapCellScenarios[l - 1][imp - 1]}
 									{@const score = l * imp}
-									<div class="h-12 rounded flex items-center justify-center text-sm font-bold"
-										style:background-color={cellBg(count, score)}
-										style:color={cellFg(count, score)}>
-										{count > 0 ? count : ''}
-									</div>
+									{@const cellClass =
+										'h-12 rounded flex items-center justify-center text-sm font-bold transition-shadow'}
+									{#if count === 1}
+										<Anchor
+											href="/risk-scenarios/{scenarios[0].id}"
+											class="{cellClass} cursor-pointer hover:ring-2 hover:ring-blue-400/70"
+											style:background-color={cellBg(count, score)}
+											style:color={cellFg(count, score)}
+										>
+											{count}
+										</Anchor>
+									{:else if count > 1}
+										<Popover
+											triggerBase="w-full"
+											positioning={{ placement: 'top' }}
+											arrow
+										>
+											{#snippet trigger()}
+												<button
+													type="button"
+													class="{cellClass} w-full cursor-pointer hover:ring-2 hover:ring-blue-400/70"
+													style:background-color={cellBg(count, score)}
+													style:color={cellFg(count, score)}
+												>
+													{count}
+												</button>
+											{/snippet}
+											{#snippet content()}
+												<div class="card bg-white border border-gray-200 shadow-lg p-3 min-w-[10rem]">
+													{#each scenarios as scenario (scenario.id)}
+														<Anchor
+															href="/risk-scenarios/{scenario.id}"
+															class="block px-2 py-1.5 text-sm text-gray-800 hover:bg-gray-50 rounded"
+														>
+															{scenario.ref_id ?? scenario.name ?? scenario.id}
+														</Anchor>
+													{/each}
+												</div>
+											{/snippet}
+										</Popover>
+									{:else}
+										<div
+											class={cellClass}
+											style:background-color={cellBg(count, score)}
+											style:color={cellFg(count, score)}
+										></div>
+									{/if}
 								{/each}
 							{/each}
 						</div>
@@ -381,10 +511,21 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════ TPRM (right) + Policy violations (left) ══════════════ -->
+	<!-- ══════════════════ Policy violations (left) + TPRM (right) ══════════════ -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-		<!-- TPRM — first in DOM = right in RTL -->
+		<!-- Policy violations -->
+		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+			<div class="px-5 py-4 border-b border-gray-100">
+				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
+			</div>
+			<div class="flex flex-col items-center justify-center py-12 text-gray-400">
+				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+			</div>
+		</div>
+
+		<!-- TPRM -->
 		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 			<div class="px-5 py-4 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
@@ -400,7 +541,7 @@
 						<div>
 							<div class="flex items-center justify-between mb-2">
 								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
-								<div class="flex items-center gap-2.5 shrink-0 mr-3">
+								<div class="flex items-center gap-2.5 shrink-0 ml-3">
 									{#if row.due_date}
 										<span class="text-xs text-gray-400">{formatDate(row.due_date)}</span>
 									{/if}
@@ -418,32 +559,21 @@
 				</div>
 			{/if}
 		</div>
-
-		<!-- Policy violations — second in DOM = left in RTL -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-5 py-4 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
-			</div>
-			<div class="flex flex-col items-center justify-center py-12 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
-			</div>
-		</div>
 	</div>
 
 	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-			<h3 class="text-sm font-semibold text-gray-900">اتجاه الامتثال (6 أشهر)</h3>
+			<h3 class="text-sm font-semibold text-gray-900">{m.complianceTrend6Months()}</h3>
 			<div class="flex items-center gap-4 text-[11px] text-gray-500">
 				<span class="flex items-center gap-1.5">
 					<span class="w-4 h-0.5 rounded bg-blue-500 inline-block"></span>
-					متوسط الامتثال
+					{m.averageCompliance()}
 				</span>
 				{#if (data.counters.exceptions ?? 0) > 0}
 					<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium text-[10px]">
 						<i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
-						{data.counters.exceptions} استثناء نشط
+						{m.activeExceptionsCount({ count: data.counters.exceptions ?? 0 })}
 					</span>
 				{/if}
 			</div>
@@ -452,12 +582,12 @@
 		{#if !hasAnyTrendData}
 			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
 				<i class="fa-solid fa-chart-line text-2xl mb-2"></i>
-				<p class="text-xs">لا تتوفر بيانات اتجاه بعد — سيتم تجميع البيانات تلقائياً يومياً</p>
+				<p class="text-xs">{m.trendNoDataAutoCollect()}</p>
 			</div>
 		{:else}
 			<div class="px-2 pt-3 pb-2" dir="ltr">
 				<svg viewBox="0 0 {VW} {VH}" class="w-full" style="height:150px"
-					role="img" aria-label="Compliance trend chart">
+					role="img" aria-label={m.complianceTrendChartAria()}>
 					<defs>
 						<linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
 							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.20"/>
@@ -471,7 +601,7 @@
 						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
 							stroke="#f3f4f6" stroke-width="1"/>
 						<text x={PL - 4} y={gy + 3.5} text-anchor="end"
-							font-size="7.5" fill="#9ca3af">{pct}</text>
+							font-size="7.5" fill="#9ca3af">{trendNum(pct)}</text>
 					{/each}
 
 					<!-- Area fill -->
@@ -490,7 +620,7 @@
 								fill="#fff" stroke="#3b82f6" stroke-width="2"/>
 							<text x={pt.x} y={pt.y - 8}
 								text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700">
-								{pt.value}%
+								{trendNum(pt.value)}٪
 							</text>
 						{/if}
 					{/each}
