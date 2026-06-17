@@ -627,6 +627,9 @@ class User(ActorSyncMixin, AbstractBaseUser, AbstractBaseModel, FolderMixin):
         """
         Sending a mail to a user for password resetting or creation
         """
+        # Token hash includes user.password; refresh so invite links match DB after
+        # user_groups / EmailAddress setup in _create_user (or any prior save).
+        self.refresh_from_db()
         header = {
             "email": self.email,
             "root_url": CISO_ASSISTANT_URL,
