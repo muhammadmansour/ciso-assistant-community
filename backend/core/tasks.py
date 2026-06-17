@@ -251,6 +251,58 @@ def _format_validation_user(user) -> str:
     return name or (user.email or "Unknown")
 
 
+def _validation_event_status_label(event_type: str) -> str:
+    try:
+        return ValidationFlow.Status(event_type).label
+    except ValueError:
+        return event_type.replace("_", " ").title()
+
+
+def _format_validation_events_history(validation) -> str:
+    """Plain-text events timeline for validation outcome emails (newest first)."""
+    lines = []
+    for event in validation.events.select_related("event_actor").order_by("-created_at"):
+        actor = _format_validation_user(event.event_actor)
+        timestamp = event.created_at.strftime("%m/%d/%Y, %I:%M:%S %p")
+        line = f"- {_validation_event_status_label(event.event_type)} — {actor} — {timestamp}"
+        if event.event_notes:
+            line += f"\n  {event.event_notes.strip()}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_validation_events_history_html(validation) -> str:
+    """HTML events timeline block for validation outcome emails (newest first)."""
+    from html import escape
+
+    items = []
+    for event in validation.events.select_related("event_actor").order_by("-created_at"):
+        status_label = escape(_validation_event_status_label(event.event_type))
+        actor = escape(_format_validation_user(event.event_actor))
+        timestamp = escape(event.created_at.strftime("%m/%d/%Y, %I:%M:%S %p"))
+        note_html = ""
+        if event.event_notes:
+            note_html = (
+                f'<div style="margin-top:4px;color:#374151;font-size:13px;">'
+                f"{escape(event.event_notes.strip())}</div>"
+            )
+        items.append(
+            f'<div style="padding:12px 0;border-bottom:1px solid #e5e7eb;">'
+            f'<div style="font-weight:bold;color:#111827;">{status_label}</div>'
+            f'<div style="color:#6b7280;font-size:13px;">{actor} · {timestamp}</div>'
+            f"{note_html}"
+            f"</div>"
+        )
+    if not items:
+        return ""
+    return (
+        '<div style="margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;'
+        'overflow:hidden;background:#fafafa;padding:0 16px;">'
+        f"{''.join(items)}"
+        "</div>"
+    )
+
+
 def _validation_common_context(validation) -> dict:
     """Base context shared by every validation-flow email (created / deadline /
     outcome). Subject lines and detail tables can pick whichever keys they need.
@@ -312,13 +364,14 @@ def check_validation_flows_deadline_today():
 
 
 # Map terminal/feedback statuses to the YAML template used for the requester
-# notification. Statuses not in the map don't fire an email (e.g. revoked /
-# expired / dropped — these are out of scope per the spec wording
-# "Approved / rejected / changes requested").
+# notification. Expired is omitted — that transition is system-driven and has
+# no requester-facing template yet.
 _VALIDATION_OUTCOME_TEMPLATES = {
     ValidationFlow.Status.ACCEPTED: "validation_accepted",
     ValidationFlow.Status.REJECTED: "validation_rejected",
     ValidationFlow.Status.CHANGE_REQUESTED: "validation_change_requested",
+    ValidationFlow.Status.DROPPED: "validation_dropped",
+    ValidationFlow.Status.REVOKED: "validation_revoked",
 }
 
 
@@ -329,9 +382,8 @@ def send_validation_outcome_notification(
     """Notify the requester when an approver settles a validation flow.
 
     Picks the template by the new status (accepted / rejected /
-    change_requested). Other transitions (revoked / expired / dropped) are
-    intentionally ignored — those happen on the requester's own action or
-    via cleanup, so a notification back to the requester is redundant.
+    change_requested / dropped / revoked). Includes the full events history
+    so the requester can review the timeline without opening the app.
 
     Decider + notes are passed in (rather than re-read from FlowEvent)
     because this is called from the serializer right after the transition
@@ -348,7 +400,7 @@ def send_validation_outcome_notification(
     try:
         validation = ValidationFlow.objects.select_related(
             "requester", "folder"
-        ).get(id=validation_flow_id)
+        ).prefetch_related("events__event_actor").get(id=validation_flow_id)
     except ValidationFlow.DoesNotExist:
         logger.error(
             f"ValidationFlow with id {validation_flow_id} not found "
@@ -374,6 +426,7 @@ def send_validation_outcome_notification(
 
     context = _validation_common_context(validation)
     context["approver_name"] = approver_name
+    context["events_history"] = _format_validation_events_history(validation)
     # Outcome-specific notes override request_notes so the requester sees the
     # decision-time message (approver feedback / rejection reason / change
     # request body) rather than what they originally submitted.
@@ -392,6 +445,8 @@ def send_validation_outcome_notification(
         detail_specs,
         context["validation_url"],
         requester_email,
+        secondary_section_html=_format_validation_events_history_html(validation),
+        secondary_heading="Events history",
     )
 
 
@@ -843,6 +898,9 @@ def _deliver_assignment_email(
     detail_specs: list,
     object_url: str,
     recipient_email: str,
+    *,
+    secondary_section_html: str | None = None,
+    secondary_heading: str | None = None,
 ) -> bool:
     """Render an assignment template into Wathbah-branded HTML and send it.
 
@@ -881,6 +939,9 @@ def _deliver_assignment_email(
         details=details,
         object_url=object_url,
         details_heading=rendered.get("details_heading", "Details"),
+        secondary_heading=secondary_heading
+        or rendered.get("events_history_heading", "Events history"),
+        secondary_section_html=secondary_section_html,
         cta_label=rendered.get("cta_label", "Open in Wathbah GRC"),
         greeting=rendered.get("greeting", "Hello,"),
         closing=rendered.get("closing", "Thank you."),

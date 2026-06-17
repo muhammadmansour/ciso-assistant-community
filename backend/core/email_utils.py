@@ -118,6 +118,8 @@ def render_assignment_html_email(
     logo_url: Optional[str] = None,
     *,
     details_heading: str = "Details",
+    secondary_heading: Optional[str] = None,
+    secondary_section_html: Optional[str] = None,
     cta_label: str = "Open in Wathbah GRC",
     greeting: str = "Hello,",
     closing: str = "Thank you.",
@@ -139,6 +141,10 @@ def render_assignment_html_email(
             two-column table. None/empty values are skipped so we never ship
             half-empty rows to the recipient.
         object_url: Deep link the CTA button points to.
+        secondary_heading: Optional heading above an extra HTML block (e.g. events
+            history timeline).
+        secondary_section_html: Optional pre-rendered HTML inserted after the
+            details table.
         cta_label: Button label.
         greeting / closing: Surrounding copy.
     """
@@ -177,6 +183,14 @@ def render_assignment_html_email(
         f"""<p style="margin:20px 0;"><a href="{safe_url}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:6px;">{escape(cta_label)}</a></p>"""
     )
 
+    secondary_section = ""
+    if secondary_section_html:
+        heading = escape(secondary_heading or "Events history")
+        secondary_section = (
+            f'<p style="margin:16px 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{heading}</p>'
+            f"{secondary_section_html}"
+        )
+
     return (
         f'<!DOCTYPE html><html><head><meta charset="utf-8">'
         f'<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
@@ -190,6 +204,7 @@ def render_assignment_html_email(
         f'<p style="margin:0 0 16px;font-weight:bold;">{safe_intro}</p>'
         f'<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{escape(details_heading)}</p>'
         f"{details_table}"
+        f"{secondary_section}"
         f"<p style=\"margin:0 0 8px;\">{safe_action}</p>"
         f"{cta_button}"
         f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
@@ -354,6 +369,7 @@ def render_email_template(
             "notes_label",
             "approver_label",
             "decider_label",
+            "events_history_heading",
             "cta_label",
             "greeting",
             "closing",

@@ -3340,11 +3340,14 @@ class ValidationFlowWriteSerializer(BaseModelSerializer):
                 updated_instance, current_status, new_status
             )
 
-            # Notify the requester on settled-by-approver transitions
-            # (accepted / rejected / change_requested). Other transitions
-            # (revoked / expired / dropped) don't email - the requester
-            # either triggered them or the system did.
-            if current_status != new_status:
+            # Notify the requester when someone else updates the validation
+            # (accepted / rejected / change_requested / dropped / revoked).
+            # Skip when the requester drops their own request — they already
+            # know; approver-initiated drops still email with events history.
+            if current_status != new_status and not (
+                updated_instance.requester == request_user
+                and new_status == "dropped"
+            ):
                 self._send_outcome_notification(
                     updated_instance, new_status, request_user, event_notes
                 )
