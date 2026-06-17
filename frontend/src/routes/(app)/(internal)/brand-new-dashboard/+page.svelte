@@ -12,10 +12,10 @@
 	// ─── Legislative Updates helpers ─────────────────────────────────────────
 	function impactBadgeClass(level: string): string {
 		switch (level) {
-			case 'high':   return 'bg-red-50 text-red-700';
-			case 'medium': return 'bg-amber-50 text-amber-700';
-			case 'low':    return 'bg-emerald-50 text-emerald-700';
-			default:       return 'bg-gray-50 text-gray-600';
+			case 'high':   return 'bg-red-50 text-red-800 ring-red-200/60';
+			case 'medium': return 'bg-amber-50 text-amber-800 ring-amber-200/60';
+			case 'low':    return 'bg-emerald-50 text-emerald-800 ring-emerald-200/60';
+			default:       return 'bg-slate-50 text-slate-600 ring-slate-200/60';
 		}
 	}
 	function impactDotClass(level: string): string {
@@ -28,11 +28,11 @@
 	}
 	function statusBadgeClass(status: string): string {
 		switch (status) {
-			case 'new':            return 'bg-blue-50 text-blue-700';
-			case 'under_analysis': return 'bg-amber-50 text-amber-700';
-			case 'pending_review': return 'bg-orange-50 text-orange-700';
-			case 'completed':      return 'bg-emerald-50 text-emerald-700';
-			default:               return 'bg-gray-50 text-gray-600';
+			case 'new':            return 'bg-blue-50 text-blue-800 ring-blue-200/60';
+			case 'under_analysis': return 'bg-amber-50 text-amber-800 ring-amber-200/60';
+			case 'pending_review': return 'bg-orange-50 text-orange-800 ring-orange-200/60';
+			case 'completed':      return 'bg-emerald-50 text-emerald-800 ring-emerald-200/60';
+			default:               return 'bg-slate-50 text-slate-600 ring-slate-200/60';
 		}
 	}
 	function formatDate(dateStr: string | null | undefined): string {
@@ -93,19 +93,20 @@
 	}
 
 	function cellBg(count: number, score: number): string {
-		if (count === 0) return '#F9FAFB';
-		if (score >= 20) return '#ef4444';
-		if (score >= 12) return '#f97316';
-		if (score >= 6)  return '#fbbf24';
-		if (score >= 2)  return '#86efac';
-		return '#bbf7d0';
+		if (count === 0) return '#f1f5f9';
+		if (score >= 20) return '#dc2626';
+		if (score >= 12) return '#ea580c';
+		if (score >= 6)  return '#f59e0b';
+		if (score >= 2)  return '#22c55e';
+		return '#86efac';
 	}
 	function cellFg(count: number, score: number): string {
-		if (count === 0) return '#9CA3AF';
-		return score >= 7 ? '#fff' : '#374151';
+		if (count === 0) return '#94a3b8';
+		return score >= 7 ? '#fff' : '#1e293b';
 	}
 	function cellStyle(count: number, score: number): string {
-		return `background-color: ${cellBg(count, score)}; color: ${cellFg(count, score)};`;
+		const shadow = count > 0 ? 'box-shadow: 0 2px 8px rgba(15,23,42,0.12);' : '';
+		return `background-color: ${cellBg(count, score)}; color: ${cellFg(count, score)}; ${shadow}`;
 	}
 
 	const heatmapCellScenarios = $derived.by(() => {
@@ -160,9 +161,9 @@
 	});
 
 	function severityStyle(score: number): string {
-		if (score >= 15) return 'bg-red-100 text-red-700';
-		if (score >= 7)  return 'bg-amber-100 text-amber-700';
-		return 'bg-emerald-100 text-emerald-700';
+		if (score >= 15) return 'bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-sm shadow-red-200';
+		if (score >= 7)  return 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-200';
+		return 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-200';
 	}
 
 	// ─── TPRM ─────────────────────────────────────────────────────────────────
@@ -178,9 +179,9 @@
 	);
 
 	function tprmBarColor(score: number): string {
-		if (score >= 80) return 'bg-emerald-500';
-		if (score >= 60) return 'bg-amber-500';
-		return 'bg-red-500';
+		if (score >= 80) return 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-400 shadow-sm shadow-emerald-200/80';
+		if (score >= 60) return 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 shadow-sm shadow-amber-200/80';
+		return 'bg-gradient-to-r from-red-500 via-rose-500 to-orange-400 shadow-sm shadow-red-200/80';
 	}
 
 	// ─── Policy violations ────────────────────────────────────────────────────
@@ -196,9 +197,9 @@
 	);
 
 	function policyViolationBarColor(count: number): string {
-		if (count >= 5) return 'bg-red-500';
-		if (count >= 2) return 'bg-amber-500';
-		return 'bg-orange-400';
+		if (count >= 5) return 'bg-gradient-to-r from-red-600 via-rose-500 to-orange-500 shadow-sm shadow-red-200/80';
+		if (count >= 2) return 'bg-gradient-to-r from-amber-500 to-orange-400 shadow-sm shadow-amber-200/80';
+		return 'bg-gradient-to-r from-orange-400 to-amber-300 shadow-sm shadow-orange-200/60';
 	}
 
 	// ─── Compliance trend chart ───────────────────────────────────────────────
@@ -256,8 +257,21 @@
 		const fill = (score / 100) * circ;
 		const cx   = size / 2;
 		const cy   = size / 2;
-		const color = score >= 75 ? '#22c55e' : score >= 50 ? '#eab308' : '#ef4444';
-		return { r, circ, fill, cx, cy, color, size, sw };
+		const color = score >= 75 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626';
+		const colorEnd = score >= 75 ? '#059669' : score >= 50 ? '#ea580c' : '#e11d48';
+		return { r, circ, fill, cx, cy, color, colorEnd, size, sw };
+	}
+
+	function frameworkAccentClass(score: number): string {
+		if (score >= 75) return 'border-t-emerald-500';
+		if (score >= 50) return 'border-t-amber-500';
+		return 'border-t-rose-500';
+	}
+
+	function categoryRowAccent(score: number): string {
+		if (score >= 15) return 'border-l-red-500';
+		if (score >= 7) return 'border-l-amber-500';
+		return 'border-l-emerald-500';
 	}
 
 	function daysUntil(date: string | null | undefined): number | null {
@@ -268,60 +282,65 @@
 	}
 </script>
 
-<div class="space-y-5 p-5" dir="ltr">
+<div class="brand-dashboard space-y-6 p-5 md:p-6" dir="ltr">
 
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-			<h2 class="text-base font-semibold text-gray-900">{m.latestUpdates()}</h2>
+	<div class="dashboard-card">
+		<div class="dashboard-card-header flex items-center justify-between px-5 py-4">
+			<h2 class="dashboard-title-lg flex items-center gap-2.5">
+				<span class="dashboard-icon-badge bg-blue-100 text-blue-600"><i class="fa-solid fa-scale-balanced text-sm"></i></span>
+				{m.latestUpdates()}
+			</h2>
 			<a href="/legislative-updates"
-				class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+				class="dashboard-link text-sm font-semibold flex items-center gap-1.5">
 				{m.viewAllUpdates()}
 				<i class="fa-solid fa-chevron-right text-xs"></i>
 			</a>
 		</div>
 
 		{#if data.legislative.items.length === 0}
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-sm">لا توجد مستجدات</p>
+			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+					<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+				</div>
+				<p class="text-sm font-medium">لا توجد مستجدات</p>
 			</div>
 		{:else}
-			<div class="divide-y divide-gray-100">
+			<div class="divide-y divide-slate-100/80">
 				{#each data.legislative.items.slice(0, 5) as item (item.id)}
 					<a href="/legislative-updates/{item.id}"
-						class="flex items-center gap-4 px-5 py-5 hover:bg-gray-50/70 transition-colors group">
+						class="dashboard-list-row flex items-center gap-4 px-5 py-5 group">
 						<!-- Content: source · date · title · description -->
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2 mb-1.5">
 								{#if item.source}
-									<span class="text-sm text-gray-400 font-medium">({item.source})</span>
+									<span class="text-sm text-slate-400 font-medium">({item.source})</span>
 								{/if}
 								{#if item.published_at}
-									<span class="text-sm text-gray-400">{formatDate(item.published_at)}</span>
+									<span class="text-sm text-slate-400 font-medium">{formatDate(item.published_at)}</span>
 								{/if}
 							</div>
-							<p class="text-base font-semibold text-gray-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors">
+							<p class="text-base font-bold text-slate-900 leading-snug line-clamp-1 group-hover:text-blue-700 transition-colors tracking-tight">
 								{item.title}
 							</p>
 							{#if item.description}
-								<p class="text-sm text-gray-500 mt-1 line-clamp-1">{item.description}</p>
+								<p class="text-sm text-slate-500 mt-1.5 line-clamp-1 leading-relaxed">{item.description}</p>
 							{/if}
 						</div>
 						<!-- Badges: status · impact · link -->
 						<div class="flex items-center gap-2.5 shrink-0">
 							{#if item.status}
-								<span class="text-sm px-3 py-1.5 rounded font-medium {statusBadgeClass(item.status)}">
+								<span class="dashboard-badge text-sm px-3 py-1.5 rounded-lg font-semibold ring-1 ring-inset {statusBadgeClass(item.status)}">
 									{item.status_label || item.status}
 								</span>
 							{/if}
 							{#if item.impact_level}
-								<span class="text-sm px-3 py-1.5 rounded font-medium flex items-center gap-1.5 {impactBadgeClass(item.impact_level)}">
-									<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)}"></span>
+								<span class="dashboard-badge text-sm px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 ring-1 ring-inset {impactBadgeClass(item.impact_level)}">
+									<span class="w-2 h-2 rounded-full {impactDotClass(item.impact_level)} shadow-sm"></span>
 									{item.impact_label || item.impact_level}
 								</span>
 							{/if}
-							<i class="fa-solid fa-arrow-up-right-from-square text-sm text-gray-300 group-hover:text-blue-500 transition-colors ml-1"></i>
+							<i class="fa-solid fa-arrow-up-right-from-square text-sm text-slate-300 group-hover:text-blue-500 transition-colors ml-1"></i>
 						</div>
 					</a>
 				{/each}
@@ -332,39 +351,45 @@
 	<!-- ══════════════════ Framework Score Cards (4 donuts) ════════════════════ -->
 	{#if data.frameworks.length > 0}
 		<div class="grid grid-cols-2 lg:grid-cols-4 gap-5">
-			{#each data.frameworks.slice(0, 4) as fwk}
+			{#each data.frameworks.slice(0, 4) as fwk, i}
 				{@const dp   = donutParams(fwk.progress, 96, 8)}
 				{@const days = daysUntil(fwk.due_date)}
 				<a href="/compliance-assessments"
-					class="bg-white rounded-xl border border-gray-200 p-5 min-h-[140px] text-left hover:shadow-sm transition-all block">
+					class="dashboard-card dashboard-card-hover border-t-4 {frameworkAccentClass(fwk.progress)} p-5 min-h-[148px] text-left block">
 					<div class="flex items-start justify-between gap-3">
 						<div class="flex-1 min-w-0">
-							<h4 class="text-base font-semibold text-gray-900 truncate">{fwk.name}</h4>
-							<p class="text-sm text-gray-400 mt-1">
+							<h4 class="text-base font-bold text-slate-900 truncate tracking-tight">{fwk.name}</h4>
+							<p class="text-sm text-slate-500 mt-1 font-medium tabular-nums">
 								{fwk.assessmentsCount}
 								{fwk.assessmentsCount === 1 ? m.assessmentSingular() : m.assessmentPlural()}
 							</p>
-							<div class="flex items-center gap-1.5 mt-1.5">
+							<div class="flex items-center gap-1.5 mt-2">
 								<i class="fa-solid fa-arrow-trend-up text-xs text-emerald-500"></i>
-								<span class="text-sm text-emerald-600 font-medium">+0% مقارنة بالشهر الماضي</span>
+								<span class="text-xs text-emerald-600 font-semibold">+0% مقارنة بالشهر الماضي</span>
 							</div>
 							{#if days !== null && days >= 0}
-								<div class="mt-2">
-									<span class="inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded-full
-										{days <= 14 ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-500'}">
-										<i class="fa-regular fa-calendar text-xs"></i>
+								<div class="mt-2.5">
+									<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full
+										{days <= 14 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'}">
+										<i class="fa-regular fa-calendar text-[10px]"></i>
 										{m.auditInDays({ count: days })}
 									</span>
 								</div>
 							{/if}
 						</div>
-						<svg width={dp.size} height={dp.size} viewBox="0 0 {dp.size} {dp.size}" class="shrink-0">
-							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke="#f3f4f6" stroke-width={dp.sw} />
-							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke={dp.color}
+						<svg width={dp.size} height={dp.size} viewBox="0 0 {dp.size} {dp.size}" class="shrink-0 drop-shadow-sm">
+							<defs>
+								<linearGradient id="donutGrad-{i}" x1="0%" y1="0%" x2="100%" y2="100%">
+									<stop offset="0%" stop-color={dp.color} />
+									<stop offset="100%" stop-color={dp.colorEnd} />
+								</linearGradient>
+							</defs>
+							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke="#e2e8f0" stroke-width={dp.sw} />
+							<circle cx={dp.cx} cy={dp.cy} r={dp.r} fill="none" stroke="url(#donutGrad-{i})"
 								stroke-width={dp.sw} stroke-dasharray="{dp.fill} {dp.circ}"
 								stroke-linecap="round" transform="rotate(-90 {dp.cx} {dp.cy})" />
 							<text x={dp.cx} y={dp.cy + 1} text-anchor="middle" dominant-baseline="central"
-								font-size="16" font-weight="700" fill="#111827">{fwk.progress}%</text>
+								font-size="17" font-weight="800" fill="#0f172a" font-family="system-ui, sans-serif">{fwk.progress}%</text>
 						</svg>
 					</div>
 				</a>
@@ -373,44 +398,47 @@
 	{/if}
 
 	<!-- ══════════════════ Heatmap — full width ════════════════════════════════ -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 gap-3 flex-wrap">
-			<h3 class="text-sm font-semibold text-gray-900">{m.riskMap()}</h3>
+	<div class="dashboard-card">
+		<div class="dashboard-card-header flex items-center justify-between px-5 py-4 gap-3 flex-wrap">
+			<h3 class="dashboard-title flex items-center gap-2.5">
+				<span class="dashboard-icon-badge bg-violet-100 text-violet-600"><i class="fa-solid fa-table-cells text-xs"></i></span>
+				{m.riskMap()}
+			</h3>
 			<div class="flex items-center gap-3 flex-wrap">
-				<div class="flex rounded-lg border border-gray-200 overflow-hidden">
+				<div class="dashboard-toggle-group flex rounded-xl border border-slate-200/80 overflow-hidden shadow-sm">
 					<button type="button" onclick={() => (riskScope = 'internal')}
-						class="px-3 py-1.5 text-xs font-medium transition-colors
-							{riskScope === 'internal' ? 'bg-[#0077CC] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+						class="px-3.5 py-2 text-xs font-bold transition-all
+							{riskScope === 'internal' ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-inner' : 'bg-white text-slate-500 hover:bg-slate-50'}">
 						{m.internal()}
 					</button>
 					<button type="button" onclick={() => (riskScope = 'external')}
-						class="px-3 py-1.5 text-xs font-medium transition-colors
-							{riskScope === 'external' ? 'bg-[#0077CC] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+						class="px-3.5 py-2 text-xs font-bold transition-all
+							{riskScope === 'external' ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-inner' : 'bg-white text-slate-500 hover:bg-slate-50'}">
 						{m.external()}
 					</button>
 				</div>
-				<div class="flex items-center gap-2.5">
-					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
-						<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+				<div class="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-50 ring-1 ring-slate-100">
+					<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+						<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span>
 						{m.low()}
-						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.low}</span>
+						<span class="font-extrabold text-slate-900 tabular-nums">{riskLevelCounts.low}</span>
 					</span>
-					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
-						<span class="w-2 h-2 rounded-full bg-amber-400"></span>
+					<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+						<span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm"></span>
 						{m.medium()}
-						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.medium}</span>
+						<span class="font-extrabold text-slate-900 tabular-nums">{riskLevelCounts.medium}</span>
 					</span>
-					<span class="inline-flex items-center gap-1.5 text-xs text-gray-600">
-						<span class="w-2 h-2 rounded-full bg-red-500"></span>
+					<span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+						<span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></span>
 						{m.high()}
-						<span class="font-bold text-gray-900 tabular-nums">{riskLevelCounts.high}</span>
+						<span class="font-extrabold text-slate-900 tabular-nums">{riskLevelCounts.high}</span>
 					</span>
 				</div>
-				<div class="flex rounded-lg border border-gray-200 overflow-hidden">
+				<div class="dashboard-toggle-group flex rounded-xl border border-slate-200/80 overflow-hidden shadow-sm">
 					{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
 						<button type="button" onclick={() => (riskView = v)}
-							class="px-2.5 py-1 text-[10px] font-medium transition-colors
-								{riskView === v ? 'bg-[#0A1628] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}">
+							class="px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-all
+								{riskView === v ? 'bg-gradient-to-r from-slate-800 to-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}">
 							{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
 						</button>
 					{/each}
@@ -419,9 +447,11 @@
 		</div>
 
 		{#if totalRisks === 0}
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.noRiskScenarios()}</p>
+			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+					<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+				</div>
+				<p class="text-sm font-medium">{m.noRiskScenarios()}</p>
 			</div>
 		{:else}
 			<div class="p-4" dir="ltr">
@@ -429,19 +459,19 @@
 					<div class="flex flex-col gap-0.5 mr-1.5">
 						{#each [5, 4, 3, 2, 1] as l}
 							<div class="h-10 flex items-center justify-center">
-								<span class="text-[10px] text-gray-400 w-3 text-center">{l}</span>
+								<span class="text-[10px] font-bold text-slate-400 w-3 text-center tabular-nums">{l}</span>
 							</div>
 						{/each}
 					</div>
 					<div class="flex-1">
-						<div class="grid grid-cols-5 gap-1">
+						<div class="grid grid-cols-5 gap-1.5">
 							{#each [5, 4, 3, 2, 1] as l}
 								{#each [1, 2, 3, 4, 5] as imp}
 									{@const count = heatmapGrid[l - 1][imp - 1]}
 									{@const scenarios = heatmapCellScenarios[l - 1][imp - 1]}
 									{@const score = l * imp}
 									{@const cellClass =
-										'h-12 rounded flex items-center justify-center text-sm font-bold transition-shadow'}
+										'h-12 rounded-lg flex items-center justify-center text-sm font-extrabold tabular-nums transition-all duration-200'}
 									{#if count === 1}
 										<Anchor
 											href="/risk-scenarios/{scenarios[0].id}"
@@ -484,39 +514,44 @@
 								{/each}
 							{/each}
 						</div>
-						<div class="flex justify-between mt-1.5 px-1">
+						<div class="flex justify-between mt-2 px-1">
 							{#each [1, 2, 3, 4, 5] as i}
-								<span class="text-[10px] text-gray-400">{i}</span>
+								<span class="text-[10px] font-bold text-slate-400 tabular-nums">{i}</span>
 							{/each}
 						</div>
-						<div class="text-center mt-0.5">
-							<span class="text-[9px] text-gray-400">{m.impactISO()}</span>
+						<div class="text-center mt-1">
+							<span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{m.impactISO()}</span>
 						</div>
 					</div>
 				</div>
-				<p class="text-[9px] text-gray-400 mt-1">{m.likelihood()}</p>
+				<p class="text-[10px] font-semibold text-slate-400 mt-2 uppercase tracking-wider">{m.likelihood()}</p>
 			</div>
 		{/if}
 	</div>
 
 	<!-- ══════════════════ Highest residual risk by category — full width ═══════ -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="px-5 py-4 border-b border-gray-100">
-			<h3 class="text-sm font-semibold text-gray-900">{m.highestResidualRiskByCategory()}</h3>
+	<div class="dashboard-card">
+		<div class="dashboard-card-header px-5 py-4">
+			<h3 class="dashboard-title flex items-center gap-2.5">
+				<span class="dashboard-icon-badge bg-orange-100 text-orange-600"><i class="fa-solid fa-layer-group text-xs"></i></span>
+				{m.highestResidualRiskByCategory()}
+			</h3>
 		</div>
 		{#if categoryRiskMax.length === 0}
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.noQualificationsYet()}</p>
+			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+					<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+				</div>
+				<p class="text-sm font-medium">{m.noQualificationsYet()}</p>
 			</div>
 		{:else}
-			<div class="divide-y divide-gray-100">
+			<div class="divide-y divide-slate-100/80">
 				{#each categoryRiskMax as cat}
-					<div class="flex items-center justify-between px-5 py-4 hover:bg-gray-50/60 transition-colors">
-						<span class="text-sm font-medium text-gray-800 flex-1 truncate">{cat.category}</span>
+					<div class="flex items-center justify-between px-5 py-4 border-l-4 {categoryRowAccent(cat.maxResidual)} hover:bg-blue-50/40 transition-colors">
+						<span class="text-sm font-bold text-slate-800 flex-1 truncate tracking-tight">{cat.category}</span>
 						<div class="flex items-center gap-3 shrink-0">
-							<span class="text-xs text-gray-400">مقابل {cat.maxInherent}</span>
-							<span class="inline-flex items-center justify-center min-w-[36px] h-8 rounded text-sm font-bold px-2.5 {severityStyle(cat.maxResidual)}">
+							<span class="text-xs font-medium text-slate-400 tabular-nums">مقابل {cat.maxInherent}</span>
+							<span class="inline-flex items-center justify-center min-w-[40px] h-9 rounded-lg text-sm font-extrabold px-3 tabular-nums {severityStyle(cat.maxResidual)}">
 								{cat.maxResidual}
 							</span>
 						</div>
@@ -530,24 +565,29 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
 		<!-- Policy violations -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-5 py-4 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
+		<div class="dashboard-card">
+			<div class="dashboard-card-header px-5 py-4">
+				<h3 class="dashboard-title flex items-center gap-2.5">
+					<span class="dashboard-icon-badge bg-rose-100 text-rose-600"><i class="fa-solid fa-shield-halved text-xs"></i></span>
+					{m.policyViolationsByPolicy()}
+				</h3>
 			</div>
 			{#if policyViolationRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+				<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+					<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+						<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+					</div>
+					<p class="text-sm font-medium">{m.policyViolationsComingSoon()}</p>
 				</div>
 			{:else}
-				<div class="px-5 py-4 space-y-5">
+				<div class="px-5 py-5 space-y-5">
 					{#each policyViolationRows as row}
 						<div>
-							<div class="flex items-center justify-between mb-2">
-								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.name}</span>
-								<span class="text-sm font-bold text-gray-700 shrink-0 ml-3">{row.count}</span>
+							<div class="flex items-center justify-between mb-2.5">
+								<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.name}</span>
+								<span class="text-sm font-extrabold text-rose-600 shrink-0 ml-3 tabular-nums">{row.count}</span>
 							</div>
-							<div class="h-3 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+							<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
 								<div
 									class="h-full rounded-full transition-all duration-500 {policyViolationBarColor(row.count)}"
 									style:width="{(row.count / maxPolicyViolationCount) * 100}%"
@@ -560,31 +600,36 @@
 		</div>
 
 		<!-- TPRM -->
-		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-			<div class="px-5 py-4 border-b border-gray-100">
-				<h3 class="text-sm font-semibold text-gray-900">{m.thirdPartyAssessmentResults()}</h3>
+		<div class="dashboard-card">
+			<div class="dashboard-card-header px-5 py-4">
+				<h3 class="dashboard-title flex items-center gap-2.5">
+					<span class="dashboard-icon-badge bg-teal-100 text-teal-600"><i class="fa-solid fa-building-shield text-xs"></i></span>
+					{m.thirdPartyAssessmentResults()}
+				</h3>
 			</div>
 			{#if tprmRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-gray-400">
-					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-					<p class="text-xs">{m.noEntityAssessments()}</p>
+				<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+					<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+						<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
+					</div>
+					<p class="text-sm font-medium">{m.noEntityAssessments()}</p>
 				</div>
 			{:else}
-				<div class="px-5 py-4 space-y-5">
+				<div class="px-5 py-5 space-y-5">
 					{#each tprmRows as row}
 						<div>
-							<div class="flex items-center justify-between mb-2">
-								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.provider}</span>
+							<div class="flex items-center justify-between mb-2.5">
+								<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.provider}</span>
 								<div class="flex items-center gap-2.5 shrink-0 ml-3">
 									{#if row.due_date}
-										<span class="text-xs text-gray-400">{formatDate(row.due_date)}</span>
+										<span class="text-xs font-medium text-slate-400">{formatDate(row.due_date)}</span>
 									{/if}
-									<span class="text-sm font-bold {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+									<span class="text-sm font-extrabold tabular-nums {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
 										{row.score}%
 									</span>
 								</div>
 							</div>
-							<div class="h-3 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+							<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
 								<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
 									style:width="{row.score}%"></div>
 							</div>
@@ -596,17 +641,20 @@
 	</div>
 
 	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-		<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-			<h3 class="text-sm font-semibold text-gray-900">{m.complianceTrend6Months()}</h3>
-			<div class="flex items-center gap-4 text-[11px] text-gray-500">
-				<span class="flex items-center gap-1.5">
-					<span class="w-4 h-0.5 rounded bg-blue-500 inline-block"></span>
+	<div class="dashboard-card">
+		<div class="dashboard-card-header flex items-center justify-between px-5 py-4 flex-wrap gap-3">
+			<h3 class="dashboard-title flex items-center gap-2.5">
+				<span class="dashboard-icon-badge bg-blue-100 text-blue-600"><i class="fa-solid fa-chart-line text-xs"></i></span>
+				{m.complianceTrend6Months()}
+			</h3>
+			<div class="flex items-center gap-4 text-xs font-semibold text-slate-500">
+				<span class="flex items-center gap-2">
+					<span class="w-5 h-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 inline-block shadow-sm"></span>
 					{m.averageCompliance()}
 				</span>
 				{#if (data.counters.exceptions ?? 0) > 0}
-					<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium text-[10px]">
-						<i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+					<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold text-[11px] ring-1 ring-red-200/60">
+						<i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
 						{m.activeExceptionsCount({ count: data.counters.exceptions ?? 0 })}
 					</span>
 				{/if}
@@ -614,46 +662,68 @@
 		</div>
 
 		{#if !hasAnyTrendData}
-			<div class="flex flex-col items-center justify-center py-10 text-gray-400">
-				<i class="fa-solid fa-chart-line text-2xl mb-2"></i>
-				<p class="text-xs">{m.trendNoDataAutoCollect()}</p>
+			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
+				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+					<i class="fa-solid fa-chart-line text-2xl text-slate-300"></i>
+				</div>
+				<p class="text-sm font-medium">{m.trendNoDataAutoCollect()}</p>
 			</div>
 		{:else}
-			<div class="px-2 pt-3 pb-2" dir="ltr">
-				<svg viewBox="0 0 {VW} {VH}" class="w-full" style="height:150px"
+			<div class="px-3 pt-4 pb-3" dir="ltr">
+				<svg viewBox="0 0 {VW} {VH}" class="w-full dashboard-trend-chart" style="height:160px"
 					role="img" aria-label={m.complianceTrendChartAria()}>
 					<defs>
 						<linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.20"/>
-							<stop offset="100%" stop-color="#3b82f6" stop-opacity="0.01"/>
+							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+							<stop offset="60%" stop-color="#6366f1" stop-opacity="0.12"/>
+							<stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.02"/>
 						</linearGradient>
+						<linearGradient id="trendLineGrad" x1="0" y1="0" x2="1" y2="0">
+							<stop offset="0%" stop-color="#2563eb"/>
+							<stop offset="50%" stop-color="#4f46e5"/>
+							<stop offset="100%" stop-color="#7c3aed"/>
+						</linearGradient>
+						<filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%">
+							<feGaussianBlur stdDeviation="2" result="blur"/>
+							<feMerge>
+								<feMergeNode in="blur"/>
+								<feMergeNode in="SourceGraphic"/>
+							</feMerge>
+						</filter>
 					</defs>
 
 					<!-- Grid lines -->
 					{#each [0, 25, 50, 75, 100] as pct}
 						{@const gy = PT + (1 - pct / 100) * CH}
 						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
-							stroke="#f3f4f6" stroke-width="1"/>
-						<text x={PL - 4} y={gy + 3.5} text-anchor="end"
-							font-size="7.5" fill="#9ca3af">{trendNum(pct)}</text>
+							stroke="#e2e8f0" stroke-width="1" stroke-dasharray={pct === 0 || pct === 100 ? '0' : '4 4'}/>
+						<text x={PL - 6} y={gy + 4} text-anchor="end"
+							font-size="8.5" fill="#64748b" font-weight="600">{trendNum(pct)}</text>
 					{/each}
 
 					<!-- Area fill -->
 					<path d={buildAreaPath(trendPoints.filter(p => p.value !== null), PT + CH)}
 						fill="url(#trendGrad)"/>
 
-					<!-- Line -->
+					<!-- Glow line -->
 					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
-						fill="none" stroke="#3b82f6" stroke-width="2.5"
+						fill="none" stroke="url(#trendLineGrad)" stroke-width="4"
+						stroke-linecap="round" stroke-linejoin="round" opacity="0.25" filter="url(#trendGlow)"/>
+
+					<!-- Main line -->
+					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
+						fill="none" stroke="url(#trendLineGrad)" stroke-width="2.75"
 						stroke-linecap="round" stroke-linejoin="round"/>
 
 					<!-- Dots + value labels -->
 					{#each trendPoints as pt}
 						{#if pt.value !== null}
-							<circle cx={pt.x} cy={pt.y} r="4.5"
-								fill="#fff" stroke="#3b82f6" stroke-width="2"/>
-							<text x={pt.x} y={pt.y - 8}
-								text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700">
+							<circle cx={pt.x} cy={pt.y} r="6"
+								fill="#fff" stroke="url(#trendLineGrad)" stroke-width="2.5"/>
+							<circle cx={pt.x} cy={pt.y} r="2.5"
+								fill="#4f46e5"/>
+							<text x={pt.x} y={pt.y - 10}
+								text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="800">
 								{trendNum(pt.value)}٪
 							</text>
 						{/if}
@@ -661,8 +731,8 @@
 
 					<!-- X-axis month labels -->
 					{#each trendPoints as pt}
-						<text x={pt.x} y={PT + CH + 18}
-							text-anchor="middle" font-size="9" fill="#6b7280">
+						<text x={pt.x} y={PT + CH + 20}
+							text-anchor="middle" font-size="10" fill="#475569" font-weight="600">
 							{pt.label}
 						</text>
 					{/each}
@@ -672,3 +742,97 @@
 	</div>
 
 </div>
+
+<style>
+	.brand-dashboard {
+		background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2ff 100%);
+		min-height: 100%;
+		font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	.dashboard-card {
+		background: #ffffff;
+		border-radius: 1rem;
+		border: 1px solid rgba(226, 232, 240, 0.9);
+		overflow: hidden;
+		box-shadow:
+			0 1px 2px rgba(15, 23, 42, 0.04),
+			0 4px 16px rgba(15, 23, 42, 0.06);
+	}
+
+	.dashboard-card-hover {
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.dashboard-card-hover:hover {
+		transform: translateY(-2px);
+		box-shadow:
+			0 4px 8px rgba(15, 23, 42, 0.06),
+			0 12px 28px rgba(37, 99, 235, 0.1);
+	}
+
+	.dashboard-card-header {
+		border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+		background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+	}
+
+	.dashboard-title-lg {
+		font-size: 1.125rem;
+		font-weight: 800;
+		color: #0f172a;
+		letter-spacing: -0.02em;
+	}
+
+	.dashboard-title {
+		font-size: 0.9375rem;
+		font-weight: 800;
+		color: #0f172a;
+		letter-spacing: -0.015em;
+	}
+
+	.dashboard-icon-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 0.625rem;
+		flex-shrink: 0;
+	}
+
+	.dashboard-link {
+		color: #2563eb;
+		transition: color 0.15s ease;
+	}
+
+	.dashboard-link:hover {
+		color: #1d4ed8;
+	}
+
+	.dashboard-list-row {
+		transition: background-color 0.15s ease;
+	}
+
+	.dashboard-list-row:hover {
+		background: linear-gradient(90deg, rgba(239, 246, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+	}
+
+	.dashboard-badge {
+		white-space: nowrap;
+	}
+
+	.dashboard-progress-track {
+		background: linear-gradient(180deg, #e2e8f0 0%, #f1f5f9 100%);
+		box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.08);
+	}
+
+	.dashboard-trend-chart {
+		display: block;
+	}
+
+	:global(.brand-dashboard .dashboard-toggle-group button) {
+		border: none;
+		cursor: pointer;
+	}
+</style>
