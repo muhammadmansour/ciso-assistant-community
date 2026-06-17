@@ -45,9 +45,7 @@
 	}
 
 	// ─── Risk heatmap ─────────────────────────────────────────────────────────
-	type RiskView = 'residual' | 'inherent' | 'current';
 	type RiskScope = 'internal' | 'external';
-	let riskView = $state<RiskView>('residual');
 	let riskScope = $state<RiskScope>('internal');
 	const MATRIX = 5;
 
@@ -68,19 +66,9 @@
 			: all.filter((s) => !isExternalScenario(s));
 	});
 
-	function getProbaImpact(s: DashboardRiskScenario, view: RiskView): { p: number; imp: number } {
-		let p = -1;
-		let imp = -1;
-		if (view === 'current') {
-			p = (s.current_proba as { value?: number })?.value ?? -1;
-			imp = (s.current_impact as { value?: number })?.value ?? -1;
-		} else if (view === 'residual') {
-			p = (s.residual_proba as { value?: number })?.value ?? -1;
-			imp = (s.residual_impact as { value?: number })?.value ?? -1;
-		} else {
-			p = (s.inherent_proba as { value?: number })?.value ?? -1;
-			imp = (s.inherent_impact as { value?: number })?.value ?? -1;
-		}
+	function getProbaImpact(s: DashboardRiskScenario): { p: number; imp: number } {
+		const p = (s.residual_proba as { value?: number })?.value ?? -1;
+		const imp = (s.residual_impact as { value?: number })?.value ?? -1;
 		return { p, imp };
 	}
 
@@ -114,7 +102,7 @@
 			Array.from({ length: MATRIX }, () => [])
 		);
 		for (const s of scopedScenarios) {
-			const { p, imp } = getProbaImpact(s, riskView);
+			const { p, imp } = getProbaImpact(s);
 			if (p >= 0 && imp >= 0 && p < MATRIX && imp < MATRIX) grid[p][imp].push(s);
 		}
 		return grid;
@@ -129,7 +117,7 @@
 	const riskLevelCounts = $derived.by(() => {
 		const counts = { low: 0, medium: 0, high: 0 };
 		for (const s of scopedScenarios) {
-			const { p, imp } = getProbaImpact(s, riskView);
+			const { p, imp } = getProbaImpact(s);
 			const bucket = scoreBucket(p, imp);
 			if (bucket) counts[bucket]++;
 		}
@@ -203,12 +191,12 @@
 	}
 
 	// ─── Compliance trend chart ───────────────────────────────────────────────
-	const ARABIC_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
-	                       'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+	const ENGLISH_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+	                        'Jul','Aug','Sep','Oct','Nov','Dec'];
 
 	function monthLabel(key: string): string {
 		const idx = parseInt(key.split('-')[1], 10) - 1;
-		return ARABIC_MONTHS[idx] ?? key;
+		return ENGLISH_MONTHS[idx] ?? key;
 	}
 
 	function trendNum(n: number): string {
@@ -282,7 +270,7 @@
 	}
 </script>
 
-<div class="brand-dashboard space-y-6 p-5 md:p-6" dir="ltr">
+<div class="brand-dashboard font-cairo space-y-6 p-5 md:p-6" dir="ltr">
 
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="dashboard-card">
@@ -389,7 +377,7 @@
 								stroke-width={dp.sw} stroke-dasharray="{dp.fill} {dp.circ}"
 								stroke-linecap="round" transform="rotate(-90 {dp.cx} {dp.cy})" />
 							<text x={dp.cx} y={dp.cy + 1} text-anchor="middle" dominant-baseline="central"
-								font-size="17" font-weight="800" fill="#0f172a" font-family="system-ui, sans-serif">{fwk.progress}%</text>
+								font-size="17" font-weight="800" fill="#0f172a" font-family="Cairo, sans-serif">{fwk.progress}%</text>
 						</svg>
 					</div>
 				</a>
@@ -433,15 +421,6 @@
 						{m.high()}
 						<span class="font-extrabold text-slate-900 tabular-nums">{riskLevelCounts.high}</span>
 					</span>
-				</div>
-				<div class="dashboard-toggle-group flex rounded-xl border border-slate-200/80 overflow-hidden shadow-sm">
-					{#each (['inherent', 'residual', 'current'] as RiskView[]) as v}
-						<button type="button" onclick={() => (riskView = v)}
-							class="px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-all
-								{riskView === v ? 'bg-gradient-to-r from-slate-800 to-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}">
-							{v === 'inherent' ? m.inherent() : v === 'residual' ? m.residual() : m.current()}
-						</button>
-					{/each}
 				</div>
 			</div>
 		</div>
@@ -698,7 +677,7 @@
 						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
 							stroke="#e2e8f0" stroke-width="1" stroke-dasharray={pct === 0 || pct === 100 ? '0' : '4 4'}/>
 						<text x={PL - 6} y={gy + 4} text-anchor="end"
-							font-size="8.5" fill="#64748b" font-weight="600">{trendNum(pct)}</text>
+							font-size="8.5" fill="#64748b" font-weight="600" font-family="Cairo, sans-serif">{trendNum(pct)}</text>
 					{/each}
 
 					<!-- Area fill -->
@@ -723,7 +702,7 @@
 							<circle cx={pt.x} cy={pt.y} r="2.5"
 								fill="#4f46e5"/>
 							<text x={pt.x} y={pt.y - 10}
-								text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="800">
+								text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="800" font-family="Cairo, sans-serif">
 								{trendNum(pt.value)}٪
 							</text>
 						{/if}
@@ -732,7 +711,7 @@
 					<!-- X-axis month labels -->
 					{#each trendPoints as pt}
 						<text x={pt.x} y={PT + CH + 20}
-							text-anchor="middle" font-size="10" fill="#475569" font-weight="600">
+							text-anchor="middle" font-size="10" fill="#475569" font-weight="600" font-family="Cairo, sans-serif">
 							{pt.label}
 						</text>
 					{/each}
@@ -747,8 +726,12 @@
 	.brand-dashboard {
 		background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2ff 100%);
 		min-height: 100%;
-		font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+		font-family: 'Cairo', sans-serif;
 		-webkit-font-smoothing: antialiased;
+	}
+
+	.brand-dashboard :global(svg text) {
+		font-family: 'Cairo', sans-serif;
 	}
 
 	.dashboard-card {
