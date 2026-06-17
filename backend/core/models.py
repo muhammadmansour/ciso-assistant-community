@@ -2415,7 +2415,7 @@ class PolicyViolation(NameDescriptionMixin, FolderMixin):
         DISMISSED = "dismissed", _("Dismissed")
 
     policy = models.ForeignKey(
-        AppliedControl,
+        "AppliedControl",
         on_delete=models.CASCADE,
         related_name="violations",
         verbose_name=_("Policy"),
