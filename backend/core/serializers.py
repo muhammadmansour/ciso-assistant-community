@@ -2713,6 +2713,40 @@ class SecurityExceptionReadSerializer(BaseModelSerializer):
         fields = "__all__"
 
 
+class PolicyViolationWriteSerializer(BaseModelSerializer):
+    policy = serializers.PrimaryKeyRelatedField(queryset=Policy.objects.all())
+
+    def validate_policy(self, policy):
+        if policy.category != "policy":
+            raise serializers.ValidationError("Selected control is not a policy.")
+        return policy
+
+    def create(self, validated_data):
+        policy = validated_data["policy"]
+        if "folder" not in validated_data and policy.folder_id:
+            validated_data["folder"] = policy.folder
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and "detected_by" not in validated_data:
+            validated_data["detected_by"] = request.user
+        return super().create(validated_data)
+
+    class Meta:
+        model = PolicyViolation
+        fields = "__all__"
+
+
+class PolicyViolationReadSerializer(BaseModelSerializer):
+    path = PathField(read_only=True)
+    folder = FieldsRelatedField()
+    policy = FieldsRelatedField(["id", "name", "ref_id", "str"])
+    detected_by = FieldsRelatedField(["id", "email", "first_name", "last_name"])
+    severity = serializers.CharField(source="get_severity_display")
+
+    class Meta:
+        model = PolicyViolation
+        fields = "__all__"
+
+
 class FindingsAssessmentWriteSerializer(BaseModelSerializer):
     def validate(self, attrs):
         if hasattr(self, "instance") and self.instance and self.instance.is_locked:

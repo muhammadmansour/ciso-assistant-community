@@ -41,6 +41,12 @@ export type EntityAssessmentMetric = {
 	review_progress?: number;
 };
 
+export type PolicyViolationMetric = {
+	policy_id: string;
+	name: string;
+	count: number;
+};
+
 export type ComplianceFrameworkSummary = {
 	id?: string;
 	name: string;
@@ -98,6 +104,12 @@ export const load: PageServerLoad = async (event) => {
 	// 5) Third-party (TPRM) entity assessment results
 	const tprmMetrics = await safeJson<EntityAssessmentMetric[]>(
 		fetch(`${BASE_API_URL}/entity-assessments/metrics/`),
+		[]
+	);
+
+	// 5b) Policy violations grouped by policy (active open/acknowledged only)
+	const policyViolations = await safeJson<PolicyViolationMetric[]>(
+		fetch(`${BASE_API_URL}/policy-violations/metrics/`),
 		[]
 	);
 
@@ -194,6 +206,7 @@ export const load: PageServerLoad = async (event) => {
 		scenarios: scenarios.results ?? [],
 		qualifications,
 		tprmMetrics,
+		policyViolations,
 		frameworks,
 		counters: counters.results ?? {},
 		complianceTrend

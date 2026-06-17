@@ -17,7 +17,7 @@
 	"totalRisksLabel": "Total: {count} risks",
 	"highestResidualRiskByCategory": "Highest residual risk by category",
 	"policyViolationsByPolicy": "Policy violations by policy",
-	"policyViolationsComingSoon": "Policy violations not yet tracked",
+	"policyViolationsComingSoon": "No active policy violations",
 	"policyViolationsExplain": "Discrete violation events per policy will appear here once a policy-violation source is connected.",
 	"thirdPartyAssessmentResults": "Third-party assessment results",
 	"complianceTrend6Months": "Compliance trend (6 months)",

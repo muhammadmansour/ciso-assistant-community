@@ -183,6 +183,24 @@
 		return 'bg-red-500';
 	}
 
+	// ─── Policy violations ────────────────────────────────────────────────────
+	const policyViolationRows = $derived(
+		(data.policyViolations ?? [])
+			.filter((r) => r.count > 0)
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 8)
+	);
+
+	const maxPolicyViolationCount = $derived(
+		policyViolationRows.reduce((max, r) => Math.max(max, r.count), 0) || 1
+	);
+
+	function policyViolationBarColor(count: number): string {
+		if (count >= 5) return 'bg-red-500';
+		if (count >= 2) return 'bg-amber-500';
+		return 'bg-orange-400';
+	}
+
 	// ─── Compliance trend chart ───────────────────────────────────────────────
 	const ARABIC_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
 	                       'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -516,10 +534,29 @@
 			<div class="px-5 py-4 border-b border-gray-100">
 				<h3 class="text-sm font-semibold text-gray-900">{m.policyViolationsByPolicy()}</h3>
 			</div>
-			<div class="flex flex-col items-center justify-center py-12 text-gray-400">
-				<i class="fa-solid fa-inbox text-2xl mb-2"></i>
-				<p class="text-xs">{m.policyViolationsComingSoon()}</p>
-			</div>
+			{#if policyViolationRows.length === 0}
+				<div class="flex flex-col items-center justify-center py-12 text-gray-400">
+					<i class="fa-solid fa-inbox text-2xl mb-2"></i>
+					<p class="text-xs">{m.policyViolationsComingSoon()}</p>
+				</div>
+			{:else}
+				<div class="px-5 py-4 space-y-5">
+					{#each policyViolationRows as row}
+						<div>
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-sm font-semibold text-gray-800 truncate flex-1">{row.name}</span>
+								<span class="text-sm font-bold text-gray-700 shrink-0 ml-3">{row.count}</span>
+							</div>
+							<div class="h-3 bg-gray-100 rounded-full overflow-hidden" dir="ltr">
+								<div
+									class="h-full rounded-full transition-all duration-500 {policyViolationBarColor(row.count)}"
+									style:width="{(row.count / maxPolicyViolationCount) * 100}%"
+								></div>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 
 		<!-- TPRM -->

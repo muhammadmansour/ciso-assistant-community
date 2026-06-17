@@ -11723,6 +11723,61 @@ class SecurityExceptionViewSet(ExportMixin, BaseModelViewSet):
         return Response({"results": {"nodes": nodes, "links": links}})
 
 
+class PolicyViolationViewSet(BaseModelViewSet):
+    """API endpoint for policy violation events and dashboard aggregates."""
+
+    model = PolicyViolation
+    filterset_fields = [
+        "name",
+        "policy",
+        "folder",
+        "severity",
+        "status",
+        "source",
+        "detected_by",
+    ]
+    search_fields = ["name", "description", "source"]
+
+    @action(detail=False, name="Get status choices")
+    def status(self, request):
+        return Response(dict(PolicyViolation.Status.choices))
+
+    @action(detail=False, name="Get policy violation metrics")
+    def metrics(self, request):
+        """Active violation counts grouped by policy for dashboard widgets."""
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, PolicyViolation
+        )
+        active_statuses = (
+            PolicyViolation.Status.OPEN,
+            PolicyViolation.Status.ACKNOWLEDGED,
+        )
+        grouped = (
+            PolicyViolation.objects.filter(
+                id__in=viewable_ids,
+                status__in=active_statuses,
+            )
+            .values("policy_id", "policy__name")
+            .annotate(count=Count("id"))
+            .order_by("-count", "policy__name")
+        )
+        return Response(
+            [
+                {
+                    "policy_id": str(row["policy_id"]),
+                    "name": row["policy__name"] or "Unknown",
+                    "count": row["count"],
+                }
+                for row in grouped
+            ]
+        )
+
+    def get_queryset(self):
+        return super().get_queryset().select_related(
+            "folder", "policy", "detected_by"
+        )
+
+
 class FindingsAssessmentViewSet(BaseModelViewSet):
     model = FindingsAssessment
     filterset_fields = [

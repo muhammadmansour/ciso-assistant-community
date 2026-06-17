@@ -2405,6 +2405,69 @@ class SecurityException(NameDescriptionMixin, FolderMixin, PublishInRootFolderMi
             )
 
 
+class PolicyViolation(NameDescriptionMixin, FolderMixin):
+    """Discrete policy breach / non-compliance event linked to a GRC policy."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", _("Open")
+        ACKNOWLEDGED = "acknowledged", _("Acknowledged")
+        RESOLVED = "resolved", _("Resolved")
+        DISMISSED = "dismissed", _("Dismissed")
+
+    policy = models.ForeignKey(
+        AppliedControl,
+        on_delete=models.CASCADE,
+        related_name="violations",
+        verbose_name=_("Policy"),
+        limit_choices_to={"category": "policy"},
+    )
+    severity = models.SmallIntegerField(
+        verbose_name=_("Severity"),
+        choices=Severity.choices,
+        default=Severity.MEDIUM,
+    )
+    status = models.CharField(
+        verbose_name=_("Status"),
+        choices=Status.choices,
+        default=Status.OPEN,
+        max_length=20,
+    )
+    detected_at = models.DateTimeField(
+        default=now,
+        verbose_name=_("Detected at"),
+    )
+    source = models.CharField(
+        max_length=100,
+        blank=True,
+        default="manual",
+        verbose_name=_("Source"),
+        help_text=_("Origin of the violation event (manual, siem, dlp, …)"),
+    )
+    detected_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reported_policy_violations",
+        verbose_name=_("Detected by"),
+    )
+
+    fields_to_check = ["name"]
+
+    class Meta:
+        verbose_name = _("Policy violation")
+        verbose_name_plural = _("Policy violations")
+        ordering = ["-detected_at"]
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        super().clean()
+        if self.policy_id and self.policy.category != "policy":
+            raise ValidationError({"policy": _("Selected control is not a policy.")})
+
+
 class AssetCapability(ReferentialObjectMixin, I18nObjectMixin):
     DEFAULT_ASSET_CAPABILITIES = [
         "confidentiality",

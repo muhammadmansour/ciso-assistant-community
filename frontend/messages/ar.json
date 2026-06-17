@@ -19,7 +19,7 @@
 	"totalRisksLabel": "الإجمالي: {count} مخاطر",
 	"highestResidualRiskByCategory": "أعلى خطر متبقي حسب الفئة",
 	"policyViolationsByPolicy": "مخالفات السياسات حسب السياسة",
-	"policyViolationsComingSoon": "مخالفات السياسات غير مفعّلة بعد",
+	"policyViolationsComingSoon": "لا توجد مخالفات سياسات نشطة",
 	"policyViolationsExplain": "ستظهر أحداث المخالفات لكل سياسة هنا بمجرد ربط مصدر المخالفات.",
 	"thirdPartyAssessmentResults": "نتائج تقييم الأطراف الثالثة",
 	"complianceTrend6Months": "اتجاه الامتثال (٦ أشهر)",
