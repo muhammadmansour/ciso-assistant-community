@@ -8,6 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("core", "0143_filesearch_drop_transient_files_api"),
+        ("iam", "0017_alter_folder_is_published"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -99,7 +100,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="%(class)s_folder",
-                        to="core.folder",
+                        to="iam.folder",
                     ),
                 ),
                 (
