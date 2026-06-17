@@ -29,3 +29,6 @@ cli/db_backup
 *service_account*.json
 ciso-storage*.json
 gcp-*.json
+
+# Local interface reference / design assets (not part of the app)
+wathbahgrc-v6-interface-data-rich/
