@@ -1,17 +1,6 @@
 export const navData = {
 	items: [
 		{
-			name: 'overview',
-			items: [
-				{
-					name: 'brandNewDashboard',
-					fa_icon: 'fa-solid fa-chart-pie',
-					href: '/brand-new-dashboard',
-					alwaysShow: true
-				}
-			]
-		},
-		{
 			name: 'compliance',
 			items: [
 				{
