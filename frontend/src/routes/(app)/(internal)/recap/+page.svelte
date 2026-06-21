@@ -540,182 +540,42 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════ Policy violations (left) + TPRM (right) ══════════════ -->
-	<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-
-		<!-- Policy violations -->
-		<div class="dashboard-card">
-			<div class="dashboard-card-header px-5 py-4">
-				<h3 class="dashboard-title flex items-center gap-2.5">
-					<span class="dashboard-icon-badge bg-rose-100 text-rose-600"><i class="fa-solid fa-shield-halved text-xs"></i></span>
-					{m.policyViolationsByPolicy()}
-				</h3>
-			</div>
-			{#if policyViolationRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-slate-400">
-					<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-						<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
-					</div>
-					<p class="text-sm font-medium">{m.policyViolationsComingSoon()}</p>
-				</div>
-			{:else}
-				<div class="px-5 py-5 space-y-5">
-					{#each policyViolationRows as row}
-						<div>
-							<div class="flex items-center justify-between mb-2.5">
-								<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.name}</span>
-								<span class="text-sm font-extrabold text-rose-600 shrink-0 ml-3 tabular-nums">{row.count}</span>
-							</div>
-							<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
-								<div
-									class="h-full rounded-full transition-all duration-500 {policyViolationBarColor(row.count)}"
-									style:width="{(row.count / maxPolicyViolationCount) * 100}%"
-								></div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<!-- TPRM -->
-		<div class="dashboard-card">
-			<div class="dashboard-card-header px-5 py-4">
-				<h3 class="dashboard-title flex items-center gap-2.5">
-					<span class="dashboard-icon-badge bg-teal-100 text-teal-600"><i class="fa-solid fa-building-shield text-xs"></i></span>
-					{m.thirdPartyAssessmentResults()}
-				</h3>
-			</div>
-			{#if tprmRows.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-slate-400">
-					<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-						<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
-					</div>
-					<p class="text-sm font-medium">{m.noEntityAssessments()}</p>
-				</div>
-			{:else}
-				<div class="px-5 py-5 space-y-5">
-					{#each tprmRows as row}
-						<div>
-							<div class="flex items-center justify-between mb-2.5">
-								<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.provider}</span>
-								<div class="flex items-center gap-2.5 shrink-0 ml-3">
-									{#if row.due_date}
-										<span class="text-xs font-medium text-slate-400">{formatDate(row.due_date)}</span>
-									{/if}
-									<span class="text-sm font-extrabold tabular-nums {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
-										{row.score}%
-									</span>
-								</div>
-							</div>
-							<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
-								<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
-									style:width="{row.score}%"></div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</div>
-
-	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
+	<!-- ══════════════════ Third-party assessment results (full width) ══════════ -->
 	<div class="dashboard-card">
-		<div class="dashboard-card-header flex items-center justify-between px-5 py-4 flex-wrap gap-3">
+		<div class="dashboard-card-header px-5 py-4">
 			<h3 class="dashboard-title flex items-center gap-2.5">
-				<span class="dashboard-icon-badge bg-blue-100 text-blue-600"><i class="fa-solid fa-chart-line text-xs"></i></span>
-				{m.complianceTrend6Months()}
+				<span class="dashboard-icon-badge bg-teal-100 text-teal-600"><i class="fa-solid fa-building-shield text-xs"></i></span>
+				{m.thirdPartyAssessmentResults()}
 			</h3>
-			<div class="flex items-center gap-4 text-xs font-semibold text-slate-500">
-				<span class="flex items-center gap-2">
-					<span class="w-5 h-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 inline-block shadow-sm"></span>
-					{m.averageCompliance()}
-				</span>
-				{#if (data.counters.exceptions ?? 0) > 0}
-					<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold text-[11px] ring-1 ring-red-200/60">
-						<i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-						{m.activeExceptionsCount({ count: data.counters.exceptions ?? 0 })}
-					</span>
-				{/if}
-			</div>
 		</div>
-
-		{#if !hasAnyTrendData}
+		{#if tprmRows.length === 0}
 			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
 				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-					<i class="fa-solid fa-chart-line text-2xl text-slate-300"></i>
+					<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
 				</div>
-				<p class="text-sm font-medium">{m.trendNoDataAutoCollect()}</p>
+				<p class="text-sm font-medium">{m.noEntityAssessments()}</p>
 			</div>
 		{:else}
-			<div class="px-3 pt-4 pb-3" dir="ltr">
-				<svg viewBox="0 0 {VW} {VH}" class="w-full dashboard-trend-chart" style="height:160px"
-					role="img" aria-label={m.complianceTrendChartAria()}>
-					<defs>
-						<linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-							<stop offset="60%" stop-color="#6366f1" stop-opacity="0.12"/>
-							<stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.02"/>
-						</linearGradient>
-						<linearGradient id="trendLineGrad" x1="0" y1="0" x2="1" y2="0">
-							<stop offset="0%" stop-color="#2563eb"/>
-							<stop offset="50%" stop-color="#4f46e5"/>
-							<stop offset="100%" stop-color="#7c3aed"/>
-						</linearGradient>
-						<filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%">
-							<feGaussianBlur stdDeviation="2" result="blur"/>
-							<feMerge>
-								<feMergeNode in="blur"/>
-								<feMergeNode in="SourceGraphic"/>
-							</feMerge>
-						</filter>
-					</defs>
-
-					<!-- Grid lines -->
-					{#each [0, 25, 50, 75, 100] as pct}
-						{@const gy = PT + (1 - pct / 100) * CH}
-						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
-							stroke="#e2e8f0" stroke-width="1" stroke-dasharray={pct === 0 || pct === 100 ? '0' : '4 4'}/>
-						<text x={PL - 6} y={gy + 4} text-anchor="end"
-							font-size="8.5" fill="#64748b" font-weight="600" font-family="Cairo, sans-serif">{trendNum(pct)}</text>
-					{/each}
-
-					<!-- Area fill -->
-					<path d={buildAreaPath(trendPoints.filter(p => p.value !== null), PT + CH)}
-						fill="url(#trendGrad)"/>
-
-					<!-- Glow line -->
-					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
-						fill="none" stroke="url(#trendLineGrad)" stroke-width="4"
-						stroke-linecap="round" stroke-linejoin="round" opacity="0.25" filter="url(#trendGlow)"/>
-
-					<!-- Main line -->
-					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
-						fill="none" stroke="url(#trendLineGrad)" stroke-width="2.75"
-						stroke-linecap="round" stroke-linejoin="round"/>
-
-					<!-- Dots + value labels -->
-					{#each trendPoints as pt}
-						{#if pt.value !== null}
-							<circle cx={pt.x} cy={pt.y} r="6"
-								fill="#fff" stroke="url(#trendLineGrad)" stroke-width="2.5"/>
-							<circle cx={pt.x} cy={pt.y} r="2.5"
-								fill="#4f46e5"/>
-							<text x={pt.x} y={pt.y - 10}
-								text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="800" font-family="Cairo, sans-serif">
-								{trendNum(pt.value)}٪
-							</text>
-						{/if}
-					{/each}
-
-					<!-- X-axis month labels -->
-					{#each trendPoints as pt}
-						<text x={pt.x} y={PT + CH + 20}
-							text-anchor="middle" font-size="10" fill="#475569" font-weight="600" font-family="Cairo, sans-serif">
-							{pt.label}
-						</text>
-					{/each}
-				</svg>
+			<div class="px-5 py-5 space-y-5">
+				{#each tprmRows as row}
+					<div>
+						<div class="flex items-center justify-between mb-2.5">
+							<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.provider}</span>
+							<div class="flex items-center gap-2.5 shrink-0 ml-3">
+								{#if row.due_date}
+									<span class="text-xs font-medium text-slate-400">{formatDate(row.due_date)}</span>
+								{/if}
+								<span class="text-sm font-extrabold tabular-nums {row.score >= 80 ? 'text-emerald-600' : row.score >= 60 ? 'text-amber-600' : 'text-red-600'}">
+									{row.score}%
+								</span>
+							</div>
+						</div>
+						<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
+							<div class="h-full rounded-full transition-all duration-500 {tprmBarColor(row.score)}"
+								style:width="{row.score}%"></div>
+						</div>
+					</div>
+				{/each}
 			</div>
 		{/if}
 	</div>
