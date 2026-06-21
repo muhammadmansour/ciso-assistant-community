@@ -293,6 +293,12 @@ mkdir -p "$BACKEND_DIR/logs"
 # producing "Conflicting migrations detected" once the matching committed
 # migration arrives. We only apply migrations here.
 run_migrations() {
+    # Allow skipping migrations (e.g. schema not yet created, or migrating out-of-band):
+    #   SKIP_MIGRATIONS=1 ./start-pm2.sh start
+    if [ "${SKIP_MIGRATIONS:-0}" != "0" ] && [ -n "${SKIP_MIGRATIONS:-}" ] && [ "${SKIP_MIGRATIONS}" != "false" ]; then
+        echo -e "${YELLOW}Skipping database migrations (SKIP_MIGRATIONS=${SKIP_MIGRATIONS}).${NC}"
+        return 0
+    fi
     echo -e "${GREEN}Running database migrations...${NC}"
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
