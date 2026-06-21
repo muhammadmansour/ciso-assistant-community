@@ -1,13 +1,13 @@
 #!/bin/bash
-# CISO Assistant - PM2 staging (Linux)
-# Public URL: https://grc-stage.wathbahs.com (grc-hrsd.wathbahs.com still allowed in ALLOWED_HOSTS)
-# Ports: backend 8001, frontend 3001 (matches dev nginx upstream dev-backend / dev-frontend)
+# CISO Assistant - PM2 zain (Linux)
+# Public URL: https://zain-grc.wathbah.dev
+# Ports: backend 8001, frontend 3001 (matches nginx upstream dev-backend / dev-frontend)
 # Before start: cd frontend && pnpm run build:staging
 #
-# DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
+# DB name is POSTGRES_NAME (e.g. zain). Schema for tables is POSTGRES_SEARCH_PATH (can match: zain).
 # If migrate fails on public, once as postgres:
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS "grc-stage" AUTHORIZATION "grc-stage";'
-# Default POSTGRES_SEARCH_PATH=grc-stage. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
+#   sudo -u postgres psql -d "zain" -c 'CREATE SCHEMA IF NOT EXISTS "zain" AUTHORIZATION "zain";'
+# Default POSTGRES_SEARCH_PATH=zain. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
 
 set -e
 
@@ -17,45 +17,45 @@ cd "$SCRIPT_DIR"
 
 # Source server-local env overrides if present.
 # This file is NOT tracked in git, lives outside the repo, and survives
-# `git reset --hard origin/staging-version` from the deploy workflow.
+# `git reset --hard origin/zain-version` from the deploy workflow.
 # Use it for secrets / per-host settings, e.g.:
-#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
-#   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
-#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> ~/.ciso-staging.env   # optional; Huey waits for indexing
-#   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
-#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
-#   chmod 600 ~/.ciso-staging.env
+#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-zain.env
+#   echo 'USE_GCS=True'                             >> ~/.ciso-zain.env
+#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> ~/.ciso-zain.env   # optional; Huey waits for indexing
+#   echo 'GS_BUCKET_NAME=zain-env'                  >> ~/.ciso-zain.env
+#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-zain.env
+#   chmod 600 ~/.ciso-zain.env
 #
 # GCS authentication: leave GOOGLE_APPLICATION_CREDENTIALS UNSET to use
 # Application Default Credentials (the GCE VM's attached service account).
 # Only set it if you have a service-account JSON key file you want to use
 # explicitly:
 #   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
-#                                                   >> ~/.ciso-staging.env
-if [ -f "$HOME/.ciso-staging.env" ]; then
+#                                                   >> ~/.ciso-zain.env
+if [ -f "$HOME/.ciso-zain.env" ]; then
     set -a
     # shellcheck disable=SC1090
-    . "$HOME/.ciso-staging.env"
+    . "$HOME/.ciso-zain.env"
     set +a
 fi
 
 # Configuration
-DOMAIN="grc-stage.wathbahs.com"
+DOMAIN="zain-grc.wathbah.dev"
 PUBLIC_URL="https://${DOMAIN}"
 BACKEND_PORT=8001
 FRONTEND_PORT=3001
 
 # PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
-POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
-POSTGRES_USER="${POSTGRES_USER:-grc-stage}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-grc-stage}"
+POSTGRES_NAME="${POSTGRES_NAME:-zain}"
+POSTGRES_USER="${POSTGRES_USER:-zain}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-zain}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
-POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
+POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-zain}"
 
 # Object storage (S3 / Google Cloud Storage). Default = local filesystem.
-# Set via ~/.ciso-staging.env on the server to flip to GCS without editing
+# Set via ~/.ciso-zain.env on the server to flip to GCS without editing
 # this script. USE_S3 and USE_GCS are mutually exclusive (settings.py exits
 # fast if both are True).
 USE_S3="${USE_S3:-False}"
@@ -63,7 +63,7 @@ USE_GCS="${USE_GCS:-False}"
 GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
 GS_PROJECT_ID="${GS_PROJECT_ID:-}"
 # Empty default → Application Default Credentials (GCE VM service account).
-# Set explicitly in ~/.ciso-staging.env if you want to use a JSON key file.
+# Set explicitly in ~/.ciso-zain.env if you want to use a JSON key file.
 GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
@@ -76,14 +76,14 @@ GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 
 # Gemini File Search (used by the AI analysis flow). Both must reach the
 # huey worker AND the gunicorn process (the analysis HTTP endpoint also
-# instantiates the client). Sourced from ~/.ciso-staging.env above.
+# instantiates the client). Sourced from ~/.ciso-zain.env above.
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
-# Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
+# Override in ~/.ciso-zain.env if needed; indexing must reach the Huey process.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
-MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbah.dev/api/audit/analyze}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbahs.com/api/audit/analyze}"
 
 # PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
 # Other PM2 apps on the host (e.g. ciso-stage-*, production) are left running.
@@ -113,7 +113,7 @@ NC='\033[0m'
 export PATH="$HOME/.local/bin:$PATH"
 
 echo -e "${GREEN}========================================"
-echo "  CISO Assistant - PM2 Staging (${DOMAIN})"
+echo "  CISO Assistant - PM2 zain (${DOMAIN})"
 echo -e "========================================${NC}"
 
 # Surface object-storage configuration up front so deploys are easy to debug.
@@ -149,7 +149,7 @@ if [ -n "$GEMINI_API_KEY" ]; then
     masked="${GEMINI_API_KEY:0:6}…${GEMINI_API_KEY: -4}"
     echo -e "${GREEN}Gemini API key: ${masked}${NC}"
 else
-    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-staging.env — AI analysis will fail with a 'client not configured' error.${NC}"
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-zain.env — AI analysis will fail with a 'client not configured' error.${NC}"
 fi
 if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
     echo -e "${GREEN}Gemini File Search store: ${GEMINI_FILE_SEARCH_STORE_NAME}${NC}"
@@ -183,9 +183,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,zain-grc.wathbah.dev',
         CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
+        CSRF_TRUSTED_ORIGINS: 'https://zain-grc.wathbah.dev',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -224,7 +224,7 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: 'localhost,127.0.0.1,zain-grc.wathbah.dev',
         CISO_ASSISTANT_URL: '${CISO_ASSISTANT_URL}',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
@@ -265,8 +265,8 @@ module.exports = {
         PORT: '3001',
         NODE_ENV: 'production',
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
-        ORIGIN: 'https://grc-stage.wathbahs.com',
+        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://zain-grc.wathbah.dev/api',
+        ORIGIN: 'https://zain-grc.wathbah.dev',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600'
@@ -297,7 +297,7 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com"
+    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,zain-grc.wathbah.dev"
     export CISO_ASSISTANT_URL="${CISO_ASSISTANT_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
@@ -326,7 +326,7 @@ ensure_gunicorn() {
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services (staging)...${NC}"
+        echo -e "${GREEN}Starting all services (zain)...${NC}"
         if [ ! -f "$FRONTEND_DIR/build/index.js" ]; then
             echo -e "${YELLOW}Warning: frontend/build/index.js missing. Run:${NC}"
             echo -e "  cd frontend && pnpm run build:staging"
@@ -340,7 +340,7 @@ case "${1:-start}" in
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  Staging services started                 ${NC}"
+        echo -e "${GREEN}  zain services started                    ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn on port ${BACKEND_PORT} (4 workers)"
@@ -350,14 +350,14 @@ case "${1:-start}" in
         pm2 status
         ;;
     stop)
-        echo -e "${YELLOW}Stopping CISO staging services only...${NC}"
+        echo -e "${YELLOW}Stopping CISO zain services only...${NC}"
         for app in $CISO_APPS; do
             pm2 stop "$app" 2>/dev/null || echo -e "${YELLOW}  $app not running${NC}"
         done
         pm2 status
         ;;
     restart)
-        echo -e "${YELLOW}Restarting CISO staging services only...${NC}"
+        echo -e "${YELLOW}Restarting CISO zain services only...${NC}"
         ensure_poetry_install
         run_migrations
         for app in $CISO_APPS; do
@@ -378,7 +378,7 @@ case "${1:-start}" in
         fi
         ;;
     delete)
-        echo -e "${RED}Deleting CISO staging PM2 processes only...${NC}"
+        echo -e "${RED}Deleting CISO zain PM2 processes only...${NC}"
         for app in $CISO_APPS; do
             pm2 delete "$app" 2>/dev/null || echo -e "${YELLOW}  $app not found${NC}"
         done
@@ -393,17 +393,17 @@ case "${1:-start}" in
     *)
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
-        echo "Staging: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
+        echo "zain: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
         echo "PostgreSQL: POSTGRES_NAME=${POSTGRES_NAME} DB_HOST=${DB_HOST} (override via env)"
         echo "Build frontend first: cd frontend && pnpm run build:staging"
         echo ""
         echo "Commands:"
-        echo "  start   - Write ecosystem.config.js and start staging (Gunicorn + Node)"
-        echo "  stop    - Stop staging PM2 apps only"
-        echo "  restart - Migrate, recreate staging PM2 apps"
+        echo "  start   - Write ecosystem.config.js and start zain (Gunicorn + Node)"
+        echo "  stop    - Stop zain PM2 apps only"
+        echo "  restart - Migrate, recreate zain PM2 apps"
         echo "  status  - PM2 status"
-        echo "  logs    - Staging logs (optional: logs backend | logs frontend | logs huey)"
-        echo "  delete  - Remove staging PM2 processes"
+        echo "  logs    - zain logs (optional: logs backend | logs frontend | logs huey)"
+        echo "  delete  - Remove zain PM2 processes"
         echo "  startup - Enable PM2 on boot"
         exit 1
         ;;

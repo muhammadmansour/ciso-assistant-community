@@ -1,0 +1,1 @@
+import"../chunks/Bzak7iHL.js";import{f as e,b as p,d as t,e as i,r as n}from"../chunks/xx1n7ESe.js";import{s as d}from"../chunks/B946-g2J.js";var l=e('<div class="flex flex-col space-y-4"><!></div>');function v(a,r){var o=l(),s=t(o);d(s,()=>r.children??i),n(o),p(a,o)}export{v as component};

@@ -136,6 +136,7 @@ ALLOWED_HOSTS = os.environ.get(
 ).split(",")
 # Always ensure these hosts are allowed regardless of env var
 for _host in [
+    "zain-grc.wathbah.dev",
     "grc.wathbah.dev",
     "grc-admin.wathbah.dev",
     "grc.wathbahs.com",
@@ -154,6 +155,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
 # Always ensure these origins are trusted regardless of env var
 for _origin in [
     "http://localhost:5555",
+    "https://zain-grc.wathbah.dev",
     "https://grc.wathbah.dev",
     "https://grc-admin.wathbah.dev",
     "https://grc.wathbahs.com",

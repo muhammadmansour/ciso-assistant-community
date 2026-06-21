@@ -29,7 +29,8 @@ export default defineConfig({
 			'grc.wathbahs.com',
 			'grc-hrsd.wathbahs.com',
 			'grc-stage.wathbahs.com',
-			'grc.wathbah.dev'
+			'grc.wathbah.dev',
+			'zain-grc.wathbah.dev'
 		],
 		hmr: false,
 		headers: {

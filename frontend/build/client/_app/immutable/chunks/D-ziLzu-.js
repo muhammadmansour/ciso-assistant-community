@@ -1,0 +1,1 @@
+function c(o){let t=null;if(document.cookie&&document.cookie!==""){const n=document.cookie.split(";");for(let e=0;e<n.length;e++){const i=n[e].trim();if(i.substring(0,o.length+1)===o+"="){t=decodeURIComponent(i.substring(o.length+1));break}}}return t}function r(){return c("csrftoken")}export{r as g};

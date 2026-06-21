@@ -24,6 +24,7 @@ export const BACKEND_API_EXPOSED_URL = `${
 
 /** Hostnames where the SPA and Django API share one origin (reverse proxy serves `/api`). */
 const SAME_ORIGIN_API_HOSTS = new Set([
+	'zain-grc.wathbah.dev',
 	'grc-stage.wathbahs.com',
 	'grc-hrsd.wathbahs.com',
 	'grc.wathbahs.com',

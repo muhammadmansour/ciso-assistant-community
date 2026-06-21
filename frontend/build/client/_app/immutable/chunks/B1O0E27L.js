@@ -1,0 +1,1 @@
+import{Q as o,e as p}from"./xx1n7ESe.js";import{o as a}from"./BF-mf9wR.js";function u(t){return function(...e){var r=e[0];return r.stopPropagation(),t==null?void 0:t.apply(this,e)}}function i(t){return function(...e){var r=e[0];return r.preventDefault(),t==null?void 0:t.apply(this,e)}}function v(t,[e,r]){o(()=>a(t,e,r()??p,{passive:!0}))}export{v as a,i as p,u as s};
