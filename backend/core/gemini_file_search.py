@@ -67,12 +67,58 @@ GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '
 #
 # All values are env-tunable. Set a *_MAX_TOKENS value to 0 to disable that
 # profile and fall back to Gemini's automatic chunking.
+# Gemini File Search hard-caps tokens per chunk at 512 (the API returns
+# "number of tokens per chunk must be between 0 and 512" otherwise). We clamp to
+# this so a misconfigured env can never produce an invalid request again.
+GEMINI_MAX_CHUNK_TOKENS_LIMIT = 512
+
 GEMINI_CHUNK_PAGE_THRESHOLD = int(os.getenv('GEMINI_CHUNK_PAGE_THRESHOLD', '50'))
 GEMINI_CHUNK_SIZE_THRESHOLD_BYTES = int(os.getenv('GEMINI_CHUNK_SIZE_THRESHOLD_BYTES', '2000000'))
 GEMINI_CHUNK_SMALL_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_MAX_TOKENS', '512'))
 GEMINI_CHUNK_SMALL_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_OVERLAP_TOKENS', '100'))
-GEMINI_CHUNK_LARGE_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_MAX_TOKENS', '1024'))
+# Large profile is also capped at 512 (the API maximum); larger values are
+# clamped down in _build_chunking_config.
+GEMINI_CHUNK_LARGE_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_MAX_TOKENS', '512'))
 GEMINI_CHUNK_LARGE_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_OVERLAP_TOKENS', '150'))
+
+# Resumable uploads of large files can be torn down by a transient 503/network
+# blip; the SDK then retries the dead session and gets a 400 "Upload has already
+# been terminated". We retry the *whole* upload (a fresh session each time) with
+# exponential backoff to ride over these.
+GEMINI_UPLOAD_MAX_RETRIES = int(os.getenv('GEMINI_UPLOAD_MAX_RETRIES', '3'))
+GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS = float(
+    os.getenv('GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS', '5')
+)
+
+# Substrings (lowercased) that mark an upload error as transient/retryable.
+# Deliberately excludes generic "bad request"/"invalid" so genuine validation
+# errors fail fast instead of being retried.
+_TRANSIENT_UPLOAD_ERROR_MARKERS = (
+    'upload has already been terminated',
+    'terminated',
+    '503',
+    'service unavailable',
+    'unavailable',
+    'internal server error',
+    'internal error',
+    '429',
+    'too many requests',
+    'resource exhausted',
+    'rate limit',
+    'deadline',
+    'timeout',
+    'timed out',
+    'connection reset',
+    'connection aborted',
+    'broken pipe',
+    'eof occurred',
+)
+
+
+def _is_transient_upload_error(exc) -> bool:
+    """True when an upload error looks transient and worth retrying."""
+    msg = str(exc).lower()
+    return any(marker in msg for marker in _TRANSIENT_UPLOAD_ERROR_MARKERS)
 
 
 def _count_pdf_pages(file_path: str) -> Optional[int]:
@@ -168,6 +214,17 @@ def _build_chunking_config(file_path: str) -> Optional[Dict[str, Any]]:
             **basis,
         )
         return None
+
+    # Gemini File Search rejects max_tokens_per_chunk > 512 with a 400. Clamp so
+    # an over-large env value degrades gracefully instead of failing the upload.
+    if max_tokens > GEMINI_MAX_CHUNK_TOKENS_LIMIT:
+        logger.warning(
+            "max_tokens_per_chunk exceeds Gemini limit; clamping",
+            profile=profile,
+            requested=max_tokens,
+            clamped_to=GEMINI_MAX_CHUNK_TOKENS_LIMIT,
+        )
+        max_tokens = GEMINI_MAX_CHUNK_TOKENS_LIMIT
 
     # Overlap must be strictly smaller than the window; clamp defensively so a
     # misconfigured env can't produce an invalid request.
@@ -265,60 +322,48 @@ class GeminiFileSearchClient:
         if chunking_config:
             upload_config['chunking_config'] = chunking_config
 
-        try:
-            logger.info(
-                "Uploading file to Gemini File Search Store",
-                file_path=file_path,
-                display_name=display_name,
-                store_name=self.store_name,
-                custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
-                chunking_config=chunking_config,
-            )
-            operation = self.client.file_search_stores.upload_to_file_search_store(
-                file=file_path,
-                file_search_store_name=self.store_name,
-                config=upload_config,
-            )
-        except TypeError as e:
-            # Older google-genai versions may not accept ``custom_metadata`` or
-            # ``chunking_config`` in the upload config. Drop whichever key the
-            # SDK complained about and retry once so the upload still succeeds;
-            # the operator gets a clear log line to upgrade.
-            err_str = str(e)
-            dropped = []
-            if 'custom_metadata' in upload_config and 'custom_metadata' in err_str:
-                upload_config.pop('custom_metadata', None)
-                dropped.append('custom_metadata')
-            if 'chunking_config' in upload_config and 'chunking_config' in err_str:
-                upload_config.pop('chunking_config', None)
-                dropped.append('chunking_config')
-
-            if dropped:
-                logger.warning(
-                    "google-genai SDK rejected upload config keys; retrying without them. "
-                    "Upgrade google-genai to enable these features.",
-                    dropped_keys=dropped,
-                    error=err_str,
+        # Retry the whole upload on transient failures. Each attempt opens a
+        # *fresh* upload session — critical because the SDK can't recover a
+        # session torn down mid-stream by a 503 (it retries the dead session and
+        # gets a 400 "Upload has already been terminated"). Larger files take
+        # longer to stream and are far more exposed to such transient blips.
+        operation = None
+        for attempt in range(1, GEMINI_UPLOAD_MAX_RETRIES + 1):
+            try:
+                logger.info(
+                    "Uploading file to Gemini File Search Store",
+                    file_path=file_path,
+                    display_name=display_name,
+                    store_name=self.store_name,
+                    custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
+                    chunking_config=chunking_config,
+                    attempt=attempt,
+                    max_attempts=GEMINI_UPLOAD_MAX_RETRIES,
                 )
-                operation = self.client.file_search_stores.upload_to_file_search_store(
-                    file=file_path,
-                    file_search_store_name=self.store_name,
-                    config=upload_config,
-                )
-            else:
+                operation = self._upload_to_file_search_store(file_path, upload_config)
+                break
+            except Exception as e:
+                transient = _is_transient_upload_error(e)
+                if attempt < GEMINI_UPLOAD_MAX_RETRIES and transient:
+                    delay = GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Transient error uploading to Gemini File Search Store; "
+                        "retrying with a fresh session",
+                        attempt=attempt,
+                        max_attempts=GEMINI_UPLOAD_MAX_RETRIES,
+                        retry_in_seconds=delay,
+                        error=str(e),
+                    )
+                    time.sleep(delay)
+                    continue
                 logger.error(
                     "Failed to upload file to Gemini File Search Store",
-                    error=err_str,
+                    error=str(e),
                     file_path=file_path,
+                    attempt=attempt,
+                    transient=transient,
                 )
                 raise
-        except Exception as e:
-            logger.error(
-                "Failed to upload file to Gemini File Search Store",
-                error=str(e),
-                file_path=file_path,
-            )
-            raise
 
         operation_id = getattr(operation, 'name', '') or ''
 
@@ -396,6 +441,46 @@ class GeminiFileSearchClient:
             'gemini_document_id': document_name,
             'gemini_store_id': self.store_name,
         }
+
+    def _upload_to_file_search_store(self, file_path: str, upload_config: Dict[str, Any]):
+        """One upload attempt, with graceful fallback for older SDKs.
+
+        Older google-genai versions may not accept ``custom_metadata`` or
+        ``chunking_config`` in the upload config (raising ``TypeError``). We drop
+        whichever key the SDK complained about and retry once within this single
+        attempt, so the upload still succeeds. ``upload_config`` is mutated in
+        place so dropped keys stay dropped on subsequent transient retries.
+        """
+        try:
+            return self.client.file_search_stores.upload_to_file_search_store(
+                file=file_path,
+                file_search_store_name=self.store_name,
+                config=upload_config,
+            )
+        except TypeError as e:
+            err_str = str(e)
+            dropped = []
+            if 'custom_metadata' in upload_config and 'custom_metadata' in err_str:
+                upload_config.pop('custom_metadata', None)
+                dropped.append('custom_metadata')
+            if 'chunking_config' in upload_config and 'chunking_config' in err_str:
+                upload_config.pop('chunking_config', None)
+                dropped.append('chunking_config')
+
+            if not dropped:
+                raise
+
+            logger.warning(
+                "google-genai SDK rejected upload config keys; retrying without them. "
+                "Upgrade google-genai to enable these features.",
+                dropped_keys=dropped,
+                error=err_str,
+            )
+            return self.client.file_search_stores.upload_to_file_search_store(
+                file=file_path,
+                file_search_store_name=self.store_name,
+                config=upload_config,
+            )
 
     @staticmethod
     def _encode_custom_metadata(custom_metadata):

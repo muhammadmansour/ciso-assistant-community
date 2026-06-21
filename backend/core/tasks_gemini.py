@@ -14,9 +14,17 @@ from contextlib import contextmanager
 
 import structlog
 from huey.contrib.djhuey import task
+from django.utils import timezone
 
 from core.models import FileSearchTable, EvidenceRevision
-from core.gemini_file_search import get_gemini_client
+from core.gemini_file_search import get_gemini_client, GEMINI_INDEX_MAX_WAIT_SECONDS
+
+# A FileSearchTable row left at UPLOADING this long is considered orphaned (the
+# worker was killed mid-upload, e.g. on restart) and becomes retryable instead
+# of blocking re-indexing forever. Defaults to the indexing wait plus a buffer.
+GEMINI_UPLOAD_STALE_SECONDS = int(
+    os.getenv('GEMINI_UPLOAD_STALE_SECONDS', str(GEMINI_INDEX_MAX_WAIT_SECONDS + 600))
+)
 
 
 @contextmanager
@@ -149,15 +157,29 @@ def ensure_evidence_indexed(evidence_revision):
             return base
 
         if fs_row.upload_status == FileSearchTable.UploadStatus.UPLOADING:
-            # Another worker is mid-upload. Re-enqueueing now would race with it
-            # and could double-index.
-            base['status'] = INDEXING_STATUS_UPLOADING
-            return base
+            updated = getattr(fs_row, 'updated_at', None)
+            age = (timezone.now() - updated).total_seconds() if updated else None
+            if age is None or age < GEMINI_UPLOAD_STALE_SECONDS:
+                # A worker is (probably) mid-upload. Re-enqueueing now would race
+                # with it and could double-index.
+                base['status'] = INDEXING_STATUS_UPLOADING
+                return base
+            # Stale: the previous worker died mid-upload (e.g. restart). Treat as
+            # retryable so it doesn't stay stuck forever — fall through to reset.
+            logger.warning(
+                "Stale UPLOADING FileSearchTable row; treating as retryable",
+                revision_id=revision_id,
+                age_seconds=int(age),
+                stale_after_seconds=GEMINI_UPLOAD_STALE_SECONDS,
+            )
 
-    # No row yet, or the row is PENDING / FAILED — kick off (or retry) indexing.
-    # Reset a FAILED row back to PENDING with the previous error cleared so the
-    # UI sees a fresh attempt rather than a stale failure during the re-run.
-    if fs_row is not None and fs_row.upload_status == FileSearchTable.UploadStatus.FAILED:
+    # No row yet, or the row is PENDING / FAILED / stale-UPLOADING — kick off (or
+    # retry) indexing. Reset a FAILED or stale-UPLOADING row back to PENDING with
+    # the previous error cleared so the UI sees a fresh attempt.
+    if fs_row is not None and fs_row.upload_status in (
+        FileSearchTable.UploadStatus.FAILED,
+        FileSearchTable.UploadStatus.UPLOADING,
+    ):
         fs_row.upload_status = FileSearchTable.UploadStatus.PENDING
         fs_row.error_message = None
         fs_row.save(update_fields=['upload_status', 'error_message', 'updated_at'])

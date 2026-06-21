@@ -96,12 +96,30 @@ class Command(BaseCommand):
                             )
                         )
                     elif existing.upload_status == FileSearchTable.UploadStatus.UPLOADING:
-                        skipped += 1
-                        self.stdout.write(
-                            f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                            f"upload in progress"
+                        from django.utils import timezone
+                        from core.tasks_gemini import GEMINI_UPLOAD_STALE_SECONDS
+
+                        age = (
+                            (timezone.now() - existing.updated_at).total_seconds()
+                            if existing.updated_at else None
                         )
-                        continue
+                        if age is not None and age >= GEMINI_UPLOAD_STALE_SECONDS:
+                            # Orphaned by a killed worker — retry instead of
+                            # skipping forever.
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"  [RETRY] {evidence_name} (rev {rev_id[:8]}...) — "
+                                    f"stale upload ({int(age)}s old). Retrying..."
+                                )
+                            )
+                            existing.delete()
+                        else:
+                            skipped += 1
+                            self.stdout.write(
+                                f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"upload in progress"
+                            )
+                            continue
                     elif existing.upload_status == FileSearchTable.UploadStatus.FAILED:
                         self.stdout.write(
                             self.style.WARNING(
