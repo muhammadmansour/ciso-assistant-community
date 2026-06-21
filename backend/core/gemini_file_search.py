@@ -45,6 +45,151 @@ GEMINI_HTTP_TIMEOUT_MS = int(os.getenv('GEMINI_HTTP_TIMEOUT_MS', '600000'))
 # the host (must include the Huey worker process — see start-pm2.sh).
 GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '1800'))
 
+# Conditional chunking for Gemini File Search indexing.
+#
+# Gemini chunks/embeds/indexes server-side; the only knob we have is the
+# ``chunking_config`` passed at upload time. We pick one of two profiles based
+# on document length. Small documents are usually structured/clause-based
+# (policies, certificates) and benefit from smaller, more precise chunks; large
+# documents are usually long-form narrative (reports, manuals) and benefit from
+# larger, more coherent chunks.
+#
+# Routing:
+#   * PDFs: route on the real page count (via pypdf) against
+#     GEMINI_CHUNK_PAGE_THRESHOLD (default 50 pages).
+#   * Everything else (docx/xlsx/csv/txt/images), or a PDF we can't parse, or
+#     when pypdf is unavailable: fall back to a file-size proxy against
+#     GEMINI_CHUNK_SIZE_THRESHOLD_BYTES (default ~2 MB).
+#
+# Profiles:
+#   * below threshold -> small profile (512 / 100)
+#   * at/above        -> large profile (1024 / 150)
+#
+# All values are env-tunable. Set a *_MAX_TOKENS value to 0 to disable that
+# profile and fall back to Gemini's automatic chunking.
+GEMINI_CHUNK_PAGE_THRESHOLD = int(os.getenv('GEMINI_CHUNK_PAGE_THRESHOLD', '50'))
+GEMINI_CHUNK_SIZE_THRESHOLD_BYTES = int(os.getenv('GEMINI_CHUNK_SIZE_THRESHOLD_BYTES', '2000000'))
+GEMINI_CHUNK_SMALL_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_MAX_TOKENS', '512'))
+GEMINI_CHUNK_SMALL_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_OVERLAP_TOKENS', '100'))
+GEMINI_CHUNK_LARGE_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_MAX_TOKENS', '1024'))
+GEMINI_CHUNK_LARGE_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_OVERLAP_TOKENS', '150'))
+
+
+def _count_pdf_pages(file_path: str) -> Optional[int]:
+    """Return the PDF page count, or ``None`` when it can't be determined.
+
+    Returns ``None`` (so the caller falls back to the file-size proxy) when the
+    file is not a PDF, ``pypdf`` is not installed, the PDF is encrypted/corrupt,
+    or any parse error occurs. Never raises.
+    """
+    try:
+        with open(file_path, 'rb') as fh:
+            header = fh.read(5)
+    except OSError as exc:
+        logger.warning(
+            "Could not read file header for page count; using file-size proxy",
+            file_path=file_path,
+            error=str(exc),
+        )
+        return None
+
+    # Detect PDFs by magic bytes rather than extension — the upload tempfile may
+    # not carry a reliable suffix, and we never want to mis-parse a non-PDF.
+    if not header.startswith(b'%PDF'):
+        return None
+
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        logger.info(
+            "pypdf not installed; using file-size proxy for chunking. "
+            "Install pypdf to route PDFs by page count."
+        )
+        return None
+
+    try:
+        reader = PdfReader(file_path)
+        page_count = len(reader.pages)
+    except Exception as exc:  # noqa: BLE001 — never fail an upload over page counting
+        logger.warning(
+            "Could not read PDF page count; using file-size proxy",
+            file_path=file_path,
+            error=str(exc),
+        )
+        return None
+
+    return page_count if page_count > 0 else None
+
+
+def _build_chunking_config(file_path: str) -> Optional[Dict[str, Any]]:
+    """Pick a Gemini ``chunking_config`` based on the document's length.
+
+    For PDFs we route on the real page count (``pypdf``) against
+    ``GEMINI_CHUNK_PAGE_THRESHOLD``. For everything else — or when a PDF can't be
+    parsed / ``pypdf`` is missing — we fall back to a file-size proxy against
+    ``GEMINI_CHUNK_SIZE_THRESHOLD_BYTES``. Returns the
+    ``{'white_space_config': {...}}`` mapping expected by
+    ``upload_to_file_search_store``, or ``None`` when the selected profile's
+    ``max_tokens`` is ``0``/unset (falls back to Gemini's automatic chunking).
+    Never raises — on any error it returns ``None`` so the upload proceeds with
+    default chunking.
+    """
+    page_count = _count_pdf_pages(file_path)
+
+    if page_count is not None:
+        is_large = page_count >= GEMINI_CHUNK_PAGE_THRESHOLD
+        basis = {"routed_by": "pages", "page_count": page_count, "page_threshold": GEMINI_CHUNK_PAGE_THRESHOLD}
+    else:
+        try:
+            size_bytes = os.path.getsize(file_path)
+        except OSError as exc:
+            logger.warning(
+                "Could not stat file for chunking config; using Gemini default chunking",
+                file_path=file_path,
+                error=str(exc),
+            )
+            return None
+        is_large = size_bytes >= GEMINI_CHUNK_SIZE_THRESHOLD_BYTES
+        basis = {"routed_by": "size", "size_bytes": size_bytes, "threshold_bytes": GEMINI_CHUNK_SIZE_THRESHOLD_BYTES}
+
+    if is_large:
+        profile = "large"
+        max_tokens = GEMINI_CHUNK_LARGE_MAX_TOKENS
+        overlap_tokens = GEMINI_CHUNK_LARGE_OVERLAP_TOKENS
+    else:
+        profile = "small"
+        max_tokens = GEMINI_CHUNK_SMALL_MAX_TOKENS
+        overlap_tokens = GEMINI_CHUNK_SMALL_OVERLAP_TOKENS
+
+    if not max_tokens or max_tokens <= 0:
+        logger.info(
+            "Chunking profile disabled; using Gemini automatic chunking",
+            profile=profile,
+            **basis,
+        )
+        return None
+
+    # Overlap must be strictly smaller than the window; clamp defensively so a
+    # misconfigured env can't produce an invalid request.
+    if overlap_tokens < 0:
+        overlap_tokens = 0
+    if overlap_tokens >= max_tokens:
+        overlap_tokens = max(0, max_tokens // 5)
+
+    logger.info(
+        "Selected Gemini chunking profile",
+        profile=profile,
+        max_tokens_per_chunk=max_tokens,
+        max_overlap_tokens=overlap_tokens,
+        **basis,
+    )
+    return {
+        'white_space_config': {
+            'max_tokens_per_chunk': max_tokens,
+            'max_overlap_tokens': overlap_tokens,
+        }
+    }
+
 
 class GeminiFileSearchClient:
     """Client for interacting with Gemini Files API"""
@@ -116,6 +261,10 @@ class GeminiFileSearchClient:
         if encoded_metadata:
             upload_config['custom_metadata'] = encoded_metadata
 
+        chunking_config = _build_chunking_config(file_path)
+        if chunking_config:
+            upload_config['chunking_config'] = chunking_config
+
         try:
             logger.info(
                 "Uploading file to Gemini File Search Store",
@@ -123,6 +272,7 @@ class GeminiFileSearchClient:
                 display_name=display_name,
                 store_name=self.store_name,
                 custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
+                chunking_config=chunking_config,
             )
             operation = self.client.file_search_stores.upload_to_file_search_store(
                 file=file_path,
@@ -130,16 +280,26 @@ class GeminiFileSearchClient:
                 config=upload_config,
             )
         except TypeError as e:
-            # Older google-genai versions may not accept ``custom_metadata`` in
-            # the upload config. Retry once without metadata so the upload
-            # still succeeds; the operator gets a clear log line to upgrade.
-            if encoded_metadata and 'custom_metadata' in str(e):
-                logger.warning(
-                    "google-genai SDK rejected custom_metadata; retrying without it. "
-                    "Upgrade google-genai to enable per-document metadata filtering.",
-                    error=str(e),
-                )
+            # Older google-genai versions may not accept ``custom_metadata`` or
+            # ``chunking_config`` in the upload config. Drop whichever key the
+            # SDK complained about and retry once so the upload still succeeds;
+            # the operator gets a clear log line to upgrade.
+            err_str = str(e)
+            dropped = []
+            if 'custom_metadata' in upload_config and 'custom_metadata' in err_str:
                 upload_config.pop('custom_metadata', None)
+                dropped.append('custom_metadata')
+            if 'chunking_config' in upload_config and 'chunking_config' in err_str:
+                upload_config.pop('chunking_config', None)
+                dropped.append('chunking_config')
+
+            if dropped:
+                logger.warning(
+                    "google-genai SDK rejected upload config keys; retrying without them. "
+                    "Upgrade google-genai to enable these features.",
+                    dropped_keys=dropped,
+                    error=err_str,
+                )
                 operation = self.client.file_search_stores.upload_to_file_search_store(
                     file=file_path,
                     file_search_store_name=self.store_name,
@@ -148,7 +308,7 @@ class GeminiFileSearchClient:
             else:
                 logger.error(
                     "Failed to upload file to Gemini File Search Store",
-                    error=str(e),
+                    error=err_str,
                     file_path=file_path,
                 )
                 raise

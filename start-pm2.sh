@@ -83,6 +83,18 @@ GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
 # Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
+# Conditional chunking for File Search indexing (huey worker). PDFs route on
+# real page count (pypdf) vs GEMINI_CHUNK_PAGE_THRESHOLD; other types (or PDFs we
+# can't parse) fall back to a file-size proxy vs GEMINI_CHUNK_SIZE_THRESHOLD_BYTES.
+# Documents at/above the threshold use the "large" profile, smaller ones the
+# "small" profile. Defaults match the code; override only to tune. Set a
+# *_MAX_TOKENS to 0 to fall back to Gemini's automatic chunking.
+GEMINI_CHUNK_PAGE_THRESHOLD="${GEMINI_CHUNK_PAGE_THRESHOLD:-50}"
+GEMINI_CHUNK_SIZE_THRESHOLD_BYTES="${GEMINI_CHUNK_SIZE_THRESHOLD_BYTES:-2000000}"
+GEMINI_CHUNK_SMALL_MAX_TOKENS="${GEMINI_CHUNK_SMALL_MAX_TOKENS:-512}"
+GEMINI_CHUNK_SMALL_OVERLAP_TOKENS="${GEMINI_CHUNK_SMALL_OVERLAP_TOKENS:-100}"
+GEMINI_CHUNK_LARGE_MAX_TOKENS="${GEMINI_CHUNK_LARGE_MAX_TOKENS:-1024}"
+GEMINI_CHUNK_LARGE_OVERLAP_TOKENS="${GEMINI_CHUNK_LARGE_OVERLAP_TOKENS:-150}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbah.dev/api/audit/analyze}"
 
 # PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
@@ -157,6 +169,7 @@ else
     echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set — evidences cannot be indexed.${NC}"
 fi
 echo -e "${GREEN}Gemini indexing max wait: ${GEMINI_INDEX_MAX_WAIT_SECONDS}s (Huey + backend PM2 env)${NC}"
+echo -e "${GREEN}Gemini chunking: PDFs <${GEMINI_CHUNK_PAGE_THRESHOLD}p (else <${GEMINI_CHUNK_SIZE_THRESHOLD_BYTES}B) -> ${GEMINI_CHUNK_SMALL_MAX_TOKENS}/${GEMINI_CHUNK_SMALL_OVERLAP_TOKENS}, larger -> ${GEMINI_CHUNK_LARGE_MAX_TOKENS}/${GEMINI_CHUNK_LARGE_OVERLAP_TOKENS} (tok/overlap)${NC}"
 echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
 echo -e "${GREEN}CISO_ASSISTANT_URL: ${CISO_ASSISTANT_URL}${NC}"
 
@@ -207,6 +220,12 @@ module.exports = {
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
         GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
+        GEMINI_CHUNK_PAGE_THRESHOLD: '${GEMINI_CHUNK_PAGE_THRESHOLD}',
+        GEMINI_CHUNK_SIZE_THRESHOLD_BYTES: '${GEMINI_CHUNK_SIZE_THRESHOLD_BYTES}',
+        GEMINI_CHUNK_SMALL_MAX_TOKENS: '${GEMINI_CHUNK_SMALL_MAX_TOKENS}',
+        GEMINI_CHUNK_SMALL_OVERLAP_TOKENS: '${GEMINI_CHUNK_SMALL_OVERLAP_TOKENS}',
+        GEMINI_CHUNK_LARGE_MAX_TOKENS: '${GEMINI_CHUNK_LARGE_MAX_TOKENS}',
+        GEMINI_CHUNK_LARGE_OVERLAP_TOKENS: '${GEMINI_CHUNK_LARGE_OVERLAP_TOKENS}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
@@ -244,6 +263,12 @@ module.exports = {
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
         GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
+        GEMINI_CHUNK_PAGE_THRESHOLD: '${GEMINI_CHUNK_PAGE_THRESHOLD}',
+        GEMINI_CHUNK_SIZE_THRESHOLD_BYTES: '${GEMINI_CHUNK_SIZE_THRESHOLD_BYTES}',
+        GEMINI_CHUNK_SMALL_MAX_TOKENS: '${GEMINI_CHUNK_SMALL_MAX_TOKENS}',
+        GEMINI_CHUNK_SMALL_OVERLAP_TOKENS: '${GEMINI_CHUNK_SMALL_OVERLAP_TOKENS}',
+        GEMINI_CHUNK_LARGE_MAX_TOKENS: '${GEMINI_CHUNK_LARGE_MAX_TOKENS}',
+        GEMINI_CHUNK_LARGE_OVERLAP_TOKENS: '${GEMINI_CHUNK_LARGE_OVERLAP_TOKENS}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
