@@ -1884,6 +1884,8 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
             if fs is not None:
                 return {
                     'gemini_document_id': fs.gemini_document_id,
+                    'gemini_document_ids': fs.all_document_ids(),
+                    'chunk_count': fs.chunk_count,
                     'gemini_store_id': fs.gemini_store_id,
                     'upload_status': fs.upload_status,
                     'updated_at': fs.updated_at.isoformat() if fs.updated_at else None,

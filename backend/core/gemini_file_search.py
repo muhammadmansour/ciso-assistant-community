@@ -9,6 +9,7 @@ grounded ``fileSearch`` tool against these documents.
 """
 
 import os
+import tempfile
 import time
 import structlog
 from typing import Optional, Dict, Any, List
@@ -74,6 +75,25 @@ GEMINI_MAX_CHUNK_TOKENS_LIMIT = 512
 
 GEMINI_CHUNK_PAGE_THRESHOLD = int(os.getenv('GEMINI_CHUNK_PAGE_THRESHOLD', '50'))
 GEMINI_CHUNK_SIZE_THRESHOLD_BYTES = int(os.getenv('GEMINI_CHUNK_SIZE_THRESHOLD_BYTES', '2000000'))
+
+# Document splitting for very large PDFs.
+#
+# ``chunking_config`` above only controls how the *extracted text* is sliced into
+# embedding chunks — it does NOT change how many pages Gemini ingests from a
+# single uploaded document. Very large PDFs (hundreds/thousands of pages) can be
+# only partially ingested, so deep pages never become retrievable. To guarantee
+# full coverage we physically split a large PDF into overlapping page-range
+# sub-PDFs and upload each as its own document into the SAME File Search store,
+# all tagged with the same evidence_revision_id. Retrieval (metadataFilter) then
+# spans every chunk transparently — querying is unchanged.
+#
+#   * GEMINI_SPLIT_PAGE_LIMIT   max pages per chunk (0 disables splitting)
+#   * GEMINI_SPLIT_PAGE_OVERLAP pages duplicated between adjacent chunks so
+#                               content that straddles a boundary is never cut
+#
+# Only PDFs are split (we need a page model); other file types upload whole.
+GEMINI_SPLIT_PAGE_LIMIT = int(os.getenv('GEMINI_SPLIT_PAGE_LIMIT', '100'))
+GEMINI_SPLIT_PAGE_OVERLAP = int(os.getenv('GEMINI_SPLIT_PAGE_OVERLAP', '10'))
 GEMINI_CHUNK_SMALL_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_MAX_TOKENS', '512'))
 GEMINI_CHUNK_SMALL_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_OVERLAP_TOKENS', '100'))
 # Large profile is also capped at 512 (the API maximum); larger values are
@@ -246,6 +266,90 @@ def _build_chunking_config(file_path: str) -> Optional[Dict[str, Any]]:
             'max_overlap_tokens': overlap_tokens,
         }
     }
+
+
+def _split_pdf_into_page_ranges(
+    file_path: str,
+    page_limit: int,
+    overlap: int,
+) -> List[Dict[str, Any]]:
+    """Split a PDF into overlapping page-range temp files.
+
+    Returns a list of ``{'path', 'start_page', 'end_page', 'index'}`` (page
+    numbers 1-indexed, inclusive). Returns an empty list — so the caller uploads
+    the file whole — when splitting is not applicable: ``page_limit`` <= 0, the
+    file is not a PDF, ``pypdf`` is missing, the page count is within the limit,
+    or any error occurs. Never raises.
+
+    The caller owns the returned temp files and must delete them.
+    """
+    if page_limit <= 0:
+        return []
+
+    page_count = _count_pdf_pages(file_path)
+    if not page_count or page_count <= page_limit:
+        return []
+
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        logger.info(
+            "pypdf not installed; cannot split large PDF, uploading whole. "
+            "Install pypdf to enable page-range splitting."
+        )
+        return []
+
+    if overlap < 0:
+        overlap = 0
+    if overlap >= page_limit:
+        # Overlap must leave forward progress; clamp to a fifth of the window.
+        overlap = max(0, page_limit // 5)
+    step = page_limit - overlap
+    if step <= 0:
+        step = page_limit
+
+    chunks: List[Dict[str, Any]] = []
+    try:
+        reader = PdfReader(file_path)
+        n = len(reader.pages)
+        start = 0
+        idx = 0
+        while start < n:
+            end = min(start + page_limit, n)
+            writer = PdfWriter()
+            for p in range(start, end):
+                writer.add_page(reader.pages[p])
+            tmp = tempfile.NamedTemporaryFile(
+                prefix='gemini-pdf-chunk-', suffix='.pdf', delete=False
+            )
+            tmp_path = tmp.name
+            tmp.close()
+            with open(tmp_path, 'wb') as fh:
+                writer.write(fh)
+            chunks.append({
+                'path': tmp_path,
+                'start_page': start + 1,
+                'end_page': end,
+                'index': idx,
+            })
+            idx += 1
+            if end >= n:
+                break
+            start += step
+    except Exception as exc:  # noqa: BLE001 — never fail an upload over splitting
+        logger.warning(
+            "Failed to split PDF into page ranges; will upload whole file",
+            file_path=file_path,
+            error=str(exc),
+        )
+        for c in chunks:
+            try:
+                os.unlink(c['path'])
+            except OSError:
+                pass
+        return []
+
+    return chunks
 
 
 class GeminiFileSearchClient:
@@ -442,6 +546,126 @@ class GeminiFileSearchClient:
             'gemini_store_id': self.store_name,
         }
 
+    def upload_evidence_file_and_wait(
+        self,
+        file_path: str,
+        display_name: str,
+        custom_metadata: Optional[Dict[str, Any]] = None,
+        max_wait_seconds: int = GEMINI_INDEX_MAX_WAIT_SECONDS,
+        poll_interval: int = 3,
+    ) -> Dict[str, Any]:
+        """Upload a file, splitting very large PDFs into overlapping page chunks.
+
+        A large PDF is split into overlapping page-range sub-PDFs; each is
+        uploaded as its own document into the **same** store, all carrying the
+        **same** ``custom_metadata`` (notably ``evidence_revision_id``). Retrieval
+        via ``metadataFilter`` therefore spans every chunk — the split is purely
+        an upload-time detail, querying is unchanged. Non-PDFs and small PDFs are
+        uploaded whole (identical to ``upload_to_store_and_wait``).
+
+        Returns an aggregate dict:
+            * status: 'completed' (all chunks indexed) | 'failed' | 'timeout'
+            * gemini_document_ids: list of durable document names
+            * gemini_document_id: first durable name (backward compat)
+            * gemini_store_id: the store name
+            * chunk_count: number of chunks (1 = uploaded whole)
+            * documents: per-chunk [{page_range, index, status, gemini_document_id}]
+            * operation_id / error: as applicable
+        """
+        chunks = _split_pdf_into_page_ranges(
+            file_path, GEMINI_SPLIT_PAGE_LIMIT, GEMINI_SPLIT_PAGE_OVERLAP
+        )
+
+        # No split needed → single whole-file upload (unchanged behaviour), but
+        # normalize the result to the aggregate shape.
+        if not chunks:
+            result = self.upload_to_store_and_wait(
+                file_path, display_name, custom_metadata,
+                max_wait_seconds, poll_interval,
+            )
+            doc_id = (
+                result.get('gemini_document_id', '')
+                if result.get('status') == 'completed' else ''
+            )
+            result['chunk_count'] = 1 if doc_id else 0
+            result['gemini_document_ids'] = [doc_id] if doc_id else []
+            return result
+
+        logger.info(
+            "Splitting large PDF for File Search upload",
+            file_path=file_path,
+            total_chunks=len(chunks),
+            page_limit=GEMINI_SPLIT_PAGE_LIMIT,
+            page_overlap=GEMINI_SPLIT_PAGE_OVERLAP,
+        )
+
+        documents: List[Dict[str, Any]] = []
+        doc_ids: List[str] = []
+        failed: Optional[Dict[str, Any]] = None
+        try:
+            for c in chunks:
+                page_range = f"{c['start_page']}-{c['end_page']}"
+                chunk_meta = dict(custom_metadata or {})
+                chunk_meta['chunk_index'] = str(c['index'])
+                chunk_meta['page_range'] = page_range
+                chunk_display = f"{display_name} [pages {page_range}]"
+
+                res = self.upload_to_store_and_wait(
+                    c['path'], chunk_display, chunk_meta,
+                    max_wait_seconds, poll_interval,
+                )
+                documents.append({
+                    'page_range': page_range,
+                    'index': c['index'],
+                    'status': res.get('status'),
+                    'gemini_document_id': res.get('gemini_document_id', ''),
+                })
+                if res.get('status') == 'completed' and res.get('gemini_document_id'):
+                    doc_ids.append(res['gemini_document_id'])
+                else:
+                    failed = res
+                    break  # stop on first failing chunk
+        finally:
+            for c in chunks:
+                try:
+                    os.unlink(c['path'])
+                except OSError:
+                    pass
+
+        if failed is not None:
+            # Roll back the chunks that DID index so a retry starts clean and we
+            # never leave a half-indexed document set behind.
+            if doc_ids:
+                self.delete_store_documents(doc_ids)
+            failed_range = documents[-1]['page_range'] if documents else '?'
+            return {
+                'status': failed.get('status', 'failed'),
+                'gemini_document_ids': [],
+                'gemini_document_id': '',
+                'gemini_store_id': self.store_name,
+                'chunk_count': len(chunks),
+                'documents': documents,
+                'error': (
+                    f"chunk {len(doc_ids) + 1}/{len(chunks)} (pages {failed_range}) "
+                    f"failed: {failed.get('error', 'unknown error')}"
+                ),
+            }
+
+        logger.info(
+            "Large PDF fully indexed across chunks",
+            store_name=self.store_name,
+            chunk_count=len(chunks),
+            document_count=len(doc_ids),
+        )
+        return {
+            'status': 'completed',
+            'gemini_document_ids': doc_ids,
+            'gemini_document_id': doc_ids[0] if doc_ids else '',
+            'gemini_store_id': self.store_name,
+            'chunk_count': len(chunks),
+            'documents': documents,
+        }
+
     def _upload_to_file_search_store(self, file_path: str, upload_config: Dict[str, Any]):
         """One upload attempt, with graceful fallback for older SDKs.
 
@@ -568,6 +792,18 @@ class GeminiFileSearchClient:
                 error=str(e),
             )
             return False
+
+    def delete_store_documents(self, document_names: List[str]) -> int:
+        """Best-effort deletion of several File Search Store documents.
+
+        Returns the count successfully deleted. Used to clean up every chunk of a
+        split upload (e.g. on revision delete or to roll back a partial upload).
+        """
+        deleted = 0
+        for name in document_names or []:
+            if self.delete_store_document(name):
+                deleted += 1
+        return deleted
 
 
 def list_gemini_file_search_stores_metadata(

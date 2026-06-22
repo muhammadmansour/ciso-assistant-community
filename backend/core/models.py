@@ -4048,8 +4048,32 @@ class FileSearchTable(models.Model):
         default="",
         verbose_name=_("Gemini Store Document ID"),
         help_text=_(
-            "File Search Store document name "
-            "(fileSearchStores/<store>/documents/<doc-id>). Durable — does not expire."
+            "Primary File Search Store document name "
+            "(fileSearchStores/<store>/documents/<doc-id>). Durable — does not expire. "
+            "For a split (multi-chunk) upload this is the first chunk; the full set "
+            "is in gemini_document_ids."
+        ),
+    )
+
+    gemini_document_ids = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("Gemini Store Document IDs"),
+        help_text=_(
+            "All File Search Store document names for this revision. A large PDF is "
+            "split into overlapping page-range chunks at upload time and each chunk "
+            "becomes its own document in the SAME store, all tagged with the same "
+            "evidence_revision_id so retrieval (metadataFilter) spans every chunk. "
+            "A non-split upload stores a single id here."
+        ),
+    )
+
+    chunk_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Chunk Count"),
+        help_text=_(
+            "Number of File Search documents this revision was split into "
+            "(1 = uploaded whole, no splitting)."
         ),
     )
 
@@ -4091,11 +4115,46 @@ class FileSearchTable(models.Model):
     def __str__(self):
         return f"FileSearch for {self.evidence_revision.evidence.name} - {self.upload_status}"
 
+    def all_document_ids(self) -> list:
+        """Every durable File Search document name recorded for this revision.
+
+        Prefers the multi-chunk ``gemini_document_ids`` list and falls back to the
+        legacy single ``gemini_document_id`` so old rows keep working. Duplicates
+        are removed while preserving order, and only well-formed store document
+        names are returned.
+        """
+        candidates = []
+        if isinstance(self.gemini_document_ids, list):
+            candidates.extend(self.gemini_document_ids)
+        if self.gemini_document_id:
+            candidates.append(self.gemini_document_id)
+
+        seen = set()
+        out = []
+        for doc in candidates:
+            if not isinstance(doc, str):
+                continue
+            if not doc.startswith("fileSearchStores/"):
+                continue
+            if doc in seen:
+                continue
+            seen.add(doc)
+            out.append(doc)
+        return out
+
     def has_durable_document(self) -> bool:
-        """True when an indexed File Search Store document is recorded."""
-        return bool(
-            self.gemini_document_id
-            and self.gemini_document_id.startswith("fileSearchStores/")
+        """True when at least one indexed File Search Store document is recorded."""
+        return bool(self.all_document_ids())
+
+    def is_indexed(self) -> bool:
+        """True only when indexing fully succeeded (status COMPLETED + docs present).
+
+        Distinct from ``has_durable_document`` so a partially-failed split upload
+        (some chunks indexed, status FAILED) is not mistaken for a finished one.
+        """
+        return (
+            self.upload_status == self.UploadStatus.COMPLETED
+            and self.has_durable_document()
         )
 
 

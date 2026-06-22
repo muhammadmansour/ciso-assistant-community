@@ -50,16 +50,21 @@ def run_applied_control_analysis(applied_control_id: str):
             for revision in evidence.revisions.all():
                 try:
                     fs = getattr(revision, 'file_search', None)
-                    if fs and fs.has_durable_document():
+                    if fs and fs.is_indexed():
+                        # A large PDF is split into multiple chunk documents in
+                        # the same store, all sharing this evidence_revision_id.
+                        doc_ids = fs.all_document_ids()
                         gemini_documents.append({
-                            'gemini_document_id': fs.gemini_document_id,
+                            'gemini_document_id': doc_ids[0] if doc_ids else '',
+                            # All chunk documents for this revision.
+                            'gemini_document_ids': doc_ids,
                             'gemini_store_id': fs.gemini_store_id,
                             'evidence_name': evidence.name,
                             # Stable upload identifiers tagged on the indexed
-                            # document at upload time (see tasks_gemini.
+                            # document(s) at upload time (see tasks_gemini.
                             # _build_evidence_custom_metadata). Muraji uses
-                            # evidence_revision_id to build a metadataFilter
-                            # so retrieval is restricted to these documents.
+                            # evidence_revision_id to build a metadataFilter so
+                            # retrieval spans every chunk of this revision.
                             'evidence_revision_id': str(revision.id),
                             'evidence_id': str(evidence.id),
                         })
@@ -126,7 +131,13 @@ def run_applied_control_analysis(applied_control_id: str):
             },
             'evidences': evidence_data,
             'gemini_file_search': {
-                'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+                # Flattened list of every chunk document across all evidences.
+                'document_ids': [
+                    doc_id
+                    for d in gemini_documents
+                    for doc_id in (d.get('gemini_document_ids') or [d['gemini_document_id']])
+                    if doc_id
+                ],
                 'evidences': gemini_documents,
             } if gemini_documents else None,
             'requirements': requirements_context,

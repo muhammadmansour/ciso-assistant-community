@@ -152,7 +152,7 @@ def ensure_evidence_indexed(evidence_revision):
         base['gemini_store_id'] = fs_row.gemini_store_id or ''
         base['error_message'] = fs_row.error_message or None
 
-        if fs_row.has_durable_document():
+        if fs_row.is_indexed():
             base['status'] = INDEXING_STATUS_COMPLETED
             return base
 
@@ -228,7 +228,7 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             },
         )
 
-        if not created and file_search.has_durable_document():
+        if not created and file_search.is_indexed():
             logger.info(
                 "Evidence already indexed in File Search Store",
                 revision_id=evidence_revision_id,
@@ -260,8 +260,18 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             file_search.save()
             return
 
+        # If a previous (partial/failed) attempt left documents in the store,
+        # remove them first so we never accumulate orphans or duplicate a chunk
+        # set across retries.
+        stale_docs = file_search.all_document_ids()
+        if stale_docs:
+            client.delete_store_documents(stale_docs)
+
         file_search.upload_status = FileSearchTable.UploadStatus.UPLOADING
         file_search.error_message = None
+        file_search.gemini_document_id = ''
+        file_search.gemini_document_ids = []
+        file_search.chunk_count = 0
         file_search.save()
 
         logger.info(
@@ -274,18 +284,24 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
 
         # Stream from the configured storage backend into a tempfile. This
         # works for local FS, GCS, S3, etc — ``revision.attachment.path``
-        # would raise NotImplementedError on cloud backends.
+        # would raise NotImplementedError on cloud backends. Large PDFs are split
+        # into overlapping page-range chunks (same store, same evidence_revision_id).
         custom_metadata = _build_evidence_custom_metadata(revision)
 
         with _materialize_attachment(revision.attachment) as file_path:
-            result = client.upload_to_store_and_wait(
+            result = client.upload_evidence_file_and_wait(
                 file_path=file_path,
                 display_name=display_name,
                 custom_metadata=custom_metadata,
             )
 
         if result['status'] == 'completed':
-            file_search.gemini_document_id = result.get('gemini_document_id', '')
+            doc_ids = result.get('gemini_document_ids') or (
+                [result['gemini_document_id']] if result.get('gemini_document_id') else []
+            )
+            file_search.gemini_document_ids = doc_ids
+            file_search.gemini_document_id = doc_ids[0] if doc_ids else ''
+            file_search.chunk_count = result.get('chunk_count', len(doc_ids))
             file_search.gemini_store_id = result.get('gemini_store_id', '')
             file_search.operation_id = result.get('operation_id', '') or file_search.operation_id
             file_search.upload_status = FileSearchTable.UploadStatus.COMPLETED
@@ -296,6 +312,7 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
                 "Gemini File Search Store upload completed",
                 revision_id=evidence_revision_id,
                 gemini_document_id=file_search.gemini_document_id,
+                chunk_count=file_search.chunk_count,
                 evidence_name=revision.evidence.name,
             )
         else:
