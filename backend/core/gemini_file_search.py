@@ -132,6 +132,14 @@ _TRANSIENT_UPLOAD_ERROR_MARKERS = (
     'connection aborted',
     'broken pipe',
     'eof occurred',
+    # Resumable upload sessions can be GC'd between the init POST (which
+    # returns 200 with an upload_id) and the follow-up data POST; the data
+    # POST then 404s on the session even though the file/store are fine.
+    # A retry opens a fresh session and recovers, so treat as transient.
+    '404',
+    'not_found',
+    'not found',
+    'requested entity was not found',
 )
 
 
@@ -610,10 +618,26 @@ class GeminiFileSearchClient:
                 chunk_meta['page_range'] = page_range
                 chunk_display = f"{display_name} [pages {page_range}]"
 
-                res = self.upload_to_store_and_wait(
-                    c['path'], chunk_display, chunk_meta,
-                    max_wait_seconds, poll_interval,
-                )
+                # Catch exceptions per-chunk so a hard failure on chunk N still
+                # lets us roll back chunks 0..N-1 (instead of crashing out with
+                # them left as orphans in the store).
+                try:
+                    res = self.upload_to_store_and_wait(
+                        c['path'], chunk_display, chunk_meta,
+                        max_wait_seconds, poll_interval,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "Chunk upload raised; will roll back successful chunks",
+                        chunk_index=c['index'],
+                        page_range=page_range,
+                        error=str(exc),
+                    )
+                    res = {
+                        'status': 'failed',
+                        'error': f'{type(exc).__name__}: {exc}',
+                    }
+
                 documents.append({
                     'page_range': page_range,
                     'index': c['index'],
