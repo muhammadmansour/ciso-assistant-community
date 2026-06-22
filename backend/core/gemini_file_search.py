@@ -776,13 +776,27 @@ class GeminiFileSearchClient:
 
         Returns True on success, False on any failure (logged). Never raises —
         deletion is a cleanup operation, not a critical path.
+
+        Indexed documents in a File Search Store are "non-empty" (they contain
+        Chunks), and Gemini returns ``400 FAILED_PRECONDITION: Cannot delete
+        non-empty Document`` unless ``force=true`` is set. We pass ``force=True``
+        so cleanup of indexed documents actually succeeds; on older SDK versions
+        that don't accept the ``config`` kwarg we transparently fall back.
         """
         if not document_name or not document_name.startswith('fileSearchStores/'):
             return False
         if not self.client:
             return False
         try:
-            self.client.file_search_stores.documents.delete(name=document_name)
+            try:
+                self.client.file_search_stores.documents.delete(
+                    name=document_name, config={'force': True}
+                )
+            except TypeError:
+                # Older google-genai SDKs don't accept ``config`` here; fall
+                # back to the no-flag call (will 400 on indexed docs but lets
+                # us still clean up empty ones, e.g. a failed-mid-upload row).
+                self.client.file_search_stores.documents.delete(name=document_name)
             logger.info("Deleted File Search Store document", document_name=document_name)
             return True
         except Exception as e:
