@@ -32,7 +32,7 @@ import time
 from django.core.management.base import BaseCommand, CommandError
 
 from core.gemini_file_search import GEMINI_ENABLED, get_gemini_client
-from core.models import EvidenceRevision, FileSearchTable
+from core.models import Evidence, EvidenceRevision, FileSearchTable
 from core.tasks_gemini import (
     _build_evidence_custom_metadata,
     _materialize_attachment,
@@ -50,7 +50,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "revision_id",
             type=str,
-            help="UUID of the EvidenceRevision to index.",
+            help=(
+                "UUID of the EvidenceRevision to index. You may also pass an "
+                "Evidence UUID (e.g. the id from /evidences/<id>) and the latest "
+                "revision with an attachment is selected automatically."
+            ),
         )
         parser.add_argument(
             "--reset",
@@ -108,14 +112,42 @@ class Command(BaseCommand):
         )
 
         # 2. Load revision ---------------------------------------------------
+        # Accept either an EvidenceRevision id or an Evidence id (the id shown in
+        # the /evidences/<id> URL). If it's not a revision, resolve it as an
+        # Evidence and pick the latest revision that has an attachment.
         try:
             revision = EvidenceRevision.objects.select_related("evidence").get(
                 id=revision_id
             )
-        except EvidenceRevision.DoesNotExist:
-            raise CommandError(f"EvidenceRevision {revision_id} not found.")
         except ValueError as exc:
-            raise CommandError(f"Invalid revision UUID '{revision_id}': {exc}")
+            raise CommandError(f"Invalid UUID '{revision_id}': {exc}")
+        except EvidenceRevision.DoesNotExist:
+            try:
+                evidence = Evidence.objects.get(id=revision_id)
+            except (Evidence.DoesNotExist, ValueError):
+                raise CommandError(
+                    f"No EvidenceRevision or Evidence found with id {revision_id}."
+                )
+
+            revision = (
+                evidence.revisions.filter(attachment__isnull=False)
+                .exclude(attachment="")
+                .order_by("-version")
+                .select_related("evidence")
+                .first()
+            )
+            if revision is None:
+                raise CommandError(
+                    f"Evidence '{evidence.name}' ({revision_id}) has no revision "
+                    "with an attachment to index."
+                )
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Resolved Evidence {revision_id} -> latest revision with a "
+                    f"file: {revision.id} (v{revision.version})"
+                )
+            )
+            revision_id = str(revision.id)
 
         if not revision.attachment:
             raise CommandError(
