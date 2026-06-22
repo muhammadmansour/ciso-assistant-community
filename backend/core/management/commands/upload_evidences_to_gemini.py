@@ -289,14 +289,24 @@ class Command(BaseCommand):
                         self.stdout.write(f"          - {d[:80]}")
 
                     if fs.is_indexed():
-                        gemini_documents.append({
-                            'gemini_document_id': doc_ids[0] if doc_ids else '',
-                            'gemini_document_ids': doc_ids,
-                            'gemini_store_id': fs.gemini_store_id,
-                            'evidence_name': evidence.name,
-                            'evidence_revision_id': str(revision.id),
-                            'evidence_id': str(evidence.id),
-                        })
+                        # Match the runtime analysis payload: one entry per
+                        # chunk document. See tasks_applied_control_analysis.py
+                        # for the rationale.
+                        n = len(doc_ids)
+                        for i, doc_id in enumerate(doc_ids, start=1):
+                            entry_name = (
+                                f"{evidence.name} [chunk {i}/{n}]"
+                                if n > 1 else evidence.name
+                            )
+                            gemini_documents.append({
+                                'gemini_document_id': doc_id,
+                                'gemini_store_id': fs.gemini_store_id,
+                                'evidence_name': entry_name,
+                                'evidence_revision_id': str(revision.id),
+                                'evidence_id': str(evidence.id),
+                                'chunk_index': i if n > 1 else None,
+                                'chunk_count': n if n > 1 else None,
+                            })
 
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(f"RESULT: Would send {len(gemini_documents)} indexed document(s) to Muraji")
