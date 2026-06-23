@@ -12,7 +12,7 @@ import os
 import tempfile
 import time
 import structlog
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -561,6 +561,7 @@ class GeminiFileSearchClient:
         custom_metadata: Optional[Dict[str, Any]] = None,
         max_wait_seconds: int = GEMINI_INDEX_MAX_WAIT_SECONDS,
         poll_interval: int = 3,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """Upload a file, splitting very large PDFs into overlapping page chunks.
 
@@ -570,6 +571,13 @@ class GeminiFileSearchClient:
         via ``metadataFilter`` therefore spans every chunk — the split is purely
         an upload-time detail, querying is unchanged. Non-PDFs and small PDFs are
         uploaded whole (identical to ``upload_to_store_and_wait``).
+
+        ``progress_callback`` is invoked after every successful chunk with a
+        dict of ``{chunk_index, page_range, completed_chunks, total_chunks,
+        gemini_document_id}``. It is the caller's chance to surface live
+        progress (e.g. bump ``FileSearchTable.chunk_count``) without waiting
+        for the whole document to finish indexing. Exceptions raised by the
+        callback are logged and swallowed — they never abort the upload.
 
         Returns an aggregate dict:
             * status: 'completed' (all chunks indexed) | 'failed' | 'timeout'
@@ -646,6 +654,27 @@ class GeminiFileSearchClient:
                 })
                 if res.get('status') == 'completed' and res.get('gemini_document_id'):
                     doc_ids.append(res['gemini_document_id'])
+
+                    # Surface live progress (e.g. bump FileSearchTable.chunk_count)
+                    # so the UI sees 1/N, 2/N, ... instead of staring at 0/N for
+                    # 20 minutes. Callback exceptions are non-fatal: we have a
+                    # successful indexed chunk in the store either way.
+                    if progress_callback is not None:
+                        try:
+                            progress_callback({
+                                'chunk_index': c['index'],
+                                'page_range': page_range,
+                                'completed_chunks': len(doc_ids),
+                                'total_chunks': len(chunks),
+                                'gemini_document_id': res['gemini_document_id'],
+                            })
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning(
+                                "progress_callback raised; continuing upload",
+                                chunk_index=c['index'],
+                                page_range=page_range,
+                                error=str(exc),
+                            )
                 else:
                     failed = res
                     break  # stop on first failing chunk

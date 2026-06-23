@@ -298,7 +298,11 @@ module.exports = {
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
-      max_memory_restart: '500M',
+      // Raised from 500M because pypdf splitting + Gemini upload buffers on
+      // 1000+ page PDFs blew past the old cap and got SIGKILL'd by PM2
+      // mid-upload, leaving FileSearchTable rows wedged at 'uploading' until
+      // the 40-min stale-detector kicked in.
+      max_memory_restart: '2G',
       error_file: './logs/dev-huey-error.log',
       out_file: './logs/dev-huey-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
