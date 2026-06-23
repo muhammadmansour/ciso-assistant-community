@@ -2,6 +2,9 @@
 	import { run } from 'svelte/legacy';
 
 	import { formFieldProxy, fileProxy } from 'sveltekit-superforms';
+	import { getToastStore } from '$lib/components/Toast/stores';
+	import { getPdfPageCount, isPdfFile } from '$lib/utils/pdfPageCount';
+	import { m } from '$paraglide/messages';
 
 	interface Props {
 		class?: string;
@@ -12,6 +15,13 @@
 		allowPaste?: boolean;
 		resetSignal?: boolean; // Reset the form value if set to true
 		allowedExtensions: string[] | '*';
+		/**
+		 * Maximum allowed page count for PDF uploads. When set and the user
+		 * picks a PDF whose page count exceeds this value, the file is
+		 * cleared from the input and a toast is shown. `undefined` disables
+		 * the check.
+		 */
+		maxPdfPages?: number;
 		[key: string]: any;
 	}
 
@@ -24,12 +34,14 @@
 		allowPaste = false,
 		resetSignal = false,
 		allowedExtensions,
+		maxPdfPages = undefined,
 		...rest
 	}: Props = $props();
 
 	const { errors, constraints } = formFieldProxy(form, field);
 	let value = fileProxy(form, field);
 	let fileInput: null | HTMLInputElement = $state(null);
+	const toastStore = getToastStore();
 
 	let classesTextField = $derived((errors: string[] | undefined) => (errors ? 'input-error' : ''));
 
@@ -61,7 +73,41 @@
 		}-${date.getFullYear()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}_${date.getMilliseconds()}.${extension}`;
 	}
 
-	function onPaste(event: ClipboardEvent) {
+	function clearSelection() {
+		if (fileInput) fileInput.value = '';
+		const dataTransfer = new DataTransfer();
+		$value = dataTransfer.files; // Empty FileList
+	}
+
+	/**
+	 * Soft-check PDF page count against `maxPdfPages`. The backend stays the
+	 * source of truth — this is only for UX (catch oversize files before the
+	 * upload). On parse failure we keep the file (`null` page count) and let
+	 * the server-side validation decide.
+	 */
+	async function enforcePdfPageLimit(file: File): Promise<boolean> {
+		if (maxPdfPages === undefined || !isPdfFile(file)) return true;
+		const pages = await getPdfPageCount(file);
+		if (pages === null) return true;
+		if (pages <= maxPdfPages) return true;
+
+		clearSelection();
+		toastStore.trigger({
+			message: m.pdfPageLimitExceeded({ pages, max: maxPdfPages }),
+			background: 'variant-filled-error',
+			timeout: 8000
+		});
+		return false;
+	}
+
+	async function onChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		await enforcePdfPageLimit(file);
+	}
+
+	async function onPaste(event: ClipboardEvent) {
 		if (!allowPaste || fileInput === null) return;
 		const items = event.clipboardData?.items;
 		if (!items) return;
@@ -73,6 +119,12 @@
 				if (filename === null) continue;
 
 				const file = new File([blob], filename, { type: blob.type });
+
+				if (!(await enforcePdfPageLimit(file))) {
+					event.preventDefault();
+					break;
+				}
+
 				const dataTransfer = new DataTransfer();
 				dataTransfer.items.add(file);
 				fileInput.files = dataTransfer.files; // It seems to work fine even with the superforms fileProxy.
@@ -125,6 +177,7 @@
 			placeholder=""
 			bind:files={$value}
 			bind:this={fileInput}
+			onchange={onChange}
 			accept={allowedExtensions === '*'
 				? null
 				: Array.from(allowedExtensions)
