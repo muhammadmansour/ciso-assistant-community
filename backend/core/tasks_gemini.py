@@ -11,6 +11,7 @@ import os
 import shutil
 import tempfile
 from contextlib import contextmanager
+from typing import Any, Dict
 
 import structlog
 from huey.contrib.djhuey import task
@@ -202,12 +203,19 @@ def ensure_evidence_indexed(evidence_revision):
     return base
 
 
-@task()
+@task(retries=2, retry_delay=30)
 def upload_evidence_to_gemini(evidence_revision_id: str):
     """Upload an evidence file to the Gemini File Search Store.
 
     Idempotent: if a durable ``gemini_document_id`` already exists for the
     revision, the task is a no-op.
+
+    ``retries=2`` (with a 30-second backoff) is a safety net for transient
+    failures only — PM2 OOM-kills, Gemini 5xx, network blips, Huey worker
+    restarts mid-flight. The task is already idempotent: stale documents from
+    a previous attempt are cleared in ``delete_store_documents`` before each
+    re-upload, so retries can never produce duplicate indexed chunks in the
+    File Search Store.
     """
     try:
         revision = EvidenceRevision.objects.get(id=evidence_revision_id)
@@ -288,11 +296,34 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
         # into overlapping page-range chunks (same store, same evidence_revision_id).
         custom_metadata = _build_evidence_custom_metadata(revision)
 
+        # Live progress: bump chunk_count after every successful chunk so
+        # `watch_evidence_indexing` and the UI move from 0/N to N/N instead
+        # of jumping at the very end. We deliberately do NOT write document
+        # ids here — the upload still rolls them back on a later-chunk
+        # failure, and a partial doc_id list would lie about what's indexed.
+        # ``updated_at`` is bumped at the same time so the stale-detector in
+        # ``ensure_evidence_indexed`` correctly treats a slow-but-progressing
+        # multi-hour upload as still alive (instead of orphaning it at the
+        # 40-minute mark).
+        def _bump_progress(progress: Dict[str, Any]) -> None:
+            try:
+                FileSearchTable.objects.filter(pk=file_search.pk).update(
+                    chunk_count=progress['completed_chunks'],
+                    updated_at=timezone.now(),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to persist chunk progress; non-fatal",
+                    revision_id=evidence_revision_id,
+                    error=str(exc),
+                )
+
         with _materialize_attachment(revision.attachment) as file_path:
             result = client.upload_evidence_file_and_wait(
                 file_path=file_path,
                 display_name=display_name,
                 custom_metadata=custom_metadata,
+                progress_callback=_bump_progress,
             )
 
         if result['status'] == 'completed':
