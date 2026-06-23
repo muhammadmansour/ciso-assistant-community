@@ -574,6 +574,7 @@
 	"attachmentHelpText": "نص توضيحي للمرفقات",
 	"attachmentWarningText": "تحذير: تحميل ملف جديد سيكتب فوق الملف الحالي",
 	"attachmentRequired": "مرفق الملف مطلوب للأدلة",
+	"pdfPageLimitExceeded": "يحتوي هذا الملف على {pages} صفحة، وهو ما يتجاوز الحد المسموح به وهو {max} صفحة. يرجى رفع ملف أصغر.",
 	"evidenceToRequirement": "ربط الدليل بالمتطلب",
 	"evidenceToAppliedControl": "ربط الدليل بالإجراء",
 	"fileUploadFailed": "فشل تحميل الملف. يرجى المحاولة مرة أخرى.",

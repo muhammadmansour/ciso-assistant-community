@@ -9,6 +9,7 @@
 	import { onMount } from 'svelte';
 	import { m } from '$paraglide/messages';
 	import { safeTranslate } from '$lib/utils/i18n';
+	import { PDF_MAX_PAGES } from '$lib/utils/constants';
 
 	interface Props {
 		form: SuperValidated<any>;
@@ -96,6 +97,7 @@
 		field="attachment"
 		label={m.attachment()}
 		allowedExtensions={'*'}
+		maxPdfPages={PDF_MAX_PAGES}
 	/>
 {/if}
 <AutocompleteSelect

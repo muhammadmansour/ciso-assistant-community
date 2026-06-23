@@ -7,6 +7,7 @@
 	import type { ModelInfo, CacheLock } from '$lib/utils/types';
 	import { m } from '$paraglide/messages';
 	import NumberField from '../NumberField.svelte';
+	import { PDF_MAX_PAGES } from '$lib/utils/constants';
 
 	interface Props {
 		form: SuperValidated<any>;
@@ -64,6 +65,7 @@
 	field="attachment"
 	label={m.attachment()}
 	allowedExtensions={'*'}
+	maxPdfPages={PDF_MAX_PAGES}
 />
 <!-- {#if !(initialData.applied_controls || initialData.requirement_assessments || initialData.evidence)}
 	<AutocompleteSelect
