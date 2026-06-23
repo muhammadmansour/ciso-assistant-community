@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { run } from 'svelte/legacy';
+	import { getContext } from 'svelte';
 
 	import { formFieldProxy, fileProxy } from 'sveltekit-superforms';
 	import { getToastStore } from '$lib/components/Toast/stores';
@@ -44,6 +45,15 @@
 	let pdfValidating = $state(false);
 	const toastStore = getToastStore();
 
+	// Wired up by ``ModelForm.svelte``. ``updatePdfValidating`` lets the parent
+	// disable its Save/Add button while validation is in flight (prevents the
+	// user from racing past the client-side PDF page-count check).
+	// ``requestModalClose`` is null when this input lives on a plain page
+	// instead of inside a modal — guard with optional chaining.
+	const updatePdfValidating =
+		getContext<((validating: boolean) => void) | undefined>('updatePdfValidating');
+	const requestModalClose = getContext<(() => void) | null>('requestModalClose');
+
 	let classesTextField = $derived((errors: string[] | undefined) => (errors ? 'input-error' : ''));
 
 	function getShortenPreciseType(preciseType: string): string {
@@ -81,6 +91,28 @@
 	}
 
 	/**
+	 * Reject the selected PDF: clear the input, close the surrounding modal
+	 * (if any) so the toast isn't competing with a modal for attention, then
+	 * trigger the toast on the next microtask. The microtask deferral matters
+	 * because Skeleton's modal-close starts a transition that briefly leaves
+	 * the modal in the DOM; firing the toast synchronously can race with the
+	 * close animation and visually leave the toast under the fading modal.
+	 */
+	function rejectPdf(message: string) {
+		clearSelection();
+		if (requestModalClose) {
+			requestModalClose();
+		}
+		setTimeout(() => {
+			toastStore.trigger({
+				message,
+				background: 'preset-filled-error-500',
+				timeout: 8000
+			});
+		}, 0);
+	}
+
+	/**
 	 * Check PDF page count against `maxPdfPages`. Fails *closed*: if the
 	 * page count cannot be determined (pdf-lib bundle missing, encrypted
 	 * file, malformed PDF, etc.) we clear the selection and show a toast
@@ -90,29 +122,21 @@
 	async function enforcePdfPageLimit(file: File): Promise<boolean> {
 		if (maxPdfPages === undefined || !isPdfFile(file)) return true;
 		pdfValidating = true;
+		updatePdfValidating?.(true);
 		try {
 			const pages = await getPdfPageCount(file);
 			if (pages === null) {
 				console.warn('[FileInput] PDF page count could not be determined; blocking upload.');
-				clearSelection();
-				toastStore.trigger({
-					message: m.pdfPageLimitUnknown(),
-					background: 'variant-filled-error',
-					timeout: 8000
-				});
+				rejectPdf(m.pdfPageLimitUnknown());
 				return false;
 			}
 			if (pages <= maxPdfPages) return true;
 
-			clearSelection();
-			toastStore.trigger({
-				message: m.pdfPageLimitExceeded({ pages, max: maxPdfPages }),
-				background: 'variant-filled-error',
-				timeout: 8000
-			});
+			rejectPdf(m.pdfPageLimitExceeded({ pages, max: maxPdfPages }));
 			return false;
 		} finally {
 			pdfValidating = false;
+			updatePdfValidating?.(false);
 		}
 	}
 
@@ -204,7 +228,17 @@
 		/>
 	</div>
 	{#if pdfValidating}
-		<p class="text-sm text-gray-500">{m.pdfValidating()}</p>
+		<div
+			class="mt-1 flex items-center gap-2 text-sm text-primary-600"
+			role="status"
+			aria-live="polite"
+		>
+			<span
+				class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+				aria-hidden="true"
+			></span>
+			<span>{m.pdfValidating()}</span>
+		</div>
 	{:else if helpText}
 		<p class="text-sm text-gray-500">{helpText}</p>
 	{/if}
