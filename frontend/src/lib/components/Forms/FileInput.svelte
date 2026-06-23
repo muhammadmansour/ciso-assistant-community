@@ -41,6 +41,7 @@
 	const { errors, constraints } = formFieldProxy(form, field);
 	let value = fileProxy(form, field);
 	let fileInput: null | HTMLInputElement = $state(null);
+	let pdfValidating = $state(false);
 	const toastStore = getToastStore();
 
 	let classesTextField = $derived((errors: string[] | undefined) => (errors ? 'input-error' : ''));
@@ -80,24 +81,39 @@
 	}
 
 	/**
-	 * Soft-check PDF page count against `maxPdfPages`. The backend stays the
-	 * source of truth — this is only for UX (catch oversize files before the
-	 * upload). On parse failure we keep the file (`null` page count) and let
-	 * the server-side validation decide.
+	 * Check PDF page count against `maxPdfPages`. Fails *closed*: if the
+	 * page count cannot be determined (pdf-lib bundle missing, encrypted
+	 * file, malformed PDF, etc.) we clear the selection and show a toast
+	 * rather than silently let an oversized file through. The backend is
+	 * the final authority — this is only here to give fast UX feedback.
 	 */
 	async function enforcePdfPageLimit(file: File): Promise<boolean> {
 		if (maxPdfPages === undefined || !isPdfFile(file)) return true;
-		const pages = await getPdfPageCount(file);
-		if (pages === null) return true;
-		if (pages <= maxPdfPages) return true;
+		pdfValidating = true;
+		try {
+			const pages = await getPdfPageCount(file);
+			if (pages === null) {
+				console.warn('[FileInput] PDF page count could not be determined; blocking upload.');
+				clearSelection();
+				toastStore.trigger({
+					message: m.pdfPageLimitUnknown(),
+					background: 'variant-filled-error',
+					timeout: 8000
+				});
+				return false;
+			}
+			if (pages <= maxPdfPages) return true;
 
-		clearSelection();
-		toastStore.trigger({
-			message: m.pdfPageLimitExceeded({ pages, max: maxPdfPages }),
-			background: 'variant-filled-error',
-			timeout: 8000
-		});
-		return false;
+			clearSelection();
+			toastStore.trigger({
+				message: m.pdfPageLimitExceeded({ pages, max: maxPdfPages }),
+				background: 'variant-filled-error',
+				timeout: 8000
+			});
+			return false;
+		} finally {
+			pdfValidating = false;
+		}
 	}
 
 	async function onChange(event: Event) {
@@ -187,7 +203,9 @@
 			{...rest}
 		/>
 	</div>
-	{#if helpText}
+	{#if pdfValidating}
+		<p class="text-sm text-gray-500">{m.pdfValidating()}</p>
+	{:else if helpText}
 		<p class="text-sm text-gray-500">{helpText}</p>
 	{/if}
 </div>

@@ -575,6 +575,8 @@
 	"attachmentWarningText": "تحذير: تحميل ملف جديد سيكتب فوق الملف الحالي",
 	"attachmentRequired": "مرفق الملف مطلوب للأدلة",
 	"pdfPageLimitExceeded": "يحتوي هذا الملف على {pages} صفحة، وهو ما يتجاوز الحد المسموح به وهو {max} صفحة. يرجى رفع ملف أصغر.",
+	"pdfPageLimitUnknown": "تعذر تحديد عدد صفحات ملف PDF. يرجى إعادة تصدير الملف والمحاولة مرة أخرى.",
+	"pdfValidating": "جارٍ التحقق من ملف PDF…",
 	"evidenceToRequirement": "ربط الدليل بالمتطلب",
 	"evidenceToAppliedControl": "ربط الدليل بالإجراء",
 	"fileUploadFailed": "فشل تحميل الملف. يرجى المحاولة مرة أخرى.",

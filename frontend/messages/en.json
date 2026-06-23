@@ -710,6 +710,8 @@
 	"attachmentWarningText": "WARNING: Uploading a new file will overwrite the existing one",
 	"attachmentRequired": "A file attachment is required for evidence",
 	"pdfPageLimitExceeded": "This PDF has {pages} pages, which exceeds the {max}-page limit. Please upload a smaller file.",
+	"pdfPageLimitUnknown": "Could not determine the PDF page count. Please re-export the file and try again.",
+	"pdfValidating": "Validating PDF…",
 	"evidenceToRequirement": "Evidence to Requirement",
 	"evidenceToAppliedControl": "Evidence to Applied Control",
 	"fileUploadFailed": "File upload failed. Please try again.",
