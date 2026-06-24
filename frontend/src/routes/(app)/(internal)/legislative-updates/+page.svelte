@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { m } from '$paraglide/messages';
+	import { WATHBAH_ADMIN_CONSOLE_URL } from '$lib/utils/constants';
 	import type { PageData } from './$types';
 	import type { LegislativeUpdate } from './+page.server';
 
@@ -222,7 +223,7 @@
 				<p class="text-xs text-amber-700/80 mt-1 font-mono break-all">{data.upstreamUrl}</p>
 			</div>
 			<a
-				href="https://grc-admin.wathbah.dev/"
+				href={WATHBAH_ADMIN_CONSOLE_URL}
 				target="_blank"
 				rel="noopener noreferrer"
 				class="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-lg"

@@ -90,7 +90,11 @@ export const actions: Actions = {
 		return { status: 200 };
 	},
 	fetchMuraji: async (event) => {
-		const MURAJI_API_URL = 'https://muraji-api.wathbah.dev/api/libraries';
+		const MURAJI_API_BASE_URL = (
+			process.env.MURAJI_API_BASE_URL || 'https://muraji-api.wathbah.dev'
+		).replace(/\/$/, '');
+		const MURAJI_API_URL =
+			process.env.MURAJI_LIBRARIES_API_URL || `${MURAJI_API_BASE_URL}/api/libraries`;
 		console.log(`[fetchMuraji] syncing libraries from ${MURAJI_API_URL}`);
 
 		try {

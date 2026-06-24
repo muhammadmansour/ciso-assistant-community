@@ -4278,10 +4278,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             }
         }
 
-        muraji_url = os.environ.get(
-            'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbah.dev/api/audit/analyze'
-        )
+        muraji_url = settings.MURAJI_ANALYSIS_API_URL
 
         from core.models import AiAnalysisResult
 
@@ -10445,10 +10442,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         if additional_prompt:
             request_body['additional_prompt'] = additional_prompt
 
-        muraji_url = os.environ.get(
-            'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbah.dev/api/audit/analyze'
-        )
+        muraji_url = settings.MURAJI_ANALYSIS_API_URL
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
         print(f"[RA-AI-ANALYSIS] Questions: {questions}")

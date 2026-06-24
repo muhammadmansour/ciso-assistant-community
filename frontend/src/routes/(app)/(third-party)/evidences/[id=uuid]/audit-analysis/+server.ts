@@ -2,7 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { BASE_API_URL } from '$lib/utils/constants';
 
-const AUDIT_ANALYSIS_API_URL = 'https://muraji-api.wathbah.dev/api/audit/analyze';
+// `||` (not `??`) so an empty-string env var — which PM2 happily exports
+// when the bash variable is unset — still triggers the fallback derivation.
+const MURAJI_API_BASE_URL = (
+	process.env.MURAJI_API_BASE_URL || 'https://muraji-api.wathbah.dev'
+).replace(/\/$/, '');
+const AUDIT_ANALYSIS_API_URL =
+	process.env.MURAJI_ANALYSIS_API_URL || `${MURAJI_API_BASE_URL}/api/audit/analyze`;
 
 export const POST: RequestHandler = async ({ params, request, fetch }) => {
 	const evidenceId = params.id;

@@ -165,12 +165,21 @@ export type LegislativeUpdate = {
 
 export type UpstreamStatus = 'ok' | 'unauthorized' | 'error';
 
+// `||` (not `??`) so an empty-string env var — which PM2 happily exports
+// when the bash variable is unset — still triggers the fallback. Per-env
+// setup typically only needs to set GRC_ADMIN_BASE_URL; the full endpoint
+// URL is derived from it. Set LEGISLATIVE_UPDATES_API_URL explicitly only
+// when the path layout diverges from the standard /api/ai-tools/... shape.
+const GRC_ADMIN_BASE_URL = (
+	process.env.GRC_ADMIN_BASE_URL || 'https://grc-admin.wathbah.dev'
+).replace(/\/$/, '');
+
 export const LEGISLATIVE_UPDATES_API_URL =
-	process.env.LEGISLATIVE_UPDATES_API_URL ??
-	'https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates';
+	process.env.LEGISLATIVE_UPDATES_API_URL ||
+	`${GRC_ADMIN_BASE_URL}/api/ai-tools/pipeline-legislative-updates`;
 
 export const LEGISLATIVE_UPDATE_DETAIL_API_URL =
-	process.env.LEGISLATIVE_UPDATE_DETAIL_API_URL ?? LEGISLATIVE_UPDATES_API_URL;
+	process.env.LEGISLATIVE_UPDATE_DETAIL_API_URL || LEGISLATIVE_UPDATES_API_URL;
 
 /**
  * The new endpoint always returns `{ items: [...] }`. We still accept a

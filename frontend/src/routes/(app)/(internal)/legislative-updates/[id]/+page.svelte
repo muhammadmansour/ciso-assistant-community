@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { m } from '$paraglide/messages';
+	import { WATHBAH_ADMIN_CONSOLE_URL } from '$lib/utils/constants';
 	import type { PageData } from './$types';
 	import type {
 		LegislativeUpdate,
@@ -356,7 +357,7 @@
 					{m.backToLegislativeUpdates()}
 				</a>
 				<a
-					href="https://grc-admin.wathbah.dev/"
+					href={WATHBAH_ADMIN_CONSOLE_URL}
 					target="_blank"
 					rel="noopener noreferrer"
 					class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-primary"

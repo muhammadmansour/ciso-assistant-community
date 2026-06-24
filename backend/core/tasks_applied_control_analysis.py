@@ -4,18 +4,15 @@ Applied Control AI Analysis using Muraji API
 
 import structlog
 from huey.contrib.djhuey import task
+from django.conf import settings
 from django.utils import timezone
 import requests
-import os
 
 from core.models import AppliedControl
 
 logger = structlog.get_logger(__name__)
 
-MURAJI_ANALYSIS_API_URL = os.getenv(
-    'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-api.wathbah.dev/api/audit/analyze'
-)
+MURAJI_ANALYSIS_API_URL = settings.MURAJI_ANALYSIS_API_URL
 
 
 @task()
