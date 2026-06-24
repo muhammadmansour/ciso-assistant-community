@@ -1492,7 +1492,12 @@ def send_task_template_assignment_notification(task_template_id, emails):
 def send_compliance_assessment_assignment_notification(
     assessment_id, assigned_user_emails
 ):
-    """Send notification when ComplianceAssessment is assigned to users"""
+    """Notify newly-assigned ComplianceAssessment authors with a branded email.
+
+    Uses the same Wathbah-branded HTML layout (`_deliver_assignment_email`) as
+    every other assignment notification, and sends the full audit deep link
+    (`/compliance-assessments/<id>`) rather than just the host.
+    """
     if not assigned_user_emails:
         return
 
@@ -1504,30 +1509,48 @@ def send_compliance_assessment_assignment_notification(
         logger.error(f"ComplianceAssessment with id {assessment_id} not found")
         return
 
-    from .email_utils import render_email_template
+    assessment_url = _assignment_url(f"compliance-assessments/{assessment.id}")
+    framework_name = (
+        assessment.framework.name if assessment.framework else "No framework"
+    )
+    folder_name = assessment.folder.name if assessment.folder else "Default"
+    assessment_due_date = (
+        assessment.due_date.strftime("%Y-%m-%d") if assessment.due_date else "Not set"
+    )
 
     context = {
+        "assessment_id": str(assessment.id),
         "assessment_name": assessment.name,
         "assessment_description": assessment.description or "No description provided",
         "assessment_ref_id": assessment.ref_id or "N/A",
-        "framework_name": assessment.framework.name
-        if assessment.framework
-        else "No framework",
+        "framework_name": framework_name,
         "assessment_status": assessment.get_status_display(),
         "assessment_version": assessment.version or "1.0",
-        "assessment_due_date": assessment.due_date.strftime("%Y-%m-%d")
-        if assessment.due_date
-        else "Not set",
-        "folder_name": assessment.folder.name if assessment.folder else "Default",
+        "assessment_due_date": assessment_due_date,
+        "folder_name": folder_name,
+        "assessment_url": assessment_url,
     }
+
+    detail_specs = [
+        ("name_label", assessment.name),
+        ("description_label", assessment.description or ""),
+        ("ref_id_label", assessment.ref_id or ""),
+        ("framework_label", framework_name),
+        ("status_label", context["assessment_status"]),
+        ("due_date_label", assessment_due_date),
+        ("domain_label", folder_name),
+        ("audit_url_label", assessment_url),
+    ]
 
     for email in assigned_user_emails:
         if email and check_email_configuration(email, [assessment]):
-            rendered = render_email_template(
-                "compliance_assessment_assignment", context
+            _deliver_assignment_email(
+                "compliance_assessment_assignment",
+                context,
+                detail_specs,
+                assessment_url,
+                email,
             )
-            if rendered:
-                send_notification_email(rendered["subject"], rendered["body"], email)
 
 
 @task()

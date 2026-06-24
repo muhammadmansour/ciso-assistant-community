@@ -1,17 +1,32 @@
 subject: "Wathbah GRC: You have been assigned to '${assessment_name}'"
+intro: "You have been assigned as an author on the following Audit."
+action: "Open the audit in Wathbah GRC to manage its scope, evidences and reviewers."
+details_heading: "Audit details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+framework_label: "Framework"
+status_label: "Status"
+due_date_label: "Due date"
+domain_label: "Domain"
+audit_url_label: "Audit link"
+cta_label: "Open audit"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
-  You have been assigned as an author to the following Audit:
+  You have been assigned as an author on the following Audit:
 
   - Name: ${assessment_name}
   - Description: ${assessment_description}
+  - Reference ID: ${assessment_ref_id}
   - Framework: ${framework_name}
   - Status: ${assessment_status}
-  - Due Date: ${assessment_due_date}
+  - Due date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Log in to your Wathbah GRC portal to view and manage this audit:
-  ${ciso_assistant_url}
+  Open the audit in Wathbah GRC:
+  ${assessment_url}
 
   Thank you.

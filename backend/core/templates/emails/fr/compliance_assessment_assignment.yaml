@@ -1,4 +1,18 @@
-subject: "Wathbah GRC: Vous avez été affecté à '${assessment_name}'"
+subject: "Wathbah GRC : vous avez été affecté à « ${assessment_name} »"
+intro: "Vous avez été désigné comme auteur sur l'audit suivant."
+action: "Ouvrez l'audit dans Wathbah GRC pour gérer son périmètre, ses preuves et ses relecteurs."
+details_heading: "Détails de l'audit"
+name_label: "Nom"
+description_label: "Description"
+ref_id_label: "ID de référence"
+framework_label: "Référentiel"
+status_label: "Statut"
+due_date_label: "Date d'échéance"
+domain_label: "Domaine"
+audit_url_label: "Lien de l'audit"
+cta_label: "Ouvrir l'audit"
+greeting: "Bonjour,"
+closing: "Merci."
 body: |
   Bonjour,
 
@@ -7,12 +21,12 @@ body: |
   - Nom : ${assessment_name}
   - Description : ${assessment_description}
   - ID de référence : ${assessment_ref_id}
-  - Framework : ${framework_name}
+  - Référentiel : ${framework_name}
   - Statut : ${assessment_status}
   - Date d'échéance : ${assessment_due_date}
   - Domaine : ${folder_name}
 
-  Connectez-vous à votre portail Wathbah GRC pour consulter et gérer cet audit :
-  ${ciso_assistant_url}
+  Ouvrez l'audit dans Wathbah GRC :
+  ${assessment_url}
 
   Merci.
