@@ -1,0 +1,31 @@
+subject: "Wathbah GRC: Applied control '${control_name}' has reached its ETA"
+intro: "An applied control assigned to you has reached its ETA while still in progress."
+action: "Open the control in Wathbah GRC to move it forward or update its ETA."
+details_heading: "Control details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+status_label: "Status"
+priority_label: "Priority"
+eta_label: "ETA"
+domain_label: "Domain"
+cta_label: "Open control"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  An applied control assigned to you has reached its ETA while still in progress:
+
+  - Name: ${control_name}
+  - Description: ${control_description}
+  - Reference ID: ${control_ref_id}
+  - Status: ${control_status}
+  - Priority: ${control_priority}
+  - ETA: ${control_eta}
+  - Domain: ${folder_name}
+
+  Open the control in Wathbah GRC:
+  ${ciso_assistant_url}/applied-controls/${control_id}
+
+  Thank you.

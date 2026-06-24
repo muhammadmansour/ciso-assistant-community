@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 
 MURAJI_ANALYSIS_API_URL = os.getenv(
     'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-stage.wathbahs.com/api/audit/analyze'
+    'https://muraji-api.wathbah.dev/api/audit/analyze'
 )
 
 
@@ -50,18 +50,37 @@ def run_applied_control_analysis(applied_control_id: str):
             for revision in evidence.revisions.all():
                 try:
                     fs = getattr(revision, 'file_search', None)
-                    if fs and fs.has_durable_document():
+                    if not fs or not fs.is_indexed():
+                        continue
+                    # A large PDF is split into multiple chunk documents in the
+                    # same store, all sharing this evidence_id so metadataFilter
+                    # retrieval treats them as one logical evidence. We emit ONE
+                    # entry per chunk because Muraji's prompt template lists each
+                    # entry's gemini_document_id by name and instructs the model
+                    # to issue at least one File Search query *for each* listed
+                    # document. If we collapsed the chunks into a single entry,
+                    # the model would only query chunk 1 and miss everything
+                    # past the first ~100 pages.
+                    doc_ids = fs.all_document_ids()
+                    n = len(doc_ids)
+                    for i, doc_id in enumerate(doc_ids, start=1):
+                        entry_name = (
+                            f"{evidence.name} [chunk {i}/{n}]"
+                            if n > 1 else evidence.name
+                        )
                         gemini_documents.append({
-                            'gemini_document_id': fs.gemini_document_id,
+                            'gemini_document_id': doc_id,
                             'gemini_store_id': fs.gemini_store_id,
-                            'evidence_name': evidence.name,
-                            # Stable upload identifiers tagged on the indexed
-                            # document at upload time (see tasks_gemini.
-                            # _build_evidence_custom_metadata). Muraji uses
-                            # evidence_revision_id to build a metadataFilter
-                            # so retrieval is restricted to these documents.
+                            'evidence_name': entry_name,
+                            # Stable upload identifiers tagged on every chunk
+                            # (see tasks_gemini._build_evidence_custom_metadata).
+                            # Muraji's metadataFilter uses evidence_id so
+                            # retrieval still spans every chunk regardless of
+                            # how many entries we emit here.
                             'evidence_revision_id': str(revision.id),
                             'evidence_id': str(evidence.id),
+                            'chunk_index': i if n > 1 else None,
+                            'chunk_count': n if n > 1 else None,
                         })
                 except Exception:
                     # FileSearchTable may not exist yet - skip gracefully
@@ -126,6 +145,9 @@ def run_applied_control_analysis(applied_control_id: str):
             },
             'evidences': evidence_data,
             'gemini_file_search': {
+                # Flattened list of every chunk document across all evidences.
+                # gemini_documents now has one entry per chunk, so this is a
+                # simple projection.
                 'document_ids': [d['gemini_document_id'] for d in gemini_documents],
                 'evidences': gemini_documents,
             } if gemini_documents else None,

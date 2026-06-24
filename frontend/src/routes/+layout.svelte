@@ -101,7 +101,14 @@
 </svelte:head>
 <NavigationProgress />
 <Modal components={modalRegistry} />
-<Toast />
+<!--
+  `position="tr"` puts toasts in the top-right (industry convention for
+  alerts) instead of the default bottom-center. `zIndex="z-[9999]"` lifts
+  the toast wrapper above Skeleton's modal/backdrop layer so error toasts
+  fired while a modal is open (e.g. PDF page-limit rejection) are never
+  obscured by the modal itself.
+-->
+<Toast position="tr" zIndex="z-[9999]" />
 {@render children?.()}
 
 {#if $flash}

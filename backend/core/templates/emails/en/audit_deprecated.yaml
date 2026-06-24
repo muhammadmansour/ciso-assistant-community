@@ -1,0 +1,28 @@
+subject: "Wathbah GRC: Audit status changed to Deprecated — '${assessment_name}'"
+intro: "The status of the following Audit has changed and it is no longer active."
+action: "Open the audit for details."
+details_heading: "Audit details"
+status_heading: "Status change"
+name_label: "Name"
+framework_label: "Framework"
+domain_label: "Domain"
+cta_label: "Open audit"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  The status of the following Audit has changed and it is no longer active.
+
+  Audit details
+
+  Name: ${assessment_name}
+  Framework: ${framework_name}
+  Domain: ${folder_name}
+
+  Status change: ${old_status} → ${new_status}
+
+  Open the audit for details:
+  ${assessment_url}
+
+  Thank you.

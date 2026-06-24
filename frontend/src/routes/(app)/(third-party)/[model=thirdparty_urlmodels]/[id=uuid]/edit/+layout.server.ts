@@ -14,6 +14,15 @@ export const load: LayoutServerLoad = async (event) => {
 	const schema = modelSchema(event.params.model);
 	const objectEndpoint = `${BASE_API_URL}/${event.params.model}/${event.params.id}/object/`;
 	const object = await event.fetch(objectEndpoint).then((res) => res.json());
+
+	if (
+		URLModel === 'compliance-assessments' &&
+		(!Array.isArray(object.reviewers) || object.reviewers.length === 0) &&
+		event.locals.user?.actor_id
+	) {
+		object.reviewers = [event.locals.user.actor_id];
+	}
+
 	const form = await superValidate(object, zod(schema), { errors: false });
 	const model = getModelInfo(event.params.model!);
 	const selectFields = model.selectFields;

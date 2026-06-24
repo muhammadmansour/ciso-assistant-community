@@ -1,0 +1,27 @@
+subject: "Wathbah GRC: Audit '${assessment_name}' completion is delayed"
+intro: "An audit you are responsible for has not been completed within 3 days of its due date."
+action: "Open the audit in Wathbah GRC to update its status or hand it over for review."
+details_heading: "Audit details"
+name_label: "Name"
+framework_label: "Framework"
+status_label: "Status"
+due_date_label: "Due date"
+domain_label: "Domain"
+cta_label: "Open audit"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  An audit you are responsible for has not been completed within 3 days of its due date:
+
+  - Name: ${assessment_name}
+  - Framework: ${framework_name}
+  - Status: ${assessment_status}
+  - Due date: ${assessment_due_date}
+  - Domain: ${folder_name}
+
+  Open the audit in Wathbah GRC:
+  ${ciso_assistant_url}/compliance-assessments/${assessment_id}
+
+  Thank you.

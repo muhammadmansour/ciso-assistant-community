@@ -1,0 +1,26 @@
+subject: "Wathbah GRC: Validation '${validation_ref_id}' deadline is today"
+intro: "A validation request awaiting your approval is due today."
+action: "Open the validation in Wathbah GRC to review the linked items and accept, reject, or request changes before the deadline passes."
+details_heading: "Validation details"
+ref_id_label: "Reference"
+requester_label: "Requester"
+deadline_label: "Deadline"
+domain_label: "Domain"
+notes_label: "Request notes"
+cta_label: "Open validation"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  A validation request awaiting your approval is due today:
+
+  - Reference: ${validation_ref_id}
+  - Requester: ${requester_name}
+  - Deadline: ${validation_deadline}
+  - Domain: ${folder_name}
+
+  Open the validation in Wathbah GRC to review and act on it:
+  ${validation_url}
+
+  Thank you.

@@ -16,6 +16,17 @@ export const DEFAULT_LANGUAGE = `${
 
 export const ALLAUTH_API_URL = `${BASE_API_URL}/_allauth/app/v1`;
 
+/**
+ * Maximum number of pages allowed when a user uploads a PDF attachment.
+ * Enforced client-side in `FileInput.svelte` (the backend remains the source
+ * of truth). Override with the `PUBLIC_PDF_MAX_PAGES` env var.
+ */
+export const PDF_MAX_PAGES: number = (() => {
+	const raw = env.PUBLIC_PDF_MAX_PAGES;
+	const parsed = typeof raw === 'string' ? parseInt(raw, 10) : NaN;
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : 950;
+})();
+
 export const BACKEND_API_EXPOSED_URL = `${
 	Object.hasOwn(env, 'PUBLIC_BACKEND_API_EXPOSED_URL')
 		? env.PUBLIC_BACKEND_API_EXPOSED_URL
@@ -51,7 +62,7 @@ export const WATHBAH_ADMIN_CONSOLE_URL =
 	typeof env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL === 'string' &&
 	env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().length > 0
 		? env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().replace(/\/$/, '') + '/'
-		: 'https://grc-admin-stage.wathbahs.com/';
+		: 'https://grc-admin.wathbah.dev/';
 
 export const complianceResultColorMap: { [key: string]: string } = {
 	not_assessed: '#d1d5db',

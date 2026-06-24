@@ -1,0 +1,29 @@
+subject: "Wathbah GRC: Validation '${validation_ref_id}' was revoked"
+intro: "Your validation request was revoked."
+action: "Open the validation in Wathbah GRC to review the events history and any notes from the approver."
+details_heading: "Validation details"
+events_history_heading: "Events history"
+ref_id_label: "Reference"
+approver_label: "Revoked by"
+domain_label: "Domain"
+notes_label: "Notes"
+cta_label: "Open validation"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  Your validation request was revoked:
+
+  - Reference: ${validation_ref_id}
+  - Revoked by: ${approver_name}
+  - Domain: ${folder_name}
+  - Notes: ${request_notes}
+
+  Events history:
+  ${events_history}
+
+  Open the validation in Wathbah GRC:
+  ${validation_url}
+
+  Thank you.

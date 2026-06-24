@@ -1,171 +1,181 @@
-import { BASE_API_URL } from '$lib/utils/constants';
 import type { PageServerLoad } from './$types';
-import type { Perimeter } from '$lib/utils/types';
+import { BASE_API_URL } from '$lib/utils/constants';
 import { m } from '$paraglide/messages';
+import {
+	fetchLegislativeUpdates,
+	type LegislativeUpdate
+} from '$lib/server/legislative-updates';
 
-const REQUIREMENT_ASSESSMENT_STATUS = [
-	'compliant',
-	'partially_compliant',
-	'in_progress',
-	'non_compliant',
-	'not_applicable',
-	'to_do'
-] as const;
+export type { LegislativeUpdate };
 
-interface DonutItem {
+/**
+ * Risk-scenario row used by the Brand-new Dashboard heatmap.
+ */
+export type DashboardRiskScenario = {
+	id: string;
+	name?: string;
+	ref_id?: string;
+	current_proba?: { value?: number; str?: string };
+	current_impact?: { value?: number; str?: string };
+	current_level?: { value?: number; str?: string; hexcolor?: string };
+	residual_proba?: { value?: number; str?: string };
+	residual_impact?: { value?: number; str?: string };
+	residual_level?: { value?: number; str?: string; hexcolor?: string };
+	inherent_proba?: { value?: number; str?: string };
+	inherent_impact?: { value?: number; str?: string };
+	inherent_level?: { value?: number; str?: string; hexcolor?: string };
+	qualifications?: Array<{ id?: string; str?: string } | string>;
+};
+
+export type EntityAssessmentMetric = {
+	entity_assessment_id: string;
+	provider: string;
+	baseline?: string;
+	due_date?: string;
+	last_update?: string;
+	conclusion?: string;
+	completion?: number;
+	review_progress?: number;
+};
+
+export type PolicyOpenFindingsMetric = {
+	policy_id: string;
 	name: string;
-	localName?: string;
-	value: number;
-	itemStyle: Record<string, unknown>;
-}
+	count: number;
+};
 
-interface RequirementAssessmentDonutItem extends Omit<DonutItem, 'name'> {
-	name: (typeof REQUIREMENT_ASSESSMENT_STATUS)[number];
-	percentage: string;
-}
+export type PolicyPosture = {
+	total: number;
+	published_active: number;
+	review_due_90d: number;
+	expired: number;
+	with_open_findings: number;
+	unassigned: number;
+};
 
-interface PerimeterAnalytics extends Perimeter {
-	overallCompliance: {
-		values: RequirementAssessmentDonutItem[];
-		total: number;
-	};
-}
+export type ComplianceFrameworkSummary = {
+	id?: string;
+	name: string;
+	progress: number;
+	score?: number | null;
+	due_date?: string | null;
+	assessmentsCount: number;
+};
 
-export const load: PageServerLoad = async ({ locals, fetch }) => {
-	const perimeters: PerimeterAnalytics[] = await fetch(`${BASE_API_URL}/perimeters/`)
-		.then((res) => res.json())
-		.then(async (perimeters) => {
-			if (perimeters && Array.isArray(perimeters.results)) {
-				const perimeterPromises = perimeters.results.map(async (perimeter) => {
-					try {
-						const complianceAssessmentsResponse = await fetch(
-							`${BASE_API_URL}/compliance-assessments/?perimeter=${perimeter.id}`
-						);
-						const complianceAssessmentsData = await complianceAssessmentsResponse.json();
-
-						if (complianceAssessmentsData && Array.isArray(complianceAssessmentsData.results)) {
-							const updatedAssessmentsPromises = complianceAssessmentsData.results.map(
-								async (complianceAssessment) => {
-									try {
-										const [donutDataResponse, globalScoreResponse] = await Promise.all([
-											fetch(
-												`${BASE_API_URL}/compliance-assessments/${complianceAssessment.id}/donut_data/`
-											),
-											fetch(
-												`${BASE_API_URL}/compliance-assessments/${complianceAssessment.id}/global_score/`
-											)
-										]);
-
-										const [donutData, globalScoreData] = await Promise.all([
-											donutDataResponse.json(),
-											globalScoreResponse.json()
-										]);
-
-										complianceAssessment.donut = donutData;
-										complianceAssessment.globalScore = globalScoreData;
-										return complianceAssessment;
-									} catch (error) {
-										console.error('Error fetching data for compliance assessment:', error);
-										throw error;
-									}
-								}
-							);
-
-							const updatedAssessments = await Promise.all(updatedAssessmentsPromises);
-							perimeter.compliance_assessments = updatedAssessments;
-							return perimeter;
-						} else {
-							throw new Error('Compliance assessments results not found or not an array');
-						}
-					} catch (error) {
-						console.error('Error fetching compliance assessments:', error);
-						throw error;
-					}
-				});
-
-				return Promise.all(perimeterPromises);
-			} else {
-				throw new Error('Perimeters results not found or not an array');
-			}
-		})
-		.catch((error) => {
-			console.error('Failed to load perimeters:', error);
-			return []; // Ensure always returning an array of Record<string, any>
-		});
-
-	if (perimeters) {
-		perimeters.forEach((perimeter) => {
-			// Initialize an object to hold the aggregated donut data
-			const aggregatedDonutData: {
-				values: RequirementAssessmentDonutItem[];
-				total: number;
-			} = {
-				values: [],
-				total: 0
-			};
-
-			// Iterate through each compliance assessment of the perimeter
-			perimeter.compliance_assessments.forEach((compliance_assessment: Record<string, any>) => {
-				// Process the donut data of each assessment
-				compliance_assessment.donut.result.values.forEach(
-					(donutItem: RequirementAssessmentDonutItem) => {
-						// Find the corresponding item in the aggregated data
-						const aggregatedItem: RequirementAssessmentDonutItem | undefined =
-							aggregatedDonutData.values.find((item) => item.name === donutItem.name);
-						if (aggregatedItem) {
-							// If the item already exists, increment its value
-							aggregatedItem.value += donutItem.value;
-						} else {
-							// If it's a new item, add it to the aggregated data
-							aggregatedDonutData.values.push({ ...donutItem });
-						}
-					}
-				);
-			});
-
-			// Calculate the total sum of all values
-			const totalValue = aggregatedDonutData.values.reduce((sum, item) => sum + item.value, 0);
-
-			// Calculate and store the percentage for each item
-			aggregatedDonutData.values = aggregatedDonutData.values.map((item) => ({
-				...item,
-				percentage: totalValue > 0 ? ((item.value / totalValue) * 100).toFixed(1) : '0'
-			}));
-
-			// Assign the aggregated donut data to the perimeter
-			perimeter.overallCompliance = aggregatedDonutData;
-		});
+async function safeJson<T>(p: Promise<Response>, fallback: T): Promise<T> {
+	try {
+		const res = await p;
+		if (!res.ok) return fallback;
+		return (await res.json()) as T;
+	} catch {
+		return fallback;
 	}
+}
 
-	// Evidence status counts. We use page_size=1 and read the paginated `count`
-	// field so we don't transfer the actual rows — three small queries in
-	// parallel give us the totals shown on the recap card.
-	async function fetchEvidenceCount(query: string): Promise<number> {
-		try {
-			const res = await fetch(`${BASE_API_URL}/evidences/?page_size=1${query ? `&${query}` : ''}`);
-			if (!res.ok) return 0;
-			const json = await res.json();
-			return typeof json?.count === 'number' ? json.count : 0;
-		} catch (err) {
-			console.error('Failed to fetch evidence count for', query, err);
-			return 0;
+export const load: PageServerLoad = async (event) => {
+	const { fetch } = event;
+
+	const legislative = await fetchLegislativeUpdates(fetch, event).catch(() => ({
+		items: [] as LegislativeUpdate[],
+		upstreamStatus: 'error' as const
+	}));
+
+	const riskLevels = await safeJson<{
+		results: {
+			current: Array<{ name: string; value: number; color: string }>;
+			residual: Array<{ name: string; value: number; color: string }>;
+			inherent?: Array<{ name: string; value: number; color: string }>;
+		};
+	}>(fetch(`${BASE_API_URL}/risk-scenarios/count_per_level/`), {
+		results: { current: [], residual: [] }
+	});
+
+	const scenarios = await safeJson<{ results: DashboardRiskScenario[]; count?: number }>(
+		fetch(`${BASE_API_URL}/risk-scenarios/?page_size=1000`),
+		{ results: [] }
+	);
+
+	const qualificationsRaw = await safeJson<{
+		results: { labels: string[]; values: number[] };
+	}>(fetch(`${BASE_API_URL}/risk-scenarios/qualifications_count/`), {
+		results: { labels: [], values: [] }
+	});
+	const qualifications = qualificationsRaw.results ?? { labels: [], values: [] };
+
+	const tprmMetrics = await safeJson<EntityAssessmentMetric[]>(
+		fetch(`${BASE_API_URL}/entity-assessments/metrics/`),
+		[]
+	);
+
+	const policyPosture = await safeJson<PolicyPosture>(
+		fetch(`${BASE_API_URL}/policies/posture/`),
+		{
+			total: 0,
+			published_active: 0,
+			review_due_90d: 0,
+			expired: 0,
+			with_open_findings: 0,
+			unassigned: 0
 		}
-	}
+	);
 
-	const [evidenceTotal, evidenceInReview, evidenceApproved] = await Promise.all([
-		fetchEvidenceCount(''),
-		fetchEvidenceCount('status=in_review'),
-		fetchEvidenceCount('status=approved')
-	]);
+	const policyFindings = await safeJson<PolicyOpenFindingsMetric[]>(
+		fetch(`${BASE_API_URL}/policies/findings_metrics/`),
+		[]
+	);
+
+	const complianceList = await safeJson<{
+		results: Array<{
+			id: string;
+			name: string;
+			framework: { id?: string; str?: string } | string;
+			progress?: number;
+			due_date?: string | null;
+		}>;
+	}>(fetch(`${BASE_API_URL}/compliance-assessments/?page_size=500`), { results: [] });
+
+	const frameworks: ComplianceFrameworkSummary[] = (() => {
+		const byFwk = new Map<
+			string,
+			{ id?: string; sum: number; count: number; due?: string | null }
+		>();
+		for (const a of complianceList.results) {
+			const fwkName =
+				typeof a.framework === 'string'
+					? a.framework
+					: (a.framework?.str ?? 'Framework');
+			const fwkId = typeof a.framework === 'object' ? a.framework?.id : undefined;
+			const cur = byFwk.get(fwkName) ?? { id: fwkId, sum: 0, count: 0, due: null };
+			cur.sum += typeof a.progress === 'number' ? a.progress : 0;
+			cur.count += 1;
+			if (a.due_date && (!cur.due || a.due_date < cur.due)) cur.due = a.due_date;
+			byFwk.set(fwkName, cur);
+		}
+		return Array.from(byFwk.entries())
+			.map(([name, v]) => ({
+				id: v.id,
+				name,
+				progress: v.count ? Math.round(v.sum / v.count) : 0,
+				assessmentsCount: v.count,
+				due_date: v.due ?? null
+			}))
+			.sort((a, b) => b.assessmentsCount - a.assessmentsCount)
+			.slice(0, 4);
+	})();
 
 	return {
-		perimeters,
-		evidenceStats: {
-			total: evidenceTotal,
-			inReview: evidenceInReview,
-			approved: evidenceApproved
+		title: m.recap(),
+		legislative: {
+			items: (legislative.items ?? []).slice(0, 5),
+			upstreamError: legislative.upstreamStatus === 'error',
+			upstreamUnauthorized: legislative.upstreamStatus === 'unauthorized'
 		},
-		user: locals.user,
-		title: m.recap()
+		riskLevels: riskLevels.results,
+		scenarios: scenarios.results ?? [],
+		qualifications,
+		tprmMetrics,
+		policyPosture,
+		policyFindings,
+		frameworks
 	};
 };

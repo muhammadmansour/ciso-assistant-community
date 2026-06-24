@@ -2,10 +2,13 @@
 Email template utilities for CISO Assistant
 """
 
-import yaml
+import re
+from html import escape
 from pathlib import Path
 from string import Template
 from typing import Dict, Optional
+
+import yaml
 from django.conf import settings
 from django.utils.translation import get_language
 import structlog
@@ -13,6 +16,249 @@ import structlog
 logger = structlog.getLogger(__name__)
 
 TEMPLATE_BASE_PATH = Path(__file__).parent / "templates" / "emails"
+
+# Logo lives in the frontend static root, served at <CISO_ASSISTANT_URL>/<file>.
+LOGO_FILENAME = "wathba_logo_full.png"
+
+_URL_RE = re.compile(r"(https?://[^\s<]+)")
+
+
+def get_logo_url() -> str:
+    """Public URL of the Wathbah logo, derived from CISO_ASSISTANT_URL (.env)."""
+    base_url = getattr(
+        settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
+    ).rstrip("/")
+    return f"{base_url}/{LOGO_FILENAME}"
+
+
+def render_audit_status_html_email(
+    intro: str,
+    action: str,
+    assessment_name: str,
+    framework_name: str,
+    folder_name: str,
+    old_status: str,
+    new_status: str,
+    assessment_url: str,
+    logo_url: Optional[str] = None,
+    *,
+    details_heading: str = "Audit details",
+    status_heading: str = "Status change",
+    name_label: str = "Name",
+    framework_label: str = "Framework",
+    domain_label: str = "Domain",
+    cta_label: str = "Open audit",
+    greeting: str = "Hello,",
+    closing: str = "Thank you.",
+) -> str:
+    """Rich HTML layout for audit status-change notifications."""
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    safe_intro = escape(intro)
+    safe_action = escape(action)
+    safe_name = escape(assessment_name)
+    safe_framework = escape(framework_name)
+    safe_folder = escape(folder_name)
+    safe_old = escape(old_status)
+    safe_new = escape(new_status)
+    safe_url = escape(assessment_url, quote=True)
+
+    detail_row = (
+        lambda label, value: f"""
+              <tr>
+                <td style="padding:8px 12px;color:#6b7280;font-size:13px;width:120px;vertical-align:top;">
+                  <strong style="color:#374151;">{label}</strong>
+                </td>
+                <td style="padding:8px 12px;color:#111827;font-size:14px;vertical-align:top;">{value}</td>
+              </tr>"""
+    )
+
+    details_table = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+              style="margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fafafa;">
+              {detail_row(name_label, safe_name)}
+              {detail_row(framework_label, safe_framework)}
+              {detail_row(domain_label, safe_folder)}
+            </table>"""
+
+    cta_button = f"""<p style="margin:20px 0;"><a href="{safe_url}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:6px;">{escape(cta_label)}</a></p>"""
+
+    return (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        f'<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">'
+        f'<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
+        f'<div style="padding:20px 24px;text-align:center;border-bottom:1px solid #e5e7eb;">'
+        f'<img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;border:0;">'
+        f"</div>"
+        f'<div style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">'
+        f"<p style=\"margin:0 0 8px;\">{escape(greeting)}</p>"
+        f'<p style="margin:0 0 16px;font-weight:bold;">{safe_intro}</p>'
+        f'<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{escape(details_heading)}</p>'
+        f"{details_table}"
+        f'<div style="margin:16px 0;padding:14px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">'
+        f'<p style="margin:0 0 6px;font-size:12px;font-weight:bold;color:#1e40af;text-transform:uppercase;">{escape(status_heading)}</p>'
+        f'<p style="margin:0;font-size:16px;font-weight:bold;">{safe_old} &rarr; {safe_new}</p>'
+        f"</div>"
+        f"<p style=\"margin:0 0 8px;\">{safe_action}</p>"
+        f"{cta_button}"
+        f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
+        f"</div>"
+        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Powered by Wathbah</div>'
+        f"</div></body></html>"
+    )
+
+
+def render_assignment_html_email(
+    intro: str,
+    action: str,
+    details: list,
+    object_url: str,
+    logo_url: Optional[str] = None,
+    *,
+    details_heading: str = "Details",
+    secondary_heading: Optional[str] = None,
+    secondary_section_html: Optional[str] = None,
+    cta_label: str = "Open in Wathbah GRC",
+    greeting: str = "Hello,",
+    closing: str = "Thank you.",
+) -> str:
+    """Rich HTML layout for assignment-style notifications.
+
+    Mirrors `render_audit_status_html_email` so every assignment email
+    (controls, evidences, policies, exceptions, risk scenarios, metric
+    instances, ...) shares the same Wathbah-branded layout: logo header,
+    greeting + bold intro, two-column details table, CTA button, closing,
+    footer.
+
+    Args:
+        intro: Bold lead sentence (e.g. "You have been assigned to the
+            following Applied Control.").
+        action: Sentence above the CTA button (e.g. "Open the control to
+            update its status, evidences or owners.").
+        details: Ordered list of (label, value) tuples rendered as a
+            two-column table. None/empty values are skipped so we never ship
+            half-empty rows to the recipient.
+        object_url: Deep link the CTA button points to.
+        secondary_heading: Optional heading above an extra HTML block (e.g. events
+            history timeline).
+        secondary_section_html: Optional pre-rendered HTML inserted after the
+            details table.
+        cta_label: Button label.
+        greeting / closing: Surrounding copy.
+    """
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    safe_intro = escape(intro)
+    safe_action = escape(action)
+    safe_url = escape(object_url, quote=True)
+
+    detail_rows = []
+    for label, value in details:
+        if value in (None, ""):
+            continue
+        detail_rows.append(
+            f"""
+              <tr>
+                <td style="padding:8px 12px;color:#6b7280;font-size:13px;width:160px;vertical-align:top;">
+                  <strong style="color:#374151;">{escape(str(label))}</strong>
+                </td>
+                <td style="padding:8px 12px;color:#111827;font-size:14px;vertical-align:top;">{escape(str(value))}</td>
+              </tr>"""
+        )
+
+    details_table = (
+        f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+              style="margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fafafa;">
+              {''.join(detail_rows)}
+            </table>"""
+        if detail_rows
+        else ""
+    )
+
+    cta_button = (
+        f"""<p style="margin:20px 0;"><a href="{safe_url}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:6px;">{escape(cta_label)}</a></p>"""
+    )
+
+    secondary_section = ""
+    if secondary_section_html:
+        heading = escape(secondary_heading or "Events history")
+        secondary_section = (
+            f'<p style="margin:16px 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{heading}</p>'
+            f"{secondary_section_html}"
+        )
+
+    return (
+        f'<!DOCTYPE html><html><head><meta charset="utf-8">'
+        f'<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        f'<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">'
+        f'<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
+        f'<div style="padding:20px 24px;text-align:center;border-bottom:1px solid #e5e7eb;">'
+        f'<img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;border:0;">'
+        f"</div>"
+        f'<div style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">'
+        f"<p style=\"margin:0 0 8px;\">{escape(greeting)}</p>"
+        f'<p style="margin:0 0 16px;font-weight:bold;">{safe_intro}</p>'
+        f'<p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#374151;text-transform:uppercase;">{escape(details_heading)}</p>'
+        f"{details_table}"
+        f"{secondary_section}"
+        f"<p style=\"margin:0 0 8px;\">{safe_action}</p>"
+        f"{cta_button}"
+        f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
+        f"</div>"
+        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Powered by Wathbah</div>'
+        f"</div></body></html>"
+    )
+
+
+def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
+    """Wrap a plain-text email body in a simple, client-friendly HTML layout
+    with the Wathbah logo as a header.
+
+    The body is HTML-escaped, bare URLs are turned into links, and newlines are
+    converted to <br> so the YAML templates remain the single source of content.
+    """
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    safe_body = escape(body)
+    safe_body = _URL_RE.sub(
+        r'<a href="\1" style="color:#2563eb;">\1</a>', safe_body
+    )
+    safe_body = safe_body.replace("\n", "<br>")
+
+    return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+            <tr>
+              <td align="center" style="padding:24px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;">
+                <img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">
+                {safe_body}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 24px;background-color:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
+                Powered by Wathbah
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>"""
 
 
 def load_email_template(
@@ -95,7 +341,45 @@ def render_email_template(
         subject = Template(template_data["subject"]).safe_substitute(full_context)
         body = Template(template_data["body"]).safe_substitute(full_context)
 
-        return {"subject": subject, "body": body}
+        rendered = {"subject": subject, "body": body}
+        for optional_key in (
+            "intro",
+            "action",
+            "details_heading",
+            "status_heading",
+            "name_label",
+            "framework_label",
+            "domain_label",
+            "description_label",
+            "ref_id_label",
+            "status_label",
+            "priority_label",
+            "eta_label",
+            "expiry_label",
+            "expiration_label",
+            "severity_label",
+            "treatment_label",
+            "risk_assessment_label",
+            "target_value_label",
+            "frequency_label",
+            "version_label",
+            "due_date_label",
+            "requester_label",
+            "deadline_label",
+            "notes_label",
+            "approver_label",
+            "decider_label",
+            "events_history_heading",
+            "cta_label",
+            "greeting",
+            "closing",
+        ):
+            if optional_key in template_data:
+                rendered[optional_key] = Template(
+                    template_data[optional_key]
+                ).safe_substitute(full_context)
+
+        return rendered
     except Exception as e:
         logger.error(f"Error rendering template {template_name}: {str(e)}")
         return {}

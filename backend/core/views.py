@@ -3828,6 +3828,8 @@ class AppliedControlFilterSet(GenericFilterSet):
         choices=AppliedControl.Status.choices, lookup_expr="icontains"
     )
     is_assigned = df.BooleanFilter(method="filter_is_assigned")
+    is_published = df.BooleanFilter(field_name="is_published")
+    has_open_findings = df.BooleanFilter(method="filter_has_open_findings")
     # Nullable choice filters that support filtering for unset values using "--"
     category = NullableChoiceFilter(choices=AppliedControl.CATEGORY)
     csf_function = NullableChoiceFilter(choices=AppliedControl.CSF_FUNCTION)
@@ -3899,6 +3901,19 @@ class AppliedControlFilterSet(GenericFilterSet):
         else:
             return queryset.filter(owner__isnull=True)
 
+    def filter_has_open_findings(self, queryset, name, value):
+        # "Open" = any Finding status that is not a terminal/closed state.
+        # Excludes: dismissed, mitigated, resolved, closed, deprecated, "--".
+        open_statuses = [
+            "identified",
+            "confirmed",
+            "assigned",
+            "in_progress",
+        ]
+        if value:
+            return queryset.filter(findings__status__in=open_statuses).distinct()
+        return queryset.exclude(findings__status__in=open_statuses).distinct()
+
     class Meta:
         model = AppliedControl
         fields = {
@@ -3922,6 +3937,7 @@ class AppliedControlFilterSet(GenericFilterSet):
             "owner": ["exact"],
             "findings": ["exact"],
             "eta": ["exact", "lte", "gte", "lt", "gt", "month", "year"],
+            "expiry_date": ["exact", "lte", "gte", "lt", "gt"],
             "ref_id": ["exact"],
             "processings": ["exact"],
             "genericcollection": ["exact"],
@@ -4264,7 +4280,7 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-stage.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         from core.models import AiAnalysisResult
@@ -5376,10 +5392,107 @@ class PolicyViewSet(AppliedControlViewSet):
     ]
     search_fields = ["name", "description", "ref_id"]
 
+    # Finding statuses considered "open" for policy posture (mirrors
+    # AppliedControlFilterSet.filter_has_open_findings).
+    _OPEN_FINDING_STATUSES = (
+        "identified",
+        "confirmed",
+        "assigned",
+        "in_progress",
+    )
+
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get csf_function choices")
     def csf_function(self, request):
         return Response(dict(AppliedControl.CSF_FUNCTION))
+
+    @action(detail=False, name="Get policy governance posture counts")
+    def posture(self, request):
+        """Aggregate counts for the dashboard "Policy governance posture" panel.
+
+        Returns five mutually-independent counts over the user's viewable
+        policies (AppliedControl with category="policy"):
+          * published_active    — is_published AND status="active"
+          * review_due_90d      — expiry_date within [today, today+90d]
+          * expired             — expiry_date < today
+          * with_open_findings  — at least one Finding in an open status
+          * unassigned          — no owner attached
+        Each row corresponds to a one-line filter on /api/policies/.
+        """
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, AppliedControl
+        )
+        qs = AppliedControl.objects.filter(id__in=viewable_ids, category="policy")
+
+        today = date.today()
+        in_90_days = today + timedelta(days=90)
+
+        published_active = qs.filter(is_published=True, status="active").count()
+        review_due_90d = qs.filter(
+            expiry_date__gte=today, expiry_date__lte=in_90_days
+        ).count()
+        expired = qs.filter(expiry_date__lt=today).count()
+        with_open_findings = (
+            qs.filter(findings__status__in=self._OPEN_FINDING_STATUSES)
+            .distinct()
+            .count()
+        )
+        unassigned = qs.filter(owner__isnull=True).count()
+        total = qs.count()
+
+        return Response(
+            {
+                "total": total,
+                "published_active": published_active,
+                "review_due_90d": review_due_90d,
+                "expired": expired,
+                "with_open_findings": with_open_findings,
+                "unassigned": unassigned,
+            }
+        )
+
+    @action(detail=False, name="Get policies by open findings count")
+    def findings_metrics(self, request):
+        """Open-findings counts grouped by policy for the dashboard bar chart.
+
+        Mirrors the shape of /api/policy-violations/metrics/ so the same
+        horizontal-bar component can render it. Only policies with at least
+        one open finding are returned, ordered by descending count.
+
+        The conditional ``Count(..., filter=...)`` is critical: filtering on
+        ``findings__status`` *outside* the annotation would also affect how
+        rows are joined, leading to inflated counts for policies that have
+        both open and closed findings.
+        """
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, AppliedControl
+        )
+        grouped = (
+            AppliedControl.objects.filter(
+                id__in=viewable_ids,
+                category="policy",
+            )
+            .annotate(
+                count=Count(
+                    "findings",
+                    filter=Q(findings__status__in=self._OPEN_FINDING_STATUSES),
+                    distinct=True,
+                )
+            )
+            .filter(count__gt=0)
+            .values("id", "name", "count")
+            .order_by("-count", "name")
+        )
+        return Response(
+            [
+                {
+                    "policy_id": str(row["id"]),
+                    "name": row["name"] or "Unknown",
+                    "count": row["count"],
+                }
+                for row in grouped
+            ]
+        )
 
 
 class RiskScenarioFilter(GenericFilterSet):
@@ -8032,6 +8145,18 @@ class EvidenceViewSet(BaseModelViewSet):
         "processings",
     ]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # One FileSearchTable row per EvidenceRevision (Gemini upload status)
+        return qs.prefetch_related(
+            Prefetch(
+                "revisions",
+                queryset=EvidenceRevision.objects.select_related(
+                    "file_search"
+                ).order_by("-version"),
+            )
+        )
+
     def perform_create(self, serializer):
         """Create evidence and trigger auto-analysis if attachment is uploaded."""
         instance = super().perform_create(serializer)
@@ -10322,7 +10447,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
 
         muraji_url = os.environ.get(
             'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-stage.wathbahs.com/api/audit/analyze'
+            'https://muraji-api.wathbah.dev/api/audit/analyze'
         )
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
@@ -11709,6 +11834,61 @@ class SecurityExceptionViewSet(ExportMixin, BaseModelViewSet):
             )
 
         return Response({"results": {"nodes": nodes, "links": links}})
+
+
+class PolicyViolationViewSet(BaseModelViewSet):
+    """API endpoint for policy violation events and dashboard aggregates."""
+
+    model = PolicyViolation
+    filterset_fields = [
+        "name",
+        "policy",
+        "folder",
+        "severity",
+        "status",
+        "source",
+        "detected_by",
+    ]
+    search_fields = ["name", "description", "source"]
+
+    @action(detail=False, name="Get status choices")
+    def status(self, request):
+        return Response(dict(PolicyViolation.Status.choices))
+
+    @action(detail=False, name="Get policy violation metrics")
+    def metrics(self, request):
+        """Active violation counts grouped by policy for dashboard widgets."""
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, PolicyViolation
+        )
+        active_statuses = (
+            PolicyViolation.Status.OPEN,
+            PolicyViolation.Status.ACKNOWLEDGED,
+        )
+        grouped = (
+            PolicyViolation.objects.filter(
+                id__in=viewable_ids,
+                status__in=active_statuses,
+            )
+            .values("policy_id", "policy__name")
+            .annotate(count=Count("id"))
+            .order_by("-count", "policy__name")
+        )
+        return Response(
+            [
+                {
+                    "policy_id": str(row["policy_id"]),
+                    "name": row["policy__name"] or "Unknown",
+                    "count": row["count"],
+                }
+                for row in grouped
+            ]
+        )
+
+    def get_queryset(self):
+        return super().get_queryset().select_related(
+            "folder", "policy", "detected_by"
+        )
 
 
 class FindingsAssessmentViewSet(BaseModelViewSet):
@@ -13700,6 +13880,13 @@ class TaskNodeEvidenceList(generics.ListAPIView):
             id__in=task_template.evidences.filter(
                 id__in=viewable_evidences
             ).values_list("id", flat=True)
+        ).prefetch_related(
+            Prefetch(
+                "revisions",
+                queryset=EvidenceRevision.objects.select_related(
+                    "file_search"
+                ).order_by("-version"),
+            )
         )
 
 

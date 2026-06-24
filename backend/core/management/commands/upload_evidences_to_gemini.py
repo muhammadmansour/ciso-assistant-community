@@ -79,11 +79,11 @@ class Command(BaseCommand):
             try:
                 existing = FileSearchTable.objects.filter(evidence_revision=revision).first()
                 if existing and not force:
-                    if existing.has_durable_document():
+                    if existing.is_indexed():
                         already_done += 1
                         self.stdout.write(
                             f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                            f"already indexed (gemini_document_id: {existing.gemini_document_id[:60]})"
+                            f"already indexed ({existing.chunk_count or 1} document(s))"
                         )
                         continue
                     if existing.upload_status == FileSearchTable.UploadStatus.COMPLETED:
@@ -96,12 +96,30 @@ class Command(BaseCommand):
                             )
                         )
                     elif existing.upload_status == FileSearchTable.UploadStatus.UPLOADING:
-                        skipped += 1
-                        self.stdout.write(
-                            f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
-                            f"upload in progress"
+                        from django.utils import timezone
+                        from core.tasks_gemini import GEMINI_UPLOAD_STALE_SECONDS
+
+                        age = (
+                            (timezone.now() - existing.updated_at).total_seconds()
+                            if existing.updated_at else None
                         )
-                        continue
+                        if age is not None and age >= GEMINI_UPLOAD_STALE_SECONDS:
+                            # Orphaned by a killed worker — retry instead of
+                            # skipping forever.
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"  [RETRY] {evidence_name} (rev {rev_id[:8]}...) — "
+                                    f"stale upload ({int(age)}s old). Retrying..."
+                                )
+                            )
+                            existing.delete()
+                        else:
+                            skipped += 1
+                            self.stdout.write(
+                                f"  [SKIP] {evidence_name} (rev {rev_id[:8]}...) — "
+                                f"upload in progress"
+                            )
+                            continue
                     elif existing.upload_status == FileSearchTable.UploadStatus.FAILED:
                         self.stdout.write(
                             self.style.WARNING(
@@ -155,16 +173,22 @@ class Command(BaseCommand):
                 self.stdout.write(f"           Indexing in File Search Store and waiting for completion...")
                 custom_metadata = _build_evidence_custom_metadata(revision)
                 with _materialize_attachment(revision.attachment) as file_path:
-                    final_status = client.upload_to_store_and_wait(
+                    final_status = client.upload_evidence_file_and_wait(
                         file_path=file_path,
                         display_name=display_name,
                         custom_metadata=custom_metadata,
                     )
 
-                self.stdout.write(f"           Final status: {final_status}")
+                self.stdout.write(f"           Final status: {final_status.get('status')}")
 
                 if final_status["status"] == "completed":
-                    file_search.gemini_document_id = final_status.get("gemini_document_id", "")
+                    doc_ids = final_status.get("gemini_document_ids") or (
+                        [final_status["gemini_document_id"]]
+                        if final_status.get("gemini_document_id") else []
+                    )
+                    file_search.gemini_document_ids = doc_ids
+                    file_search.gemini_document_id = doc_ids[0] if doc_ids else ""
+                    file_search.chunk_count = final_status.get("chunk_count", len(doc_ids))
                     file_search.gemini_store_id = final_status.get("gemini_store_id", "")
                     if final_status.get("operation_id"):
                         file_search.operation_id = final_status["operation_id"]
@@ -173,7 +197,7 @@ class Command(BaseCommand):
                     uploaded += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"           ✓ Indexed (gemini_document_id: {file_search.gemini_document_id[:80]})"
+                            f"           ✓ Indexed ({file_search.chunk_count or 1} document(s))"
                         )
                     )
                 else:
@@ -254,20 +278,35 @@ class Command(BaseCommand):
                 self.stdout.write(f"      FileSearchTable entries: {fs_entries.count()}")
 
                 for fs in fs_entries:
+                    doc_ids = fs.all_document_ids()
                     self.stdout.write(f"        upload_status:      {fs.upload_status}")
-                    self.stdout.write(f"        gemini_document_id: {fs.gemini_document_id[:80] if fs.gemini_document_id else 'EMPTY'}")
+                    self.stdout.write(f"        chunk_count:        {fs.chunk_count}")
+                    self.stdout.write(f"        document count:     {len(doc_ids)}")
                     self.stdout.write(f"        gemini_store_id:    {fs.gemini_store_id[:80] if fs.gemini_store_id else 'EMPTY'}")
-                    self.stdout.write(f"        has_durable_doc:    {fs.has_durable_document()}")
+                    self.stdout.write(f"        is_indexed:         {fs.is_indexed()}")
                     self.stdout.write(f"        error_message:      {fs.error_message}")
+                    for d in doc_ids:
+                        self.stdout.write(f"          - {d[:80]}")
 
-                    if fs.has_durable_document():
-                        gemini_documents.append({
-                            'gemini_document_id': fs.gemini_document_id,
-                            'gemini_store_id': fs.gemini_store_id,
-                            'evidence_name': evidence.name,
-                            'evidence_revision_id': str(revision.id),
-                            'evidence_id': str(evidence.id),
-                        })
+                    if fs.is_indexed():
+                        # Match the runtime analysis payload: one entry per
+                        # chunk document. See tasks_applied_control_analysis.py
+                        # for the rationale.
+                        n = len(doc_ids)
+                        for i, doc_id in enumerate(doc_ids, start=1):
+                            entry_name = (
+                                f"{evidence.name} [chunk {i}/{n}]"
+                                if n > 1 else evidence.name
+                            )
+                            gemini_documents.append({
+                                'gemini_document_id': doc_id,
+                                'gemini_store_id': fs.gemini_store_id,
+                                'evidence_name': entry_name,
+                                'evidence_revision_id': str(revision.id),
+                                'evidence_id': str(evidence.id),
+                                'chunk_index': i if n > 1 else None,
+                                'chunk_count': n if n > 1 else None,
+                            })
 
         self.stdout.write(f"\n{'='*60}")
         self.stdout.write(f"RESULT: Would send {len(gemini_documents)} indexed document(s) to Muraji")

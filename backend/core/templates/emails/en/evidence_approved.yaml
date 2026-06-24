@@ -1,0 +1,28 @@
+subject: "Wathbah GRC: Evidence '${evidence_name}' was approved"
+intro: "An evidence record you are assigned to — or linked to via a control — has been approved."
+action: "Open the evidence in Wathbah GRC to review the approval and linked controls."
+details_heading: "Evidence details"
+name_label: "Name"
+description_label: "Description"
+status_label: "Status"
+decider_label: "Approved by"
+expiry_label: "Expiry date"
+domain_label: "Domain"
+cta_label: "Open evidence"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  An evidence record you are assigned to has been approved:
+
+  - Name: ${evidence_name}
+  - Description: ${evidence_description}
+  - Status: ${evidence_status}
+  - Expiry date: ${evidence_expiry_date}
+  - Domain: ${folder_name}
+
+  Open the evidence in Wathbah GRC:
+  ${ciso_assistant_url}/evidences/${evidence_id}
+
+  Thank you.
