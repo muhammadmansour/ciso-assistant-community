@@ -38,10 +38,19 @@ export type EntityAssessmentMetric = {
 	review_progress?: number;
 };
 
-export type PolicyViolationMetric = {
+export type PolicyOpenFindingsMetric = {
 	policy_id: string;
 	name: string;
 	count: number;
+};
+
+export type PolicyPosture = {
+	total: number;
+	published_active: number;
+	review_due_90d: number;
+	expired: number;
+	with_open_findings: number;
+	unassigned: number;
 };
 
 export type ComplianceFrameworkSummary = {
@@ -98,8 +107,20 @@ export const load: PageServerLoad = async (event) => {
 		[]
 	);
 
-	const policyViolations = await safeJson<PolicyViolationMetric[]>(
-		fetch(`${BASE_API_URL}/policy-violations/metrics/`),
+	const policyPosture = await safeJson<PolicyPosture>(
+		fetch(`${BASE_API_URL}/policies/posture/`),
+		{
+			total: 0,
+			published_active: 0,
+			review_due_90d: 0,
+			expired: 0,
+			with_open_findings: 0,
+			unassigned: 0
+		}
+	);
+
+	const policyFindings = await safeJson<PolicyOpenFindingsMetric[]>(
+		fetch(`${BASE_API_URL}/policies/findings_metrics/`),
 		[]
 	);
 
@@ -142,45 +163,6 @@ export const load: PageServerLoad = async (event) => {
 			.slice(0, 4);
 	})();
 
-	const counters = await safeJson<{
-		results: {
-			domains?: number;
-			frameworks?: number;
-			applied_controls?: number;
-			policies?: number;
-			exceptions?: number;
-			risk_acceptances?: number;
-		};
-	}>(fetch(`${BASE_API_URL}/get_counters/`), { results: {} });
-
-	const trendSamples = await safeJson<{
-		results: Array<{ date: string; metrics: Record<string, number> }>;
-	}>(
-		fetch(`${BASE_API_URL}/metrology/builtin-metric-samples/?model=complianceassessment&page_size=1000`),
-		{ results: [] }
-	);
-
-	const trendMap = new Map<string, { sum: number; count: number }>();
-	const now = new Date();
-	for (let i = 5; i >= 0; i--) {
-		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-		trendMap.set(key, { sum: 0, count: 0 });
-	}
-	for (const s of trendSamples.results) {
-		const monthKey = s.date?.substring(0, 7);
-		const progress = s.metrics?.progress;
-		if (typeof progress === 'number' && monthKey && trendMap.has(monthKey)) {
-			const cur = trendMap.get(monthKey)!;
-			cur.sum += progress;
-			cur.count += 1;
-		}
-	}
-	const complianceTrend = Array.from(trendMap.entries()).map(([month, v]) => ({
-		month,
-		value: v.count > 0 ? Math.round(v.sum / v.count) : null
-	}));
-
 	return {
 		title: m.recap(),
 		legislative: {
@@ -192,9 +174,8 @@ export const load: PageServerLoad = async (event) => {
 		scenarios: scenarios.results ?? [],
 		qualifications,
 		tprmMetrics,
-		policyViolations,
-		frameworks,
-		counters: counters.results ?? {},
-		complianceTrend
+		policyPosture,
+		policyFindings,
+		frameworks
 	};
 };

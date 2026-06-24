@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 	import { m } from '$paraglide/messages';
-	import { getLocale } from '$paraglide/runtime';
 	import { Popover } from '@skeletonlabs/skeleton-svelte';
 	import type { PageData } from './$types';
 	import type { DashboardRiskScenario } from './+page.server';
@@ -172,71 +171,78 @@
 		return 'bg-gradient-to-r from-red-500 via-rose-500 to-orange-400 shadow-sm shadow-red-200/80';
 	}
 
-	// ─── Policy violations ────────────────────────────────────────────────────
-	const policyViolationRows = $derived(
-		(data.policyViolations ?? [])
+	// ─── Policy governance posture (5-row panel) ──────────────────────────────
+	// Each row is computed server-side from native AppliedControl fields
+	// (see PolicyViewSet.posture in backend/core/views.py) and click-throughs
+	// to /policies with a matching filter so the user lands on the exact
+	// subset.
+	const postureRows = $derived.by(() => {
+		const p = data.policyPosture;
+		const todayISO = new Date().toISOString().split('T')[0];
+		const in90 = new Date();
+		in90.setDate(in90.getDate() + 90);
+		const in90ISO = in90.toISOString().split('T')[0];
+		return [
+			{
+				key: 'published_active',
+				label: m.policyRowPublishedActive(),
+				count: p.published_active,
+				href: '/policies?is_published=true&status=active',
+				accent: 'border-l-emerald-500',
+				dot:    'bg-emerald-500'
+			},
+			{
+				key: 'review_due_90d',
+				label: m.policyRowReviewDue90d(),
+				count: p.review_due_90d,
+				href: `/policies?expiry_date__gte=${todayISO}&expiry_date__lte=${in90ISO}`,
+				accent: 'border-l-amber-500',
+				dot:    'bg-amber-500'
+			},
+			{
+				key: 'expired',
+				label: m.policyRowExpired(),
+				count: p.expired,
+				href: `/policies?expiry_date__lt=${todayISO}`,
+				accent: 'border-l-red-500',
+				dot:    'bg-red-500'
+			},
+			{
+				key: 'with_open_findings',
+				label: m.policyRowOpenFindings(),
+				count: p.with_open_findings,
+				href: '/policies?has_open_findings=true',
+				accent: 'border-l-rose-500',
+				dot:    'bg-rose-500'
+			},
+			{
+				key: 'unassigned',
+				label: m.policyRowUnassigned(),
+				count: p.unassigned,
+				href: '/policies?is_assigned=false',
+				accent: 'border-l-slate-400',
+				dot:    'bg-slate-400'
+			}
+		];
+	});
+
+	// ─── Policies by open findings (horizontal bars) ──────────────────────────
+	const policyFindingsRows = $derived(
+		(data.policyFindings ?? [])
 			.filter((r) => r.count > 0)
 			.sort((a, b) => b.count - a.count)
 			.slice(0, 8)
 	);
 
-	const maxPolicyViolationCount = $derived(
-		policyViolationRows.reduce((max, r) => Math.max(max, r.count), 0) || 1
+	const maxPolicyFindingsCount = $derived(
+		policyFindingsRows.reduce((max, r) => Math.max(max, r.count), 0) || 1
 	);
 
-	function policyViolationBarColor(count: number): string {
+	function policyFindingsBarColor(count: number): string {
 		if (count >= 5) return 'bg-gradient-to-r from-red-600 via-rose-500 to-orange-500 shadow-sm shadow-red-200/80';
 		if (count >= 2) return 'bg-gradient-to-r from-amber-500 to-orange-400 shadow-sm shadow-amber-200/80';
 		return 'bg-gradient-to-r from-orange-400 to-amber-300 shadow-sm shadow-orange-200/60';
 	}
-
-	// ─── Compliance trend chart ───────────────────────────────────────────────
-	const ENGLISH_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
-	                        'Jul','Aug','Sep','Oct','Nov','Dec'];
-
-	function monthLabel(key: string): string {
-		const idx = parseInt(key.split('-')[1], 10) - 1;
-		return ENGLISH_MONTHS[idx] ?? key;
-	}
-
-	function trendNum(n: number): string {
-		return n.toLocaleString(getLocale().startsWith('ar') ? 'ar-EG' : undefined);
-	}
-
-	function buildLinePath(pts: {x:number;y:number}[]): string {
-		if (!pts.length) return '';
-		let d = `M ${pts[0].x} ${pts[0].y}`;
-		for (let i = 1; i < pts.length; i++) {
-			const p = pts[i-1], c = pts[i], cx = (p.x + c.x) / 2;
-			d += ` C ${cx} ${p.y},${cx} ${c.y},${c.x} ${c.y}`;
-		}
-		return d;
-	}
-
-	function buildAreaPath(pts: {x:number;y:number}[], maxY: number): string {
-		if (!pts.length) return '';
-		return buildLinePath(pts) + ` L ${pts[pts.length-1].x} ${maxY} L ${pts[0].x} ${maxY} Z`;
-	}
-
-	const PL = 20, PR = 8, PT = 14, PB = 28;
-	const VW = 500, VH = 120;
-	const CW = VW - PL - PR;
-	const CH = VH - PT - PB;
-
-	const trendPoints = $derived.by(() => {
-		const trend = data.complianceTrend ?? [];
-		const n = trend.length;
-		return trend.map((d, i) => ({
-			label: monthLabel(d.month),
-			value: d.value,
-			x: PL + (n <= 1 ? CW / 2 : (i / (n - 1)) * CW),
-			y: PT + (d.value !== null ? (1 - d.value / 100) * CH : CH)
-		}));
-	});
-
-	const hasAnyTrendData = $derived(
-		(data.complianceTrend ?? []).some(p => p.value !== null)
-	);
 
 	// ─── Compliance donut ─────────────────────────────────────────────────────
 	function donutParams(score: number, size = 72, sw = 7) {
@@ -540,39 +546,41 @@
 		{/if}
 	</div>
 
-	<!-- ══════════════════ Policy violations (left) + TPRM (right) ══════════════ -->
+	<!-- ══════════════════ Policy governance posture (left) + TPRM (right) ═══════ -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-		<!-- Policy violations -->
+		<!-- Policy governance posture (replaces the old "Policy violations by policy" card) -->
 		<div class="dashboard-card">
 			<div class="dashboard-card-header px-5 py-4">
 				<h3 class="dashboard-title flex items-center gap-2.5">
-					<span class="dashboard-icon-badge bg-rose-100 text-rose-600"><i class="fa-solid fa-shield-halved text-xs"></i></span>
-					{m.policyViolationsByPolicy()}
+					<span class="dashboard-icon-badge bg-indigo-100 text-indigo-600"><i class="fa-solid fa-shield-check text-xs"></i></span>
+					{m.policyGovernancePosture()}
+					<span class="ml-auto text-xs font-medium text-slate-400 tabular-nums">
+						{data.policyPosture.total}
+					</span>
 				</h3>
 			</div>
-			{#if policyViolationRows.length === 0}
+			{#if data.policyPosture.total === 0}
 				<div class="flex flex-col items-center justify-center py-12 text-slate-400">
 					<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
 						<i class="fa-solid fa-inbox text-2xl text-slate-300"></i>
 					</div>
-					<p class="text-sm font-medium">{m.policyViolationsComingSoon()}</p>
+					<p class="text-sm font-medium">{m.policyPostureNoPolicies()}</p>
 				</div>
 			{:else}
-				<div class="px-5 py-5 space-y-5">
-					{#each policyViolationRows as row}
-						<div>
-							<div class="flex items-center justify-between mb-2.5">
-								<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight">{row.name}</span>
-								<span class="text-sm font-extrabold text-rose-600 shrink-0 ml-3 tabular-nums">{row.count}</span>
-							</div>
-							<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
-								<div
-									class="h-full rounded-full transition-all duration-500 {policyViolationBarColor(row.count)}"
-									style:width="{(row.count / maxPolicyViolationCount) * 100}%"
-								></div>
-							</div>
-						</div>
+				<div class="divide-y divide-slate-100/80">
+					{#each postureRows as row (row.key)}
+						<a href={row.href}
+							class="dashboard-list-row flex items-center justify-between px-5 py-3.5 border-l-4 {row.accent} group">
+							<span class="flex items-center gap-2.5 text-sm font-semibold text-slate-700 tracking-tight">
+								<span class="w-2 h-2 rounded-full {row.dot} shadow-sm"></span>
+								{row.label}
+							</span>
+							<span class="flex items-center gap-2.5 shrink-0">
+								<span class="text-sm font-extrabold text-slate-900 tabular-nums">{row.count}</span>
+								<i class="fa-solid fa-chevron-right text-[10px] text-slate-300 group-hover:text-blue-500 transition-colors"></i>
+							</span>
+						</a>
 					{/each}
 				</div>
 			{/if}
@@ -619,103 +627,42 @@
 		</div>
 	</div>
 
-	<!-- ══════════════════ Compliance Trend — 6-month SVG area chart ═══════════ -->
+	<!-- ══════════════════ Policies by open findings — full width bar chart ═════ -->
+	<!-- Replaces the old "Compliance trend (6 months)" card.
+	     Same horizontal-bar component as the TPRM card, bound to per-policy
+	     open-findings counts from /api/policies/findings_metrics/. -->
 	<div class="dashboard-card">
-		<div class="dashboard-card-header flex items-center justify-between px-5 py-4 flex-wrap gap-3">
+		<div class="dashboard-card-header px-5 py-4">
 			<h3 class="dashboard-title flex items-center gap-2.5">
-				<span class="dashboard-icon-badge bg-blue-100 text-blue-600"><i class="fa-solid fa-chart-line text-xs"></i></span>
-				{m.complianceTrend6Months()}
+				<span class="dashboard-icon-badge bg-rose-100 text-rose-600"><i class="fa-solid fa-bug text-xs"></i></span>
+				{m.policiesByOpenFindings()}
 			</h3>
-			<div class="flex items-center gap-4 text-xs font-semibold text-slate-500">
-				<span class="flex items-center gap-2">
-					<span class="w-5 h-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 inline-block shadow-sm"></span>
-					{m.averageCompliance()}
-				</span>
-				{#if (data.counters.exceptions ?? 0) > 0}
-					<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 font-bold text-[11px] ring-1 ring-red-200/60">
-						<i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-						{m.activeExceptionsCount({ count: data.counters.exceptions ?? 0 })}
-					</span>
-				{/if}
-			</div>
 		</div>
-
-		{#if !hasAnyTrendData}
+		{#if policyFindingsRows.length === 0}
 			<div class="flex flex-col items-center justify-center py-12 text-slate-400">
 				<div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
-					<i class="fa-solid fa-chart-line text-2xl text-slate-300"></i>
+					<i class="fa-solid fa-circle-check text-2xl text-emerald-300"></i>
 				</div>
-				<p class="text-sm font-medium">{m.trendNoDataAutoCollect()}</p>
+				<p class="text-sm font-medium">{m.policiesByOpenFindingsEmpty()}</p>
 			</div>
 		{:else}
-			<div class="px-3 pt-4 pb-3" dir="ltr">
-				<svg viewBox="0 0 {VW} {VH}" class="w-full dashboard-trend-chart" style="height:160px"
-					role="img" aria-label={m.complianceTrendChartAria()}>
-					<defs>
-						<linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-							<stop offset="60%" stop-color="#6366f1" stop-opacity="0.12"/>
-							<stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.02"/>
-						</linearGradient>
-						<linearGradient id="trendLineGrad" x1="0" y1="0" x2="1" y2="0">
-							<stop offset="0%" stop-color="#2563eb"/>
-							<stop offset="50%" stop-color="#4f46e5"/>
-							<stop offset="100%" stop-color="#7c3aed"/>
-						</linearGradient>
-						<filter id="trendGlow" x="-20%" y="-20%" width="140%" height="140%">
-							<feGaussianBlur stdDeviation="2" result="blur"/>
-							<feMerge>
-								<feMergeNode in="blur"/>
-								<feMergeNode in="SourceGraphic"/>
-							</feMerge>
-						</filter>
-					</defs>
-
-					<!-- Grid lines -->
-					{#each [0, 25, 50, 75, 100] as pct}
-						{@const gy = PT + (1 - pct / 100) * CH}
-						<line x1={PL} y1={gy} x2={VW - PR} y2={gy}
-							stroke="#e2e8f0" stroke-width="1" stroke-dasharray={pct === 0 || pct === 100 ? '0' : '4 4'}/>
-						<text x={PL - 6} y={gy + 4} text-anchor="end"
-							font-size="8.5" fill="#64748b" font-weight="600" font-family="Cairo, sans-serif">{trendNum(pct)}</text>
-					{/each}
-
-					<!-- Area fill -->
-					<path d={buildAreaPath(trendPoints.filter(p => p.value !== null), PT + CH)}
-						fill="url(#trendGrad)"/>
-
-					<!-- Glow line -->
-					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
-						fill="none" stroke="url(#trendLineGrad)" stroke-width="4"
-						stroke-linecap="round" stroke-linejoin="round" opacity="0.25" filter="url(#trendGlow)"/>
-
-					<!-- Main line -->
-					<path d={buildLinePath(trendPoints.filter(p => p.value !== null))}
-						fill="none" stroke="url(#trendLineGrad)" stroke-width="2.75"
-						stroke-linecap="round" stroke-linejoin="round"/>
-
-					<!-- Dots + value labels -->
-					{#each trendPoints as pt}
-						{#if pt.value !== null}
-							<circle cx={pt.x} cy={pt.y} r="6"
-								fill="#fff" stroke="url(#trendLineGrad)" stroke-width="2.5"/>
-							<circle cx={pt.x} cy={pt.y} r="2.5"
-								fill="#4f46e5"/>
-							<text x={pt.x} y={pt.y - 10}
-								text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="800" font-family="Cairo, sans-serif">
-								{trendNum(pt.value)}٪
-							</text>
-						{/if}
-					{/each}
-
-					<!-- X-axis month labels -->
-					{#each trendPoints as pt}
-						<text x={pt.x} y={PT + CH + 20}
-							text-anchor="middle" font-size="10" fill="#475569" font-weight="600" font-family="Cairo, sans-serif">
-							{pt.label}
-						</text>
-					{/each}
-				</svg>
+			<div class="px-5 py-5 space-y-5">
+				{#each policyFindingsRows as row (row.policy_id)}
+					<a href="/policies/{row.policy_id}" class="block group">
+						<div class="flex items-center justify-between mb-2.5">
+							<span class="text-sm font-bold text-slate-800 truncate flex-1 tracking-tight group-hover:text-blue-700 transition-colors">
+								{row.name}
+							</span>
+							<span class="text-sm font-extrabold text-rose-600 shrink-0 ml-3 tabular-nums">{row.count}</span>
+						</div>
+						<div class="dashboard-progress-track h-3.5 rounded-full overflow-hidden" dir="ltr">
+							<div
+								class="h-full rounded-full transition-all duration-500 {policyFindingsBarColor(row.count)}"
+								style:width="{(row.count / maxPolicyFindingsCount) * 100}%"
+							></div>
+						</div>
+					</a>
+				{/each}
 			</div>
 		{/if}
 	</div>
