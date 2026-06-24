@@ -1556,8 +1556,6 @@ def send_compliance_assessment_status_notification(
         logger.error(f"ComplianceAssessment with id {assessment_id} not found")
         return
 
-    from .email_utils import render_audit_status_html_email, render_email_template
-
     status_labels = dict(ComplianceAssessment.Status.choices)
 
     def status_label(status: str) -> str:
@@ -1568,17 +1566,39 @@ def send_compliance_assessment_status_notification(
     base_url = getattr(
         settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
     ).rstrip("/")
+    # Full deep link to the audit detail page — used by both the plain-text
+    # body (${assessment_url}) and the HTML CTA button. The host-only form is
+    # never enough; downstream we always need /compliance-assessments/<id>.
+    assessment_url = f"{base_url}/compliance-assessments/{assessment.id}"
+    framework_name = (
+        assessment.framework.name if assessment.framework else "No framework"
+    )
+    folder_name = assessment.folder.name if assessment.folder else "Default"
+    status_change = f"{status_label(old_status)} → {status_label(new_status)}"
+
     context = {
         "assessment_name": assessment.name,
-        "framework_name": assessment.framework.name
-        if assessment.framework
-        else "No framework",
+        "framework_name": framework_name,
         "assessment_status": assessment.get_status_display(),
         "old_status": status_label(old_status),
         "new_status": status_label(new_status),
-        "folder_name": assessment.folder.name if assessment.folder else "Default",
-        "assessment_url": f"{base_url}/compliance-assessments/{assessment.id}",
+        "folder_name": folder_name,
+        "assessment_url": assessment_url,
     }
+
+    # Same detail-table layout as applied_control / evidence / policy
+    # assignment emails. The status change is rendered as a single row
+    # instead of a separate highlighted box so the audit emails look
+    # visually identical to every other notification.
+    # `assessment_url` is added as its own row so the full deep link is
+    # always visible as plain text (not only behind the CTA button).
+    detail_specs = [
+        ("name_label", assessment.name),
+        ("framework_label", framework_name),
+        ("domain_label", folder_name),
+        ("status_change_label", status_change),
+        ("audit_url_label", assessment_url),
+    ]
 
     # Deduplicate while preserving order
     seen = set()
@@ -1589,33 +1609,14 @@ def send_compliance_assessment_status_notification(
     for email in unique_emails:
         if not check_email_configuration(email, [assessment]):
             continue
-        rendered = render_email_template(template_name, context)
-        if rendered:
-            html_body = render_audit_status_html_email(
-                intro=rendered.get("intro", ""),
-                action=rendered.get("action", ""),
-                assessment_name=context["assessment_name"],
-                framework_name=context["framework_name"],
-                folder_name=context["folder_name"],
-                old_status=context["old_status"],
-                new_status=context["new_status"],
-                assessment_url=context["assessment_url"],
-                details_heading=rendered.get("details_heading", "Audit details"),
-                status_heading=rendered.get("status_heading", "Status change"),
-                name_label=rendered.get("name_label", "Name"),
-                framework_label=rendered.get("framework_label", "Framework"),
-                domain_label=rendered.get("domain_label", "Domain"),
-                cta_label=rendered.get("cta_label", "Open audit"),
-                greeting=rendered.get("greeting", "Hello,"),
-                closing=rendered.get("closing", "Thank you."),
-            )
-            send_notification_email(
-                rendered["subject"],
-                rendered["body"],
-                email,
-                html_message=html_body,
-            )
-        else:
+        delivered = _deliver_assignment_email(
+            template_name=template_name,
+            context=context,
+            detail_specs=detail_specs,
+            object_url=assessment_url,
+            recipient_email=email,
+        )
+        if not delivered:
             logger.error(
                 f"Failed to render {template_name} email template for {email}"
             )

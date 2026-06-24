@@ -1,28 +1,26 @@
 subject: "Wathbah GRC: Audit review completed — '${assessment_name}'"
 intro: "The status of the following Audit has changed following a successful review."
-action: "The audit is now marked as Done. Open it to view the outcome."
+action: "The audit is now marked as Done. Open it in Wathbah GRC to view the outcome."
 details_heading: "Audit details"
-status_heading: "Status change"
 name_label: "Name"
 framework_label: "Framework"
 domain_label: "Domain"
+status_change_label: "Status change"
+audit_url_label: "Audit link"
 cta_label: "Open audit"
 greeting: "Hello,"
 closing: "Thank you."
 body: |
   Hello,
 
-  The status of the following Audit has changed following a successful review.
+  The status of the following Audit has changed following a successful review:
 
-  Audit details
+  - Name: ${assessment_name}
+  - Framework: ${framework_name}
+  - Domain: ${folder_name}
+  - Status change: ${old_status} → ${new_status}
 
-  Name: ${assessment_name}
-  Framework: ${framework_name}
-  Domain: ${folder_name}
-
-  Status change: ${old_status} → ${new_status}
-
-  The audit is now marked as Done. Open it to view the outcome:
+  The audit is now marked as Done. Open it in Wathbah GRC to view the outcome:
   ${assessment_url}
 
   Thank you.

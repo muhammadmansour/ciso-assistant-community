@@ -353,6 +353,8 @@ def render_email_template(
             "description_label",
             "ref_id_label",
             "status_label",
+            "status_change_label",
+            "audit_url_label",
             "priority_label",
             "eta_label",
             "expiry_label",
