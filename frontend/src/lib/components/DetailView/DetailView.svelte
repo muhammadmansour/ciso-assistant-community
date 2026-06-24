@@ -306,7 +306,10 @@
 		'compliance-assessments',
 		'follow-ups',
 		'followups',
-		'findings-assessments'
+		'findings-assessments',
+		'quantitative-risk-scenarios',
+		'personal-data',
+		'incidents'
 	]);
 
 	function getSortedRelatedModels() {

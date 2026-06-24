@@ -218,6 +218,12 @@ export const navData = {
 					fa_icon: 'fa-solid fa-clipboard-list',
 					href: '/findings-assessments',
 					alwaysShow: true
+				},
+				{
+					name: 'tasks',
+					fa_icon: 'fa-solid fa-note-sticky',
+					href: '/task-templates',
+					permissions: ['view_tasktemplate']
 				}
 			]
 		},
