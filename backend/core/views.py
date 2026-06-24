@@ -3828,6 +3828,8 @@ class AppliedControlFilterSet(GenericFilterSet):
         choices=AppliedControl.Status.choices, lookup_expr="icontains"
     )
     is_assigned = df.BooleanFilter(method="filter_is_assigned")
+    is_published = df.BooleanFilter(field_name="is_published")
+    has_open_findings = df.BooleanFilter(method="filter_has_open_findings")
     # Nullable choice filters that support filtering for unset values using "--"
     category = NullableChoiceFilter(choices=AppliedControl.CATEGORY)
     csf_function = NullableChoiceFilter(choices=AppliedControl.CSF_FUNCTION)
@@ -3899,6 +3901,19 @@ class AppliedControlFilterSet(GenericFilterSet):
         else:
             return queryset.filter(owner__isnull=True)
 
+    def filter_has_open_findings(self, queryset, name, value):
+        # "Open" = any Finding status that is not a terminal/closed state.
+        # Excludes: dismissed, mitigated, resolved, closed, deprecated, "--".
+        open_statuses = [
+            "identified",
+            "confirmed",
+            "assigned",
+            "in_progress",
+        ]
+        if value:
+            return queryset.filter(findings__status__in=open_statuses).distinct()
+        return queryset.exclude(findings__status__in=open_statuses).distinct()
+
     class Meta:
         model = AppliedControl
         fields = {
@@ -3922,6 +3937,7 @@ class AppliedControlFilterSet(GenericFilterSet):
             "owner": ["exact"],
             "findings": ["exact"],
             "eta": ["exact", "lte", "gte", "lt", "gt", "month", "year"],
+            "expiry_date": ["exact", "lte", "gte", "lt", "gt"],
             "ref_id": ["exact"],
             "processings": ["exact"],
             "genericcollection": ["exact"],
@@ -5376,10 +5392,107 @@ class PolicyViewSet(AppliedControlViewSet):
     ]
     search_fields = ["name", "description", "ref_id"]
 
+    # Finding statuses considered "open" for policy posture (mirrors
+    # AppliedControlFilterSet.filter_has_open_findings).
+    _OPEN_FINDING_STATUSES = (
+        "identified",
+        "confirmed",
+        "assigned",
+        "in_progress",
+    )
+
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get csf_function choices")
     def csf_function(self, request):
         return Response(dict(AppliedControl.CSF_FUNCTION))
+
+    @action(detail=False, name="Get policy governance posture counts")
+    def posture(self, request):
+        """Aggregate counts for the dashboard "Policy governance posture" panel.
+
+        Returns five mutually-independent counts over the user's viewable
+        policies (AppliedControl with category="policy"):
+          * published_active    — is_published AND status="active"
+          * review_due_90d      — expiry_date within [today, today+90d]
+          * expired             — expiry_date < today
+          * with_open_findings  — at least one Finding in an open status
+          * unassigned          — no owner attached
+        Each row corresponds to a one-line filter on /api/policies/.
+        """
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, AppliedControl
+        )
+        qs = AppliedControl.objects.filter(id__in=viewable_ids, category="policy")
+
+        today = date.today()
+        in_90_days = today + timedelta(days=90)
+
+        published_active = qs.filter(is_published=True, status="active").count()
+        review_due_90d = qs.filter(
+            expiry_date__gte=today, expiry_date__lte=in_90_days
+        ).count()
+        expired = qs.filter(expiry_date__lt=today).count()
+        with_open_findings = (
+            qs.filter(findings__status__in=self._OPEN_FINDING_STATUSES)
+            .distinct()
+            .count()
+        )
+        unassigned = qs.filter(owner__isnull=True).count()
+        total = qs.count()
+
+        return Response(
+            {
+                "total": total,
+                "published_active": published_active,
+                "review_due_90d": review_due_90d,
+                "expired": expired,
+                "with_open_findings": with_open_findings,
+                "unassigned": unassigned,
+            }
+        )
+
+    @action(detail=False, name="Get policies by open findings count")
+    def findings_metrics(self, request):
+        """Open-findings counts grouped by policy for the dashboard bar chart.
+
+        Mirrors the shape of /api/policy-violations/metrics/ so the same
+        horizontal-bar component can render it. Only policies with at least
+        one open finding are returned, ordered by descending count.
+
+        The conditional ``Count(..., filter=...)`` is critical: filtering on
+        ``findings__status`` *outside* the annotation would also affect how
+        rows are joined, leading to inflated counts for policies that have
+        both open and closed findings.
+        """
+        viewable_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, AppliedControl
+        )
+        grouped = (
+            AppliedControl.objects.filter(
+                id__in=viewable_ids,
+                category="policy",
+            )
+            .annotate(
+                count=Count(
+                    "findings",
+                    filter=Q(findings__status__in=self._OPEN_FINDING_STATUSES),
+                    distinct=True,
+                )
+            )
+            .filter(count__gt=0)
+            .values("id", "name", "count")
+            .order_by("-count", "name")
+        )
+        return Response(
+            [
+                {
+                    "policy_id": str(row["id"]),
+                    "name": row["name"] or "Unknown",
+                    "count": row["count"],
+                }
+                for row in grouped
+            ]
+        )
 
 
 class RiskScenarioFilter(GenericFilterSet):
