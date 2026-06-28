@@ -313,8 +313,7 @@
 	]);
 
 	const VISIBLE_ON_PARENT: Record<string, Set<string>> = {
-		'risk-scenarios': new Set(['findings', 'findings-assessments']),
-		'findings': new Set(['findings-assessments'])
+		'risk-scenarios': new Set(['findings', 'findings-assessments'])
 	};
 
 	function shouldHideRelatedModel(urlmodel: string): boolean {
