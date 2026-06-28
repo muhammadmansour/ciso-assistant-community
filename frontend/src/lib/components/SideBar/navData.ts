@@ -207,12 +207,12 @@ export const navData = {
 					href: '/validation-flows',
 					alwaysShow: true
 				},
-				{
-					name: 'securityExceptions',
-					fa_icon: 'fa-solid fa-circle-exclamation',
-					href: '/security-exceptions',
-					alwaysShow: true
-				},
+				// {
+				// 	name: 'securityExceptions',
+				// 	fa_icon: 'fa-solid fa-circle-exclamation',
+				// 	href: '/security-exceptions',
+				// 	alwaysShow: true
+				// },
 				{
 					name: 'findingsTracking',
 					fa_icon: 'fa-solid fa-clipboard-list',
