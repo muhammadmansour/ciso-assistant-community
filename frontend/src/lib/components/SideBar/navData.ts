@@ -224,12 +224,7 @@ export const navData = {
 					fa_icon: 'fa-solid fa-note-sticky',
 					href: '/task-templates',
 					permissions: ['view_tasktemplate']
-				}
-			]
-		},
-		{
-			name: 'assetsManagement',
-			items: [
+				},
 				{
 					name: 'assets',
 					fa_icon: 'fa-solid fa-gem',
