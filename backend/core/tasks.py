@@ -1455,21 +1455,27 @@ def send_metric_instance_assignment_notification(instance_id, assigned_user_emai
 
 @task()
 def send_task_template_assignment_notification(task_template_id, emails):
-    """Send notification when TaskTemplate is assigned to users"""
+    """Send notification when TaskTemplate is assigned to users."""
     if not emails:
         return
 
     try:
-        from core.models import TaskTemplate
+        from core.models import TaskNode, TaskTemplate
 
-        task_template = TaskTemplate.objects.get(id=task_template_id)
+        task_template = TaskTemplate.objects.select_related("folder").get(
+            id=task_template_id
+        )
     except TaskTemplate.DoesNotExist:
         logger.error(f"TaskTemplate with id {task_template_id} not found")
         return
 
-    from .email_utils import render_email_template
+    task_node = (
+        TaskNode.objects.filter(task_template=task_template).order_by("due_date").first()
+    )
+    observation = (task_node.observation if task_node and task_node.observation else "") or ""
 
     context = {
+        "task_id": str(task_template.id),
         "task_name": task_template.name,
         "task_description": task_template.description or "No description provided",
         "task_ref_id": task_template.ref_id or "N/A",
@@ -1477,14 +1483,26 @@ def send_task_template_assignment_notification(task_template_id, emails):
         if task_template.task_date
         else "Not set",
         "is_recurrent": "Yes" if task_template.is_recurrent else "No",
+        "task_observation": observation or "Not set",
         "folder_name": task_template.folder.name if task_template.folder else "Default",
     }
 
+    detail_specs = [
+        ("name_label", context["task_name"]),
+        ("description_label", task_template.description or ""),
+        ("ref_id_label", task_template.ref_id or ""),
+        ("task_date_label", context["task_date"]),
+        ("recurrent_label", context["is_recurrent"]),
+        ("observation_label", observation),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"task-templates/{task_template.id}")
+
     for email in emails:
         if email and check_email_configuration(email, [task_template]):
-            rendered = render_email_template("task_template_assignment", context)
-            if rendered:
-                send_notification_email(rendered["subject"], rendered["body"], email)
+            _deliver_assignment_email(
+                "task_template_assignment", context, detail_specs, object_url, email
+            )
 
 
 @task()

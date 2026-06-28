@@ -1,4 +1,17 @@
 subject: "Wathbah GRC: You have been assigned to '${task_name}'"
+intro: "You have been assigned to the following task."
+action: "Open the task in Wathbah GRC to update its status, observation or assignment."
+details_heading: "Task details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+task_date_label: "Task date"
+recurrent_label: "Recurrent"
+observation_label: "Observation"
+domain_label: "Domain"
+cta_label: "Open task"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
@@ -7,11 +20,12 @@ body: |
   - Name: ${task_name}
   - Description: ${task_description}
   - Reference ID: ${task_ref_id}
-  - Task Date: ${task_date}
+  - Task date: ${task_date}
   - Recurrent: ${is_recurrent}
+  - Observation: ${task_observation}
   - Domain: ${folder_name}
 
-  Log in to your Wathbah GRC portal to view and manage this task:
-  ${ciso_assistant_url}
+  Open the task in Wathbah GRC:
+  ${ciso_assistant_url}/task-templates/${task_id}
 
   Thank you.

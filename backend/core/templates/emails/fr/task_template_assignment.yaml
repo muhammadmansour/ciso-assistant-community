@@ -1,4 +1,17 @@
 subject: "Wathbah GRC: Vous avez été affecté à '${task_name}'"
+intro: "Vous avez été affecté à la tâche suivante."
+action: "Ouvrez la tâche dans Wathbah GRC pour mettre à jour son statut, son observation ou son affectation."
+details_heading: "Détails de la tâche"
+name_label: "Nom"
+description_label: "Description"
+ref_id_label: "ID de référence"
+task_date_label: "Date"
+recurrent_label: "Récurrente"
+observation_label: "Observation"
+domain_label: "Domaine"
+cta_label: "Ouvrir la tâche"
+greeting: "Bonjour,"
+closing: "Merci."
 body: |
   Bonjour,
 
@@ -9,9 +22,10 @@ body: |
   - ID de référence : ${task_ref_id}
   - Date : ${task_date}
   - Récurrente : ${is_recurrent}
+  - Observation : ${task_observation}
   - Domaine : ${folder_name}
 
-  Connectez-vous à votre portail Wathbah GRC pour consulter et gérer cette tâche :
-  ${ciso_assistant_url}
+  Ouvrez la tâche dans Wathbah GRC :
+  ${ciso_assistant_url}/task-templates/${task_id}
 
   Merci.
