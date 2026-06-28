@@ -267,6 +267,11 @@ export const navData = {
 					href: '/risk-scenarios'
 				},
 				{
+					name: 'threats',
+					fa_icon: 'fa-solid fa-biohazard',
+					href: '/threats'
+				},
+				{
 					name: 'scoringAssistant',
 					fa_icon: 'fa-solid fa-star-half-stroke',
 					href: '/scoring-assistant',
