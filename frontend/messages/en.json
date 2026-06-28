@@ -1979,6 +1979,8 @@
 	"taskNode": "Task occurrence",
 	"taskNodes": "Tasks occurrences",
 	"associatedTaskNodes": "Associated occurrences",
+	"riskAndRelatedFindings": "Risk and related findings",
+	"taskRiskFindingsEmptyHint": "Link risk assessments, findings assessments, or applied controls to this task to see related risk scenarios and findings.",
 	"nextOccurrence": "Next occurrence",
 	"taskTemplate": "Task",
 	"taskTemplates": "Tasks",
