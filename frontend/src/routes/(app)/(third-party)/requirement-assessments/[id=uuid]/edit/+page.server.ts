@@ -9,7 +9,7 @@ import { type TableSource } from '@skeletonlabs/skeleton-svelte';
 import type { Actions } from '@sveltejs/kit';
 import { fail, redirect } from '@sveltejs/kit';
 import { setFlash } from 'sveltekit-flash-message/server';
-import { superValidate } from 'sveltekit-superforms';
+import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { z } from 'zod';
@@ -30,6 +30,9 @@ export const load = (async ({ fetch, params }) => {
 
 	const requirementAssessment = await fetchJson(endpoint);
 	const requirement = requirementAssessment.requirement;
+	const complianceAssessment = await fetchJson(
+		`${baseUrl}/compliance-assessments/${requirementAssessment.compliance_assessment.id}/`
+	);
 	const compliance_assessment_score = await fetchJson(
 		`${baseUrl}/compliance-assessments/${requirementAssessment.compliance_assessment.id}/global_score/`
 	);
@@ -194,6 +197,7 @@ export const load = (async ({ fetch, params }) => {
 		URLModel,
 		title: requirementAssessment.name,
 		requirementAssessment,
+		complianceAssessment,
 		compliance_assessment_score,
 		requirement,
 		parent,
@@ -478,6 +482,33 @@ export const actions: Actions = {
 		}
 
 		return { logged: true };
+	},
+	createTaskFromGap: async (event) => {
+		const schema = modelSchema('task-templates');
+		const body = await event.request.json();
+		const form = await superValidate(body, zod(schema));
+
+		if (!form.valid) {
+			return fail(400, { form });
+		}
+
+		const response = await event.fetch(`${BASE_API_URL}/task-templates/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(form.data)
+		});
+
+		if (!response.ok) return handleErrorResponse({ event, response, form });
+
+		const writtenObject = await response.json();
+		setFlash(
+			{
+				type: 'success',
+				message: m.successfullyCreatedObject({ object: m.taskTemplate() })
+			},
+			event
+		);
+		return message(form, { object: writtenObject });
 	},
 	createSuggestedControls: async (event) => {
 		const formData = await event.request.formData();

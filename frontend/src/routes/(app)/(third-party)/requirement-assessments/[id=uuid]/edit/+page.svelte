@@ -23,6 +23,9 @@
 
 	import List from '$lib/components/List/List.svelte';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
+	import ConvertGapToTaskModal, {
+		type GapTaskPrefill
+	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -342,6 +345,46 @@
 	let analysisComplete = $state(false);
 	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
 	let pendingAnalysisResult: any = $state(null);
+
+	function buildGapTaskPrefill(
+		idx: number,
+		gGap: string | null,
+		gRec: string | null
+	): GapTaskPrefill {
+		const ra = data.requirementAssessment;
+		const ca = data.complianceAssessment;
+		const gapText = gGap?.trim() || '';
+
+		return {
+			name: gapText || `Gap ${idx + 1}`,
+			description: gapText,
+			observation: gRec?.trim() || '',
+			folder: ra.folder.id,
+			applied_controls: ra.applied_controls?.map((ac: { id: string }) => ac.id) ?? [],
+			assets: ca?.assets?.map((asset: { id: string }) => asset.id) ?? [],
+			compliance_assessments: [ra.compliance_assessment.id],
+			appliedControlLabels: ra.applied_controls?.map((ac: { str: string }) => ac.str) ?? [],
+			assetLabels:
+				ca?.assets?.map(
+					(asset: { str?: string; name?: string; id: string }) =>
+						asset.str || asset.name || asset.id
+				) ?? [],
+			assessmentLabel: ra.compliance_assessment.str || ra.compliance_assessment.name || ''
+		};
+	}
+
+	let showGapTaskModal = $state(false);
+	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
+
+	function openConvertGapToTaskModal(idx: number, gGap: string | null, gRec: string | null) {
+		gapTaskPrefill = buildGapTaskPrefill(idx, gGap, gRec);
+		showGapTaskModal = true;
+	}
+
+	function closeConvertGapToTaskModal() {
+		showGapTaskModal = false;
+		gapTaskPrefill = null;
+	}
 
 	const analysisSteps = [
 		{ label: 'Scanning attached documents and evidence...' },
@@ -2440,6 +2483,16 @@
 																<span class="text-gray-800">{gRec}</span>
 															</div>
 														{/if}
+														<div class="flex justify-end pt-1">
+															<button
+																type="button"
+																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
+																onclick={() => openConvertGapToTaskModal(idx, gGap, gRec)}
+															>
+																<i class="fa-solid fa-list-check mr-1"></i>
+																{m.convertToTask()}
+															</button>
+														</div>
 													</div>
 												</div>
 											{/each}
@@ -2698,4 +2751,8 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if showGapTaskModal && gapTaskPrefill}
+	<ConvertGapToTaskModal prefill={gapTaskPrefill} onClose={closeConvertGapToTaskModal} />
 {/if}
