@@ -17,9 +17,7 @@
 
 	const showOccurrencesTab = $derived(data.showOccurrencesTab);
 
-	let group = $state(
-		data.showOccurrencesTab ? 'task-nodes' : 'risk-and-related-findings'
-	);
+	let group = $state(data.showOccurrencesTab ? 'task-nodes' : 'risk');
 
 	function buildTableSource(urlModel: string): TableSource {
 		const fields = getListViewFields({
@@ -77,8 +75,11 @@
 						{/if}
 					</Tabs.Control>
 				{/if}
-				<Tabs.Control value="risk-and-related-findings">
-					{m.riskAndRelatedFindings()}
+				<Tabs.Control value="risk">
+					{m.risk()}
+				</Tabs.Control>
+				<Tabs.Control value="related-findings">
+					{m.relatedFindings()}
 				</Tabs.Control>
 			{/snippet}
 			{#snippet content()}
@@ -110,42 +111,47 @@
 						{/if}
 					</Tabs.Panel>
 				{/if}
-				<Tabs.Panel value="risk-and-related-findings">
-						<div class="flex flex-col space-y-8 px-4 py-2">
+				<Tabs.Panel value="risk">
+						<div class="flex flex-col px-4 py-2">
+							<div class="flex flex-row justify-between py-2">
+								<h4 class="font-semibold lowercase capitalize-first my-auto">
+									{m.riskScenarios()}
+								</h4>
+							</div>
 							{#if data.riskScenariosEndpoint}
-								<div>
-									<h4 class="font-semibold lowercase capitalize-first mb-2">
-										{m.riskScenarios()}
-									</h4>
-									<ModelTable
-										URLModel="risk-scenarios"
-										source={riskScenariosTable}
-										baseEndpoint={data.riskScenariosEndpoint}
-										fields={riskScenarioFields}
-										search={true}
-										rowsPerPage={true}
-										disableCreate={true}
-									/>
-								</div>
+								<ModelTable
+									URLModel="risk-scenarios"
+									source={riskScenariosTable}
+									baseEndpoint={data.riskScenariosEndpoint}
+									fields={riskScenarioFields}
+									search={true}
+									rowsPerPage={true}
+									disableCreate={true}
+								/>
+							{:else}
+								<p class="text-gray-500 text-center py-6">{m.taskRiskEmptyHint()}</p>
 							{/if}
+						</div>
+					</Tabs.Panel>
+				<Tabs.Panel value="related-findings">
+						<div class="flex flex-col px-4 py-2">
+							<div class="flex flex-row justify-between py-2">
+								<h4 class="font-semibold lowercase capitalize-first my-auto">
+									{m.findings()}
+								</h4>
+							</div>
 							{#if data.findingsEndpoint}
-								<div>
-									<h4 class="font-semibold lowercase capitalize-first mb-2">
-										{m.findings()}
-									</h4>
-									<ModelTable
-										URLModel="findings"
-										source={findingsTable}
-										baseEndpoint={data.findingsEndpoint}
-										fields={findingFields}
-										search={true}
-										rowsPerPage={true}
-										disableCreate={true}
-									/>
-								</div>
-							{/if}
-							{#if !data.riskScenariosEndpoint && !data.findingsEndpoint}
-								<p class="text-gray-500 text-center py-6">{m.taskRiskFindingsEmptyHint()}</p>
+								<ModelTable
+									URLModel="findings"
+									source={findingsTable}
+									baseEndpoint={data.findingsEndpoint}
+									fields={findingFields}
+									search={true}
+									rowsPerPage={true}
+									disableCreate={true}
+								/>
+							{:else}
+								<p class="text-gray-500 text-center py-6">{m.taskFindingsEmptyHint()}</p>
 							{/if}
 						</div>
 					</Tabs.Panel>
