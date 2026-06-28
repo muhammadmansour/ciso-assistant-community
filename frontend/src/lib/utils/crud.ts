@@ -1693,7 +1693,14 @@ export const URL_MODEL_MAP: ModelMap = {
 		],
 		reverseForeignKeyFields: [
 			{ field: 'findings_assessment', urlModel: 'findings' },
-			{ field: 'findings_assessments', urlModel: 'evidences' }
+			{ field: 'findings_assessments', urlModel: 'evidences' },
+			{
+				field: 'findings_assessment',
+				urlModel: 'risk-scenarios',
+				disableCreate: true,
+				disableDelete: true,
+				disableEdit: true
+			}
 		],
 		selectFields: [{ field: 'status' }, { field: 'category' }],
 		detailViewFields: [

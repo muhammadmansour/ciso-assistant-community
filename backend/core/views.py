@@ -5519,6 +5519,11 @@ class RiskScenarioFilter(GenericFilterSet):
         queryset=Finding.objects.all(),
         label="Related finding",
     )
+    findings_assessment = df.ModelMultipleChoiceFilter(
+        method="filter_findings_assessment",
+        queryset=FindingsAssessment.objects.all(),
+        label="Related findings assessment",
+    )
     exclude = df.UUIDFilter(
         method="filter_exclude",
         label="Exclude scenario",
@@ -5558,6 +5563,19 @@ class RiskScenarioFilter(GenericFilterSet):
             return queryset
         applied_controls = AppliedControl.objects.filter(findings__in=value)
         vulnerabilities = Vulnerability.objects.filter(findings__in=value)
+        return queryset.filter(
+            Q(applied_controls__in=applied_controls)
+            | Q(existing_applied_controls__in=applied_controls)
+            | Q(vulnerabilities__in=vulnerabilities)
+        ).distinct()
+
+    def filter_findings_assessment(self, queryset, name, value):
+        """Filter risk scenarios related to all findings in a findings assessment."""
+        if not value:
+            return queryset
+        findings = Finding.objects.filter(findings_assessment__in=value)
+        applied_controls = AppliedControl.objects.filter(findings__in=findings)
+        vulnerabilities = Vulnerability.objects.filter(findings__in=findings)
         return queryset.filter(
             Q(applied_controls__in=applied_controls)
             | Q(existing_applied_controls__in=applied_controls)

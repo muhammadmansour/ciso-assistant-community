@@ -296,7 +296,7 @@
 	});
 
 	// Hidden per request: hide these tabs from the DetailView related-models tab strip.
-	// Re-enable by removing entries from the set below.
+	// Re-enable by removing entries from the set below, or whitelisting the parent model.
 	const HIDDEN_RELATED_MODELS = new Set([
 		'tasks',
 		'task-templates',
@@ -312,9 +312,22 @@
 		'incidents'
 	]);
 
+	const VISIBLE_ON_PARENT: Record<string, Set<string>> = {
+		'risk-scenarios': new Set(['findings', 'findings-assessments']),
+		'findings': new Set(['findings-assessments'])
+	};
+
+	function shouldHideRelatedModel(urlmodel: string): boolean {
+		const parentUrlModel = data.urlModel;
+		if (VISIBLE_ON_PARENT[urlmodel]?.has(parentUrlModel)) {
+			return false;
+		}
+		return HIDDEN_RELATED_MODELS.has(urlmodel);
+	}
+
 	function getSortedRelatedModels() {
 		return Object.entries(data?.relatedModels ?? {})
-			.filter(([urlmodel]) => !HIDDEN_RELATED_MODELS.has(urlmodel))
+			.filter(([urlmodel]) => !shouldHideRelatedModel(urlmodel))
 			.sort((a: [string, any], b: [string, any]) => {
 				return getRelatedModelIndex(data.model, a[1]) - getRelatedModelIndex(data.model, b[1]);
 			});
