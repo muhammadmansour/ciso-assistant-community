@@ -295,31 +295,22 @@
 		);
 	});
 
-	// Hidden per request: hide these tabs from the DetailView related-models tab strip.
-	// Re-enable by removing entries from the set below, or whitelisting the parent model.
+	// Hidden globally: CRQ scenarios, Personal Data, and Incidents only.
 	const HIDDEN_RELATED_MODELS = new Set([
-		'tasks',
-		'task-templates',
-		'risk-scenarios',
-		'findings',
-		'assets',
-		'compliance-assessments',
-		'follow-ups',
-		'followups',
-		'findings-assessments',
 		'quantitative-risk-scenarios',
 		'personal-data',
 		'incidents'
 	]);
 
-	const VISIBLE_ON_PARENT: Record<string, Set<string>> = {
-		'risk-scenarios': new Set(['findings', 'findings-assessments'])
+	// Hidden only on specific parent detail pages.
+	const HIDDEN_ON_PARENT: Record<string, Set<string>> = {
+		findings: new Set(['findings-assessments'])
 	};
 
 	function shouldHideRelatedModel(urlmodel: string): boolean {
 		const parentUrlModel = data.urlModel;
-		if (VISIBLE_ON_PARENT[urlmodel]?.has(parentUrlModel)) {
-			return false;
+		if (HIDDEN_ON_PARENT[urlmodel]?.has(parentUrlModel)) {
+			return true;
 		}
 		return HIDDEN_RELATED_MODELS.has(urlmodel);
 	}
