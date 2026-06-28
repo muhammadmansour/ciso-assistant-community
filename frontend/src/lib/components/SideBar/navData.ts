@@ -228,6 +228,26 @@ export const navData = {
 			]
 		},
 		{
+			name: 'assetsManagement',
+			items: [
+				{
+					name: 'assets',
+					fa_icon: 'fa-solid fa-gem',
+					href: '/assets'
+				},
+				{
+					name: 'businessImpactAnalysis',
+					fa_icon: 'fa-solid fa-arrows-to-eye',
+					href: '/business-impact-analysis',
+					permissions: [
+						'view_businessimpactanalysis',
+						'view_assetassessment',
+						'view_escalationthreshold'
+					]
+				}
+			]
+		},
+		{
 			name: 'risk',
 			items: [
 				{

@@ -46,6 +46,9 @@
 	if (!$lastAccordionItem.includes('governance')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'governance'];
 	}
+	if (!$lastAccordionItem.includes('assetsManagement')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'assetsManagement'];
+	}
 	if (!$lastAccordionItem.includes('risk')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'risk'];
 	}
