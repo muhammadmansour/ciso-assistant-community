@@ -485,8 +485,10 @@ export const actions: Actions = {
 	},
 	createTaskFromGap: async (event) => {
 		const schema = modelSchema('task-templates');
-		const body = await event.request.json();
-		const form = await superValidate(body, zod(schema));
+		const contentType = event.request.headers.get('content-type') ?? '';
+		const form = contentType.includes('application/json')
+			? await superValidate(await event.request.json(), zod(schema))
+			: await superValidate(await event.request.formData(), zod(schema));
 
 		if (!form.valid) {
 			return fail(400, { form });
