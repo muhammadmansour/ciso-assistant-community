@@ -60,75 +60,89 @@
 	});
 
 	const { submitting } = _form;
+
+	const linkedItems = $derived([
+		...(prefill.appliedControlLabels.length > 0
+			? [
+					{
+						icon: 'fa-solid fa-shield-halved',
+						label: m.appliedControls(),
+						values: prefill.appliedControlLabels
+					}
+				]
+			: []),
+		...(prefill.assetLabels.length > 0
+			? [
+					{
+						icon: 'fa-solid fa-gem',
+						label: m.assets(),
+						values: prefill.assetLabels
+					}
+				]
+			: []),
+		...(prefill.assessmentLabel
+			? [
+					{
+						icon: 'fa-solid fa-clipboard-check',
+						label: m.complianceAssessments(),
+						values: [prefill.assessmentLabel]
+					}
+				]
+			: [])
+	]);
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+	class="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6"
 	role="dialog"
 	aria-modal="true"
 	aria-labelledby="convert-gap-to-task-title"
+	onkeydown={(e) => e.key === 'Escape' && !$submitting && onClose()}
 >
 	<button
 		type="button"
-		class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+		class="absolute inset-0 bg-[#0A1628]/55 backdrop-blur-sm"
 		aria-label={m.cancel()}
 		onclick={onClose}
 	></button>
 
-	<div class="relative w-full max-w-lg rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl">
-		<div class="mb-4 flex items-center justify-between">
-			<h2 id="convert-gap-to-task-title" class="text-lg font-bold text-gray-900">
-				{m.convertGapToTask()}
-			</h2>
-			<button
-				type="button"
-				class="text-gray-400 hover:text-gray-600"
-				aria-label={m.cancel()}
-				onclick={onClose}
-			>
-				<i class="fa-solid fa-xmark"></i>
-			</button>
-		</div>
-
-		<div class="mb-4 space-y-3 rounded-lg bg-gray-50 p-4 text-sm">
-			<div>
-				<span class="font-medium text-gray-500">{m.name()}:</span>
-				<p class="mt-0.5 text-gray-900">{prefill.name}</p>
+	<div
+		class="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-white shadow-[0_24px_80px_rgba(10,22,40,0.28)]"
+	>
+		<div
+			class="shrink-0 border-b border-orange-100 bg-gradient-to-r from-orange-50 via-white to-[#005FA3]/5 px-6 py-5"
+		>
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex items-start gap-3">
+					<div
+						class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700 shadow-sm"
+					>
+						<i class="fa-solid fa-list-check text-lg"></i>
+					</div>
+					<div>
+						<h2 id="convert-gap-to-task-title" class="text-lg font-bold tracking-tight text-gray-900">
+							{m.convertGapToTask()}
+						</h2>
+						<p class="mt-1 text-sm text-gray-500">
+							{m.convertGapToTaskDescription()}
+						</p>
+					</div>
+				</div>
+				<button
+					type="button"
+					class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+					aria-label={m.cancel()}
+					disabled={$submitting}
+					onclick={onClose}
+				>
+					<i class="fa-solid fa-xmark"></i>
+				</button>
 			</div>
-			{#if prefill.description}
-				<div>
-					<span class="font-medium text-gray-500">{m.description()}:</span>
-					<p class="mt-0.5 text-gray-800">{prefill.description}</p>
-				</div>
-			{/if}
-			{#if prefill.observation}
-				<div>
-					<span class="font-medium text-gray-500">{m.observation()}:</span>
-					<p class="mt-0.5 text-gray-800">{prefill.observation}</p>
-				</div>
-			{/if}
-			{#if prefill.appliedControlLabels.length > 0}
-				<div>
-					<span class="font-medium text-gray-500">{m.appliedControls()}:</span>
-					<p class="mt-0.5 text-gray-800">{prefill.appliedControlLabels.join(', ')}</p>
-				</div>
-			{/if}
-			{#if prefill.assetLabels.length > 0}
-				<div>
-					<span class="font-medium text-gray-500">{m.assets()}:</span>
-					<p class="mt-0.5 text-gray-800">{prefill.assetLabels.join(', ')}</p>
-				</div>
-			{/if}
-			{#if prefill.assessmentLabel}
-				<div>
-					<span class="font-medium text-gray-500">{m.complianceAssessments()}:</span>
-					<p class="mt-0.5 text-gray-800">{prefill.assessmentLabel}</p>
-				</div>
-			{/if}
 		</div>
 
 		<SuperForm
-			class="flex flex-col space-y-4"
+			class="flex min-h-0 flex-1 flex-col"
 			dataType="json"
 			data={form}
 			{_form}
@@ -153,42 +167,132 @@
 					<input type="hidden" name={`compliance_assessments[${index}]`} value={assessmentId} />
 				{/each}
 
-				<AutocompleteSelect
-					{form}
-					multiple
-					mandatory
-					optionsEndpoint="actors?user__is_third_party=False"
-					optionsLabelField="str"
-					optionsInfoFields={{
-						fields: [{ field: 'type', translate: true }],
-						position: 'prefix'
-					}}
-					field="assigned_to"
-					label={m.assignedTo()}
-				/>
+				<div class="flex-1 overflow-y-auto px-6 py-5">
+					<div class="space-y-4">
+						<section
+							class="overflow-hidden rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50/80 to-white"
+						>
+							<div class="border-b border-orange-100 px-4 py-2.5">
+								<div class="flex items-center gap-2 text-sm font-semibold text-orange-800">
+									<i class="fa-solid fa-triangle-exclamation"></i>
+									<span>{m.gapDetails()}</span>
+								</div>
+							</div>
+							<div class="space-y-3 px-4 py-4">
+								<div>
+									<p class="text-xs font-semibold uppercase tracking-wide text-orange-700/80">
+										{m.name()}
+									</p>
+									<p class="mt-1 text-sm font-medium leading-relaxed text-gray-900">
+										{prefill.name}
+									</p>
+								</div>
+								{#if prefill.description}
+									<div>
+										<p class="text-xs font-semibold uppercase tracking-wide text-orange-700/80">
+											{m.description()}
+										</p>
+										<p class="mt-1 text-sm leading-relaxed text-gray-800">
+											{prefill.description}
+										</p>
+									</div>
+								{/if}
+							</div>
+						</section>
 
-				<div class="flex gap-3 pt-2">
-					<button
-						type="button"
-						class="btn w-full rounded-lg bg-gray-200 font-semibold text-gray-700 hover:bg-gray-300"
-						disabled={$submitting}
-						onclick={onClose}
-					>
-						{m.cancel()}
-					</button>
-					<button
-						type="submit"
-						class="btn w-full rounded-lg bg-gradient-to-r from-[#0A1628] to-[#1a2740] font-semibold text-white shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] {$submitting
-							? 'cursor-wait opacity-75'
-							: ''}"
-						disabled={$submitting}
-					>
-						{#if $submitting}
-							{m.loading()} <LoadingSpinner />
-						{:else}
-							{m.convertToTask()}
+						{#if prefill.observation}
+							<section class="rounded-xl border border-[#005FA3]/15 bg-[#005FA3]/5 px-4 py-4">
+								<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-[#005FA3]">
+									<i class="fa-solid fa-lightbulb"></i>
+									<span>{m.observation()}</span>
+								</div>
+								<p class="text-sm leading-relaxed text-gray-800">{prefill.observation}</p>
+							</section>
 						{/if}
-					</button>
+
+						{#if linkedItems.length > 0}
+							<section class="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+								<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+									{m.linkedObjects()}
+								</p>
+								<div class="space-y-3">
+									{#each linkedItems as item}
+										<div class="rounded-lg border border-white bg-white px-3 py-3 shadow-sm">
+											<div class="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
+												<i class="{item.icon} text-[#005FA3]"></i>
+												<span>{item.label}</span>
+											</div>
+											<div class="flex flex-wrap gap-2">
+												{#each item.values as value}
+													<span
+														class="inline-flex max-w-full items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+													>
+														{value}
+													</span>
+												{/each}
+											</div>
+										</div>
+									{/each}
+								</div>
+							</section>
+						{/if}
+
+						<section class="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
+							<div class="mb-3 flex items-center gap-2">
+								<div
+									class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0A1628]/5 text-[#0A1628]"
+								>
+									<i class="fa-solid fa-user-check text-sm"></i>
+								</div>
+								<div>
+									<p class="text-sm font-semibold text-gray-900">{m.assignTaskOwner()}</p>
+									<p class="text-xs text-gray-500">{m.assignTaskOwnerHelp()}</p>
+								</div>
+							</div>
+
+							<AutocompleteSelect
+								{form}
+								multiple
+								mandatory
+								optionsEndpoint="actors?user__is_third_party=False"
+								optionsLabelField="str"
+								optionsInfoFields={{
+									fields: [{ field: 'type', translate: true }],
+									position: 'prefix'
+								}}
+								field="assigned_to"
+								label={m.assignedTo()}
+							/>
+						</section>
+					</div>
+				</div>
+
+				<div class="shrink-0 border-t border-gray-200 bg-gray-50/90 px-6 py-4">
+					<div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+						<button
+							type="button"
+							class="btn rounded-xl border border-gray-200 bg-white px-5 py-2.5 font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
+							disabled={$submitting}
+							onclick={onClose}
+						>
+							{m.cancel()}
+						</button>
+						<button
+							type="submit"
+							class="btn inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0A1628] to-[#1a2740] px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:from-[#1a2740] hover:to-[#2a3a66] {$submitting
+								? 'cursor-wait opacity-75'
+								: ''}"
+							disabled={$submitting}
+						>
+							{#if $submitting}
+								{m.loading()}
+								<LoadingSpinner />
+							{:else}
+								<i class="fa-solid fa-arrow-right-long text-sm"></i>
+								{m.convertToTask()}
+							{/if}
+						</button>
+					</div>
 				</div>
 			{/snippet}
 		</SuperForm>
