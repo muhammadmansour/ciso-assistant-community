@@ -261,29 +261,18 @@
 		auditError = null;
 
 		try {
-			const res = await fetch(`./${data.data.id}/audit-analysis`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					questions,
-					typicalEvidence,
-					requirementsContext,
-					evidenceName,
-					evidenceDescription
-				})
-			});
+			const res = await fetch('?/runAuditAnalysis', { method: 'POST' });
+			const payload = await res.json();
 
-			const result = await res.json();
-
-			if (!res.ok) {
-				auditError = result.error || 'Audit analysis failed';
-				if (result.details) {
-					auditError += `: ${result.details}`;
-				}
+			if (payload.type === 'success' && payload.data?.auditResult) {
+				auditResult = payload.data.auditResult;
+				await saveAuditAnalysis(payload.data.auditResult);
+			} else if (payload.type === 'failure' && payload.data?.auditError) {
+				auditError = payload.data.auditError;
+			} else if (payload.data?.auditError) {
+				auditError = payload.data.auditError;
 			} else {
-				auditResult = result;
-				// Save to database
-				await saveAuditAnalysis(result);
+				auditError = 'Audit analysis failed';
 			}
 		} catch (err) {
 			auditError = `Failed to run audit analysis: ${String(err)}`;

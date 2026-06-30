@@ -8377,6 +8377,128 @@ class EvidenceViewSet(BaseModelViewSet):
                 "ai_analysis_updated_at": evidence.ai_analysis_updated_at
             })
 
+    @action(detail=True, methods=["post"], url_path="run-ai-analysis")
+    def run_ai_analysis(self, request, pk=None):
+        """Run Muraji audit analysis for a single evidence via Gemini File Search."""
+        import os
+        import requests as http_requests
+
+        from core.ai_analysis_helpers import build_evidence_muraji_audit_body
+        from core.tasks_gemini import ensure_evidence_indexed, INDEXING_STATUS_ENQUEUED
+
+        (
+            _,
+            object_ids_change,
+            _,
+        ) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, Evidence
+        )
+
+        if UUID(pk) not in object_ids_change:
+            return Response(
+                {"error": "You don't have permission to update this evidence"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        evidence = self.get_object()
+        print(f"[EVIDENCE-AI-ANALYSIS] ====== START ======")
+        print(f"[EVIDENCE-AI-ANALYSIS] Evidence: id={evidence.id}, name={evidence.name}")
+
+        if not evidence.revisions.filter(attachment__isnull=False).exists():
+            return Response(
+                {'message': 'No attachment found for this evidence. Please upload a file first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request_body, gemini_documents, requirements_context = build_evidence_muraji_audit_body(
+            evidence
+        )
+
+        if not gemini_documents:
+            latest = evidence.revisions.order_by('-created_at').first()
+            evidences_status = []
+            enqueued_count = 0
+            if latest is None:
+                evidences_status.append({
+                    'evidence_id': str(evidence.id),
+                    'evidence_name': evidence.name,
+                    'evidence_revision_id': '',
+                    'status': 'no_revision',
+                    'gemini_document_id': '',
+                    'gemini_store_id': '',
+                    'error_message': None,
+                })
+            else:
+                state = ensure_evidence_indexed(latest)
+                if state.get('status') == INDEXING_STATUS_ENQUEUED:
+                    enqueued_count += 1
+                evidences_status.append({
+                    'evidence_id': str(evidence.id),
+                    **state,
+                })
+
+            return Response(
+                {
+                    'message': (
+                        'Indexing in progress — please retry shortly. '
+                        'The system has automatically queued the upload; '
+                        'no manual action is required.'
+                    ),
+                    'retry_enqueued': enqueued_count,
+                    'evidences': evidences_status,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        muraji_url = os.environ.get(
+            'MURAJI_ANALYSIS_API_URL',
+            'https://muraji-api.wathbah.dev/api/audit/analyze',
+        )
+
+        print(f"[EVIDENCE-AI-ANALYSIS] Indexed documents: {len(gemini_documents)}")
+        print(f"[EVIDENCE-AI-ANALYSIS] Requirements: {len(requirements_context)}")
+        print(f"[EVIDENCE-AI-ANALYSIS] Questions: {len(request_body.get('questions', []))}")
+
+        try:
+            resp = http_requests.post(
+                muraji_url,
+                json=request_body,
+                headers={'Content-Type': 'application/json'},
+                timeout=300,
+            )
+            if not resp.ok:
+                print(f"[EVIDENCE-AI-ANALYSIS] Muraji error: {resp.status_code} - {resp.text[:1000]}")
+                return Response(
+                    {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            analysis_data = resp.json()
+            id_to_name = {}
+            for idx, doc in enumerate(gemini_documents):
+                ev_name = doc['evidence_name']
+                if doc.get('gemini_document_id'):
+                    id_to_name[doc['gemini_document_id']] = ev_name
+                id_to_name[f"Evidence {idx + 1}"] = ev_name
+            if id_to_name:
+                analysis_data = AppliedControlViewSet._replace_gemini_ids_with_names(
+                    analysis_data, id_to_name
+                )
+
+            print(f"[EVIDENCE-AI-ANALYSIS] SUCCESS")
+            return Response(analysis_data)
+        except http_requests.Timeout:
+            return Response(
+                {'message': 'Muraji API timed out'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT,
+            )
+        except Exception as e:
+            print(f"[EVIDENCE-AI-ANALYSIS] ERROR: {e}")
+            return Response(
+                {'message': f'Failed to call Muraji API: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     @action(methods=["post"], detail=True, url_path="audit-analysis")
     def audit_analysis(self, request, pk):
         """

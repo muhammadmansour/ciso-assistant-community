@@ -67,36 +67,52 @@ export const actions: Actions = {
 	delete: async (event) => {
 		return nestedDeleteFormAction({ event });
 	},
-	
+
 	saveAiAnalysis: async (event) => {
 		const formData = await event.request.formData();
 		const analysisJson = formData.get('analysis') as string;
-		
+
 		if (!analysisJson) {
 			return fail(400, { error: 'Analysis data is required' });
 		}
-		
+
 		try {
 			const analysis = JSON.parse(analysisJson);
-			
+
 			const res = await event.fetch(`${BASE_API_URL}/evidences/${event.params.id}/ai-analysis/`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ analysis })
 			});
-			
+
 			if (!res.ok) {
 				const error = await res.text();
 				return fail(res.status, { error });
 			}
-			
+
 			const result = await res.json();
 			return { success: true, aiAnalysisUpdatedAt: result.ai_analysis_updated_at };
 		} catch (err) {
 			return fail(500, { error: String(err) });
 		}
 	},
-	
+
+	runAuditAnalysis: async (event) => {
+		const response = await event.fetch(
+			`${BASE_API_URL}/evidences/${event.params.id}/run-ai-analysis/`,
+			{ method: 'POST' }
+		);
+
+		if (!response.ok) {
+			const err = await response.json().catch(() => ({}));
+			const message = err.message || err.detail || `Error ${response.status}`;
+			return fail(response.status, { auditError: message });
+		}
+
+		const auditResult = await response.json();
+		return { auditResult };
+	},
+
 	saveAuditAnalysis: async (event) => {
 		const formData = await event.request.formData();
 		const analysisJson = formData.get('analysis') as string;
