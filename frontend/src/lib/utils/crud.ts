@@ -1820,7 +1820,7 @@ export const URL_MODEL_MAP: ModelMap = {
 		localNamePlural: 'taskTemplates',
 		verboseName: 'Task template',
 		verboseNamePlural: 'Task templates',
-		selectFields: [{ field: 'status' }],
+		selectFields: [{ field: 'status' }, { field: 'source' }],
 		foreignKeyFields: [
 			{ field: 'folder', urlModel: 'folders' },
 			{ field: 'evidences', urlModel: 'evidences' },

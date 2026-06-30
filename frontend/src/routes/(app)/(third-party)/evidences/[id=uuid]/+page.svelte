@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { deserialize } from '$app/forms';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
+	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
+	import ConvertGapToTaskModal, {
+		type GapTaskPrefill
+	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
 	import { getModelInfo } from '$lib/utils/crud.js';
 	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
 	import type { ModalComponent, ModalSettings, ModalStore } from '@skeletonlabs/skeleton-svelte';
@@ -130,11 +136,26 @@
 	let lastAnalyzedAt: string | null = $state(data.aiAnalysisUpdatedAt || null);
 	
 	// Audit Analysis state
-	let auditResult: AuditAnalysisResult | null = $state(data.auditAnalysis || null);
 	let auditLoading = $state(false);
 	let auditError: string | null = $state(null);
-	let auditSaving = $state(false);
-	let lastAuditAt: string | null = $state(data.auditAnalysisUpdatedAt || null);
+	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
+	let deletingAnalysisId: string | null = $state(null);
+	let showAnalysisModal = $state(false);
+	let selectedAnalysis: any = $state(null);
+	let showGapTaskModal = $state(false);
+	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
+	let showProgressModal = $state(false);
+	let analysisStep = $state(0);
+	let analysisPercent = $state(0);
+	let analysisComplete = $state(false);
+	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
+	let pendingAnalysisResult: any = $state(null);
+
+	const analysisSteps = [
+		{ label: 'Scanning attached documents and evidence...' },
+		{ label: 'Analyzing compliance with AI...' },
+		{ label: 'Preparing results and recommendations...' }
+	];
 	
 	// Questions and typical evidence from linked requirements
 	let questions: string[] = $state(data.questions || []);
@@ -229,9 +250,8 @@
 		}
 	}
 
-	// Save audit analysis to backend via form action
+	// Save audit analysis to backend via form action (legacy manual save)
 	async function saveAuditAnalysis(analysis: AuditAnalysisResult) {
-		auditSaving = true;
 		try {
 			const formData = new FormData();
 			formData.append('analysis', JSON.stringify(analysis));
@@ -242,24 +262,146 @@
 			});
 			
 			if (res.ok) {
-				const result = await res.json();
-				if (result.data) {
-					lastAuditAt = result.data.auditAnalysisUpdatedAt;
-				}
 				console.log('Audit analysis saved to database');
-			} else {
-				console.warn('Failed to save audit analysis');
 			}
 		} catch (err) {
 			console.warn('Failed to save audit analysis:', err);
-		} finally {
-			auditSaving = false;
 		}
+	}
+
+	function formatDate(dateStr: string): string {
+		return new Date(dateStr).toLocaleString();
+	}
+
+	function getStatusColor(status: string): string {
+		switch (status?.toLowerCase()) {
+			case 'compliant': return 'text-green-700 bg-green-100';
+			case 'partially compliant': return 'text-yellow-700 bg-yellow-100';
+			case 'non-compliant': return 'text-red-700 bg-red-100';
+			case 'insufficient evidence': return 'text-orange-700 bg-orange-100';
+			case 'failed': return 'text-red-700 bg-red-100';
+			case 'completed': return 'text-green-700 bg-green-100';
+			default: return 'text-gray-700 bg-gray-100';
+		}
+	}
+
+	function startProgressTimer() {
+		analysisPercent = 0;
+		analysisStep = 0;
+		analysisComplete = false;
+		pendingAnalysisResult = null;
+		showProgressModal = true;
+		analysisTimer = setInterval(() => {
+			if (analysisPercent < 30 && analysisStep === 0) {
+				analysisPercent += 2;
+			} else if (analysisPercent >= 30 && analysisStep < 1) {
+				analysisStep = 1;
+				analysisPercent += 1;
+			} else if (analysisPercent >= 60 && analysisStep < 2) {
+				analysisStep = 2;
+				analysisPercent += 0.5;
+			} else if (analysisPercent < 90) {
+				analysisPercent += 0.3;
+			}
+			if (analysisPercent > 90 && !analysisComplete) analysisPercent = 90;
+		}, 500);
+	}
+
+	function stopProgressTimer(success: boolean) {
+		if (analysisTimer) {
+			clearInterval(analysisTimer);
+			analysisTimer = null;
+		}
+		if (success) {
+			analysisStep = 3;
+			analysisPercent = 100;
+			analysisComplete = true;
+		} else {
+			showProgressModal = false;
+		}
+	}
+
+	function handleViewResults() {
+		showProgressModal = false;
+		if (pendingAnalysisResult) {
+			selectedAnalysis = pendingAnalysisResult;
+			showAnalysisModal = true;
+			pendingAnalysisResult = null;
+		}
+	}
+
+	function openAnalysisDetail(analysis: any) {
+		selectedAnalysis = analysis;
+		showAnalysisModal = true;
+	}
+
+	function closeAnalysisModal() {
+		showAnalysisModal = false;
+		selectedAnalysis = null;
+	}
+
+	function buildGapTaskPrefill(
+		idx: number,
+		gGap: string | null,
+		gRec: string | null
+	): GapTaskPrefill {
+		const ev = data.data as Record<string, any>;
+		const appliedControls = ev.applied_controls ?? [];
+		const complianceAssessmentIds = new Set<string>();
+		const assessmentLabels: string[] = [];
+		const assetIds = new Set<string>();
+		const assetLabels: string[] = [];
+
+		for (const ra of ev.requirement_assessments ?? []) {
+			const ca = ra.compliance_assessment;
+			if (ca?.id) {
+				complianceAssessmentIds.add(ca.id);
+				assessmentLabels.push(ca.str || ca.name || ca.id);
+			}
+			for (const asset of ca?.assets ?? []) {
+				if (asset?.id) {
+					assetIds.add(asset.id);
+					assetLabels.push(asset.str || asset.name || asset.id);
+				}
+			}
+		}
+
+		const gapText = gGap?.trim() || '';
+		const folderId = typeof ev.folder === 'object' ? ev.folder?.id : ev.folder;
+
+		return {
+			name: gapText || `Gap ${idx + 1}`,
+			description: gapText,
+			observation: gRec?.trim() || '',
+			folder: folderId,
+			source: 'evidence',
+			applied_controls: appliedControls.map((ac: { id: string }) => ac.id),
+			assets: [...assetIds],
+			compliance_assessments: [...complianceAssessmentIds],
+			evidences: [ev.id],
+			appliedControlLabels: appliedControls.map(
+				(ac: { str?: string; name?: string }) => ac.str || ac.name || ''
+			),
+			assetLabels,
+			evidenceLabels: [ev.str || ev.name || ev.id],
+			assessmentLabel: assessmentLabels[0] || ''
+		};
+	}
+
+	function openConvertGapToTaskModal(idx: number, gGap: string | null, gRec: string | null) {
+		gapTaskPrefill = buildGapTaskPrefill(idx, gGap, gRec);
+		showGapTaskModal = true;
+	}
+
+	function closeConvertGapToTaskModal() {
+		showGapTaskModal = false;
+		gapTaskPrefill = null;
 	}
 
 	async function runAuditAnalysis() {
 		auditLoading = true;
 		auditError = null;
+		startProgressTimer();
 
 		try {
 			const res = await fetch('?/runAuditAnalysis', {
@@ -268,26 +410,47 @@
 			});
 			const text = await res.text();
 
-			let result: { type: string; data?: { auditResult?: AuditAnalysisResult; auditError?: string } };
+			let result: {
+				type: string;
+				data?: { aiAnalysis?: Record<string, unknown>; auditError?: string };
+			};
 			try {
 				result = deserialize(text);
 			} catch {
 				auditError = 'Server returned an unexpected response. The backend may be unreachable.';
+				stopProgressTimer(false);
 				return;
 			}
 
-			if (result.type === 'success' && result.data?.auditResult) {
-				auditResult = result.data.auditResult;
-				await saveAuditAnalysis(result.data.auditResult);
+			if (result.type === 'success' && result.data?.aiAnalysis) {
+				const payload = result.data.aiAnalysis;
+				const analysisEntry = {
+					id: payload.ai_analysis_id,
+					created_at: payload.ai_analysis_updated_at,
+					status: 'completed',
+					score: (payload.ai_analysis as Record<string, any>)?.overallAssessment?.score ?? null,
+					compliance_status:
+						(payload.ai_analysis as Record<string, any>)?.overallAssessment?.status ?? '',
+					result: payload.ai_analysis,
+					gemini_files_count: 1,
+					requirements_count: requirementsContext.length
+				};
+				pendingAnalysisResult = analysisEntry;
+				stopProgressTimer(true);
+				await invalidateAll();
 			} else if (result.type === 'failure' && result.data?.auditError) {
 				auditError = result.data.auditError;
+				stopProgressTimer(false);
 			} else if (result.data?.auditError) {
 				auditError = result.data.auditError;
+				stopProgressTimer(false);
 			} else {
 				auditError = 'Audit analysis failed';
+				stopProgressTimer(false);
 			}
 		} catch (err) {
 			auditError = `Failed to run audit analysis: ${String(err)}`;
+			stopProgressTimer(false);
 		} finally {
 			auditLoading = false;
 		}
@@ -353,7 +516,7 @@
 			}
 			
 			// Always run audit analysis if no existing results
-			if (!auditResult) {
+			if (localAiAnalyses.length === 0) {
 				analysisPromises.push(runAuditAnalysis());
 			}
 			
@@ -723,51 +886,28 @@
 				<!-- AI Analysis Tab -->
 				<Tabs.Panel value="ai-analysis">
 					<div class="p-6 space-y-6">
-						<!-- Header with Run Analysis button -->
 						<div class="flex flex-row justify-between items-center">
 							<div>
 								<h4 class="h4 font-semibold">AI Compliance Analysis</h4>
 								<p class="text-sm text-gray-600">
 									Analyze evidence against audit questions and typical evidence requirements
 								</p>
-								{#if lastAuditAt}
-									<p class="text-xs text-gray-500 mt-1">
-										<i class="fa-solid fa-clock mr-1"></i>
-										Last analyzed: {new Date(lastAuditAt).toLocaleString()}
-									</p>
-								{/if}
 							</div>
-							<div class="flex items-center gap-2">
-								{#if auditSaving}
-									<span class="text-sm text-gray-500">
-										<i class="fa-solid fa-save mr-1"></i>Saving...
-									</span>
+							<button
+								class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] disabled:opacity-50"
+								onclick={runAuditAnalysis}
+								disabled={auditLoading}
+							>
+								{#if auditLoading}
+									<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+									Analyzing...
+								{:else}
+									<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+									Start AI Analysis
 								{/if}
-								<button
-									class="btn preset-filled-primary-500"
-									onclick={runAuditAnalysis}
-									disabled={auditLoading || auditSaving}
-								>
-									{#if auditLoading}
-										<ProgressRing
-											value={null}
-											size="size-5"
-											meterStroke="stroke-white"
-											trackStroke="stroke-primary-300"
-										/>
-										<span class="ml-2">Analyzing...</span>
-									{:else if auditResult}
-										<i class="fa-solid fa-rotate mr-2"></i>
-										Re-run Analysis
-									{:else}
-										<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-										Run Analysis
-									{/if}
-								</button>
-							</div>
+							</button>
 						</div>
 
-						<!-- Questions and Typical Evidence Context -->
 						{#if questions.length > 0 || typicalEvidence.length > 0}
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 								{#if questions.length > 0}
@@ -811,7 +951,6 @@
 							</div>
 						{/if}
 
-						<!-- Error Display -->
 						{#if auditError}
 							<div class="p-4 bg-red-50 border border-red-200 rounded-lg">
 								<div class="flex items-start gap-3">
@@ -824,283 +963,95 @@
 							</div>
 						{/if}
 
-						<!-- Loading State -->
-						{#if auditLoading}
-							<div class="flex flex-col items-center justify-center py-16 space-y-4">
-								<ProgressRing
-									value={null}
-									size="size-16"
-									meterStroke="stroke-primary-500"
-									trackStroke="stroke-gray-200"
-								/>
-								<p class="text-gray-600">Analyzing evidence against audit criteria...</p>
-								<p class="text-sm text-gray-400">This may take a moment for complex documents</p>
-							</div>
-						{/if}
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="text-lg font-semibold text-gray-800">
+								<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
+								AI Analysis History
+							</h3>
+							<span class="text-sm text-gray-500">
+								{data.aiAnalyses?.length || 0} analysis(es)
+							</span>
+						</div>
 
-						<!-- Audit Analysis Results -->
-						{#if auditResult && !auditLoading}
-							<div class="space-y-6">
-								<!-- Overall Assessment -->
-								{#if auditResult.overallAssessment}
-									<div class="p-4 bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-200 rounded-lg">
-										<div class="flex items-center justify-between mb-3">
-											<h5 class="font-semibold text-primary-800">
-												<i class="fa-solid fa-gauge-high mr-2"></i>
-												Overall Assessment
-											</h5>
-											<div class="flex items-center gap-4">
-												<span class="px-3 py-1 rounded-full text-sm font-medium {
-													auditResult.overallAssessment.status === 'Compliant' ? 'bg-green-100 text-green-800' :
-													auditResult.overallAssessment.status === 'Partially Compliant' ? 'bg-yellow-100 text-yellow-800' :
-													'bg-red-100 text-red-800'
-												}">
-													{auditResult.overallAssessment.status}
-												</span>
-												<div class="flex items-center gap-2">
-													<span class="text-2xl font-bold text-primary-600">
-														{auditResult.overallAssessment.score}%
+						{#if data.aiAnalyses?.length > 0}
+							<div class="overflow-x-auto border border-gray-200 rounded-lg">
+								<table class="w-full text-sm">
+									<thead class="bg-gray-50 border-b border-gray-200">
+										<tr>
+											<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+											<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+											<th class="text-center px-4 py-3 font-semibold text-gray-600">Score</th>
+											<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-gray-100">
+										{#each data.aiAnalyses as analysis}
+											<tr class="hover:bg-gray-50 transition-colors">
+												<td class="px-4 py-3 text-gray-700">{formatDate(analysis.created_at)}</td>
+												<td class="px-4 py-3">
+													<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getStatusColor(analysis.status)}">
+														{analysis.status}
 													</span>
-												</div>
-											</div>
-										</div>
-										<p class="text-gray-700">{auditResult.overallAssessment.summary}</p>
-									</div>
-								{/if}
-
-								<!-- Requirement Evaluation -->
-								{#if auditResult.requirementEvaluation}
-									<div class="p-4 bg-white border rounded-lg">
-										<h5 class="font-semibold text-gray-800 mb-3">
-											<i class="fa-solid fa-clipboard-check mr-2"></i>
-											Requirement Evaluation
-										</h5>
-										<div class="space-y-3">
-											<div class="flex items-center gap-2">
-												<span class="font-medium text-gray-700">Status:</span>
-												<span class="px-2 py-0.5 rounded text-sm {
-													auditResult.requirementEvaluation.requirementMet === 'full' ? 'bg-green-100 text-green-800' :
-													auditResult.requirementEvaluation.requirementMet === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-													'bg-red-100 text-red-800'
-												}">
-													{auditResult.requirementEvaluation.requirementMet === 'full' ? 'Fully Met' :
-													 auditResult.requirementEvaluation.requirementMet === 'partial' ? 'Partially Met' : 'Not Met'}
-												</span>
-											</div>
-											<div>
-												<p class="font-medium text-gray-700 mb-1">Evidence Alignment:</p>
-												<p class="text-sm text-gray-600 bg-gray-50 p-2 rounded">{auditResult.requirementEvaluation.evidenceAlignment}</p>
-											</div>
-											<div>
-												<p class="font-medium text-gray-700 mb-1">Specific Findings:</p>
-												<p class="text-sm text-gray-600 bg-gray-50 p-2 rounded">{auditResult.requirementEvaluation.specificFindings}</p>
-											</div>
-										</div>
-									</div>
-								{/if}
-
-								<!-- Question Evaluation -->
-								{#if auditResult.questionEvaluation && auditResult.questionEvaluation.length > 0}
-									<div class="p-4 bg-white border rounded-lg">
-										<h5 class="font-semibold text-gray-800 mb-3">
-											<i class="fa-solid fa-clipboard-question mr-2"></i>
-											Question Evaluation
-										</h5>
-										<div class="space-y-3">
-											{#each auditResult.questionEvaluation as qa}
-												<div class="p-3 bg-gray-50 rounded-lg">
-													<div class="flex items-start justify-between mb-2">
-														<p class="font-medium text-gray-800">
-															<span class="text-primary-600">Q{qa.questionNumber}:</span> {qa.question}
-														</p>
-														<span class="px-2 py-0.5 rounded text-sm font-medium {
-															qa.answered === 'Yes' ? 'bg-green-100 text-green-800' :
-															qa.answered === 'Partially' ? 'bg-yellow-100 text-yellow-800' :
-															'bg-red-100 text-red-800'
-														}">
-															{qa.answered}
-														</span>
+												</td>
+												<td class="px-4 py-3 text-center text-gray-600">{analysis.score ?? '—'}</td>
+												<td class="px-4 py-3 text-center">
+													<div class="flex items-center justify-center gap-1">
+														<button
+															type="button"
+															class="btn btn-sm preset-tonal-primary"
+															onclick={() => openAnalysisDetail(analysis)}
+														>
+															<i class="fa-solid fa-eye mr-1"></i>
+															View
+														</button>
+														<form
+															method="POST"
+															action="?/deleteAiAnalysis"
+															use:enhance={() => {
+																if (!confirm('Are you sure you want to delete this analysis?')) {
+																	return ({ cancel }) => cancel();
+																}
+																deletingAnalysisId = analysis.id;
+																return async ({ result }) => {
+																	deletingAnalysisId = null;
+																	if (result.type === 'success') {
+																		await invalidateAll();
+																	}
+																};
+															}}
+														>
+															<input type="hidden" name="analysisId" value={analysis.id} />
+															<button
+																type="submit"
+																class="btn btn-sm preset-tonal-error"
+																disabled={deletingAnalysisId === analysis.id}
+															>
+																{#if deletingAnalysisId === analysis.id}
+																	<i class="fa-solid fa-spinner fa-spin"></i>
+																{:else}
+																	<i class="fa-solid fa-trash"></i>
+																{/if}
+															</button>
+														</form>
 													</div>
-													<div class="text-sm text-gray-600 space-y-1">
-														<p><span class="font-medium">Evidence:</span> {qa.evidenceFound}</p>
-														<p><span class="font-medium">Source:</span> {qa.sourceFile}</p>
-														{#if qa.notes}
-															<p class="text-gray-500 italic"><i class="fa-solid fa-note-sticky mr-1"></i> {qa.notes}</p>
-														{/if}
-													</div>
-													<div class="flex items-center gap-2 mt-2">
-														<span class="text-xs px-2 py-0.5 rounded {
-															qa.confidence >= 0.8 ? 'bg-green-100 text-green-700' :
-															qa.confidence >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
-															'bg-red-100 text-red-700'
-														}">
-															{Math.round(qa.confidence * 100)}% confidence
-														</span>
-													</div>
-												</div>
-											{/each}
-										</div>
-									</div>
-								{/if}
-
-								<!-- Typical Evidence Check -->
-								{#if auditResult.typicalEvidenceCheck && auditResult.typicalEvidenceCheck.length > 0}
-									<div class="p-4 bg-white border rounded-lg">
-										<h5 class="font-semibold text-gray-800 mb-3">
-											<i class="fa-solid fa-file-circle-check mr-2"></i>
-											Typical Evidence Check
-										</h5>
-										<div class="overflow-x-auto">
-											<table class="w-full text-sm">
-												<thead>
-													<tr class="border-b bg-gray-50">
-														<th class="text-left p-2">Evidence Item</th>
-														<th class="text-left p-2">Status</th>
-														<th class="text-left p-2">Found In</th>
-														<th class="text-left p-2">Details</th>
-													</tr>
-												</thead>
-												<tbody>
-													{#each auditResult.typicalEvidenceCheck as item}
-														{@const _statusLower = (item.status || '').toLowerCase()}
-														{@const _isPartial = _statusLower.includes('partial') || _statusLower.includes('جزئ')}
-														{@const _isNotFound = !_isPartial && (_statusLower.includes('غير') || _statusLower.includes('not ') || _statusLower.includes('missing') || _statusLower.includes('absent') || _statusLower.includes('not_found') || _statusLower.includes('notfound'))}
-														{@const _isFound = !_isPartial && !_isNotFound && (_statusLower.includes('present') || _statusLower.includes('found') || _statusLower.includes('موجود') || _statusLower.includes('available') || _statusLower.includes('متوفر'))}
-														<tr class="border-b hover:bg-gray-50">
-															<td class="p-2 font-medium">{item.evidenceItem}</td>
-															<td class="p-2">
-																<span class="px-2 py-0.5 rounded text-xs {
-																	_isFound ? 'bg-green-100 text-green-800' :
-																	_isPartial ? 'bg-yellow-100 text-yellow-800' :
-																	'bg-red-100 text-red-800'
-																}">
-																	{item.status}
-																</span>
-															</td>
-															<td class="p-2 text-gray-600">{item.foundIn || '-'}</td>
-															<td class="p-2 text-gray-500 text-xs">{item.details || '-'}</td>
-														</tr>
-													{/each}
-												</tbody>
-											</table>
-										</div>
-									</div>
-								{/if}
-
-								<!-- File Analysis -->
-								{#if auditResult.fileAnalysis && auditResult.fileAnalysis.length > 0}
-									<div class="p-4 bg-white border rounded-lg">
-										<h5 class="font-semibold text-gray-800 mb-3">
-											<i class="fa-solid fa-file-alt mr-2"></i>
-											File Analysis
-										</h5>
-										{#each auditResult.fileAnalysis as file}
-											<div class="p-3 bg-gray-50 rounded-lg">
-												<p class="font-medium text-gray-800 mb-2">
-													<i class="fa-solid fa-file-pdf mr-2 text-red-500"></i>
-													{file.fileName}
-												</p>
-												<p class="text-sm text-gray-600 mb-2">{file.contentSummary}</p>
-												{#if file.relevantSections && file.relevantSections.length > 0}
-													<div class="text-sm">
-														<p class="font-medium text-gray-700 mb-1">Relevant Sections:</p>
-														<ul class="list-disc list-inside text-gray-600 space-y-1">
-															{#each file.relevantSections as section}
-																<li>{section}</li>
-															{/each}
-														</ul>
-													</div>
-												{/if}
-											</div>
+												</td>
+											</tr>
 										{/each}
-									</div>
-								{/if}
-
-								<!-- Gaps -->
-								{#if auditResult.gaps && auditResult.gaps.length > 0}
-									<div class="p-4 bg-red-50 border border-red-200 rounded-lg">
-										<h5 class="font-semibold text-red-800 mb-3">
-											<i class="fa-solid fa-triangle-exclamation mr-2"></i>
-											Identified Gaps ({auditResult.gaps.length})
-										</h5>
-										<div class="space-y-3">
-											{#each auditResult.gaps as gap}
-												<div class="p-3 bg-white rounded-lg border border-red-100">
-													<div class="flex items-start justify-between mb-2">
-														<p class="font-medium text-gray-800">{gap.gap}</p>
-														<span class="text-xs px-2 py-0.5 rounded {
-															gap.severity === 'High' ? 'bg-red-200 text-red-800' :
-															gap.severity === 'Medium' ? 'bg-yellow-200 text-yellow-800' :
-															'bg-gray-200 text-gray-800'
-														}">
-															{gap.severity}
-														</span>
-													</div>
-													<p class="text-sm text-gray-600 mb-2">{gap.impact}</p>
-													<p class="text-sm text-blue-600 bg-blue-50 p-2 rounded">
-														<i class="fa-solid fa-lightbulb mr-1"></i>
-														{gap.recommendation}
-													</p>
-												</div>
-											{/each}
-										</div>
-									</div>
-								{/if}
-
-								<!-- Strengths -->
-								{#if auditResult.strengths && auditResult.strengths.length > 0}
-									<div class="p-4 bg-green-50 border border-green-200 rounded-lg">
-										<h5 class="font-semibold text-green-800 mb-3">
-											<i class="fa-solid fa-circle-check mr-2"></i>
-											Strengths ({auditResult.strengths.length})
-										</h5>
-										<ul class="space-y-2">
-											{#each auditResult.strengths as strength}
-												<li class="flex items-start gap-2">
-													<i class="fa-solid fa-check text-green-600 mt-1"></i>
-													<span class="text-gray-700">{strength}</span>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
-
-								<!-- Recommendations -->
-								{#if auditResult.recommendations && auditResult.recommendations.length > 0}
-									<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-										<h5 class="font-semibold text-blue-800 mb-3">
-											<i class="fa-solid fa-list-check mr-2"></i>
-											Recommendations ({auditResult.recommendations.length})
-										</h5>
-										<ul class="space-y-2">
-											{#each auditResult.recommendations as rec, i}
-												<li class="flex items-start gap-3 p-2 bg-white rounded">
-													<span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium flex items-center justify-center">
-														{i + 1}
-													</span>
-													<span class="text-gray-700">{rec}</span>
-												</li>
-											{/each}
-										</ul>
-									</div>
-								{/if}
+									</tbody>
+								</table>
 							</div>
-						{/if}
-
-						<!-- Initial State (no analysis yet) -->
-						{#if !auditResult && !auditLoading && !auditError}
-							<div
-								class="flex flex-col items-center justify-center py-16 space-y-4 text-gray-500"
-							>
-								<i class="fa-solid fa-brain text-6xl text-gray-300"></i>
-								<p class="text-lg">No analysis results yet</p>
-								<p class="text-sm">
-									Click "Run Analysis" to analyze this evidence against audit criteria
+						{:else if !auditLoading}
+							<div class="text-center py-12 border border-dashed border-gray-200 rounded-lg">
+								<div class="inline-block p-6 rounded-full bg-[#0A1628]/10 mb-4">
+									<i class="fa-solid fa-brain text-4xl text-[#0A1628]"></i>
+								</div>
+								<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
+								<p class="text-gray-600 mb-2">
+									Click "Start AI Analysis" to analyze this evidence file.
 								</p>
 								{#if questions.length === 0 && typicalEvidence.length === 0}
-									<p class="text-xs text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg">
-										<i class="fa-solid fa-info-circle mr-1"></i>
-										No questions or typical evidence linked. Link this evidence to a requirement assessment for better analysis.
+									<p class="text-xs text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg inline-block">
+										Link this evidence to a requirement assessment for richer analysis context.
 									</p>
 								{/if}
 							</div>
@@ -1110,4 +1061,39 @@
 			{/snippet}
 		</Tabs>
 	</div>
+{/if}
+
+{#if showProgressModal}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+		<div class="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
+			<h3 class="text-xl font-bold text-gray-900 mb-2">Running AI Analysis</h3>
+			<p class="text-sm text-gray-500 mb-6">{analysisSteps[Math.min(analysisStep, analysisSteps.length - 1)]?.label}</p>
+			<div class="w-full bg-gray-200 rounded-full h-3 mb-6">
+				<div
+					class="bg-gradient-to-r from-[#0A1628] to-[#005FA3] h-3 rounded-full transition-all duration-300"
+					style="width: {analysisPercent}%"
+				></div>
+			</div>
+			{#if analysisComplete}
+				<div class="flex justify-end">
+					<button type="button" class="btn preset-filled-primary-500" onclick={handleViewResults}>
+						View Results
+					</button>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
+
+<AiAuditAnalysisModal
+	selectedAnalysis={showAnalysisModal ? selectedAnalysis : null}
+	subtitle={evidenceName || data.data.name}
+	enableGapToTask={true}
+	onClose={closeAnalysisModal}
+	onConvertGap={openConvertGapToTaskModal}
+/>
+
+{#if showGapTaskModal && gapTaskPrefill}
+	<ConvertGapToTaskModal prefill={gapTaskPrefill} onClose={closeConvertGapToTaskModal} />
 {/if}

@@ -1,5 +1,6 @@
 import { defaultDeleteFormAction, defaultWriteFormAction } from '$lib/utils/actions';
 import { BASE_API_URL } from '$lib/utils/constants';
+import { MURAJI_LIBRARIES_API_URL } from '$lib/server/muraji';
 import {
 	getModelInfo,
 	urlParamModelForeignKeyFields,
@@ -90,7 +91,7 @@ export const actions: Actions = {
 		return { status: 200 };
 	},
 	fetchMuraji: async (event) => {
-		const MURAJI_API_URL = 'https://muraji-api.wathbah.dev/api/libraries';
+		const MURAJI_API_URL = MURAJI_LIBRARIES_API_URL;
 		console.log(`[fetchMuraji] syncing libraries from ${MURAJI_API_URL}`);
 
 		try {

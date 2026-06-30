@@ -356,7 +356,7 @@
 					{m.backToLegislativeUpdates()}
 				</a>
 				<a
-					href="https://grc-admin.wathbah.dev/"
+					href={data.wathbahAdminConsoleUrl}
 					target="_blank"
 					rel="noopener noreferrer"
 					class="inline-flex items-center gap-2 px-4 py-2 text-sm wgrc-btn-primary"

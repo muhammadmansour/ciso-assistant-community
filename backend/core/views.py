@@ -4278,10 +4278,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
             }
         }
 
-        muraji_url = os.environ.get(
-            'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbah.dev/api/audit/analyze'
-        )
+        from core.muraji_urls import MURAJI_ANALYSIS_API_URL
+
+        muraji_url = MURAJI_ANALYSIS_API_URL
 
         from core.models import AiAnalysisResult
 
@@ -8167,6 +8166,13 @@ class EvidenceViewSet(BaseModelViewSet):
     API endpoint that allows evidences to be viewed or edited.
     """
 
+    permission_overrides = {
+        "run_ai_analysis": "change_evidence",
+        "list_ai_analyses": "view_evidence",
+        "get_ai_analysis": "view_evidence",
+        "delete_ai_analysis": "change_evidence",
+    }
+
     model = Evidence
     filterset_fields = [
         "folder",
@@ -8384,6 +8390,7 @@ class EvidenceViewSet(BaseModelViewSet):
         import requests as http_requests
 
         from core.ai_analysis_helpers import build_evidence_muraji_audit_body
+        from core.models import AiAnalysisResult
         from core.tasks_gemini import ensure_evidence_indexed, INDEXING_STATUS_ENQUEUED
 
         (
@@ -8450,10 +8457,9 @@ class EvidenceViewSet(BaseModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        muraji_url = os.environ.get(
-            'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbah.dev/api/audit/analyze',
-        )
+        from core.muraji_urls import MURAJI_ANALYSIS_API_URL
+
+        muraji_url = MURAJI_ANALYSIS_API_URL
 
         print(f"[EVIDENCE-AI-ANALYSIS] Indexed documents: {len(gemini_documents)}")
         print(f"[EVIDENCE-AI-ANALYSIS] Requirements: {len(requirements_context)}")
@@ -8468,6 +8474,14 @@ class EvidenceViewSet(BaseModelViewSet):
             )
             if not resp.ok:
                 print(f"[EVIDENCE-AI-ANALYSIS] Muraji error: {resp.status_code} - {resp.text[:1000]}")
+                AiAnalysisResult.objects.create(
+                    evidence=evidence,
+                    result={'error': resp.text[:2000]},
+                    status='failed',
+                    error_message=f'Muraji API error: {resp.status_code}',
+                    gemini_files_count=len(gemini_documents),
+                    requirements_count=len(requirements_context),
+                )
                 return Response(
                     {'message': f'Muraji API error: {resp.status_code}', 'detail': resp.text[:1000]},
                     status=status.HTTP_502_BAD_GATEWAY,
@@ -8485,19 +8499,137 @@ class EvidenceViewSet(BaseModelViewSet):
                     analysis_data, id_to_name
                 )
 
+            overall = analysis_data.get('overallAssessment', {})
+            score = overall.get('score', None)
+            compliance_status = overall.get('status', '')
+
+            analysis_record = AiAnalysisResult.objects.create(
+                evidence=evidence,
+                result=analysis_data,
+                status='completed',
+                score=score,
+                compliance_status=compliance_status,
+                model_used=os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
+                gemini_files_count=len(gemini_documents),
+                requirements_count=len(requirements_context),
+            )
+
+            evidence.audit_analysis = analysis_data
+            evidence.audit_analysis_updated_at = timezone.now()
+            evidence.save(update_fields=['audit_analysis', 'audit_analysis_updated_at'])
+
             print(f"[EVIDENCE-AI-ANALYSIS] SUCCESS")
-            return Response(analysis_data)
+            return Response({
+                'ai_analysis': analysis_data,
+                'ai_analysis_id': str(analysis_record.id),
+                'ai_analysis_updated_at': analysis_record.created_at.isoformat(),
+            })
         except http_requests.Timeout:
+            AiAnalysisResult.objects.create(
+                evidence=evidence,
+                result={'error': 'Muraji API timed out'},
+                status='failed',
+                error_message='Muraji API timed out',
+                gemini_files_count=len(gemini_documents),
+                requirements_count=len(requirements_context),
+            )
             return Response(
                 {'message': 'Muraji API timed out'},
                 status=status.HTTP_504_GATEWAY_TIMEOUT,
             )
         except Exception as e:
             print(f"[EVIDENCE-AI-ANALYSIS] ERROR: {e}")
+            AiAnalysisResult.objects.create(
+                evidence=evidence,
+                result={'error': str(e)},
+                status='failed',
+                error_message=str(e),
+                gemini_files_count=len(gemini_documents),
+                requirements_count=len(requirements_context),
+            )
             return Response(
                 {'message': f'Failed to call Muraji API: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses")
+    def list_ai_analyses(self, request, pk=None):
+        """List all AI analysis results for this evidence."""
+        from core.models import AiAnalysisResult
+
+        evidence = self.get_object()
+        analyses = AiAnalysisResult.objects.filter(
+            evidence=evidence
+        ).order_by('-created_at')
+
+        results = []
+        for a in analyses:
+            results.append({
+                'id': str(a.id),
+                'created_at': a.created_at.isoformat(),
+                'status': a.status,
+                'score': a.score,
+                'compliance_status': a.compliance_status,
+                'model_used': a.model_used,
+                'gemini_files_count': a.gemini_files_count,
+                'requirements_count': a.requirements_count,
+                'error_message': a.error_message,
+                'result': a.result,
+            })
+
+        return Response(results)
+
+    @action(detail=True, methods=["get"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)")
+    def get_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Get a specific AI analysis result with full details."""
+        from core.models import AiAnalysisResult
+
+        evidence = self.get_object()
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                evidence=evidence,
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({
+            'id': str(analysis.id),
+            'created_at': analysis.created_at.isoformat(),
+            'status': analysis.status,
+            'score': analysis.score,
+            'compliance_status': analysis.compliance_status,
+            'model_used': analysis.model_used,
+            'gemini_files_count': analysis.gemini_files_count,
+            'requirements_count': analysis.requirements_count,
+            'error_message': analysis.error_message,
+            'result': analysis.result,
+        })
+
+    @action(detail=True, methods=["delete"], url_path="ai-analyses/(?P<analysis_id>[^/.]+)/delete")
+    def delete_ai_analysis(self, request, pk=None, analysis_id=None):
+        """Delete a specific AI analysis result."""
+        from core.models import AiAnalysisResult
+
+        evidence = self.get_object()
+
+        try:
+            analysis = AiAnalysisResult.objects.get(
+                id=analysis_id,
+                evidence=evidence,
+            )
+        except AiAnalysisResult.DoesNotExist:
+            return Response(
+                {'message': 'Analysis not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        analysis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=["post"], detail=True, url_path="audit-analysis")
     def audit_analysis(self, request, pk):
@@ -10607,10 +10739,9 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         if additional_prompt:
             request_body['additional_prompt'] = additional_prompt
 
-        muraji_url = os.environ.get(
-            'MURAJI_ANALYSIS_API_URL',
-            'https://muraji-api.wathbah.dev/api/audit/analyze'
-        )
+        from core.muraji_urls import MURAJI_ANALYSIS_API_URL
+
+        muraji_url = MURAJI_ANALYSIS_API_URL
 
         print(f"[RA-AI-ANALYSIS] Sending to {muraji_url}")
         print(f"[RA-AI-ANALYSIS] Questions: {questions}")

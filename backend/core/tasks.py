@@ -869,17 +869,17 @@ def check_policies_eta_today():
 def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via Muraji API"""
     import requests
-    
-    MURAJI_API_URL = "https://muraji-api.wathbah.dev/api/mail/send"
-    
+
+    from core.muraji_urls import MURAJI_MAIL_API_URL
+
     try:
         payload = {
             "recipient_list": [to_email],
             "subject": subject,
             "body": body
         }
-        
-        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+
+        response = requests.post(MURAJI_MAIL_API_URL, json=payload, timeout=30)
         
         if response.ok:
             logger.info(f"Muraji email sent successfully to {to_email}")
@@ -1943,9 +1943,14 @@ def run_evidence_auto_analysis(evidence_id: str):
     import base64
     import requests
     from django.utils import timezone
-    
-    ENTITY_EXTRACTION_API_URL = "https://muraji-api.wathbah.dev/api/entity-extraction/extract"
-    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbah.dev/api/audit/analyze"
+
+    from core.muraji_urls import (
+        MURAJI_ANALYSIS_API_URL,
+        MURAJI_ENTITY_EXTRACTION_API_URL,
+    )
+
+    ENTITY_EXTRACTION_API_URL = MURAJI_ENTITY_EXTRACTION_API_URL
+    AUDIT_ANALYSIS_API_URL = MURAJI_ANALYSIS_API_URL
     
     try:
         evidence = Evidence.objects.get(id=evidence_id)
@@ -2071,10 +2076,7 @@ except ImportError:
 # Applied Control AI Analysis using Muraji API
 # ==============================================================================
 
-MURAJI_ANALYSIS_API_URL = os.environ.get(
-    'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-api.wathbah.dev/api/audit/analyze'
-)
+from core.muraji_urls import MURAJI_ANALYSIS_API_URL
 
 
 @task()

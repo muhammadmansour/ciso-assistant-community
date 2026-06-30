@@ -360,15 +360,18 @@
 			description: gapText,
 			observation: gRec?.trim() || '',
 			folder: ra.folder.id,
+			source: 'requirement' as const,
 			applied_controls: ra.applied_controls?.map((ac: { id: string }) => ac.id) ?? [],
 			assets: ca?.assets?.map((asset: { id: string }) => asset.id) ?? [],
 			compliance_assessments: [ra.compliance_assessment.id],
+			evidences: [],
 			appliedControlLabels: ra.applied_controls?.map((ac: { str: string }) => ac.str) ?? [],
 			assetLabels:
 				ca?.assets?.map(
 					(asset: { str?: string; name?: string; id: string }) =>
 						asset.str || asset.name || asset.id
 				) ?? [],
+			evidenceLabels: [],
 			assessmentLabel: ra.compliance_assessment.str || ra.compliance_assessment.name || ''
 		};
 	}
