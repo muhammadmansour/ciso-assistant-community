@@ -14,6 +14,7 @@
 		observation: string;
 		folder: string;
 		source: 'requirement' | 'control' | 'evidence';
+		source_object_id: string;
 		applied_controls: string[];
 		assets: string[];
 		compliance_assessments: string[];
@@ -39,6 +40,7 @@
 			observation: prefill.observation,
 			folder: prefill.folder,
 			source: prefill.source,
+			source_object_id: prefill.source_object_id,
 			applied_controls: prefill.applied_controls,
 			assets: prefill.assets,
 			compliance_assessments: prefill.compliance_assessments,
@@ -169,6 +171,7 @@
 				<HiddenInput {form} field="observation" />
 				<HiddenInput {form} field="folder" />
 				<HiddenInput {form} field="source" />
+				<HiddenInput {form} field="source_object_id" />
 				<HiddenInput {form} field="status" />
 				<HiddenInput {form} field="enabled" />
 				<HiddenInput {form} field="is_recurrent" />

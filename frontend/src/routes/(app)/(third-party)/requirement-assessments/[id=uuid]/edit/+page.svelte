@@ -361,6 +361,7 @@
 			observation: gRec?.trim() || '',
 			folder: ra.folder.id,
 			source: 'requirement' as const,
+			source_object_id: ra.id,
 			applied_controls: ra.applied_controls?.map((ac: { id: string }) => ac.id) ?? [],
 			assets: ca?.assets?.map((asset: { id: string }) => asset.id) ?? [],
 			compliance_assessments: [ra.compliance_assessment.id],

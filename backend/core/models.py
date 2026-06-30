@@ -7931,6 +7931,13 @@ class TaskTemplate(NameDescriptionMixin, FolderMixin):
         help_text=_("Analysis type that created this task"),
     )
 
+    source_object_id = models.UUIDField(
+        null=True,
+        blank=True,
+        verbose_name=_("Source object"),
+        help_text=_("Primary object the task was created from (requirement assessment, applied control, or evidence)"),
+    )
+
     def _get_task_node_value(self, field, date_filter=None, order_by=None):
         queryset = TaskNode.objects.filter(task_template=self)
         if date_filter:

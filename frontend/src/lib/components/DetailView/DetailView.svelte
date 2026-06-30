@@ -13,6 +13,7 @@
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { toCamelCase } from '$lib/utils/locales.js';
 	import { countMasked, isMaskedPlaceholder } from '$lib/utils/related-visibility';
+	import { getTaskSourceFallbackLabel, getTaskSourceLink } from '$lib/utils/taskSourceLink';
 	import { m } from '$paraglide/messages';
 	import { getLocale } from '$paraglide/runtime.js';
 
@@ -654,6 +655,15 @@
 												{formatDateOrDateTime(value, getLocale())}
 											{:else if key === 'description' || key === 'observation' || key === 'annotation'}
 												<MarkdownRenderer content={value} />
+											{:else if key === 'source' && data.urlModel === 'task-templates' && typeof value === 'string'}
+												{@const sourceLink = getTaskSourceLink(data.data, value)}
+												{#if sourceLink}
+													<Anchor breadcrumbAction="push" href={sourceLink.href} class="anchor">
+														{sourceLink.label}
+													</Anchor>
+												{:else}
+													{getTaskSourceFallbackLabel(value)}
+												{/if}
 											{:else if m[toCamelCase(value.str || value.name)]}
 												{safeTranslate((value.str || value.name) ?? value)}
 											{:else}

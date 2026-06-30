@@ -13340,6 +13340,7 @@ class TaskTemplateFilter(GenericFilterSet):
             "assigned_to",
             "is_recurrent",
             "applied_controls",
+            "findings_assessment",
             "last_occurrence_status",
             "next_occurrence_status",
             "evidences",
@@ -13378,6 +13379,7 @@ class TaskTemplateViewSet(ExportMixin, BaseModelViewSet):
         "folder",
         "applied_controls",
         "evidences",
+        "findings_assessment",
     ]
     search_fields = ["ref_id", "name"]
     filterset_class = TaskTemplateFilter

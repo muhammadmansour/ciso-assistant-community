@@ -59,6 +59,7 @@
 			observation: gRec?.trim() || '',
 			folder: folderId,
 			source: 'control',
+			source_object_id: ac.id,
 			applied_controls: [ac.id],
 			assets: [...assetIds],
 			compliance_assessments: [...complianceAssessmentIds],

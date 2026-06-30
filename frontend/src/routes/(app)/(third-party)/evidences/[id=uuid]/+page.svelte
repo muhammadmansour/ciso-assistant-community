@@ -375,6 +375,7 @@
 			observation: gRec?.trim() || '',
 			folder: folderId,
 			source: 'evidence',
+			source_object_id: ev.id,
 			applied_controls: appliedControls.map((ac: { id: string }) => ac.id),
 			assets: [...assetIds],
 			compliance_assessments: [...complianceAssessmentIds],

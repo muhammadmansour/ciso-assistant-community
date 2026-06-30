@@ -54,9 +54,12 @@
 <DetailView
 	{data}
 	displayModelTable={false}
-	exclude={data.data.is_recurrent
-		? ['observation', 'status']
-		: ['last_occurrence_status', 'next_occurrence']}
+	exclude={[
+		...(data.data.is_recurrent
+			? ['observation', 'status']
+			: ['last_occurrence_status', 'next_occurrence']),
+		'source_object_id'
+	]}
 />
 
 <div class="wgrc-card mt-6">
