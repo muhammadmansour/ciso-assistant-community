@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { deserialize } from '$app/forms';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import { getModelInfo } from '$lib/utils/crud.js';
 	import { guessMimeFromEvidenceField, normalizedMime } from '$lib/utils/guessMimeFromEvidencePath';
@@ -261,16 +262,27 @@
 		auditError = null;
 
 		try {
-			const res = await fetch('?/runAuditAnalysis', { method: 'POST' });
-			const payload = await res.json();
+			const res = await fetch('?/runAuditAnalysis', {
+				method: 'POST',
+				body: new FormData()
+			});
+			const text = await res.text();
 
-			if (payload.type === 'success' && payload.data?.auditResult) {
-				auditResult = payload.data.auditResult;
-				await saveAuditAnalysis(payload.data.auditResult);
-			} else if (payload.type === 'failure' && payload.data?.auditError) {
-				auditError = payload.data.auditError;
-			} else if (payload.data?.auditError) {
-				auditError = payload.data.auditError;
+			let result: { type: string; data?: { auditResult?: AuditAnalysisResult; auditError?: string } };
+			try {
+				result = deserialize(text);
+			} catch {
+				auditError = 'Server returned an unexpected response. The backend may be unreachable.';
+				return;
+			}
+
+			if (result.type === 'success' && result.data?.auditResult) {
+				auditResult = result.data.auditResult;
+				await saveAuditAnalysis(result.data.auditResult);
+			} else if (result.type === 'failure' && result.data?.auditError) {
+				auditError = result.data.auditError;
+			} else if (result.data?.auditError) {
+				auditError = result.data.auditError;
 			} else {
 				auditError = 'Audit analysis failed';
 			}
