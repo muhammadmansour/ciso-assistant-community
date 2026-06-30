@@ -235,14 +235,6 @@
 					field="vulnerabilities"
 					label={m.vulnerabilities()}
 				/>
-				<AutocompleteSelect
-					multiple
-					form={_form}
-					optionsEndpoint="security-exceptions"
-					optionsExtraFields={[['folder', 'str']]}
-					field="security_exceptions"
-					label={m.securityExceptions()}
-				/>
 			</div>
 		</div>
 
