@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
-	import { RequirementAssessmentSchema, FindingsAssessmentSchema } from '$lib/utils/schemas';
+	import { RequirementAssessmentSchema } from '$lib/utils/schemas';
 	import type { ActionData, PageData } from './$types';
 
 	import { page } from '$app/state';
@@ -26,9 +26,12 @@
 	import ConvertGapToTaskModal, {
 		type GapTaskPrefill
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
+	import ConvertGapToFindingModal, {
+		type GapFindingPrefill
+	} from '$lib/components/Modals/ConvertGapToFindingModal.svelte';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
-	import { superForm, defaults } from 'sveltekit-superforms';
+	import { superForm } from 'sveltekit-superforms';
 	import {
 		getModalStore,
 		type ModalComponent,
@@ -390,49 +393,41 @@
 		gapTaskPrefill = null;
 	}
 
-	// Convert a gap into a findings assessment (follow-up). Opens the standard
-	// "add follow-up" create form, prefilled from the gap. Authors default to the
-	// current user (the finding creator) and status to "planned"; due date and
-	// reviewers are intentionally left for the user to fill in manually.
-	function openConvertGapToFindingModal(
+	// Convert a gap into a findings assessment (follow-up). Opens a styled modal
+	// prefilled from the gap. Authors default to the current user (the finding
+	// creator) and status to "planned"; due date and reviewers are intentionally
+	// left for the user to fill in manually.
+	function buildGapFindingPrefill(
 		idx: number,
 		gGap: string | null,
 		gRec: string | null
-	): void {
+	): GapFindingPrefill {
 		const ca = data.complianceAssessment;
 		const gapText = gGap?.trim() || '';
-		const perimeterId = ca?.perimeter?.id ?? ca?.perimeter ?? undefined;
+		const perimeterId = ca?.perimeter?.id ?? ca?.perimeter ?? '';
 		const userActorId = data.userActorId;
 
-		const prefill: Record<string, any> = {
+		return {
 			name: gapText || `Gap ${idx + 1}`,
 			description: gapText,
 			observation: gRec?.trim() || '',
 			perimeter: perimeterId,
-			authors: userActorId ? [userActorId] : [],
 			status: 'planned',
-			category: '--',
-			version: '0.1'
+			authors: userActorId ? [userActorId] : []
 		};
+	}
 
-		const findingForm = defaults(prefill, zod(FindingsAssessmentSchema));
+	let showGapFindingModal = $state(false);
+	let gapFindingPrefill: GapFindingPrefill | null = $state(null);
 
-		const modalComponent: ModalComponent = {
-			ref: CreateModal,
-			props: {
-				form: findingForm,
-				formAction: '?/createFindingsAssessment',
-				model: data.findingsAssessmentModel,
-				invalidateAll: true,
-				debug: false
-			}
-		};
-		const modal: ModalSettings = {
-			type: 'component',
-			component: modalComponent,
-			title: safeTranslate('add-' + data.findingsAssessmentModel.localName)
-		};
-		modalStore.trigger(modal);
+	function openConvertGapToFindingModal(idx: number, gGap: string | null, gRec: string | null) {
+		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec);
+		showGapFindingModal = true;
+	}
+
+	function closeConvertGapToFindingModal() {
+		showGapFindingModal = false;
+		gapFindingPrefill = null;
 	}
 
 	const analysisSteps = [
@@ -2814,4 +2809,8 @@
 
 {#if showGapTaskModal && gapTaskPrefill}
 	<ConvertGapToTaskModal prefill={gapTaskPrefill} onClose={closeConvertGapToTaskModal} />
+{/if}
+
+{#if showGapFindingModal && gapFindingPrefill}
+	<ConvertGapToFindingModal prefill={gapFindingPrefill} onClose={closeConvertGapToFindingModal} />
 {/if}

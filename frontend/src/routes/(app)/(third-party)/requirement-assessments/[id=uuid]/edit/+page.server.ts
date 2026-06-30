@@ -177,29 +177,6 @@ export const load = (async ({ fetch, params, locals }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
-	// Findings assessment (follow-up) model used by the "convert gap to finding"
-	// flow, which reuses the standard "add follow-up" create form prefilled from
-	// the gap. Status/category select options are required by FindingsAssessmentForm.
-	const findingsAssessmentModel = getModelInfo('findings-assessments');
-	const findingsAssessmentSelectOptions: Record<string, any> = {};
-	if (findingsAssessmentModel.selectFields) {
-		await Promise.all(
-			findingsAssessmentModel.selectFields.map(async (selectField) => {
-				const url = `${baseUrl}/findings-assessments/${selectField.field}/`;
-				const data = await fetchJson(url);
-				if (data) {
-					findingsAssessmentSelectOptions[selectField.field] = Object.entries(data).map(
-						([key, value]) => ({
-							label: value,
-							value: selectField.valueType === 'number' ? parseInt(key) : key
-						})
-					);
-				}
-			})
-		);
-	}
-	findingsAssessmentModel.selectOptions = findingsAssessmentSelectOptions;
-
 	// Load AI analyses and audit log in parallel via server-side fetch
 	const [aiAnalyses, auditLogEntries] = await Promise.all([
 		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`)
@@ -232,7 +209,6 @@ export const load = (async ({ fetch, params, locals }) => {
 		evidenceCreateForm,
 		securityExceptionModel,
 		securityExceptionCreateForm,
-		findingsAssessmentModel,
 		userActorId: locals.user?.actor_id ?? null,
 		tables,
 		aiAnalyses,

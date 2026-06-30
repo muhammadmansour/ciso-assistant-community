@@ -1992,6 +1992,8 @@
 	"convertToFinding": "Convert to finding",
 	"convertGapToTask": "Convert gap to task",
 	"convertGapToTaskDescription": "Review the gap details below, choose an assignee, and create a tracked task.",
+	"convertGapToFinding": "Convert gap to finding",
+	"convertGapToFindingDescription": "Review the AI-generated details, set the authors and due date, and create a follow-up.",
 	"gapDetails": "Gap details",
 	"linkedObjects": "Linked objects",
 	"assignTaskOwner": "Assign task owner",
