@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
-	import { RequirementAssessmentSchema } from '$lib/utils/schemas';
+	import { RequirementAssessmentSchema, FindingsAssessmentSchema } from '$lib/utils/schemas';
 	import type { ActionData, PageData } from './$types';
 
 	import { page } from '$app/state';
@@ -28,7 +28,7 @@
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
-	import { superForm } from 'sveltekit-superforms';
+	import { superForm, defaults } from 'sveltekit-superforms';
 	import {
 		getModalStore,
 		type ModalComponent,
@@ -388,6 +388,51 @@
 	function closeConvertGapToTaskModal() {
 		showGapTaskModal = false;
 		gapTaskPrefill = null;
+	}
+
+	// Convert a gap into a findings assessment (follow-up). Opens the standard
+	// "add follow-up" create form, prefilled from the gap. Authors default to the
+	// current user (the finding creator) and status to "planned"; due date and
+	// reviewers are intentionally left for the user to fill in manually.
+	function openConvertGapToFindingModal(
+		idx: number,
+		gGap: string | null,
+		gRec: string | null
+	): void {
+		const ca = data.complianceAssessment;
+		const gapText = gGap?.trim() || '';
+		const perimeterId = ca?.perimeter?.id ?? ca?.perimeter ?? undefined;
+		const userActorId = data.userActorId;
+
+		const prefill: Record<string, any> = {
+			name: gapText || `Gap ${idx + 1}`,
+			description: gapText,
+			observation: gRec?.trim() || '',
+			perimeter: perimeterId,
+			authors: userActorId ? [userActorId] : [],
+			status: 'planned',
+			category: '--',
+			version: '0.1'
+		};
+
+		const findingForm = defaults(prefill, zod(FindingsAssessmentSchema));
+
+		const modalComponent: ModalComponent = {
+			ref: CreateModal,
+			props: {
+				form: findingForm,
+				formAction: '?/createFindingsAssessment',
+				model: data.findingsAssessmentModel,
+				invalidateAll: true,
+				debug: false
+			}
+		};
+		const modal: ModalSettings = {
+			type: 'component',
+			component: modalComponent,
+			title: safeTranslate('add-' + data.findingsAssessmentModel.localName)
+		};
+		modalStore.trigger(modal);
 	}
 
 	const analysisSteps = [
@@ -2488,6 +2533,7 @@
 															</div>
 														{/if}
 														<div class="flex justify-end pt-1">
+															<!-- Convert to task disabled in favor of Convert to finding
 															<button
 																type="button"
 																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
@@ -2495,6 +2541,15 @@
 															>
 																<i class="fa-solid fa-list-check mr-1"></i>
 																{m.convertToTask()}
+															</button>
+															-->
+															<button
+																type="button"
+																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
+																onclick={() => openConvertGapToFindingModal(idx, gGap, gRec)}
+															>
+																<i class="fa-solid fa-clipboard-list mr-1"></i>
+																{m.convertToFinding()}
 															</button>
 														</div>
 													</div>

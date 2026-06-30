@@ -1989,6 +1989,7 @@
 	"taskTemplate": "Task",
 	"taskTemplates": "Tasks",
 	"convertToTask": "Convert to task",
+	"convertToFinding": "Convert to finding",
 	"convertGapToTask": "Convert gap to task",
 	"convertGapToTaskDescription": "Review the gap details below, choose an assignee, and create a tracked task.",
 	"gapDetails": "Gap details",

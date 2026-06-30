@@ -14,7 +14,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 import { z } from 'zod';
 
-export const load = (async ({ fetch, params }) => {
+export const load = (async ({ fetch, params, locals }) => {
 	const URLModel = 'requirement-assessments';
 	const baseUrl = BASE_API_URL;
 	const endpoint = `${baseUrl}/${URLModel}/${params.id}/`;
@@ -177,6 +177,29 @@ export const load = (async ({ fetch, params }) => {
 	}
 	securityExceptionModel.selectOptions = securityExceptionSelectOptions;
 
+	// Findings assessment (follow-up) model used by the "convert gap to finding"
+	// flow, which reuses the standard "add follow-up" create form prefilled from
+	// the gap. Status/category select options are required by FindingsAssessmentForm.
+	const findingsAssessmentModel = getModelInfo('findings-assessments');
+	const findingsAssessmentSelectOptions: Record<string, any> = {};
+	if (findingsAssessmentModel.selectFields) {
+		await Promise.all(
+			findingsAssessmentModel.selectFields.map(async (selectField) => {
+				const url = `${baseUrl}/findings-assessments/${selectField.field}/`;
+				const data = await fetchJson(url);
+				if (data) {
+					findingsAssessmentSelectOptions[selectField.field] = Object.entries(data).map(
+						([key, value]) => ({
+							label: value,
+							value: selectField.valueType === 'number' ? parseInt(key) : key
+						})
+					);
+				}
+			})
+		);
+	}
+	findingsAssessmentModel.selectOptions = findingsAssessmentSelectOptions;
+
 	// Load AI analyses and audit log in parallel via server-side fetch
 	const [aiAnalyses, auditLogEntries] = await Promise.all([
 		fetchJson(`${baseUrl}/requirement-assessments/${params.id}/ai-analyses/`)
@@ -209,6 +232,8 @@ export const load = (async ({ fetch, params }) => {
 		evidenceCreateForm,
 		securityExceptionModel,
 		securityExceptionCreateForm,
+		findingsAssessmentModel,
+		userActorId: locals.user?.actor_id ?? null,
 		tables,
 		aiAnalyses,
 		auditLogEntries
@@ -507,6 +532,35 @@ export const actions: Actions = {
 			{
 				type: 'success',
 				message: m.successfullyCreatedObject({ object: m.taskTemplate() })
+			},
+			event
+		);
+		return message(form, { object: writtenObject });
+	},
+	createFindingsAssessment: async (event) => {
+		const schema = modelSchema('findings-assessments');
+		const contentType = event.request.headers.get('content-type') ?? '';
+		const form = contentType.includes('application/json')
+			? await superValidate(await event.request.json(), zod(schema))
+			: await superValidate(await event.request.formData(), zod(schema));
+
+		if (!form.valid) {
+			return fail(400, { form });
+		}
+
+		const response = await event.fetch(`${BASE_API_URL}/findings-assessments/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(form.data)
+		});
+
+		if (!response.ok) return handleErrorResponse({ event, response, form });
+
+		const writtenObject = await response.json();
+		setFlash(
+			{
+				type: 'success',
+				message: m.successfullyCreatedObject({ object: m.findingsAssessment() })
 			},
 			event
 		);
