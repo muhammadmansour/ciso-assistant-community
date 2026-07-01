@@ -39,6 +39,7 @@ const SAME_ORIGIN_API_HOSTS = new Set([
 	'grc-hrsd.wathbahs.com',
 	'grc.wathbahs.com',
 	'grc.wathbah.dev',
+	'pp-grc.wathbah.dev',
 	'ciso.wathbahs.com'
 ]);
 

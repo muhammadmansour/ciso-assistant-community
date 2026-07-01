@@ -1,0 +1,1 @@
+import{L as m}from"../chunks/Cggp-D0v.js";export{m as component};

@@ -1,0 +1,1 @@
+import"../chunks/Bzak7iHL.js";import{p as e,c as o}from"../chunks/B5_J1eZO.js";import{p}from"../chunks/B46kGJGo.js";import{T as i}from"../chunks/yOLtTbA6.js";function l(t,a){e(a,!0),p.set("Visual Analysis"),i(t,{get data(){return a.data.data}}),o()}export{l as component};
