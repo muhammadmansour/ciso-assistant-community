@@ -8,6 +8,7 @@
 #   PUBLIC_BACKEND_API_EXPOSED_URL=https://grc-stage.wathbahs.com/api
 #   ORIGIN=https://grc-stage.wathbahs.com
 #   POSTGRES_*, GEMINI_*, USE_GCS, MURAJI_*, etc.
+#   MURAJI_API_BASE_URL=https://muraji-stage.wathbahs.com   (staging override)
 # Before start: cd frontend && pnpm run build:staging  (or build:pp for PP)
 
 set -e
@@ -80,7 +81,8 @@ GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
 
 # Muraji + GRC-admin upstream — override in backend/.env per host.
-MURAJI_API_BASE_URL="${MURAJI_API_BASE_URL:-https://muraji-stage.wathbahs.com}"
+# Default Muraji base matches settings.py (dev); staging sets MURAJI_API_BASE_URL in backend/.env.
+MURAJI_API_BASE_URL="${MURAJI_API_BASE_URL:-https://muraji-api.wathbah.dev}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-${MURAJI_API_BASE_URL%/}/api/audit/analyze}"
 MURAJI_ENTITY_EXTRACTION_API_URL="${MURAJI_ENTITY_EXTRACTION_API_URL:-${MURAJI_API_BASE_URL%/}/api/entity-extraction/extract}"
 MURAJI_MAIL_SEND_API_URL="${MURAJI_MAIL_SEND_API_URL:-${MURAJI_API_BASE_URL%/}/api/mail/send}"
