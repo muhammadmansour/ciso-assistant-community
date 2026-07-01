@@ -1,13 +1,14 @@
 #!/bin/bash
-# CISO Assistant - PM2 staging (Linux)
-# Public URL: https://grc-stage.wathbahs.com (grc-hrsd.wathbahs.com still allowed in ALLOWED_HOSTS)
-# Ports: backend 8020, frontend 3020 (avoid dev 8000/3000 and old PM2 dev 8001/3001)
-# Before start: cd frontend && pnpm run build:staging
-#
-# DB name is POSTGRES_NAME (e.g. grc-stage). Schema for tables is POSTGRES_SEARCH_PATH (can match: grc-stage).
-# If migrate fails on public, once as postgres:
-#   sudo -u postgres psql -d "grc-stage" -c 'CREATE SCHEMA IF NOT EXISTS "grc-stage" AUTHORIZATION "grc-stage";'
-# Default POSTGRES_SEARCH_PATH=grc-stage. Disable with: POSTGRES_SEARCH_PATH= ./start-pm2.sh start
+# CISO Assistant - PM2 production/staging launcher (Linux)
+# Reads server config from backend/.env (gitignored; survives deploy git reset).
+# Typical backend/.env keys:
+#   CISO_ASSISTANT_URL=https://grc-stage.wathbahs.com   (or https://pp-grc.wathbah.dev)
+#   BACKEND_PORT=8020   FRONTEND_PORT=3020
+#   PUBLIC_BACKEND_API_URL=http://127.0.0.1:8020/api
+#   PUBLIC_BACKEND_API_EXPOSED_URL=https://grc-stage.wathbahs.com/api
+#   ORIGIN=https://grc-stage.wathbahs.com
+#   POSTGRES_*, GEMINI_*, USE_GCS, MURAJI_*, etc.
+# Before start: cd frontend && pnpm run build:staging  (or build:pp for PP)
 
 set -e
 
@@ -15,35 +16,34 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Source server-local env overrides if present.
-# This file is NOT tracked in git, lives outside the repo, and survives
-# `git reset --hard origin/staging-version` from the deploy workflow.
-# Use it for secrets / per-host settings, e.g.:
-#   echo 'POSTGRES_PASSWORD=...'                    >> ~/.ciso-staging.env
-#   echo 'USE_GCS=True'                             >> ~/.ciso-staging.env
-#   echo 'GEMINI_INDEX_MAX_WAIT_SECONDS=3600'      >> ~/.ciso-staging.env   # optional; Huey waits for indexing
-#   echo 'GS_BUCKET_NAME=grc-stage-env'             >> ~/.ciso-staging.env
-#   echo 'GS_PROJECT_ID=api-project-799674531429'   >> ~/.ciso-staging.env
-#   chmod 600 ~/.ciso-staging.env
-#
-# GCS authentication: leave GOOGLE_APPLICATION_CREDENTIALS UNSET to use
-# Application Default Credentials (the GCE VM's attached service account).
-# Only set it if you have a service-account JSON key file you want to use
-# explicitly:
-#   echo 'GOOGLE_APPLICATION_CREDENTIALS=/etc/ciso/ciso-storage.json' \
-#                                                   >> ~/.ciso-staging.env
-if [ -f "$HOME/.ciso-staging.env" ]; then
+BACKEND_DIR="$SCRIPT_DIR/backend"
+FRONTEND_DIR="$SCRIPT_DIR/frontend"
+BACKEND_ENV="$BACKEND_DIR/.env"
+
+# Load backend/.env (same file Django uses via settings.py).
+if [ -f "$BACKEND_ENV" ]; then
     set -a
     # shellcheck disable=SC1090
-    . "$HOME/.ciso-staging.env"
+    . "$BACKEND_ENV"
     set +a
+else
+    echo "Warning: backend/.env not found at ${BACKEND_ENV}" >&2
 fi
 
-# Configuration
-DOMAIN="grc-stage.wathbahs.com"
-PUBLIC_URL="https://${DOMAIN}"
-BACKEND_PORT=8020
-FRONTEND_PORT=3020
+# Public URL and ports — override in backend/.env per environment.
+PUBLIC_URL="${CISO_ASSISTANT_URL:-${ORIGIN:-https://grc-stage.wathbahs.com}}"
+PUBLIC_URL="${PUBLIC_URL%/}"
+DOMAIN="${PUBLIC_URL#https://}"
+DOMAIN="${DOMAIN#http://}"
+DOMAIN="${DOMAIN%%/*}"
+
+BACKEND_PORT="${BACKEND_PORT:-8020}"
+FRONTEND_PORT="${FRONTEND_PORT:-3020}"
+ORIGIN="${ORIGIN:-$PUBLIC_URL}"
+PUBLIC_BACKEND_API_URL="${PUBLIC_BACKEND_API_URL:-http://127.0.0.1:${BACKEND_PORT}/api}"
+PUBLIC_BACKEND_API_EXPOSED_URL="${PUBLIC_BACKEND_API_EXPOSED_URL:-${PUBLIC_URL}/api}"
+ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com,pp-grc.wathbah.dev,${DOMAIN}}"
+CSRF_TRUSTED_ORIGINS="${CSRF_TRUSTED_ORIGINS:-https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com,https://pp-grc.wathbah.dev,${PUBLIC_URL}}"
 
 # PostgreSQL (override when invoking: POSTGRES_PASSWORD=... ./start-pm2.sh start)
 POSTGRES_NAME="${POSTGRES_NAME:-grc-stage}"
@@ -54,16 +54,13 @@ DB_PORT="${DB_PORT:-5432}"
 # ${VAR-default} only when unset; empty POSTGRES_SEARCH_PATH= disables (use public only)
 POSTGRES_SEARCH_PATH="${POSTGRES_SEARCH_PATH-grc-stage}"
 
-# Object storage (S3 / Google Cloud Storage). Default = local filesystem.
-# Set via ~/.ciso-staging.env on the server to flip to GCS without editing
-# this script. USE_S3 and USE_GCS are mutually exclusive (settings.py exits
-# fast if both are True).
+# Object storage — set USE_GCS / USE_S3 in backend/.env (mutually exclusive).
 USE_S3="${USE_S3:-False}"
 USE_GCS="${USE_GCS:-False}"
 GS_BUCKET_NAME="${GS_BUCKET_NAME:-}"
 GS_PROJECT_ID="${GS_PROJECT_ID:-}"
 # Empty default → Application Default Credentials (GCE VM service account).
-# Set explicitly in ~/.ciso-staging.env if you want to use a JSON key file.
+# Optional JSON key path in backend/.env; leave unset for GCE ADC.
 GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
 GS_LOCATION="${GS_LOCATION:-}"
 GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
@@ -74,32 +71,15 @@ GS_SIGNED_URL_EXPIRATION_SECONDS="${GS_SIGNED_URL_EXPIRATION_SECONDS:-900}"
 # Refs: googleapis/google-cloud-python#16035, #16090
 GCE_METADATA_MTLS_MODE="${GCE_METADATA_MTLS_MODE:-none}"
 
-# Gemini File Search (used by the AI analysis flow). Both must reach the
-# huey worker AND the gunicorn process (the analysis HTTP endpoint also
-# instantiates the client). Sourced from ~/.ciso-staging.env above.
+# Gemini File Search — set GEMINI_* in backend/.env (backend + Huey PM2 env).
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 GEMINI_FILE_SEARCH_STORE_NAME="${GEMINI_FILE_SEARCH_STORE_NAME:-}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
-# Override in ~/.ciso-staging.env if needed; indexing must reach the Huey process.
+# Override GEMINI_INDEX_MAX_WAIT_SECONDS in backend/.env if needed.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
 
-# -----------------------------------------------------------------------------
-# Muraji + GRC-admin upstream hosts (per-environment).
-# -----------------------------------------------------------------------------
-# Every muraji/grc-admin URL across the codebase (backend tasks, views, the
-# frontend AI analysis routes, and the legislative-updates page) reads from
-# these env vars. Override per host in ~/.ciso-staging.env, e.g.:
-#   echo 'MURAJI_API_BASE_URL=https://muraji-stage.wathbahs.com' >> ~/.ciso-staging.env
-#   echo 'GRC_ADMIN_BASE_URL=https://grc-admin-stage.wathbah.dev' >> ~/.ciso-staging.env
-#   echo 'PUBLIC_WATHBAH_ADMIN_CONSOLE_URL=https://grc-admin-stage.wathbah.dev/' >> ~/.ciso-staging.env
-#
-# Individual endpoint vars (MURAJI_ANALYSIS_API_URL, LEGISLATIVE_UPDATES_API_URL,
-# etc.) take precedence over the base when set; the code derives sensible
-# defaults from the bases when they're not.
-#
-# Defaults below preserve the previous staging behaviour: muraji-stage.* and
-# the dev grc-admin (matches what was hardcoded before this refactor).
+# Muraji + GRC-admin upstream — override in backend/.env per host.
 MURAJI_API_BASE_URL="${MURAJI_API_BASE_URL:-https://muraji-stage.wathbahs.com}"
 MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-${MURAJI_API_BASE_URL%/}/api/audit/analyze}"
 MURAJI_ENTITY_EXTRACTION_API_URL="${MURAJI_ENTITY_EXTRACTION_API_URL:-${MURAJI_API_BASE_URL%/}/api/entity-extraction/extract}"
@@ -117,9 +97,7 @@ PUBLIC_WATHBAH_ADMIN_CONSOLE_URL="${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL:-${GRC_ADMI
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
 
-# Directories
-BACKEND_DIR="$SCRIPT_DIR/backend"
-FRONTEND_DIR="$SCRIPT_DIR/frontend"
+# Directories (BACKEND_DIR / FRONTEND_DIR set above)
 
 # Colors
 RED='\033[0;31m'
@@ -131,7 +109,7 @@ NC='\033[0m'
 export PATH="$HOME/.local/bin:$PATH"
 
 echo -e "${GREEN}========================================"
-echo "  CISO Assistant - PM2 Staging (${DOMAIN})"
+echo "  CISO Assistant - PM2 (${DOMAIN})"
 echo -e "========================================${NC}"
 
 # Surface object-storage configuration up front so deploys are easy to debug.
@@ -167,12 +145,12 @@ if [ -n "$GEMINI_API_KEY" ]; then
     masked="${GEMINI_API_KEY:0:6}…${GEMINI_API_KEY: -4}"
     echo -e "${GREEN}Gemini API key: ${masked}${NC}"
 else
-    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in ~/.ciso-staging.env — AI analysis will fail with a 'client not configured' error.${NC}"
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set in backend/.env — AI analysis will fail with a 'client not configured' error.${NC}"
 fi
 if [ -n "$GEMINI_FILE_SEARCH_STORE_NAME" ]; then
     echo -e "${GREEN}Gemini File Search store: ${GEMINI_FILE_SEARCH_STORE_NAME}${NC}"
 else
-    echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set — evidences cannot be indexed.${NC}"
+    echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set in backend/.env — evidences cannot be indexed.${NC}"
 fi
 echo -e "${GREEN}Gemini indexing max wait: ${GEMINI_INDEX_MAX_WAIT_SECONDS}s (Huey + backend PM2 env)${NC}"
 echo -e "${GREEN}Muraji API base: ${MURAJI_API_BASE_URL}${NC}"
@@ -199,17 +177,17 @@ const os = require('os');
 module.exports = {
   apps: [
     {
-      // BACKEND - Gunicorn on staging port 8020
+      // BACKEND - Gunicorn (port from backend/.env BACKEND_PORT)
       name: 'ciso-stage-backend',
       cwd: './backend',
       script: 'poetry',
-      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:8020 --workers 4 --timeout 360 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
+      args: 'run gunicorn --chdir ciso_assistant --bind 0.0.0.0:${BACKEND_PORT} --workers 4 --timeout 360 --keep-alive 30 --access-logfile ../logs/stage-gunicorn-access.log ciso_assistant.wsgi:application',
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
-        CSRF_TRUSTED_ORIGINS: 'https://grc.wathbahs.com,https://grc-hrsd.wathbahs.com,https://grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: '${ALLOWED_HOSTS}',
+        CISO_ASSISTANT_URL: '${PUBLIC_URL}',
+        CSRF_TRUSTED_ORIGINS: '${CSRF_TRUSTED_ORIGINS}',
         AUTH_TOKEN_TTL: '7200',
         ATTACHMENT_MAX_SIZE_MB: '1000',
         ATTACHMENT_MAX_NAME_LENGTH: '512',
@@ -252,8 +230,9 @@ module.exports = {
       interpreter: 'none',
       env: {
         DJANGO_DEBUG: 'False',
-        ALLOWED_HOSTS: 'localhost,127.0.0.1,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com',
-        CISO_ASSISTANT_URL: 'https://grc-stage.wathbahs.com',
+        ALLOWED_HOSTS: '${ALLOWED_HOSTS}',
+        CISO_ASSISTANT_URL: '${PUBLIC_URL}',
+        CSRF_TRUSTED_ORIGINS: '${CSRF_TRUSTED_ORIGINS}',
         POSTGRES_NAME: '${POSTGRES_NAME}',
         POSTGRES_USER: '${POSTGRES_USER}',
         POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}',
@@ -286,7 +265,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
-      // FRONTEND - adapter-node (run: pnpm run build:staging)
+      // FRONTEND - adapter-node (build:staging or build:pp before start)
       name: 'ciso-stage-frontend',
       cwd: './frontend',
       script: 'node',
@@ -294,11 +273,11 @@ module.exports = {
       interpreter: 'none',
       env: {
         HOST: '0.0.0.0',
-        PORT: '3020',
+        PORT: '${FRONTEND_PORT}',
         NODE_ENV: 'production',
-        PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8020/api',
-        PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
-        ORIGIN: 'https://grc-stage.wathbahs.com',
+        PUBLIC_BACKEND_API_URL: '${PUBLIC_BACKEND_API_URL}',
+        PUBLIC_BACKEND_API_EXPOSED_URL: '${PUBLIC_BACKEND_API_EXPOSED_URL}',
+        ORIGIN: '${ORIGIN}',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
         BODY_SIZE_LIMIT: '104857600',
@@ -337,7 +316,8 @@ run_migrations() {
     cd "$BACKEND_DIR"
     export PATH="$HOME/.local/bin:$PATH"
     export DJANGO_DEBUG=False
-    export ALLOWED_HOSTS="localhost,127.0.0.1,backend,grc.wathbahs.com,grc-hrsd.wathbahs.com,grc-stage.wathbahs.com"
+    export ALLOWED_HOSTS="${ALLOWED_HOSTS}"
+    export CSRF_TRUSTED_ORIGINS="${CSRF_TRUSTED_ORIGINS}"
     export CISO_ASSISTANT_URL="${PUBLIC_URL}"
     export POSTGRES_NAME POSTGRES_USER POSTGRES_PASSWORD DB_HOST DB_PORT POSTGRES_SEARCH_PATH
     poetry run python manage.py migrate --noinput
@@ -366,10 +346,11 @@ ensure_gunicorn() {
 # Main commands
 case "${1:-start}" in
     start)
-        echo -e "${GREEN}Starting all services (staging)...${NC}"
+        echo -e "${GREEN}Starting all services (${DOMAIN})...${NC}"
         if [ ! -f "$FRONTEND_DIR/build/index.js" ]; then
             echo -e "${YELLOW}Warning: frontend/build/index.js missing. Run:${NC}"
-            echo -e "  cd frontend && pnpm run build:staging"
+            echo -e "  cd frontend && pnpm run build:staging   # staging"
+            echo -e "  cd frontend && pnpm run build:pp        # PP"
             exit 1
         fi
         ensure_poetry_install
@@ -380,7 +361,7 @@ case "${1:-start}" in
         pm2 save
         echo ""
         echo -e "${GREEN}========================================${NC}"
-        echo -e "${GREEN}  Staging services started                 ${NC}"
+        echo -e "${GREEN}  Services started (${DOMAIN})              ${NC}"
         echo -e "${GREEN}========================================${NC}"
         echo ""
         echo -e "  Backend:  Gunicorn on port ${BACKEND_PORT} (4 workers)"
@@ -434,8 +415,9 @@ case "${1:-start}" in
         echo "Usage: $0 {start|stop|restart|status|logs|delete|startup}"
         echo ""
         echo "Staging: ${PUBLIC_URL} — backend ${BACKEND_PORT}, frontend ${FRONTEND_PORT}"
-        echo "PostgreSQL: POSTGRES_NAME=${POSTGRES_NAME} DB_HOST=${DB_HOST} (override via env)"
-        echo "Build frontend first: cd frontend && pnpm run build:staging"
+        echo "Config: backend/.env (CISO_ASSISTANT_URL, ports, GEMINI_*, POSTGRES_*, …)"
+        echo "PostgreSQL: POSTGRES_NAME=${POSTGRES_NAME} DB_HOST=${DB_HOST}"
+        echo "Build frontend first: cd frontend && pnpm run build:staging  (or build:pp)"
         echo ""
         echo "Commands:"
         echo "  start   - Write ecosystem.config.js and start staging (Gunicorn + Node)"
