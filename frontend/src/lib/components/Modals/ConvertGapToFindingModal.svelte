@@ -35,11 +35,8 @@
 		try {
 			const res = await fetch('/findings-assessments/status');
 			if (res.ok) {
-				const data = await res.json();
-				statusOptions = Object.entries(data).map(([value, label]) => ({
-					label: label as string,
-					value
-				}));
+				// Endpoint already returns an array of { label, value } options.
+				statusOptions = await res.json();
 			}
 		} catch {
 			statusOptions = [];
