@@ -1,16 +1,15 @@
 <script lang="ts">
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
-	import AiAnalysisProgressModal from '$lib/components/AiAnalysis/AiAnalysisProgressModal.svelte';
 	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
 	import {
-		CONTROL_ANALYSIS_STEPS,
-		createProgressTimerCallbacks
-	} from '$lib/components/AiAnalysis/aiAnalysisProgress';
+		activeAiAnalysisJob,
+		acknowledgeReportOpened,
+		startAiAnalysisJob
+	} from '$lib/components/AiAnalysis/aiAnalysisJobs';
 	import ConvertGapToTaskModal, {
 		type GapTaskPrefill
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
-	import { deserialize } from '$app/forms';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -31,23 +30,34 @@
 	let selectedAnalysis: any = $state(null);
 	let showGapTaskModal = $state(false);
 	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
-	let showProgressModal = $state(false);
-	let analysisStep = $state(0);
-	let analysisPercent = $state(0);
-	let analysisComplete = $state(false);
-	let pendingAnalysisResult: any = $state(null);
 	let showReanalysisModal = $state(false);
 	let reanalysisPrompt = $state('');
 
-	const { startProgressTimer, stopProgressTimer, closeProgressModal } = createProgressTimerCallbacks(
-		() => ({ showProgressModal, analysisStep, analysisPercent, analysisComplete }),
-		(patch) => {
-			if (patch.showProgressModal !== undefined) showProgressModal = patch.showProgressModal;
-			if (patch.analysisStep !== undefined) analysisStep = patch.analysisStep;
-			if (patch.analysisPercent !== undefined) analysisPercent = patch.analysisPercent;
-			if (patch.analysisComplete !== undefined) analysisComplete = patch.analysisComplete;
+	const entityId = $derived(data.data.id);
+
+	$effect(() => {
+		const job = $activeAiAnalysisJob;
+		if (!job || job.entityId !== entityId) {
+			isAnalyzing = false;
+			return;
 		}
-	);
+
+		isAnalyzing = job.status === 'running';
+
+		if (job.status === 'error' && job.error) {
+			aiAnalysisError = job.error;
+		}
+
+		if (job.status === 'complete' && job.pendingResult) {
+			aiAnalysisResult = job.pendingResult.result;
+		}
+
+		if (job.openReportOnPage && job.pendingResult) {
+			selectedAnalysis = job.pendingResult;
+			showAnalysisModal = true;
+			acknowledgeReportOpened();
+		}
+	});
 
 	function buildGapTaskPrefill(
 		idx: number,
@@ -133,72 +143,14 @@
 		return new Date(dateStr).toLocaleString();
 	}
 
-	function handleViewResults() {
-		closeProgressModal();
-		if (pendingAnalysisResult) {
-			selectedAnalysis = pendingAnalysisResult;
-			showAnalysisModal = true;
-			pendingAnalysisResult = null;
-		}
-	}
-
-	async function runAiAnalysis(additionalPrompt?: string) {
-		isAnalyzing = true;
-		aiAnalysisResult = null;
+	function runAiAnalysis(additionalPrompt?: string) {
 		aiAnalysisError = null;
-		startProgressTimer();
-
-		try {
-			const formData = new FormData();
-			if (additionalPrompt?.trim()) {
-				formData.append('additionalPrompt', additionalPrompt.trim());
-			}
-			const response = await fetch('?/runAiAnalysis', {
-				method: 'POST',
-				body: formData
-			});
-			const text = await response.text();
-
-			let result: any;
-			try {
-				result = deserialize(text);
-			} catch {
-				isAnalyzing = false;
-				stopProgressTimer(false);
-				aiAnalysisError = 'Server returned an unexpected response. The backend may be unreachable.';
-				return;
-			}
-
-			isAnalyzing = false;
-
-			if (result.type === 'success' && result.data?.aiAnalysis) {
-				const aiData = result.data.aiAnalysis;
-				const analysisPayload = aiData.ai_analysis ?? aiData;
-				pendingAnalysisResult = {
-					id: aiData.ai_analysis_id,
-					created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
-					status: 'completed',
-					score: analysisPayload?.overallAssessment?.score ?? null,
-					compliance_status: analysisPayload?.overallAssessment?.status ?? '',
-					result: analysisPayload,
-					gemini_files_count: aiData.gemini_files_count,
-					requirements_count: aiData.requirements_count
-				};
-				aiAnalysisResult = analysisPayload;
-				stopProgressTimer(true);
-				await invalidateAll();
-			} else if (result.type === 'failure' && result.data?.aiError) {
-				aiAnalysisError = result.data.aiError;
-				stopProgressTimer(false);
-			} else {
-				aiAnalysisError = 'Unexpected response from server';
-				stopProgressTimer(false);
-			}
-		} catch (err) {
-			isAnalyzing = false;
-			stopProgressTimer(false);
-			aiAnalysisError = `Failed to run analysis: ${String(err)}`;
-		}
+		startAiAnalysisJob({
+			entityType: 'control',
+			entityId: data.data.id,
+			entityLabel: data.data.str || data.data.name,
+			additionalPrompt
+		});
 	}
 
 	function openReanalysisModal() {
@@ -212,7 +164,7 @@
 		selectedAnalysis = null;
 		const prompt = reanalysisPrompt;
 		reanalysisPrompt = '';
-		await runAiAnalysis(prompt);
+		runAiAnalysis(prompt);
 	}
 </script>
 
@@ -361,18 +313,6 @@
 		{/if}
 	</div>
 </div>
-
-<AiAnalysisProgressModal
-	open={showProgressModal}
-	title="Control AI Analysis"
-	subtitle={data.data.str || data.data.name}
-	steps={CONTROL_ANALYSIS_STEPS}
-	{analysisStep}
-	{analysisPercent}
-	{analysisComplete}
-	onClose={closeProgressModal}
-	onViewResults={handleViewResults}
-/>
 
 <AiAnalysisReanalysisModal
 	open={showReanalysisModal}

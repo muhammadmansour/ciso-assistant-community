@@ -29,6 +29,11 @@
 	import ConvertGapToFindingModal, {
 		type GapFindingPrefill
 	} from '$lib/components/Modals/ConvertGapToFindingModal.svelte';
+	import {
+		activeAiAnalysisJob,
+		acknowledgeReportOpened,
+		startAiAnalysisJob
+	} from '$lib/components/AiAnalysis/aiAnalysisJobs';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -325,6 +330,7 @@
 	let aiAnalysisResult: any = $state(null);
 	let aiAnalysisError: string | null = $state(null);
 	let showAnalysisModal = $state(false);
+	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
 	let showChangeHistory = $state(false);
 	let auditEntries: any[] = $state(data.auditLogEntries ?? []);
 	let isModalExpanded = $state(false);
@@ -341,13 +347,49 @@
 	let reanalysisPrompt = $state('');
 	let isReanalyzing = $state(false);
 
-	// AI Progress Modal state
-	let showProgressModal = $state(false);
-	let analysisStep = $state(0); // 0=scanning, 1=analyzing, 2=preparing, 3=done
-	let analysisPercent = $state(0);
-	let analysisComplete = $state(false);
-	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
-	let pendingAnalysisResult: any = $state(null);
+	const entityId = $derived(data.requirementAssessment.id);
+	const entityLabel = $derived(
+		`${data.requirement?.ref_id ?? ''} - ${data.requirement?.name || data.requirementAssessment?.name || ''}`.trim()
+	);
+
+	$effect(() => {
+		const job = $activeAiAnalysisJob;
+		if (!job || job.entityId !== entityId) {
+			isAnalyzing = false;
+			return;
+		}
+
+		isAnalyzing = job.status === 'running';
+		isReanalyzing = job.status === 'running' && !!job.additionalPrompt;
+
+		if (job.status === 'error' && job.error) {
+			aiAnalysisError = job.error;
+		}
+
+		if (job.status === 'complete' && job.pendingResult) {
+			const raw = job.pendingResult._raw as Record<string, unknown> | undefined;
+			if (raw) {
+				aiAnalysisResult = raw;
+				latestAiData = raw;
+			}
+			const entryId = job.pendingResult.id;
+			if (entryId && !localAiAnalyses.some((a) => a.id === entryId)) {
+				localAiAnalyses = [job.pendingResult, ...localAiAnalyses];
+			}
+		}
+
+		if (job.openReportOnPage && job.pendingResult) {
+			selectedAnalysis = job.pendingResult;
+			showAnalysisModal = true;
+			acknowledgeReportOpened();
+		}
+	});
+
+	$effect(() => {
+		if (data.aiAnalyses) {
+			localAiAnalyses = data.aiAnalyses;
+		}
+	});
 
 	function buildGapTaskPrefill(
 		idx: number,
@@ -430,153 +472,15 @@
 		gapFindingPrefill = null;
 	}
 
-	const analysisSteps = [
-		{ label: 'Scanning attached documents and evidence...' },
-		{ label: 'Analyzing compliance with AI...' },
-		{ label: 'Preparing results and recommendations...' }
-	];
-
-	function startProgressTimer() {
-		analysisPercent = 0;
-		analysisStep = 0;
-		analysisComplete = false;
-		pendingAnalysisResult = null;
-		showProgressModal = true;
-		analysisTimer = setInterval(() => {
-			// Smoothly increment percentage up to ~90% max before completion
-			if (analysisPercent < 30 && analysisStep === 0) {
-				analysisPercent += 2;
-			} else if (analysisPercent >= 30 && analysisStep < 1) {
-				analysisStep = 1;
-				analysisPercent += 1;
-			} else if (analysisPercent >= 60 && analysisStep < 2) {
-				analysisStep = 2;
-				analysisPercent += 0.5;
-			} else if (analysisPercent < 90) {
-				analysisPercent += 0.3;
-			}
-			// Cap at 90% until real completion
-			if (analysisPercent > 90 && !analysisComplete) analysisPercent = 90;
-		}, 500);
-	}
-
-	function stopProgressTimer(success: boolean) {
-		if (analysisTimer) {
-			clearInterval(analysisTimer);
-			analysisTimer = null;
-		}
-		if (success) {
-			analysisStep = 3; // all steps done
-			analysisPercent = 100;
-			analysisComplete = true;
-		} else {
-			showProgressModal = false;
-		}
-	}
-
-	function handleViewResults() {
-		showProgressModal = false;
-		if (pendingAnalysisResult) {
-			selectedAnalysis = pendingAnalysisResult;
-			showAnalysisModal = true;
-			pendingAnalysisResult = null;
-		}
-	}
-
-	/**
-	 * Run AI analysis via direct fetch (avoids use:enhance which can fail on
-	 * long-running requests when browser extensions close the message channel).
-	 * @param additionalPrompt Optional extra instructions from the user for re-analysis.
-	 */
-	async function runAiAnalysis(additionalPrompt?: string) {
-		isAnalyzing = true;
+	function runAiAnalysis(additionalPrompt?: string) {
 		aiAnalysisResult = null;
 		aiAnalysisError = null;
-		startProgressTimer();
-
-		try {
-			const formData = new FormData();
-			if (additionalPrompt?.trim()) {
-				formData.append('additionalPrompt', additionalPrompt.trim());
-			}
-			const response = await fetch('?/runAiAnalysis', {
-				method: 'POST',
-				body: formData
-			});
-
-			const text = await response.text();
-
-			// Guard against non-JSON / HTML error pages
-			let result: any;
-			try {
-				result = deserialize(text);
-			} catch {
-				console.error('[Run AI Analysis] Could not deserialize response:', text.substring(0, 300));
-				isAnalyzing = false;
-				stopProgressTimer(false);
-				aiAnalysisError = 'Server returned an unexpected response. The backend may be unreachable.';
-				return;
-			}
-
-			isAnalyzing = false;
-
-			if (result.type === 'success' && (result.data as any)?.aiAnalysis) {
-				const aiData = (result.data as any).aiAnalysis;
-				if (aiData._debug_request_body) {
-					console.log('[Run AI Analysis] Request body sent to Muraji:', JSON.stringify(aiData._debug_request_body, null, 2));
-				}
-				console.log('[Run AI Analysis] Full response body:', JSON.stringify(aiData, null, 2));
-				aiAnalysisResult = aiData;
-				latestAiData = aiData;
-
-				// Analysis is saved to DB immediately by the backend.
-				// Build the entry for the local list using the returned analysis_id.
-				// Include proposed_* fields so applyResults can read them directly from source.
-				const newEntry = {
-					id: aiData.analysis_id, // saved to DB already
-					created_at: new Date().toISOString(),
-					status: 'completed',
-					score: aiData.score ?? aiData.ai_analysis?.overallAssessment?.score ?? null,
-					compliance_status:
-						aiData.compliance_status ??
-						aiData.proposed_result ??
-						aiData.ai_analysis?.overallAssessment?.status ??
-						'',
-					gemini_files_count: aiData.gemini_files_count || 0,
-					requirements_count: 1,
-					result: aiData.ai_analysis,
-					question_answers: aiData.question_answers,
-					// Carry proposed values so applyResults can read them from source
-					proposed_answers: aiData.proposed_answers,
-					proposed_observation: aiData.proposed_observation,
-					proposed_result: aiData.proposed_result,
-					proposed_status: aiData.proposed_status,
-				};
-				pendingAnalysisResult = newEntry;
-				// Add to local list immediately so it appears in AI History without refresh
-				localAiAnalyses = [newEntry, ...localAiAnalyses];
-				stopProgressTimer(true);
-			} else if (result.type === 'failure' && (result.data as any)?.aiError) {
-				console.warn('[Run AI Analysis] Failure:', (result.data as any).aiError);
-				stopProgressTimer(false);
-				aiAnalysisError = (result.data as any).aiError;
-			} else if (result.type === 'error') {
-				console.error('[Run AI Analysis] Error:', result);
-				stopProgressTimer(false);
-				aiAnalysisError = (result as any).error?.message || 'Server error during analysis';
-			} else {
-				console.warn('[Run AI Analysis] Unexpected response:', result);
-				stopProgressTimer(false);
-				aiAnalysisError = 'Unexpected response from server';
-			}
-		} catch (e: any) {
-			console.error('[Run AI Analysis] Failed:', e);
-			isAnalyzing = false;
-			stopProgressTimer(false);
-			aiAnalysisError = e?.message?.includes('Failed to fetch')
-				? 'Network error — please check your connection and try again.'
-				: `Request failed: ${e?.message || 'Unknown error'}`;
-		}
+		startAiAnalysisJob({
+			entityType: 'requirement',
+			entityId: data.requirementAssessment.id,
+			entityLabel,
+			additionalPrompt
+		});
 	}
 
 	// AI Apply state
@@ -796,16 +700,6 @@
 		}
 	}
 
-	// Local reactive list of AI analyses — updated immediately on success and synced with server data
-	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
-
-	// Keep local list in sync when server data changes (e.g. after invalidateAll)
-	$effect(() => {
-		if (data.aiAnalyses) {
-			localAiAnalyses = data.aiAnalyses;
-		}
-	});
-
 
 	// Metadata/scalar keys to exclude from report sections
 	const metadataKeys = new Set([
@@ -1022,13 +916,11 @@
 	}
 
 	async function runReanalysis() {
-		isReanalyzing = true;
 		showReanalysisModal = false;
 		closeModal();
 		const prompt = reanalysisPrompt;
 		reanalysisPrompt = '';
-		await runAiAnalysis(prompt);
-		isReanalyzing = false;
+		runAiAnalysis(prompt);
 	}
 
 	function formatDate(dateStr: string): string {
@@ -2047,111 +1939,6 @@
 			</div>
 	{/snippet}
 </SuperForm>
-
-<!-- AI Analysis Progress Modal -->
-{#if showProgressModal}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		onkeydown={(e) => e.key === 'Escape' && analysisComplete && (showProgressModal = false)}
-	>
-		<div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-		<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-			<!-- Header -->
-			<div class="px-6 pt-6 pb-2 flex items-start justify-between">
-				<div>
-					<h3 class="text-lg font-bold text-gray-900">AI Analysis</h3>
-					<p class="text-sm text-gray-500">{data.requirement?.ref_id} - {data.requirement?.name || data.requirementAssessment?.name || ''}</p>
-				</div>
-				{#if analysisComplete}
-					<button
-						type="button"
-						class="text-gray-400 hover:text-gray-600 transition-colors p-1"
-						onclick={() => { showProgressModal = false; }}
-					>
-						<i class="fa-solid fa-xmark text-lg"></i>
-					</button>
-				{/if}
-			</div>
-
-			<!-- Center icon -->
-			<div class="flex justify-center py-6">
-				{#if analysisComplete}
-					<div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
-						<i class="fa-solid fa-circle-check text-green-500 text-3xl"></i>
-					</div>
-				{:else}
-					<div class="w-14 h-14 rounded-full bg-[#005FA3]/10 flex items-center justify-center">
-						<svg class="w-8 h-8 text-[#005FA3] animate-pulse" viewBox="0 0 24 24" fill="currentColor">
-							<path d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z" opacity="0.3"/>
-							<path d="M12 5.5L13.6 9.5L18 9.87L14.67 12.76L15.77 17L12 14.67L8.23 17L9.33 12.76L6 9.87L10.4 9.5L12 5.5Z"/>
-						</svg>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Progress bar -->
-			<div class="px-6 pb-4">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-sm font-medium text-gray-700">
-						{#if analysisComplete}
-							Analysis complete
-						{:else}
-							Analyzing...
-						{/if}
-					</span>
-					<span class="text-sm font-medium text-gray-500">{Math.round(analysisPercent)}%</span>
-				</div>
-				<div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-					<div
-						class="h-full rounded-full transition-all duration-500 ease-out {analysisComplete ? 'bg-emerald-500' : 'bg-[#005FA3]'}"
-						style="width: {analysisPercent}%"
-					></div>
-				</div>
-			</div>
-
-			<!-- Steps -->
-			<div class="px-6 pb-4 space-y-3">
-				{#each analysisSteps as step, idx}
-					{@const isDone = idx < analysisStep || analysisComplete}
-					{@const isActive = idx === analysisStep && !analysisComplete}
-					{@const isPending = idx > analysisStep && !analysisComplete}
-					<div class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
-						{isDone ? 'bg-emerald-50' : isActive ? 'bg-[#005FA3]/5' : 'bg-transparent'}">
-						{#if isDone}
-							<i class="fa-solid fa-check text-emerald-500 text-sm"></i>
-						{:else if isActive}
-							<i class="fa-solid fa-spinner fa-spin text-[#005FA3] text-sm"></i>
-						{:else}
-							<i class="fa-regular fa-circle text-gray-300 text-sm"></i>
-						{/if}
-						<span class="text-sm {isDone ? 'text-emerald-700 font-medium' : isActive ? 'text-[#005FA3] font-medium' : 'text-gray-400'}">
-							{step.label}
-						</span>
-					</div>
-				{/each}
-			</div>
-
-			<!-- Completion section -->
-			{#if analysisComplete}
-				<div class="px-6 pb-6 space-y-4">
-					<div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-center">
-						<p class="text-sm text-emerald-700 font-medium">Analysis completed successfully — results are ready for review</p>
-					</div>
-					<button
-						type="button"
-						class="w-full btn bg-[#005FA3] hover:bg-[#1a2740] text-white font-semibold py-3 rounded-xl transition-colors"
-						onclick={handleViewResults}
-					>
-						View Results
-					</button>
-				</div>
-			{:else}
-				<div class="h-6"></div>
-			{/if}
-		</div>
-	</div>
-{/if}
 
 <!-- AI Analysis Modal -->
 {#if showAnalysisModal && selectedAnalysis}

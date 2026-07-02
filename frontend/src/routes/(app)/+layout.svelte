@@ -27,6 +27,7 @@
 
 	import CommandPalette from '$lib/components/CommandPalette/CommandPalette.svelte';
 	import FloatingPolicyWidget from '$lib/components/FloatingPolicyWidget/FloatingPolicyWidget.svelte';
+	import AiAnalysisBackgroundHost from '$lib/components/AiAnalysis/AiAnalysisBackgroundHost.svelte';
 	import {
 		interceptExternalLinks,
 		setGlobalModalStore,
@@ -226,4 +227,5 @@
 
 	<!-- Floating Policy Chat Widget -->
 	<FloatingPolicyWidget />
+	<AiAnalysisBackgroundHost />
 </div>

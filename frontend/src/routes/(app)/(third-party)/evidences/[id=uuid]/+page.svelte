@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { deserialize } from '$app/forms';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
-	import AiAnalysisProgressModal from '$lib/components/AiAnalysis/AiAnalysisProgressModal.svelte';
 	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
 	import {
-		EVIDENCE_ANALYSIS_STEPS,
-		createProgressTimerCallbacks
-	} from '$lib/components/AiAnalysis/aiAnalysisProgress';
+		activeAiAnalysisJob,
+		acknowledgeReportOpened,
+		startAiAnalysisJob
+	} from '$lib/components/AiAnalysis/aiAnalysisJobs';
 	import ConvertGapToTaskModal, {
 		type GapTaskPrefill
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
@@ -150,23 +149,30 @@
 	let selectedAnalysis: any = $state(null);
 	let showGapTaskModal = $state(false);
 	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
-	let showProgressModal = $state(false);
-	let analysisStep = $state(0);
-	let analysisPercent = $state(0);
-	let analysisComplete = $state(false);
-	let pendingAnalysisResult: any = $state(null);
 	let showReanalysisModal = $state(false);
 	let reanalysisPrompt = $state('');
 
-	const { startProgressTimer, stopProgressTimer, closeProgressModal } = createProgressTimerCallbacks(
-		() => ({ showProgressModal, analysisStep, analysisPercent, analysisComplete }),
-		(patch) => {
-			if (patch.showProgressModal !== undefined) showProgressModal = patch.showProgressModal;
-			if (patch.analysisStep !== undefined) analysisStep = patch.analysisStep;
-			if (patch.analysisPercent !== undefined) analysisPercent = patch.analysisPercent;
-			if (patch.analysisComplete !== undefined) analysisComplete = patch.analysisComplete;
+	const entityId = $derived(data.data.id);
+
+	$effect(() => {
+		const job = $activeAiAnalysisJob;
+		if (!job || job.entityId !== entityId) {
+			auditLoading = false;
+			return;
 		}
-	);
+
+		auditLoading = job.status === 'running';
+
+		if (job.status === 'error' && job.error) {
+			auditError = job.error;
+		}
+
+		if (job.openReportOnPage && job.pendingResult) {
+			selectedAnalysis = job.pendingResult;
+			showAnalysisModal = true;
+			acknowledgeReportOpened();
+		}
+	});
 	
 	// Questions and typical evidence from linked requirements
 	let questions: string[] = $state(data.questions || []);
@@ -296,89 +302,15 @@
 		}
 	}
 
-	function handleViewResults() {
-		closeProgressModal();
-		if (pendingAnalysisResult) {
-			selectedAnalysis = pendingAnalysisResult;
-			showAnalysisModal = true;
-			pendingAnalysisResult = null;
-		}
-	}
-
-	function openReanalysisModal() {
-		reanalysisPrompt = '';
-		showReanalysisModal = true;
-	}
-
-	async function handleReanalysisRun() {
-		showReanalysisModal = false;
-		showAnalysisModal = false;
-		selectedAnalysis = null;
-		const prompt = reanalysisPrompt;
-		reanalysisPrompt = '';
-		await runAuditAnalysis(prompt);
-	}
-
-	async function runAuditAnalysis(additionalPrompt?: string) {
-		auditLoading = true;
+	function runAuditAnalysis(additionalPrompt?: string) {
 		auditError = null;
-		startProgressTimer();
-
-		try {
-			const formData = new FormData();
-			if (additionalPrompt?.trim()) {
-				formData.append('additionalPrompt', additionalPrompt.trim());
-			}
-			const res = await fetch('?/runAuditAnalysis', {
-				method: 'POST',
-				body: formData
-			});
-			const text = await res.text();
-
-			let result: {
-				type: string;
-				data?: { aiAnalysis?: Record<string, unknown>; auditError?: string };
-			};
-			try {
-				result = deserialize(text);
-			} catch {
-				auditError = 'Server returned an unexpected response. The backend may be unreachable.';
-				stopProgressTimer(false);
-				return;
-			}
-
-			if (result.type === 'success' && result.data?.aiAnalysis) {
-				const payload = result.data.aiAnalysis;
-				const analysisEntry = {
-					id: payload.ai_analysis_id,
-					created_at: payload.ai_analysis_updated_at,
-					status: 'completed',
-					score: (payload.ai_analysis as Record<string, any>)?.overallAssessment?.score ?? null,
-					compliance_status:
-						(payload.ai_analysis as Record<string, any>)?.overallAssessment?.status ?? '',
-					result: payload.ai_analysis,
-					gemini_files_count: 1,
-					requirements_count: requirementsContext.length
-				};
-				pendingAnalysisResult = analysisEntry;
-				stopProgressTimer(true);
-				await invalidateAll();
-			} else if (result.type === 'failure' && result.data?.auditError) {
-				auditError = result.data.auditError;
-				stopProgressTimer(false);
-			} else if (result.data?.auditError) {
-				auditError = result.data.auditError;
-				stopProgressTimer(false);
-			} else {
-				auditError = 'Audit analysis failed';
-				stopProgressTimer(false);
-			}
-		} catch (err) {
-			auditError = `Failed to run audit analysis: ${String(err)}`;
-			stopProgressTimer(false);
-		} finally {
-			auditLoading = false;
-		}
+		startAiAnalysisJob({
+			entityType: 'evidence',
+			entityId: data.data.id,
+			entityLabel: evidenceName || data.data.name,
+			additionalPrompt,
+			requirementsCount: requirementsContext.length
+		});
 	}
 
 	function openAnalysisDetail(analysis: any) {
@@ -448,6 +380,20 @@
 	function closeConvertGapToTaskModal() {
 		showGapTaskModal = false;
 		gapTaskPrefill = null;
+	}
+
+	function openReanalysisModal() {
+		reanalysisPrompt = '';
+		showReanalysisModal = true;
+	}
+
+	function handleReanalysisRun() {
+		showReanalysisModal = false;
+		showAnalysisModal = false;
+		selectedAnalysis = null;
+		const prompt = reanalysisPrompt;
+		reanalysisPrompt = '';
+		runAuditAnalysis(prompt);
 	}
 
 	onMount(async () => {
@@ -1057,28 +1003,16 @@
 	</div>
 {/if}
 
-{#if showProgressModal}
-	<AiAnalysisProgressModal
-		open={showProgressModal}
-		title="Evidence AI Analysis"
-		subtitle={evidenceName || data.data.name}
-		steps={EVIDENCE_ANALYSIS_STEPS}
-		{analysisStep}
-		{analysisPercent}
-		{analysisComplete}
-		onClose={closeProgressModal}
-		onViewResults={handleViewResults}
+{#if showReanalysisModal}
+	<AiAnalysisReanalysisModal
+		open={showReanalysisModal}
+		bind:prompt={reanalysisPrompt}
+		title="Re-Analyze Evidence"
+		subtitle="Provide additional instructions for the evidence assessment"
+		onClose={() => (showReanalysisModal = false)}
+		onRun={handleReanalysisRun}
 	/>
 {/if}
-
-<AiAnalysisReanalysisModal
-	open={showReanalysisModal}
-	bind:prompt={reanalysisPrompt}
-	title="Re-Analyze Evidence"
-	subtitle="Provide additional instructions for the evidence assessment"
-	onClose={() => (showReanalysisModal = false)}
-	onRun={handleReanalysisRun}
-/>
 
 <AiAuditAnalysisModal
 	selectedAnalysis={showAnalysisModal ? selectedAnalysis : null}

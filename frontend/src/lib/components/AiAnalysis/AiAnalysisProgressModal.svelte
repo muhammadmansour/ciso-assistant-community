@@ -9,8 +9,13 @@
 		analysisStep: number;
 		analysisPercent: number;
 		analysisComplete: boolean;
+		runningInBackground?: boolean;
+		showGoToPage?: boolean;
+		goToPageLabel?: string;
 		onClose?: () => void;
 		onViewResults?: () => void;
+		onRunInBackground?: () => void;
+		onGoToPage?: () => void;
 	}
 
 	let {
@@ -21,18 +26,31 @@
 		analysisStep,
 		analysisPercent,
 		analysisComplete,
+		runningInBackground = false,
+		showGoToPage = false,
+		goToPageLabel = 'Go to Analysis Page',
 		onClose,
-		onViewResults
+		onViewResults,
+		onRunInBackground,
+		onGoToPage
 	}: Props = $props();
+
+	const canDismissWhileRunning = $derived(runningInBackground && !analysisComplete);
 </script>
 
 {#if open}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		onkeydown={(e) => e.key === 'Escape' && analysisComplete && onClose?.()}
+		onkeydown={(e) =>
+			e.key === 'Escape' && (analysisComplete || canDismissWhileRunning) && onClose?.()}
 	>
-		<div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+		<div
+			class="absolute inset-0 bg-black/30 backdrop-blur-sm"
+			onclick={() => {
+				if (analysisComplete || canDismissWhileRunning) onClose?.();
+			}}
+		></div>
 		<div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 			<div class="px-6 pt-6 pb-2 flex items-start justify-between">
 				<div>
@@ -41,7 +59,7 @@
 						<p class="text-sm text-gray-500">{subtitle}</p>
 					{/if}
 				</div>
-				{#if analysisComplete}
+				{#if analysisComplete || canDismissWhileRunning}
 					<button
 						type="button"
 						class="text-gray-400 hover:text-gray-600 transition-colors p-1"
@@ -126,12 +144,46 @@
 							Analysis completed successfully — results are ready for review
 						</p>
 					</div>
+					{#if showGoToPage}
+						<button
+							type="button"
+							class="w-full btn preset-filled-surface-200-800 font-semibold py-3 rounded-xl transition-colors"
+							onclick={() => onGoToPage?.()}
+						>
+							<i class="fa-solid fa-arrow-up-right-from-square mr-2"></i>
+							{goToPageLabel}
+						</button>
+					{/if}
 					<button
 						type="button"
 						class="w-full btn bg-[#005FA3] hover:bg-[#004d85] text-white font-semibold py-3 rounded-xl transition-colors"
 						onclick={() => onViewResults?.()}
 					>
 						View Results
+					</button>
+				</div>
+			{:else if canDismissWhileRunning}
+				<div class="px-6 pb-6 space-y-3">
+					<p class="text-xs text-center text-gray-500">
+						You can leave this page — analysis will continue in the background.
+					</p>
+					{#if showGoToPage}
+						<button
+							type="button"
+							class="w-full btn preset-filled-surface-200-800 font-semibold py-3 rounded-xl transition-colors"
+							onclick={() => onGoToPage?.()}
+						>
+							<i class="fa-solid fa-arrow-up-right-from-square mr-2"></i>
+							{goToPageLabel}
+						</button>
+					{/if}
+					<button
+						type="button"
+						class="w-full btn bg-[#005FA3]/10 hover:bg-[#005FA3]/20 text-[#005FA3] font-semibold py-3 rounded-xl transition-colors"
+						onclick={() => onRunInBackground?.()}
+					>
+						<i class="fa-solid fa-layer-group mr-2"></i>
+						Continue in Background
 					</button>
 				</div>
 			{:else}
