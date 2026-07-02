@@ -21,6 +21,8 @@
 		authors: string[];
 		evidences: string[];
 		evidenceLabels: string[];
+		source: 'requirement' | 'control' | 'evidence';
+		source_object_id: string;
 	};
 
 	interface Props {
@@ -57,6 +59,8 @@
 			authors: prefill.authors,
 			reviewers: [],
 			evidences: prefill.evidences,
+			source: prefill.source,
+			source_object_id: prefill.source_object_id,
 			due_date: null
 		},
 		zod(FindingsAssessmentSchema)
@@ -154,6 +158,8 @@
 				<HiddenInput {form} field="perimeter" />
 				<HiddenInput {form} field="category" />
 				<HiddenInput {form} field="version" />
+				<HiddenInput {form} field="source" />
+				<HiddenInput {form} field="source_object_id" />
 				{#each prefill.evidences as evidenceId, index (evidenceId)}
 					<input type="hidden" name={`evidences[${index}]`} value={evidenceId} />
 				{/each}

@@ -1127,6 +1127,8 @@ export const FindingsAssessmentSchema = z.object({
 	observation: z.string().optional().nullable(),
 	category: z.string().default('--'),
 	evidences: z.string().uuid().optional().array().optional(),
+	source: z.enum(['requirement', 'control', 'evidence']).optional(),
+	source_object_id: z.string().uuid().optional(),
 	is_locked: z.boolean().optional().default(false)
 });
 

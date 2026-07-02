@@ -7522,6 +7522,25 @@ class FindingsAssessment(Assessment):
         max_length=100, null=True, blank=True, verbose_name=_("reference id")
     )
 
+    source = models.CharField(
+        max_length=20,
+        choices=TaskTemplate.TaskAnalysisSource.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Source"),
+        help_text=_("Analysis type that created this follow-up"),
+    )
+
+    source_object_id = models.UUIDField(
+        null=True,
+        blank=True,
+        verbose_name=_("Source object"),
+        help_text=_(
+            "Primary object the follow-up was created from "
+            "(requirement assessment, applied control, or evidence)"
+        ),
+    )
+
     def get_findings_metrics(self):
         findings = self.findings.all()
         total_count = findings.count()

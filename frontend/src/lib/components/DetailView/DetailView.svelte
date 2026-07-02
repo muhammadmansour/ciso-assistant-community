@@ -655,7 +655,7 @@
 												{formatDateOrDateTime(value, getLocale())}
 											{:else if key === 'description' || key === 'observation' || key === 'annotation'}
 												<MarkdownRenderer content={value} />
-											{:else if key === 'source' && data.urlModel === 'task-templates' && typeof value === 'string'}
+											{:else if key === 'source' && (data.urlModel === 'task-templates' || data.urlModel === 'findings-assessments') && typeof value === 'string'}
 												{@const sourceLink = getTaskSourceLink(data.data, value)}
 												{#if sourceLink}
 													<Anchor breadcrumbAction="push" href={sourceLink.href} class="anchor">

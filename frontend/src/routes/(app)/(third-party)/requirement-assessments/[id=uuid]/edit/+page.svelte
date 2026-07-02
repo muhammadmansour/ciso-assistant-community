@@ -461,7 +461,9 @@
 			status: 'planned',
 			authors: userActorId ? [userActorId] : [],
 			evidences,
-			evidenceLabels
+			evidenceLabels,
+			source: 'requirement',
+			source_object_id: data.requirementAssessment.id
 		};
 	}
 

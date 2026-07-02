@@ -76,7 +76,7 @@
 		</div>
 	</div>
 {/if}
-<DetailView {data} disableCreate={data.data?.is_locked} disableDelete={data.data?.is_locked}>
+<DetailView {data} disableCreate={data.data?.is_locked} disableDelete={data.data?.is_locked} exclude={['source_object_id']}>
 	{#snippet actions()}
 		<div class="flex flex-col space-y-2">
 			<Popover

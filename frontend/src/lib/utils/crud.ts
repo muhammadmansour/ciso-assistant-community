@@ -1703,7 +1703,7 @@ export const URL_MODEL_MAP: ModelMap = {
 				disableEdit: true
 			}
 		],
-		selectFields: [{ field: 'status' }, { field: 'category' }],
+		selectFields: [{ field: 'status' }, { field: 'category' }, { field: 'source' }],
 		detailViewFields: [
 			{ field: 'id' },
 			{ field: 'perimeter' },
@@ -1716,6 +1716,7 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'updated_at', type: 'datetime' },
 			{ field: 'version' },
 			{ field: 'status' },
+			{ field: 'source' },
 			{ field: 'observation' },
 			{ field: 'is_locked' }
 		]
