@@ -5,16 +5,22 @@
 		selectedAnalysis: Record<string, unknown> | null;
 		subtitle?: string;
 		enableGapToTask?: boolean;
+		enableReanalyze?: boolean;
+		reanalyzeDisabled?: boolean;
 		onClose: () => void;
 		onConvertGap?: (idx: number, gap: string | null, recommendation: string | null) => void;
+		onReanalyze?: () => void;
 	}
 
 	let {
 		selectedAnalysis,
 		subtitle = '',
 		enableGapToTask = false,
+		enableReanalyze = false,
+		reanalyzeDisabled = false,
 		onClose,
-		onConvertGap
+		onConvertGap,
+		onReanalyze
 	}: Props = $props();
 
 	let isModalExpanded = $state(false);
@@ -108,10 +114,10 @@
 			class:absolute={isModalExpanded}
 			style={isModalExpanded ? 'max-width:100%;max-height:100%;border-radius:0;' : ''}
 		>
-			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#0A1628]/5 to-white">
+			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#005FA3]/5 to-white">
 				<div class="flex items-center gap-3">
-					<div class="p-2 bg-[#0A1628]/10 rounded-lg">
-						<i class="fa-solid fa-brain text-[#0A1628] text-lg"></i>
+					<div class="p-2 bg-[#005FA3]/10 rounded-lg">
+						<i class="fa-solid fa-brain text-[#005FA3] text-lg"></i>
 					</div>
 					<div>
 						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
@@ -337,7 +343,7 @@
 																<div class="flex justify-end pt-1">
 																	<button
 																		type="button"
-																		class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
+																		class="btn btn-sm rounded-lg bg-[#005FA3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#004d85]"
 																		onclick={() => onConvertGap(idx, gGap ? String(gGap) : null, gRec ? String(gRec) : null)}
 																	>
 																		<i class="fa-solid fa-list-check mr-1"></i>
@@ -407,7 +413,20 @@
 				{/if}
 			</div>
 
-			<div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50">
+			<div class="flex items-center gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
+				{#if enableReanalyze && onReanalyze}
+					<button
+						type="button"
+						class="btn bg-amber-500 hover:bg-amber-600 text-white shadow-sm font-semibold
+							disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+						disabled={reanalyzeDisabled}
+						onclick={onReanalyze}
+					>
+						<i class="fa-solid fa-rotate mr-2"></i>
+						Re-Analyze
+					</button>
+				{/if}
+				<div class="flex-1"></div>
 				<button type="button" class="btn preset-filled-surface-200-800" onclick={closeModal}>
 					Close
 				</button>

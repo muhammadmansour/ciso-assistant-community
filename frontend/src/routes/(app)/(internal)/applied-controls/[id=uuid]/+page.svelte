@@ -1,10 +1,16 @@
 <script lang="ts">
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
+	import AiAnalysisProgressModal from '$lib/components/AiAnalysis/AiAnalysisProgressModal.svelte';
+	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
+	import {
+		CONTROL_ANALYSIS_STEPS,
+		createProgressTimerCallbacks
+	} from '$lib/components/AiAnalysis/aiAnalysisProgress';
 	import ConvertGapToTaskModal, {
 		type GapTaskPrefill
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
-	import { m } from '$paraglide/messages';
+	import { deserialize } from '$app/forms';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -14,9 +20,10 @@
 	}
 
 	let { data }: Props = $props();
-	
+
 	let isAnalyzing = $state(false);
 	let aiAnalysisResult: any = $state(null);
+	let aiAnalysisError: string | null = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
 
 	// Modal state
@@ -24,6 +31,23 @@
 	let selectedAnalysis: any = $state(null);
 	let showGapTaskModal = $state(false);
 	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
+	let showProgressModal = $state(false);
+	let analysisStep = $state(0);
+	let analysisPercent = $state(0);
+	let analysisComplete = $state(false);
+	let pendingAnalysisResult: any = $state(null);
+	let showReanalysisModal = $state(false);
+	let reanalysisPrompt = $state('');
+
+	const { startProgressTimer, stopProgressTimer, closeProgressModal } = createProgressTimerCallbacks(
+		() => ({ showProgressModal, analysisStep, analysisPercent, analysisComplete }),
+		(patch) => {
+			if (patch.showProgressModal !== undefined) showProgressModal = patch.showProgressModal;
+			if (patch.analysisStep !== undefined) analysisStep = patch.analysisStep;
+			if (patch.analysisPercent !== undefined) analysisPercent = patch.analysisPercent;
+			if (patch.analysisComplete !== undefined) analysisComplete = patch.analysisComplete;
+		}
+	);
 
 	function buildGapTaskPrefill(
 		idx: number,
@@ -108,76 +132,127 @@
 	function formatDate(dateStr: string): string {
 		return new Date(dateStr).toLocaleString();
 	}
+
+	function handleViewResults() {
+		closeProgressModal();
+		if (pendingAnalysisResult) {
+			selectedAnalysis = pendingAnalysisResult;
+			showAnalysisModal = true;
+			pendingAnalysisResult = null;
+		}
+	}
+
+	async function runAiAnalysis(additionalPrompt?: string) {
+		isAnalyzing = true;
+		aiAnalysisResult = null;
+		aiAnalysisError = null;
+		startProgressTimer();
+
+		try {
+			const formData = new FormData();
+			if (additionalPrompt?.trim()) {
+				formData.append('additionalPrompt', additionalPrompt.trim());
+			}
+			const response = await fetch('?/runAiAnalysis', {
+				method: 'POST',
+				body: formData
+			});
+			const text = await response.text();
+
+			let result: any;
+			try {
+				result = deserialize(text);
+			} catch {
+				isAnalyzing = false;
+				stopProgressTimer(false);
+				aiAnalysisError = 'Server returned an unexpected response. The backend may be unreachable.';
+				return;
+			}
+
+			isAnalyzing = false;
+
+			if (result.type === 'success' && result.data?.aiAnalysis) {
+				const aiData = result.data.aiAnalysis;
+				const analysisPayload = aiData.ai_analysis ?? aiData;
+				pendingAnalysisResult = {
+					id: aiData.ai_analysis_id,
+					created_at: aiData.ai_analysis_updated_at || new Date().toISOString(),
+					status: 'completed',
+					score: analysisPayload?.overallAssessment?.score ?? null,
+					compliance_status: analysisPayload?.overallAssessment?.status ?? '',
+					result: analysisPayload,
+					gemini_files_count: aiData.gemini_files_count,
+					requirements_count: aiData.requirements_count
+				};
+				aiAnalysisResult = analysisPayload;
+				stopProgressTimer(true);
+				await invalidateAll();
+			} else if (result.type === 'failure' && result.data?.aiError) {
+				aiAnalysisError = result.data.aiError;
+				stopProgressTimer(false);
+			} else {
+				aiAnalysisError = 'Unexpected response from server';
+				stopProgressTimer(false);
+			}
+		} catch (err) {
+			isAnalyzing = false;
+			stopProgressTimer(false);
+			aiAnalysisError = `Failed to run analysis: ${String(err)}`;
+		}
+	}
+
+	function openReanalysisModal() {
+		reanalysisPrompt = '';
+		showReanalysisModal = true;
+	}
+
+	async function handleReanalysisRun() {
+		showReanalysisModal = false;
+		showAnalysisModal = false;
+		selectedAnalysis = null;
+		const prompt = reanalysisPrompt;
+		reanalysisPrompt = '';
+		await runAiAnalysis(prompt);
+	}
 </script>
 
 <DetailView {data} exclude={['reference_control', 'category', 'csf_function', 'priority', 'effort', 'control_impact', 'annual_cost_display', 'created_at', 'updated_at', 'ref_id', 'annotation', 'eta', 'expiry_date', 'link', 'progress_field', 'observation', 'security_exceptions', 'filtering_labels', 'sync_mappings']}>
 	{#snippet actions()}
-		<!-- Start AI Analysis Button -->
-		<form
-			method="POST"
-			action="?/runAiAnalysis"
-			use:enhance={() => {
-				isAnalyzing = true;
-				aiAnalysisResult = null;
-				return async ({ result }) => {
-					isAnalyzing = false;
-					if (result.type === 'success' && result.data?.aiAnalysis) {
-						aiAnalysisResult = result.data.aiAnalysis;
-					} else if (result.type === 'failure' && result.data?.aiError) {
-						aiAnalysisResult = { error: result.data.aiError };
-					} else {
-						aiAnalysisResult = { error: 'Unexpected response from server' };
-					}
-					// Refresh the page data (reloads aiAnalyses from server)
-					await invalidateAll();
-				};
-			}}
+		<button
+			type="button"
+			class="btn bg-gradient-to-r from-[#005FA3] to-[#004d85] text-white hover:from-[#004d85] hover:to-[#003d6b] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+			disabled={isAnalyzing}
+			title="Start AI Analysis on Associated Evidences"
+			onclick={() => runAiAnalysis()}
 		>
-			<button
-				type="submit"
-				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-				disabled={isAnalyzing}
-				title="Start AI Analysis on Associated Evidences"
-			>
-				{#if isAnalyzing}
-					<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-					<span>Analyzing...</span>
-				{:else}
-					<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-					<span>Start AI Analysis</span>
-				{/if}
-			</button>
-		</form>
+			{#if isAnalyzing}
+				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+				<span>Analyzing...</span>
+			{:else}
+				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+				<span>Start AI Analysis</span>
+			{/if}
+		</button>
 	{/snippet}
 </DetailView>
 
 <!-- AI Report Section -->
 <div class="card mt-8 bg-white shadow-lg">
 	<div class="p-6">
-		{#if isAnalyzing}
-			<!-- Loading state while analyzing -->
-			<div class="text-center py-16">
-				<div class="inline-block mb-6">
-					<i class="fa-solid fa-spinner fa-spin text-5xl text-[#0A1628]"></i>
-				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing with Wathbah API...</h3>
-				<p class="text-gray-500">This may take a moment. The AI is reviewing your evidences and requirements.</p>
-			</div>
-		{:else if aiAnalysisResult?.error}
-			<!-- Error from current analysis -->
+		{#if aiAnalysisError}
 			<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
 				<div class="flex items-center gap-2 mb-2">
 					<i class="fa-solid fa-circle-exclamation text-red-600"></i>
 					<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
 				</div>
-				<p class="text-red-600 text-sm">{aiAnalysisResult.error}</p>
+				<p class="text-red-600 text-sm">{aiAnalysisError}</p>
 			</div>
 		{/if}
 
 		<!-- Past Analyses Table -->
 		<div class="mb-4 flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-800">
-				<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
+				<i class="fa-solid fa-brain text-[#005FA3] mr-2"></i>
 				AI Analysis History
 			</h3>
 			<span class="text-sm text-gray-500">
@@ -269,8 +344,8 @@
 		{:else}
 			<!-- No analyses yet -->
 			<div class="text-center py-12">
-				<div class="inline-block p-6 rounded-full bg-[#0A1628]/10 mb-4">
-					<i class="fa-solid fa-brain text-4xl text-[#0A1628]"></i>
+				<div class="inline-block p-6 rounded-full bg-[#005FA3]/10 mb-4">
+					<i class="fa-solid fa-brain text-4xl text-[#005FA3]"></i>
 				</div>
 				<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
 				<p class="text-gray-600 mb-6">
@@ -287,12 +362,36 @@
 	</div>
 </div>
 
+<AiAnalysisProgressModal
+	open={showProgressModal}
+	title="Control AI Analysis"
+	subtitle={data.data.str || data.data.name}
+	steps={CONTROL_ANALYSIS_STEPS}
+	{analysisStep}
+	{analysisPercent}
+	{analysisComplete}
+	onClose={closeProgressModal}
+	onViewResults={handleViewResults}
+/>
+
+<AiAnalysisReanalysisModal
+	open={showReanalysisModal}
+	bind:prompt={reanalysisPrompt}
+	title="Re-Analyze Control"
+	subtitle="Provide additional instructions for the control assessment"
+	onClose={() => (showReanalysisModal = false)}
+	onRun={handleReanalysisRun}
+/>
+
 <AiAuditAnalysisModal
 	selectedAnalysis={showAnalysisModal ? selectedAnalysis : null}
 	subtitle={data.data.str || data.data.name}
 	enableGapToTask={true}
+	enableReanalyze={true}
+	reanalyzeDisabled={isAnalyzing}
 	onClose={closeModal}
 	onConvertGap={openConvertGapToTaskModal}
+	onReanalyze={openReanalysisModal}
 />
 
 {#if showGapTaskModal && gapTaskPrefill}

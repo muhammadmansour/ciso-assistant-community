@@ -117,9 +117,17 @@ export const actions: Actions = {
 	},
 
 	runAuditAnalysis: async (event) => {
+		const formData = await event.request.formData();
+		const additionalPrompt = formData.get('additionalPrompt')?.toString().trim() || '';
+		const fetchOptions: RequestInit = { method: 'POST' };
+		if (additionalPrompt) {
+			fetchOptions.headers = { 'Content-Type': 'application/json' };
+			fetchOptions.body = JSON.stringify({ additional_prompt: additionalPrompt });
+		}
+
 		const response = await event.fetch(
 			`${BASE_API_URL}/evidences/${event.params.id}/run-ai-analysis/`,
-			{ method: 'POST' }
+			fetchOptions
 		);
 
 		if (!response.ok) {

@@ -4107,6 +4107,12 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
         print(f"[AI-ANALYSIS] ====== START ======")
         print(f"[AI-ANALYSIS] Applied Control: id={applied_control.id}, name={applied_control.name}")
 
+        additional_prompt = ''
+        if hasattr(request, 'data') and request.data:
+            additional_prompt = request.data.get('additional_prompt', '') or ''
+        if additional_prompt:
+            print(f"[AI-ANALYSIS] Additional prompt: {additional_prompt[:200]}")
+
         evidence_count = applied_control.evidences.count()
         print(f"[AI-ANALYSIS] Total evidences linked to this applied control: {evidence_count}")
         if evidence_count == 0:
@@ -4277,6 +4283,9 @@ class AppliedControlViewSet(ExportMixin, BaseModelViewSet):
                 'model': os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
             }
         }
+
+        if additional_prompt:
+            request_body['additional_prompt'] = additional_prompt
 
         from core.muraji_urls import MURAJI_ANALYSIS_API_URL
 
@@ -8411,6 +8420,12 @@ class EvidenceViewSet(BaseModelViewSet):
         print(f"[EVIDENCE-AI-ANALYSIS] ====== START ======")
         print(f"[EVIDENCE-AI-ANALYSIS] Evidence: id={evidence.id}, name={evidence.name}")
 
+        additional_prompt = ''
+        if hasattr(request, 'data') and request.data:
+            additional_prompt = request.data.get('additional_prompt', '') or ''
+        if additional_prompt:
+            print(f"[EVIDENCE-AI-ANALYSIS] Additional prompt: {additional_prompt[:200]}")
+
         if not evidence.revisions.filter(attachment__isnull=False).exists():
             return Response(
                 {'message': 'No attachment found for this evidence. Please upload a file first.'},
@@ -8420,6 +8435,9 @@ class EvidenceViewSet(BaseModelViewSet):
         request_body, gemini_documents, requirements_context = build_evidence_muraji_audit_body(
             evidence
         )
+
+        if additional_prompt:
+            request_body['additional_prompt'] = additional_prompt
 
         if not gemini_documents:
             latest = evidence.revisions.order_by('-created_at').first()

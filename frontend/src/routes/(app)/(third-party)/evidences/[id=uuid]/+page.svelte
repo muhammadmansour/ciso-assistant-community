@@ -5,6 +5,12 @@
 	import { invalidateAll } from '$app/navigation';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
+	import AiAnalysisProgressModal from '$lib/components/AiAnalysis/AiAnalysisProgressModal.svelte';
+	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
+	import {
+		EVIDENCE_ANALYSIS_STEPS,
+		createProgressTimerCallbacks
+	} from '$lib/components/AiAnalysis/aiAnalysisProgress';
 	import ConvertGapToTaskModal, {
 		type GapTaskPrefill
 	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
@@ -148,14 +154,19 @@
 	let analysisStep = $state(0);
 	let analysisPercent = $state(0);
 	let analysisComplete = $state(false);
-	let analysisTimer: ReturnType<typeof setInterval> | null = $state(null);
 	let pendingAnalysisResult: any = $state(null);
+	let showReanalysisModal = $state(false);
+	let reanalysisPrompt = $state('');
 
-	const analysisSteps = [
-		{ label: 'Scanning attached documents and evidence...' },
-		{ label: 'Analyzing compliance with AI...' },
-		{ label: 'Preparing results and recommendations...' }
-	];
+	const { startProgressTimer, stopProgressTimer, closeProgressModal } = createProgressTimerCallbacks(
+		() => ({ showProgressModal, analysisStep, analysisPercent, analysisComplete }),
+		(patch) => {
+			if (patch.showProgressModal !== undefined) showProgressModal = patch.showProgressModal;
+			if (patch.analysisStep !== undefined) analysisStep = patch.analysisStep;
+			if (patch.analysisPercent !== undefined) analysisPercent = patch.analysisPercent;
+			if (patch.analysisComplete !== undefined) analysisComplete = patch.analysisComplete;
+		}
+	);
 	
 	// Questions and typical evidence from linked requirements
 	let questions: string[] = $state(data.questions || []);
@@ -285,48 +296,88 @@
 		}
 	}
 
-	function startProgressTimer() {
-		analysisPercent = 0;
-		analysisStep = 0;
-		analysisComplete = false;
-		pendingAnalysisResult = null;
-		showProgressModal = true;
-		analysisTimer = setInterval(() => {
-			if (analysisPercent < 30 && analysisStep === 0) {
-				analysisPercent += 2;
-			} else if (analysisPercent >= 30 && analysisStep < 1) {
-				analysisStep = 1;
-				analysisPercent += 1;
-			} else if (analysisPercent >= 60 && analysisStep < 2) {
-				analysisStep = 2;
-				analysisPercent += 0.5;
-			} else if (analysisPercent < 90) {
-				analysisPercent += 0.3;
-			}
-			if (analysisPercent > 90 && !analysisComplete) analysisPercent = 90;
-		}, 500);
-	}
-
-	function stopProgressTimer(success: boolean) {
-		if (analysisTimer) {
-			clearInterval(analysisTimer);
-			analysisTimer = null;
-		}
-		if (success) {
-			analysisStep = 3;
-			analysisPercent = 100;
-			analysisComplete = true;
-		} else {
-			showProgressModal = false;
-		}
-	}
-
 	function handleViewResults() {
-		showProgressModal = false;
+		closeProgressModal();
 		if (pendingAnalysisResult) {
 			selectedAnalysis = pendingAnalysisResult;
 			showAnalysisModal = true;
 			pendingAnalysisResult = null;
+		}
+	}
+
+	function openReanalysisModal() {
+		reanalysisPrompt = '';
+		showReanalysisModal = true;
+	}
+
+	async function handleReanalysisRun() {
+		showReanalysisModal = false;
+		showAnalysisModal = false;
+		selectedAnalysis = null;
+		const prompt = reanalysisPrompt;
+		reanalysisPrompt = '';
+		await runAuditAnalysis(prompt);
+	}
+
+	async function runAuditAnalysis(additionalPrompt?: string) {
+		auditLoading = true;
+		auditError = null;
+		startProgressTimer();
+
+		try {
+			const formData = new FormData();
+			if (additionalPrompt?.trim()) {
+				formData.append('additionalPrompt', additionalPrompt.trim());
+			}
+			const res = await fetch('?/runAuditAnalysis', {
+				method: 'POST',
+				body: formData
+			});
+			const text = await res.text();
+
+			let result: {
+				type: string;
+				data?: { aiAnalysis?: Record<string, unknown>; auditError?: string };
+			};
+			try {
+				result = deserialize(text);
+			} catch {
+				auditError = 'Server returned an unexpected response. The backend may be unreachable.';
+				stopProgressTimer(false);
+				return;
+			}
+
+			if (result.type === 'success' && result.data?.aiAnalysis) {
+				const payload = result.data.aiAnalysis;
+				const analysisEntry = {
+					id: payload.ai_analysis_id,
+					created_at: payload.ai_analysis_updated_at,
+					status: 'completed',
+					score: (payload.ai_analysis as Record<string, any>)?.overallAssessment?.score ?? null,
+					compliance_status:
+						(payload.ai_analysis as Record<string, any>)?.overallAssessment?.status ?? '',
+					result: payload.ai_analysis,
+					gemini_files_count: 1,
+					requirements_count: requirementsContext.length
+				};
+				pendingAnalysisResult = analysisEntry;
+				stopProgressTimer(true);
+				await invalidateAll();
+			} else if (result.type === 'failure' && result.data?.auditError) {
+				auditError = result.data.auditError;
+				stopProgressTimer(false);
+			} else if (result.data?.auditError) {
+				auditError = result.data.auditError;
+				stopProgressTimer(false);
+			} else {
+				auditError = 'Audit analysis failed';
+				stopProgressTimer(false);
+			}
+		} catch (err) {
+			auditError = `Failed to run audit analysis: ${String(err)}`;
+			stopProgressTimer(false);
+		} finally {
+			auditLoading = false;
 		}
 	}
 
@@ -397,64 +448,6 @@
 	function closeConvertGapToTaskModal() {
 		showGapTaskModal = false;
 		gapTaskPrefill = null;
-	}
-
-	async function runAuditAnalysis() {
-		auditLoading = true;
-		auditError = null;
-		startProgressTimer();
-
-		try {
-			const res = await fetch('?/runAuditAnalysis', {
-				method: 'POST',
-				body: new FormData()
-			});
-			const text = await res.text();
-
-			let result: {
-				type: string;
-				data?: { aiAnalysis?: Record<string, unknown>; auditError?: string };
-			};
-			try {
-				result = deserialize(text);
-			} catch {
-				auditError = 'Server returned an unexpected response. The backend may be unreachable.';
-				stopProgressTimer(false);
-				return;
-			}
-
-			if (result.type === 'success' && result.data?.aiAnalysis) {
-				const payload = result.data.aiAnalysis;
-				const analysisEntry = {
-					id: payload.ai_analysis_id,
-					created_at: payload.ai_analysis_updated_at,
-					status: 'completed',
-					score: (payload.ai_analysis as Record<string, any>)?.overallAssessment?.score ?? null,
-					compliance_status:
-						(payload.ai_analysis as Record<string, any>)?.overallAssessment?.status ?? '',
-					result: payload.ai_analysis,
-					gemini_files_count: 1,
-					requirements_count: requirementsContext.length
-				};
-				pendingAnalysisResult = analysisEntry;
-				stopProgressTimer(true);
-				await invalidateAll();
-			} else if (result.type === 'failure' && result.data?.auditError) {
-				auditError = result.data.auditError;
-				stopProgressTimer(false);
-			} else if (result.data?.auditError) {
-				auditError = result.data.auditError;
-				stopProgressTimer(false);
-			} else {
-				auditError = 'Audit analysis failed';
-				stopProgressTimer(false);
-			}
-		} catch (err) {
-			auditError = `Failed to run audit analysis: ${String(err)}`;
-			stopProgressTimer(false);
-		} finally {
-			auditLoading = false;
-		}
 	}
 
 	onMount(async () => {
@@ -895,8 +888,8 @@
 								</p>
 							</div>
 							<button
-								class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] disabled:opacity-50"
-								onclick={runAuditAnalysis}
+								class="btn bg-gradient-to-r from-[#005FA3] to-[#004d85] text-white hover:from-[#004d85] hover:to-[#003d6b] disabled:opacity-50"
+								onclick={() => runAuditAnalysis()}
 								disabled={auditLoading}
 							>
 								{#if auditLoading}
@@ -1065,34 +1058,37 @@
 {/if}
 
 {#if showProgressModal}
-	<div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-		<div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-		<div class="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl">
-			<h3 class="text-xl font-bold text-gray-900 mb-2">Running AI Analysis</h3>
-			<p class="text-sm text-gray-500 mb-6">{analysisSteps[Math.min(analysisStep, analysisSteps.length - 1)]?.label}</p>
-			<div class="w-full bg-gray-200 rounded-full h-3 mb-6">
-				<div
-					class="bg-gradient-to-r from-[#0A1628] to-[#005FA3] h-3 rounded-full transition-all duration-300"
-					style="width: {analysisPercent}%"
-				></div>
-			</div>
-			{#if analysisComplete}
-				<div class="flex justify-end">
-					<button type="button" class="btn preset-filled-primary-500" onclick={handleViewResults}>
-						View Results
-					</button>
-				</div>
-			{/if}
-		</div>
-	</div>
+	<AiAnalysisProgressModal
+		open={showProgressModal}
+		title="Evidence AI Analysis"
+		subtitle={evidenceName || data.data.name}
+		steps={EVIDENCE_ANALYSIS_STEPS}
+		{analysisStep}
+		{analysisPercent}
+		{analysisComplete}
+		onClose={closeProgressModal}
+		onViewResults={handleViewResults}
+	/>
 {/if}
+
+<AiAnalysisReanalysisModal
+	open={showReanalysisModal}
+	bind:prompt={reanalysisPrompt}
+	title="Re-Analyze Evidence"
+	subtitle="Provide additional instructions for the evidence assessment"
+	onClose={() => (showReanalysisModal = false)}
+	onRun={handleReanalysisRun}
+/>
 
 <AiAuditAnalysisModal
 	selectedAnalysis={showAnalysisModal ? selectedAnalysis : null}
 	subtitle={evidenceName || data.data.name}
 	enableGapToTask={true}
+	enableReanalyze={true}
+	reanalyzeDisabled={auditLoading}
 	onClose={closeAnalysisModal}
 	onConvertGap={openConvertGapToTaskModal}
+	onReanalyze={openReanalysisModal}
 />
 
 {#if showGapTaskModal && gapTaskPrefill}
