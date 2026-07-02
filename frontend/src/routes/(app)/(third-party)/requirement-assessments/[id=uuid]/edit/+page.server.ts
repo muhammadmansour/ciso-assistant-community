@@ -193,6 +193,34 @@ export const load = (async ({ fetch, params, locals }) => {
 			}),
 	]);
 
+	const gapContextEvidences = await (async () => {
+		const byId = new Map<string, string>();
+
+		for (const ev of requirementAssessment.evidences ?? []) {
+			if (ev?.id) {
+				byId.set(ev.id, ev.str || ev.name || ev.id);
+			}
+		}
+
+		const appliedControlIds = (requirementAssessment.applied_controls ?? [])
+			.map((ac: { id?: string }) => ac?.id)
+			.filter(Boolean) as string[];
+
+		await Promise.all(
+			appliedControlIds.map(async (acId) => {
+				const evidenceList = await fetchJson(`${baseUrl}/evidences/?applied_controls=${acId}`);
+				const rows = Array.isArray(evidenceList) ? evidenceList : evidenceList?.results ?? [];
+				for (const ev of rows) {
+					if (ev?.id) {
+						byId.set(ev.id, ev.str || ev.name || ev.id);
+					}
+				}
+			})
+		);
+
+		return [...byId.entries()].map(([id, label]) => ({ id, label }));
+	})();
+
 	return {
 		URLModel,
 		title: requirementAssessment.name,
@@ -212,7 +240,8 @@ export const load = (async ({ fetch, params, locals }) => {
 		userActorId: locals.user?.actor_id ?? null,
 		tables,
 		aiAnalyses,
-		auditLogEntries
+		auditLogEntries,
+		gapContextEvidences
 	};
 }) satisfies PageServerLoad;
 

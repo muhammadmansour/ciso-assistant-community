@@ -19,6 +19,8 @@
 		perimeter: string;
 		status: string;
 		authors: string[];
+		evidences: string[];
+		evidenceLabels: string[];
 	};
 
 	interface Props {
@@ -54,6 +56,7 @@
 			version: '0.1',
 			authors: prefill.authors,
 			reviewers: [],
+			evidences: prefill.evidences,
 			due_date: null
 		},
 		zod(FindingsAssessmentSchema)
@@ -73,6 +76,18 @@
 	});
 
 	const { submitting } = _form;
+
+	const linkedItems = $derived([
+		...(prefill.evidenceLabels.length > 0
+			? [
+					{
+						icon: 'fa-solid fa-file-lines',
+						label: m.evidences(),
+						values: prefill.evidenceLabels
+					}
+				]
+			: [])
+	]);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -139,8 +154,33 @@
 				<HiddenInput {form} field="perimeter" />
 				<HiddenInput {form} field="category" />
 				<HiddenInput {form} field="version" />
+				{#each prefill.evidences as evidenceId, index (evidenceId)}
+					<input type="hidden" name={`evidences[${index}]`} value={evidenceId} />
+				{/each}
 
 				<div class="flex-1 overflow-y-auto px-6 py-5">
+					{#if linkedItems.length > 0}
+						<div class="mb-5 rounded-xl border border-[#005FA3]/15 bg-[#005FA3]/5 p-4">
+							<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-[#005FA3]">
+								{m.linkedObjects()}
+							</p>
+							<div class="space-y-3">
+								{#each linkedItems as item (item.label)}
+									<div>
+										<p class="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
+											<i class={item.icon}></i>
+											{item.label}
+										</p>
+										<ul class="space-y-1 pl-6">
+											{#each item.values as value (value)}
+												<li class="text-sm text-gray-600">{value}</li>
+											{/each}
+										</ul>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 					<div class="space-y-4">
 						<TextField {form} field="name" label={m.name()} />
 						<TextArea {form} field="description" label={m.description()} rows={3} />

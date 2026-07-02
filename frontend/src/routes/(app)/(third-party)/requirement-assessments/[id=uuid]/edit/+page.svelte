@@ -448,6 +448,10 @@
 		const gapText = gGap?.trim() || '';
 		const perimeterId = ca?.perimeter?.id ?? ca?.perimeter ?? '';
 		const userActorId = data.userActorId;
+		const evidences = (data.gapContextEvidences ?? []).map((ev: { id: string }) => ev.id);
+		const evidenceLabels = (data.gapContextEvidences ?? []).map(
+			(ev: { label: string }) => ev.label
+		);
 
 		return {
 			name: gapText || `Gap ${idx + 1}`,
@@ -455,7 +459,9 @@
 			observation: gRec?.trim() || '',
 			perimeter: perimeterId,
 			status: 'planned',
-			authors: userActorId ? [userActorId] : []
+			authors: userActorId ? [userActorId] : [],
+			evidences,
+			evidenceLabels
 		};
 	}
 
