@@ -288,10 +288,9 @@ async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
 				requirementsCount
 			);
 			stopProgressTimer(true);
-			patchJob({ status: 'complete', pendingResult });
+			patchJob({ status: 'complete', pendingResult, showProgressModal: true });
 			await invalidateAll();
 			notifyComplete(get(activeAiAnalysisJob)!);
-			requestViewResults();
 			return;
 		}
 

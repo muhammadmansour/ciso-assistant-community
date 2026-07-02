@@ -16,11 +16,7 @@
 	let onAnalysisPage = $derived(job ? isOnAnalysisPage(page.url.pathname, job) : false);
 
 	function handleIndicatorClick() {
-		if (job?.status === 'complete') {
-			requestViewResults();
-		} else {
-			showProgressModalAgain();
-		}
+		showProgressModalAgain();
 	}
 </script>
 
