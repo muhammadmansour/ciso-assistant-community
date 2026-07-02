@@ -7489,6 +7489,12 @@ class RequirementAssessment(AbstractBaseModel, FolderMixin, ETADueDateMixin):
             self.save(update_fields=["result"])
 
 
+class TaskAnalysisSource(models.TextChoices):
+    REQUIREMENT = "requirement", _("Requirement analysis")
+    CONTROL = "control", _("Control analysis")
+    EVIDENCE = "evidence", _("Evidence analysis")
+
+
 class FindingsAssessment(Assessment):
     class Category(models.TextChoices):
         UNDEFINED = "--", "Undefined"
@@ -7524,7 +7530,7 @@ class FindingsAssessment(Assessment):
 
     source = models.CharField(
         max_length=20,
-        choices=TaskTemplate.TaskAnalysisSource.choices,
+        choices=TaskAnalysisSource.choices,
         blank=True,
         default="",
         verbose_name=_("Source"),
@@ -7935,11 +7941,6 @@ class TaskTemplate(NameDescriptionMixin, FolderMixin):
         help_text=_("Link to the evidence (eg. Jira ticket, etc.)"),
         verbose_name=_("Link"),
     )
-
-    class TaskAnalysisSource(models.TextChoices):
-        REQUIREMENT = "requirement", _("Requirement analysis")
-        CONTROL = "control", _("Control analysis")
-        EVIDENCE = "evidence", _("Evidence analysis")
 
     source = models.CharField(
         max_length=20,
