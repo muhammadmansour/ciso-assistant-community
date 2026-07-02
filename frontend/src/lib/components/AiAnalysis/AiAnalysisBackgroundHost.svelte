@@ -3,6 +3,7 @@
 	import AiAnalysisProgressModal from './AiAnalysisProgressModal.svelte';
 	import {
 		activeAiAnalysisJob,
+		dismissAnalysisIndicator,
 		dismissProgressModal,
 		getGoToPageLabel,
 		isOnAnalysisPage,
@@ -13,6 +14,14 @@
 
 	let job = $derived($activeAiAnalysisJob);
 	let onAnalysisPage = $derived(job ? isOnAnalysisPage(page.url.pathname, job) : false);
+
+	function handleIndicatorClick() {
+		if (job?.status === 'complete') {
+			requestViewResults();
+		} else {
+			showProgressModalAgain();
+		}
+	}
 </script>
 
 {#if job?.showProgressModal}
@@ -35,32 +44,45 @@
 {/if}
 
 {#if job && !job.showProgressModal && (job.status === 'running' || (job.status === 'complete' && job.pendingResult))}
-	<button
-		type="button"
-		class="fixed bottom-6 right-6 z-[55] flex max-w-sm items-center gap-3 rounded-2xl border border-[#005FA3]/20 bg-white px-4 py-3 shadow-xl transition-all hover:shadow-2xl"
-		onclick={showProgressModalAgain}
+	<div
+		class="fixed bottom-6 right-6 z-[55] flex max-w-sm items-center gap-3 rounded-2xl border border-[#005FA3]/20 bg-white py-3 pl-4 pr-2 shadow-xl"
 	>
-		<div
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {job.status === 'complete'
-				? 'bg-emerald-100'
-				: 'bg-[#005FA3]/10'}"
+		<button
+			type="button"
+			class="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity hover:opacity-80"
+			onclick={handleIndicatorClick}
 		>
-			{#if job.status === 'complete'}
-				<i class="fa-solid fa-circle-check text-emerald-500"></i>
-			{:else}
-				<i class="fa-solid fa-spinner fa-spin text-[#005FA3]"></i>
-			{/if}
-		</div>
-		<div class="min-w-0 text-left">
-			<p class="truncate text-sm font-semibold text-gray-900">
+			<div
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {job.status === 'complete'
+					? 'bg-emerald-100'
+					: 'bg-[#005FA3]/10'}"
+			>
 				{#if job.status === 'complete'}
-					Analysis ready
+					<i class="fa-solid fa-circle-check text-emerald-500"></i>
 				{:else}
-					Analyzing in background
+					<i class="fa-solid fa-spinner fa-spin text-[#005FA3]"></i>
 				{/if}
-			</p>
-			<p class="truncate text-xs text-gray-500">{job.entityLabel}</p>
-		</div>
-		<i class="fa-solid fa-chevron-up text-gray-400 text-sm"></i>
-	</button>
+			</div>
+			<div class="min-w-0">
+				<p class="truncate text-sm font-semibold text-gray-900">
+					{#if job.status === 'complete'}
+						Analysis ready
+					{:else}
+						Analyzing in background
+					{/if}
+				</p>
+				<p class="truncate text-xs text-gray-500">{job.entityLabel}</p>
+			</div>
+			<i class="fa-solid fa-chevron-up shrink-0 text-gray-400 text-sm"></i>
+		</button>
+		<button
+			type="button"
+			class="shrink-0 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+			title="Dismiss"
+			aria-label="Dismiss analysis notification"
+			onclick={dismissAnalysisIndicator}
+		>
+			<i class="fa-solid fa-xmark"></i>
+		</button>
+	</div>
 {/if}

@@ -291,6 +291,7 @@ async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
 			patchJob({ status: 'complete', pendingResult });
 			await invalidateAll();
 			notifyComplete(get(activeAiAnalysisJob)!);
+			requestViewResults();
 			return;
 		}
 
@@ -366,7 +367,16 @@ export function requestViewResults() {
 }
 
 export function acknowledgeReportOpened() {
+	const job = get(activeAiAnalysisJob);
+	if (job?.status === 'complete') {
+		clearAiAnalysisJob();
+		return;
+	}
 	patchJob({ openReportOnPage: false });
+}
+
+export function dismissAnalysisIndicator() {
+	clearAiAnalysisJob();
 }
 
 export function navigateToAnalysisPage() {
