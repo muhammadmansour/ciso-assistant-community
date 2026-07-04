@@ -63,7 +63,7 @@ export const WATHBAH_ADMIN_CONSOLE_URL =
 	typeof env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL === 'string' &&
 	env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().length > 0
 		? env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().replace(/\/$/, '') + '/'
-		: 'https://grc-admin.wathbah.dev/';
+		: 'https://pp-grc-admin.wathbah.dev/';
 
 export const complianceResultColorMap: { [key: string]: string } = {
 	not_assessed: '#d1d5db',

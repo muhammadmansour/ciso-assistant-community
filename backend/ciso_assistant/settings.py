@@ -75,7 +75,7 @@ MURAJI_MAIL_SEND_API_URL = os.environ.get(
     "MURAJI_MAIL_SEND_API_URL", f"{MURAJI_API_BASE_URL}/api/mail/send"
 )
 GRC_ADMIN_BASE_URL = os.environ.get(
-    "GRC_ADMIN_BASE_URL", "https://grc-admin.wathbah.dev"
+    "GRC_ADMIN_BASE_URL", "https://pp-grc-admin.wathbah.dev"
 ).rstrip("/")
 
 
@@ -172,6 +172,7 @@ for _host in [
     "grc.wathbah.dev",
     "pp-grc.wathbah.dev",
     "grc-admin.wathbah.dev",
+    "pp-grc-admin.wathbah.dev",
     "grc.wathbahs.com",
     "grc-stage.wathbahs.com",
     "grc-hrsd.wathbahs.com",
@@ -191,6 +192,7 @@ for _origin in [
     "https://grc.wathbah.dev",
     "https://pp-grc.wathbah.dev",
     "https://grc-admin.wathbah.dev",
+    "https://pp-grc-admin.wathbah.dev",
     "https://grc.wathbahs.com",
     "https://grc-stage.wathbahs.com",
     "https://grc-hrsd.wathbahs.com",

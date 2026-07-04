@@ -2,8 +2,8 @@
  * Server-only helpers for the legislative-updates upstream feed.
  *
  * Upstream is the GRC-admin "pipeline legislative-updates" API at
- *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates
- *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates/<id>
+ *   GET https://pp-grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates
+ *   GET https://pp-grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates/<id>
  *
  * These endpoints are public — no auth header is required. URLs can be
  * overridden per-environment via `LEGISLATIVE_UPDATES_API_URL` /
@@ -171,7 +171,7 @@ export type UpstreamStatus = 'ok' | 'unauthorized' | 'error';
 // URL is derived from it. Set LEGISLATIVE_UPDATES_API_URL explicitly only
 // when the path layout diverges from the standard /api/ai-tools/... shape.
 const GRC_ADMIN_BASE_URL = (
-	process.env.GRC_ADMIN_BASE_URL || 'https://grc-admin.wathbah.dev'
+	process.env.GRC_ADMIN_BASE_URL || 'https://pp-grc-admin.wathbah.dev'
 ).replace(/\/$/, '');
 
 export const LEGISLATIVE_UPDATES_API_URL =
