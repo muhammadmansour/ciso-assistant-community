@@ -57,6 +57,7 @@ FORCE_CREATE_ADMIN = os.environ.get("FORCE_CREATE_ADMIN", "False").lower() == "t
 #   MURAJI_ANALYSIS_API_URL      -> /api/audit/analyze
 #   MURAJI_ENTITY_EXTRACTION_API_URL -> /api/entity-extraction/extract
 #   MURAJI_MAIL_SEND_API_URL     -> /api/mail/send
+#   MURAJI_LIBRARIES_API_URL     -> /api/libraries
 #   GRC_ADMIN_BASE_URL           -> base for grc-admin AI pipelines
 #
 # Defaults point at the dev environment so local boxes keep working
@@ -73,6 +74,9 @@ MURAJI_ENTITY_EXTRACTION_API_URL = os.environ.get(
 )
 MURAJI_MAIL_SEND_API_URL = os.environ.get(
     "MURAJI_MAIL_SEND_API_URL", f"{MURAJI_API_BASE_URL}/api/mail/send"
+)
+MURAJI_LIBRARIES_API_URL = os.environ.get(
+    "MURAJI_LIBRARIES_API_URL", f"{MURAJI_API_BASE_URL}/api/libraries"
 )
 GRC_ADMIN_BASE_URL = os.environ.get(
     "GRC_ADMIN_BASE_URL", "https://pp-grc-admin.wathbah.dev"
