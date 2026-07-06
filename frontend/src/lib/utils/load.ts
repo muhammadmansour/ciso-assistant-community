@@ -11,6 +11,30 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { z, type AnyZodObject } from 'zod';
 import { canPerformAction } from './access-control';
 
+function schemaExpectsArray(fieldSchema: z.ZodTypeAny | undefined): boolean {
+	if (!fieldSchema) return false;
+
+	let currentSchema: z.ZodTypeAny = fieldSchema;
+	for (let depth = 0; depth < 10; depth++) {
+		if (currentSchema instanceof z.ZodArray) return true;
+		if (currentSchema instanceof z.ZodOptional || currentSchema instanceof z.ZodNullable) {
+			currentSchema = currentSchema._def.innerType;
+			continue;
+		}
+		if (currentSchema instanceof z.ZodDefault) {
+			currentSchema = currentSchema._def.innerType;
+			continue;
+		}
+		if (currentSchema instanceof z.ZodEffects) {
+			currentSchema = currentSchema._def.schema;
+			continue;
+		}
+		break;
+	}
+
+	return false;
+}
+
 interface LoadValidationFlowFormDataParams {
 	event: { fetch: typeof fetch };
 	folderId: string;
@@ -90,7 +114,6 @@ export const loadDetail = async ({ event, model, id }) => {
 	const relatedModels = {} as RelatedModels;
 
 	if (model.reverseForeignKeyFields) {
-		const initialData = {};
 		await Promise.all(
 			model.reverseForeignKeyFields
 				.filter(
@@ -139,30 +162,22 @@ export const loadDetail = async ({ event, model, id }) => {
 					const deleteForm = await superValidate(zod(z.object({ id: z.string().uuid() })));
 					const createSchema = modelSchema(e.urlModel);
 					const fieldSchema = createSchema.shape[e.field];
-					let isArrayField = false;
+					const isArrayField = schemaExpectsArray(fieldSchema);
+					const modelInitialData: Record<string, unknown> = {
+						[e.field]: isArrayField ? [data.id] : data.id
+					};
 
-					if (fieldSchema) {
-						let currentSchema = fieldSchema;
-						while (
-							currentSchema instanceof z.ZodOptional ||
-							currentSchema instanceof z.ZodNullable
-						) {
-							currentSchema = currentSchema._def.innerType;
-						}
-						isArrayField = currentSchema instanceof z.ZodArray;
-					}
-					initialData[e.field] = isArrayField ? [data.id] : data.id;
 					if (data.ebios_rm_study) {
-						initialData['ebios_rm_study'] = data.ebios_rm_study.id;
+						modelInitialData['ebios_rm_study'] = data.ebios_rm_study.id;
 					}
 					if (data.folder) {
 						if (!new RegExp(UUID_REGEX).test(data.folder) && !data?.folder?.id) {
 							const objectEndpoint = `${endpoint}object/`;
 							const objectResponse = await event.fetch(objectEndpoint);
 							const objectData = await objectResponse.json();
-							initialData['folder'] = objectData.folder;
+							modelInitialData['folder'] = objectData.folder;
 						} else {
-							initialData['folder'] = data?.folder?.id ?? data.folder;
+							modelInitialData['folder'] = data?.folder?.id ?? data.folder;
 						}
 					}
 
@@ -177,12 +192,14 @@ export const loadDetail = async ({ event, model, id }) => {
 							}
 							if (value) {
 								// Store nested data under a special key that won't interfere with form fields
-								initialData[`_${fieldPath.replace('.', '_')}`] = value;
+								modelInitialData[`_${fieldPath.replace('.', '_')}`] = value;
 							}
 						});
 					}
 
-					const createForm = await superValidate(initialData, zod(createSchema), { errors: false });
+					const createForm = await superValidate(modelInitialData, zod(createSchema), {
+						errors: false
+					});
 
 					const selectOptions: Record<string, any> = {};
 
@@ -191,7 +208,7 @@ export const loadDetail = async ({ event, model, id }) => {
 							info.selectFields.map(async (selectField) => {
 								let url = `${BASE_API_URL}/${info.endpointUrl || info.urlModel}/${selectField.field}/`;
 								if (selectField.formNestedField && selectField.detail === true) {
-									url = `${BASE_API_URL}/${selectField.endpointUrl}/${initialData[selectField.formNestedField]}/${selectField.field}/`;
+									url = `${BASE_API_URL}/${selectField.endpointUrl}/${modelInitialData[selectField.formNestedField]}/${selectField.field}/`;
 								}
 								const response = await event.fetch(url);
 								if (response.ok) {
@@ -216,7 +233,7 @@ export const loadDetail = async ({ event, model, id }) => {
 						deleteForm,
 						createForm,
 						selectOptions,
-						initialData,
+						initialData: modelInitialData,
 						disableCreate: e.disableCreate,
 						disableDelete: e.disableDelete,
 						disableEdit: e.disableEdit

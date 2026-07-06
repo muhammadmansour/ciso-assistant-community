@@ -513,35 +513,6 @@ export const actions: Actions = {
 
 		return { logged: true };
 	},
-	createTaskFromGap: async (event) => {
-		const schema = modelSchema('task-templates');
-		const contentType = event.request.headers.get('content-type') ?? '';
-		const form = contentType.includes('application/json')
-			? await superValidate(await event.request.json(), zod(schema))
-			: await superValidate(await event.request.formData(), zod(schema));
-
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-
-		const response = await event.fetch(`${BASE_API_URL}/task-templates/`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(form.data)
-		});
-
-		if (!response.ok) return handleErrorResponse({ event, response, form });
-
-		const writtenObject = await response.json();
-		setFlash(
-			{
-				type: 'success',
-				message: m.successfullyCreatedObject({ object: m.taskTemplate() })
-			},
-			event
-		);
-		return message(form, { object: writtenObject });
-	},
 	createFindingsAssessment: async (event) => {
 		const schema = modelSchema('findings-assessments');
 		const contentType = event.request.headers.get('content-type') ?? '';

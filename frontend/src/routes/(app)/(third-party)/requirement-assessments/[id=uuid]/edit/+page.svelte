@@ -23,9 +23,6 @@
 
 	import List from '$lib/components/List/List.svelte';
 	import ConfirmModal from '$lib/components/Modals/ConfirmModal.svelte';
-	import ConvertGapToTaskModal, {
-		type GapTaskPrefill
-	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
 	import ConvertGapToFindingModal, {
 		type GapFindingPrefill
 	} from '$lib/components/Modals/ConvertGapToFindingModal.svelte';
@@ -390,50 +387,6 @@
 			localAiAnalyses = data.aiAnalyses;
 		}
 	});
-
-	function buildGapTaskPrefill(
-		idx: number,
-		gGap: string | null,
-		gRec: string | null
-	): GapTaskPrefill {
-		const ra = data.requirementAssessment;
-		const ca = data.complianceAssessment;
-		const gapText = gGap?.trim() || '';
-
-		return {
-			name: gapText || `Gap ${idx + 1}`,
-			description: gapText,
-			observation: gRec?.trim() || '',
-			folder: ra.folder.id,
-			source: 'requirement' as const,
-			source_object_id: ra.id,
-			applied_controls: ra.applied_controls?.map((ac: { id: string }) => ac.id) ?? [],
-			assets: ca?.assets?.map((asset: { id: string }) => asset.id) ?? [],
-			compliance_assessments: [ra.compliance_assessment.id],
-			evidences: [],
-			appliedControlLabels: ra.applied_controls?.map((ac: { str: string }) => ac.str) ?? [],
-			assetLabels:
-				ca?.assets?.map(
-					(asset: { str?: string; name?: string; id: string }) =>
-						asset.str || asset.name || asset.id
-				) ?? [],
-			evidenceLabels: [],
-			assessmentLabel: ra.compliance_assessment.str || ra.compliance_assessment.name || ''
-		};
-	}
-
-	let showGapTaskModal = $state(false);
-	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
-
-	function openConvertGapToTaskModal(idx: number, gGap: string | null, gRec: string | null) {
-		gapTaskPrefill = buildGapTaskPrefill(idx, gGap, gRec);
-		showGapTaskModal = true;
-	}
-
-	function closeConvertGapToTaskModal() {
-		showGapTaskModal = false;
-		gapTaskPrefill = null;
-	}
 
 	// Convert a gap into a findings assessment (follow-up). Opens a styled modal
 	// prefilled from the gap. Authors default to the current user (the finding
@@ -2323,16 +2276,6 @@
 															</div>
 														{/if}
 														<div class="flex justify-end pt-1">
-															<!-- Convert to task disabled in favor of Convert to finding
-															<button
-																type="button"
-																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
-																onclick={() => openConvertGapToTaskModal(idx, gGap, gRec)}
-															>
-																<i class="fa-solid fa-list-check mr-1"></i>
-																{m.convertToTask()}
-															</button>
-															-->
 															<button
 																type="button"
 																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
@@ -2600,10 +2543,6 @@
 			</div>
 		</div>
 	</div>
-{/if}
-
-{#if showGapTaskModal && gapTaskPrefill}
-	<ConvertGapToTaskModal prefill={gapTaskPrefill} onClose={closeConvertGapToTaskModal} />
 {/if}
 
 {#if showGapFindingModal && gapFindingPrefill}

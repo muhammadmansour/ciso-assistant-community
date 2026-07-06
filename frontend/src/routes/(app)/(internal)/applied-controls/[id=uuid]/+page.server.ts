@@ -80,7 +80,8 @@ export const load: PageServerLoad = async (event) => {
 	return {
 		...data,
 		duplicateForm: appliedControlDuplicateForm,
-		aiAnalyses
+		aiAnalyses,
+		userActorId: event.locals.user?.actor_id ?? null
 	};
 };
 
@@ -165,8 +166,8 @@ export const actions: Actions = {
 		const result = await response.json();
 		return { aiAnalysis: result };
 	},
-	createTaskFromGap: async (event) => {
-		const schema = modelSchema('task-templates');
+	createFindingsAssessment: async (event) => {
+		const schema = modelSchema('findings-assessments');
 		const contentType = event.request.headers.get('content-type') ?? '';
 		const form = contentType.includes('application/json')
 			? await superValidate(await event.request.json(), zod(schema))
@@ -176,7 +177,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		const response = await event.fetch(`${BASE_API_URL}/task-templates/`, {
+		const response = await event.fetch(`${BASE_API_URL}/findings-assessments/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(form.data)
@@ -188,7 +189,7 @@ export const actions: Actions = {
 		setFlash(
 			{
 				type: 'success',
-				message: m.successfullyCreatedObject({ object: m.taskTemplate() })
+				message: m.successfullyCreatedObject({ object: m.findingsAssessment() })
 			},
 			event
 		);

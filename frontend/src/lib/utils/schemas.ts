@@ -1196,7 +1196,9 @@ export const TaskTemplateSchema = z.object({
 	applied_controls: z.preprocess(toArrayPreprocessor, z.array(z.string().optional())).optional(),
 	compliance_assessments: z.string().uuid().optional().array().optional(),
 	risk_assessments: z.string().uuid().optional().array().optional(),
-	findings_assessment: z.string().uuid().optional().array().optional(),
+	findings_assessment: z
+		.preprocess(toArrayPreprocessor, z.array(z.string().uuid().optional()))
+		.optional(),
 	observation: z.string().optional(),
 	source: z.enum(['requirement', 'control', 'evidence']).optional(),
 	source_object_id: z.string().uuid().optional(),

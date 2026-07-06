@@ -4,7 +4,7 @@
 	interface Props {
 		selectedAnalysis: Record<string, unknown> | null;
 		subtitle?: string;
-		enableGapToTask?: boolean;
+		enableGapToFinding?: boolean;
 		enableReanalyze?: boolean;
 		reanalyzeDisabled?: boolean;
 		onClose: () => void;
@@ -15,7 +15,7 @@
 	let {
 		selectedAnalysis,
 		subtitle = '',
-		enableGapToTask = false,
+		enableGapToFinding = false,
 		enableReanalyze = false,
 		reanalyzeDisabled = false,
 		onClose,
@@ -339,15 +339,15 @@
 																	<span class="text-blue-800">{gRec}</span>
 																</div>
 															{/if}
-															{#if enableGapToTask && onConvertGap}
+															{#if enableGapToFinding && onConvertGap}
 																<div class="flex justify-end pt-1">
 																	<button
 																		type="button"
-																		class="btn btn-sm rounded-lg bg-[#005FA3] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#004d85]"
+																		class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
 																		onclick={() => onConvertGap(idx, gGap ? String(gGap) : null, gRec ? String(gRec) : null)}
 																	>
-																		<i class="fa-solid fa-list-check mr-1"></i>
-																		{m.convertToTask()}
+																		<i class="fa-solid fa-clipboard-list mr-1"></i>
+																		{m.convertToFinding()}
 																	</button>
 																</div>
 															{/if}

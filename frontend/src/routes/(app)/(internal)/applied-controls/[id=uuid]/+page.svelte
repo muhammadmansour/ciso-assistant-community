@@ -7,9 +7,9 @@
 		acknowledgeReportOpened,
 		startAiAnalysisJob
 	} from '$lib/components/AiAnalysis/aiAnalysisJobs';
-	import ConvertGapToTaskModal, {
-		type GapTaskPrefill
-	} from '$lib/components/Modals/ConvertGapToTaskModal.svelte';
+	import ConvertGapToFindingModal, {
+		type GapFindingPrefill
+	} from '$lib/components/Modals/ConvertGapToFindingModal.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -28,8 +28,8 @@
 	// Modal state
 	let showAnalysisModal = $state(false);
 	let selectedAnalysis: any = $state(null);
-	let showGapTaskModal = $state(false);
-	let gapTaskPrefill: GapTaskPrefill | null = $state(null);
+	let showGapFindingModal = $state(false);
+	let gapFindingPrefill: GapFindingPrefill | null = $state(null);
 	let showReanalysisModal = $state(false);
 	let reanalysisPrompt = $state('');
 
@@ -59,62 +59,50 @@
 		}
 	});
 
-	function buildGapTaskPrefill(
+	function buildGapFindingPrefill(
 		idx: number,
 		gGap: string | null,
 		gRec: string | null
-	): GapTaskPrefill {
+	): GapFindingPrefill {
 		const ac = data.data as Record<string, any>;
-		const complianceAssessmentIds = new Set<string>();
-		const assessmentLabels: string[] = [];
-		const assetIds = new Set<string>();
-		const assetLabels: string[] = [];
+		const gapText = gGap?.trim() || '';
+		let perimeterId = '';
 
 		for (const ra of ac.requirement_assessments ?? []) {
-			const ca = ra.compliance_assessment;
-			if (ca?.id) {
-				complianceAssessmentIds.add(ca.id);
-				assessmentLabels.push(ca.str || ca.name || ca.id);
-			}
-			for (const asset of ca?.assets ?? []) {
-				if (asset?.id) {
-					assetIds.add(asset.id);
-					assetLabels.push(asset.str || asset.name || asset.id);
-				}
+			const perimeter = ra.compliance_assessment?.perimeter;
+			if (perimeter) {
+				perimeterId = typeof perimeter === 'object' ? (perimeter.id ?? '') : perimeter;
+				break;
 			}
 		}
 
-		const gapText = gGap?.trim() || '';
-		const folderId = typeof ac.folder === 'object' ? ac.folder?.id : ac.folder;
+		const evidences = (ac.evidences ?? []).map((ev: { id: string }) => ev.id);
+		const evidenceLabels = (ac.evidences ?? []).map(
+			(ev: { str?: string; name?: string; id: string }) => ev.str || ev.name || ev.id
+		);
 
 		return {
 			name: gapText || `Gap ${idx + 1}`,
 			description: gapText,
 			observation: gRec?.trim() || '',
-			folder: folderId,
+			perimeter: perimeterId,
+			status: 'planned',
+			authors: data.userActorId ? [data.userActorId] : [],
+			evidences,
+			evidenceLabels,
 			source: 'control',
-			source_object_id: ac.id,
-			applied_controls: [ac.id],
-			assets: [...assetIds],
-			compliance_assessments: [...complianceAssessmentIds],
-			evidences: (ac.evidences ?? []).map((ev: { id: string }) => ev.id),
-			appliedControlLabels: [ac.str || ac.name || ac.id],
-			assetLabels,
-			evidenceLabels: (ac.evidences ?? []).map(
-				(ev: { str?: string; name?: string; id: string }) => ev.str || ev.name || ev.id
-			),
-			assessmentLabel: assessmentLabels[0] || ''
+			source_object_id: ac.id
 		};
 	}
 
-	function openConvertGapToTaskModal(idx: number, gGap: string | null, gRec: string | null) {
-		gapTaskPrefill = buildGapTaskPrefill(idx, gGap, gRec);
-		showGapTaskModal = true;
+	function openConvertGapToFindingModal(idx: number, gGap: string | null, gRec: string | null) {
+		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec);
+		showGapFindingModal = true;
 	}
 
-	function closeConvertGapToTaskModal() {
-		showGapTaskModal = false;
-		gapTaskPrefill = null;
+	function closeConvertGapToFindingModal() {
+		showGapFindingModal = false;
+		gapFindingPrefill = null;
 	}
 
 	function openAnalysisDetail(analysis: any) {
@@ -326,14 +314,14 @@
 <AiAuditAnalysisModal
 	selectedAnalysis={showAnalysisModal ? selectedAnalysis : null}
 	subtitle={data.data.str || data.data.name}
-	enableGapToTask={true}
+	enableGapToFinding={true}
 	enableReanalyze={true}
 	reanalyzeDisabled={isAnalyzing}
 	onClose={closeModal}
-	onConvertGap={openConvertGapToTaskModal}
+	onConvertGap={openConvertGapToFindingModal}
 	onReanalyze={openReanalysisModal}
 />
 
-{#if showGapTaskModal && gapTaskPrefill}
-	<ConvertGapToTaskModal prefill={gapTaskPrefill} onClose={closeConvertGapToTaskModal} />
+{#if showGapFindingModal && gapFindingPrefill}
+	<ConvertGapToFindingModal prefill={gapFindingPrefill} onClose={closeConvertGapToFindingModal} />
 {/if}
