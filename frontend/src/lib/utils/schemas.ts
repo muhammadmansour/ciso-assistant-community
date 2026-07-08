@@ -1196,6 +1196,7 @@ export const TaskTemplateSchema = z.object({
 	risk_assessments: z.string().uuid().optional().array().optional(),
 	findings_assessment: z.string().uuid().optional().array().optional(),
 	observation: z.string().optional(),
+	source: z.enum(['requirement', 'control', 'evidence']).optional(),
 	evidences: z.union([z.string().uuid(), z.string()]).optional().array().optional(), // Allow both UUIDs and strings for evidences created from the form
 	schedule: z
 		.object({

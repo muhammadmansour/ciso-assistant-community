@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { loadFlash } from 'sveltekit-flash-message/server';
+import { getWathbahAdminConsoleUrl } from '$lib/server/grc-admin';
 
 const loginPageRegex = /^[a-zA-Z0-9]+:\/\/[^\/]+\/login\/?.*$/;
 
@@ -20,5 +21,10 @@ export const load = loadFlash(async ({ locals, url, cookies, request }) => {
 			});
 		}
 	}
-	return { user: locals.user, settings: locals.settings, featureflags: locals.featureflags };
+	return {
+		user: locals.user,
+		settings: locals.settings,
+		featureflags: locals.featureflags,
+		wathbahAdminConsoleUrl: getWathbahAdminConsoleUrl()
+	};
 }) satisfies LayoutServerLoad;

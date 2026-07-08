@@ -869,17 +869,17 @@ def check_policies_eta_today():
 def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via Muraji API"""
     import requests
-    
-    MURAJI_API_URL = "https://muraji-api.wathbah.dev/api/mail/send"
-    
+
+    from core.muraji_urls import MURAJI_MAIL_API_URL
+
     try:
         payload = {
             "recipient_list": [to_email],
             "subject": subject,
             "body": body
         }
-        
-        response = requests.post(MURAJI_API_URL, json=payload, timeout=30)
+
+        response = requests.post(MURAJI_MAIL_API_URL, json=payload, timeout=30)
         
         if response.ok:
             logger.info(f"Muraji email sent successfully to {to_email}")
@@ -1943,9 +1943,14 @@ def run_evidence_auto_analysis(evidence_id: str):
     import base64
     import requests
     from django.utils import timezone
-    
-    ENTITY_EXTRACTION_API_URL = "https://muraji-api.wathbah.dev/api/entity-extraction/extract"
-    AUDIT_ANALYSIS_API_URL = "https://muraji-api.wathbah.dev/api/audit/analyze"
+
+    from core.muraji_urls import (
+        MURAJI_ANALYSIS_API_URL,
+        MURAJI_ENTITY_EXTRACTION_API_URL,
+    )
+
+    ENTITY_EXTRACTION_API_URL = MURAJI_ENTITY_EXTRACTION_API_URL
+    AUDIT_ANALYSIS_API_URL = MURAJI_ANALYSIS_API_URL
     
     try:
         evidence = Evidence.objects.get(id=evidence_id)
@@ -2004,78 +2009,34 @@ def run_evidence_auto_analysis(evidence_id: str):
         except Exception as e:
             logger.error(f"Entity extraction error for evidence {evidence_id}: {e}")
         
-        # 2. Run Audit Analysis (if linked to requirements)
+        # 2. Run Audit Analysis via Muraji Gemini File Search (assessment_type=evidence)
         try:
-            # Get questions and typical evidence from linked requirements
-            questions = []
-            typical_evidence = []
-            context_parts = [f"Evidence: {evidence.name}"]
-            
-            if evidence.description:
-                context_parts.append(f"Description: {evidence.description}")
-            
-            for ra in evidence.requirement_assessments.all():
-                req = ra.requirement
-                
-                # Parse questions
-                if req.questions:
-                    if isinstance(req.questions, dict):
-                        for q_key, q_val in req.questions.items():
-                            if isinstance(q_val, dict) and 'text' in q_val:
-                                questions.append(q_val['text'])
-                            elif isinstance(q_val, str):
-                                questions.append(q_val)
-                    elif isinstance(req.questions, list):
-                        questions.extend([q.get('text', q) if isinstance(q, dict) else q for q in req.questions])
-                
-                # Parse typical evidence
-                if req.typical_evidence:
-                    if isinstance(req.typical_evidence, str):
-                        lines = req.typical_evidence.strip().split('\n')
-                        for line in lines:
-                            line = line.strip().lstrip('-').lstrip('•').strip()
-                            if line:
-                                typical_evidence.append(line)
-                    elif isinstance(req.typical_evidence, list):
-                        typical_evidence.extend(req.typical_evidence)
-                
-                # Build context
-                req_parts = []
-                if req.framework:
-                    req_parts.append(f"Framework: {req.framework.name}")
-                    if req.framework.provider:
-                        req_parts.append(f"Provider: {req.framework.provider}")
-                if req.ref_id:
-                    req_parts.append(f"Requirement: {req.ref_id}")
-                if req.description:
-                    req_parts.append(f"Description: {req.description}")
-                if req_parts:
-                    context_parts.append(", ".join(req_parts))
-            
-            # Remove duplicates
-            questions = list(dict.fromkeys(questions))
-            typical_evidence = list(dict.fromkeys(typical_evidence))
-            
-            # Only run audit analysis if we have questions or typical evidence
-            if questions or typical_evidence:
-                logger.info(f"Running audit analysis for evidence {evidence_id} with {len(questions)} questions and {len(typical_evidence)} typical evidence items")
-                
-                audit_request = {
-                    "files": [file_payload],
-                    "questions": questions,
-                    "typicalEvidence": typical_evidence,
-                    "options": {
-                        "context": "\n".join(context_parts)
-                    }
-                }
-                
+            from core.ai_analysis_helpers import build_evidence_muraji_audit_body
+
+            request_body, gemini_documents, _requirements_context = (
+                build_evidence_muraji_audit_body(evidence)
+            )
+            questions = request_body.get('questions', [])
+            typical_evidence = request_body.get('typical_evidence', [])
+
+            if not gemini_documents:
+                logger.info(
+                    f"Skipping audit analysis for evidence {evidence_id} - "
+                    "document not indexed in Gemini File Search yet"
+                )
+            elif questions or typical_evidence:
+                logger.info(
+                    f"Running audit analysis for evidence {evidence_id} with "
+                    f"{len(questions)} questions and {len(typical_evidence)} typical evidence items"
+                )
+
                 audit_response = requests.post(
                     AUDIT_ANALYSIS_API_URL,
-                    json=audit_request,
+                    json=request_body,
                     headers={"Content-Type": "application/json"},
-                    timeout=300  # 5 minutes
+                    timeout=300,
                 )
-                
+
                 if audit_response.ok:
                     audit_result = audit_response.json()
                     evidence.audit_analysis = audit_result
@@ -2083,10 +2044,16 @@ def run_evidence_auto_analysis(evidence_id: str):
                     evidence.save(update_fields=["audit_analysis", "audit_analysis_updated_at"])
                     logger.info(f"Audit analysis completed for evidence {evidence_id}")
                 else:
-                    logger.error(f"Audit analysis failed for evidence {evidence_id}: {audit_response.text[:500]}")
+                    logger.error(
+                        f"Audit analysis failed for evidence {evidence_id}: "
+                        f"{audit_response.text[:500]}"
+                    )
             else:
-                logger.info(f"Skipping audit analysis for evidence {evidence_id} - no questions or typical evidence linked")
-                
+                logger.info(
+                    f"Skipping audit analysis for evidence {evidence_id} - "
+                    "no questions or typical evidence linked"
+                )
+
         except Exception as e:
             logger.error(f"Audit analysis error for evidence {evidence_id}: {e}")
         
@@ -2109,10 +2076,7 @@ except ImportError:
 # Applied Control AI Analysis using Muraji API
 # ==============================================================================
 
-MURAJI_ANALYSIS_API_URL = os.environ.get(
-    'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-api.wathbah.dev/api/audit/analyze'
-)
+from core.muraji_urls import MURAJI_ANALYSIS_API_URL
 
 
 @task()

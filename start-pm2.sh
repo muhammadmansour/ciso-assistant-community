@@ -108,15 +108,27 @@ GEMINI_SPLIT_PAGE_OVERLAP="${GEMINI_SPLIT_PAGE_OVERLAP:-10}"
 GEMINI_UPLOAD_MAX_RETRIES="${GEMINI_UPLOAD_MAX_RETRIES:-3}"
 GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS="${GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS:-5}"
 GEMINI_UPLOAD_STALE_SECONDS="${GEMINI_UPLOAD_STALE_SECONDS:-2400}"
-MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-api.wathbah.dev/api/audit/analyze}"
-
-# PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
-# Other PM2 apps on the host (e.g. ciso-stage-*, production) are left running.
-CISO_APPS="dev-backend dev-frontend dev-huey"
 
 # Directories
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
+
+MURAJI_API_BASE_URL="${MURAJI_API_BASE_URL:-https://muraji-api.wathbah.dev}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-${MURAJI_API_BASE_URL}/api/audit/analyze}"
+
+# Frontend external links — load from frontend/.env when present (PM2 does not read .env by itself).
+_env_grc_admin_url=""
+_env_muraji_base=""
+if [ -f "$FRONTEND_DIR/.env" ]; then
+    _env_grc_admin_url="$(grep -E '^[[:space:]]*(PUBLIC_WATHBAH_ADMIN_CONSOLE_URL|WATHBAH_ADMIN_CONSOLE_URL)=' "$FRONTEND_DIR/.env" | tail -1 | cut -d= -f2- | tr -d '"' | xargs)"
+    _env_muraji_base="$(grep -E '^[[:space:]]*MURAJI_API_BASE_URL=' "$FRONTEND_DIR/.env" | tail -1 | cut -d= -f2- | tr -d '"' | xargs)"
+fi
+PUBLIC_WATHBAH_ADMIN_CONSOLE_URL="${_env_grc_admin_url:-${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL:-https://grc-admin.wathbah.dev/}}"
+MURAJI_API_BASE_URL="${_env_muraji_base:-$MURAJI_API_BASE_URL}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-${MURAJI_API_BASE_URL}/api/audit/analyze}"
+
+# PM2 allowlist: only these process names are stop/restart/delete — never "pm2 stop all".
+CISO_APPS="dev-backend dev-frontend dev-huey"
 
 # Public app URL for email deep links / logo. settings.py loads backend/.env
 # with override=True, so that file is authoritative at runtime; mirror it here
@@ -186,6 +198,7 @@ echo -e "${GREEN}Gemini chunking: PDFs <${GEMINI_CHUNK_PAGE_THRESHOLD}p (else <$
 echo -e "${GREEN}Gemini upload resilience: ${GEMINI_UPLOAD_MAX_RETRIES} retries (base ${GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS}s), stale UPLOADING after ${GEMINI_UPLOAD_STALE_SECONDS}s${NC}"
 echo -e "${GREEN}Gemini PDF splitting: >${GEMINI_SPLIT_PAGE_LIMIT}p split into ${GEMINI_SPLIT_PAGE_LIMIT}-page chunks (overlap ${GEMINI_SPLIT_PAGE_OVERLAP}p), 0=disabled${NC}"
 echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
+echo -e "${GREEN}GRC Admin console URL: ${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL}${NC}"
 echo -e "${GREEN}CISO_ASSISTANT_URL: ${CISO_ASSISTANT_URL}${NC}"
 
 # Check if PM2 is installed
@@ -246,6 +259,7 @@ module.exports = {
         GEMINI_UPLOAD_MAX_RETRIES: '${GEMINI_UPLOAD_MAX_RETRIES}',
         GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS: '${GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS}',
         GEMINI_UPLOAD_STALE_SECONDS: '${GEMINI_UPLOAD_STALE_SECONDS}',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
@@ -294,6 +308,7 @@ module.exports = {
         GEMINI_UPLOAD_MAX_RETRIES: '${GEMINI_UPLOAD_MAX_RETRIES}',
         GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS: '${GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS}',
         GEMINI_UPLOAD_STALE_SECONDS: '${GEMINI_UPLOAD_STALE_SECONDS}',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
@@ -320,6 +335,9 @@ module.exports = {
         NODE_ENV: 'production',
         PUBLIC_BACKEND_API_URL: 'http://127.0.0.1:8001/api',
         PUBLIC_BACKEND_API_EXPOSED_URL: 'https://grc-stage.wathbahs.com/api',
+        PUBLIC_WATHBAH_ADMIN_CONSOLE_URL: '${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL}',
+        WATHBAH_ADMIN_CONSOLE_URL: '${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL}',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
         ORIGIN: 'https://grc-stage.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',

@@ -13,11 +13,14 @@
 		description: string;
 		observation: string;
 		folder: string;
+		source: 'requirement' | 'control' | 'evidence';
 		applied_controls: string[];
 		assets: string[];
 		compliance_assessments: string[];
+		evidences: string[];
 		appliedControlLabels: string[];
 		assetLabels: string[];
+		evidenceLabels: string[];
 		assessmentLabel: string;
 	};
 
@@ -35,9 +38,11 @@
 			description: prefill.description,
 			observation: prefill.observation,
 			folder: prefill.folder,
+			source: prefill.source,
 			applied_controls: prefill.applied_controls,
 			assets: prefill.assets,
 			compliance_assessments: prefill.compliance_assessments,
+			evidences: prefill.evidences,
 			assigned_to: [],
 			is_recurrent: false,
 			enabled: true,
@@ -86,6 +91,15 @@
 						icon: 'fa-solid fa-clipboard-check',
 						label: m.complianceAssessments(),
 						values: [prefill.assessmentLabel]
+					}
+				]
+			: []),
+		...(prefill.evidenceLabels.length > 0
+			? [
+					{
+						icon: 'fa-solid fa-file-lines',
+						label: m.evidences(),
+						values: prefill.evidenceLabels
 					}
 				]
 			: [])
@@ -154,6 +168,7 @@
 				<HiddenInput {form} field="description" />
 				<HiddenInput {form} field="observation" />
 				<HiddenInput {form} field="folder" />
+				<HiddenInput {form} field="source" />
 				<HiddenInput {form} field="status" />
 				<HiddenInput {form} field="enabled" />
 				<HiddenInput {form} field="is_recurrent" />
@@ -165,6 +180,9 @@
 				{/each}
 				{#each prefill.compliance_assessments as assessmentId, index (assessmentId)}
 					<input type="hidden" name={`compliance_assessments[${index}]`} value={assessmentId} />
+				{/each}
+				{#each prefill.evidences as evidenceId, index (evidenceId)}
+					<input type="hidden" name={`evidences[${index}]`} value={evidenceId} />
 				{/each}
 
 				<div class="flex-1 overflow-y-auto px-6 py-5">

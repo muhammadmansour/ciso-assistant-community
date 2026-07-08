@@ -1,13 +1,10 @@
 /**
  * Server-only helpers for the legislative-updates upstream feed.
  *
- * Upstream is the GRC-admin "pipeline legislative-updates" API at
- *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates
- *   GET https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates/<id>
- *
- * These endpoints are public — no auth header is required. URLs can be
- * overridden per-environment via `LEGISLATIVE_UPDATES_API_URL` /
- * `LEGISLATIVE_UPDATE_DETAIL_API_URL`.
+ * Upstream is the GRC-admin "pipeline legislative-updates" API. These endpoints
+ * are public — no auth header is required. URLs are configured via
+ * `WATHBAH_ADMIN_CONSOLE_URL` / `PUBLIC_WATHBAH_ADMIN_CONSOLE_URL`, or
+ * overridden with `LEGISLATIVE_UPDATES_API_URL` / `LEGISLATIVE_UPDATE_DETAIL_API_URL`.
  *
  * The legacy `/pipeline-runs` shape (raw pipeline-execution records that we
  * used to massage client-side) is intentionally NOT supported anymore — the
@@ -15,6 +12,12 @@
  */
 
 import type { RequestEvent } from '@sveltejs/kit';
+import {
+	LEGISLATIVE_UPDATE_DETAIL_API_URL,
+	LEGISLATIVE_UPDATES_API_URL
+} from '$lib/server/grc-admin';
+
+export { LEGISLATIVE_UPDATE_DETAIL_API_URL, LEGISLATIVE_UPDATES_API_URL };
 
 // --- Pipeline-stage subtypes (mirrors the /pipeline-legislative-updates/<id> shape) ---
 
@@ -164,13 +167,6 @@ export type LegislativeUpdate = {
 };
 
 export type UpstreamStatus = 'ok' | 'unauthorized' | 'error';
-
-export const LEGISLATIVE_UPDATES_API_URL =
-	process.env.LEGISLATIVE_UPDATES_API_URL ??
-	'https://grc-admin.wathbah.dev/api/ai-tools/pipeline-legislative-updates';
-
-export const LEGISLATIVE_UPDATE_DETAIL_API_URL =
-	process.env.LEGISLATIVE_UPDATE_DETAIL_API_URL ?? LEGISLATIVE_UPDATES_API_URL;
 
 /**
  * The new endpoint always returns `{ items: [...] }`. We still accept a

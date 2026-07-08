@@ -57,7 +57,9 @@ export function getBrowserApiBase(): string {
 	return BACKEND_API_EXPOSED_URL;
 }
 
-/** External Wathbah GRC admin console (opens in a new tab). Override per environment with PUBLIC_WATHBAH_ADMIN_CONSOLE_URL. */
+/** External Wathbah GRC admin console (opens in a new tab).
+ *  Override per environment with PUBLIC_WATHBAH_ADMIN_CONSOLE_URL (browser)
+ *  or WATHBAH_ADMIN_CONSOLE_URL (server). */
 export const WATHBAH_ADMIN_CONSOLE_URL =
 	typeof env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL === 'string' &&
 	env.PUBLIC_WATHBAH_ADMIN_CONSOLE_URL.trim().length > 0

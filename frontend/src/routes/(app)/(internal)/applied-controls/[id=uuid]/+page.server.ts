@@ -6,9 +6,10 @@ import { type Actions, fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { nestedDeleteFormAction, nestedWriteFormAction } from '$lib/utils/actions';
+import { handleErrorResponse, nestedDeleteFormAction, nestedWriteFormAction } from '$lib/utils/actions';
 import { modelSchema } from '$lib/utils/schemas';
 import { setFlash } from 'sveltekit-flash-message/server';
+import { m } from '$paraglide/messages';
 
 export const load: PageServerLoad = async (event) => {
 	const modelInfo = getModelInfo('applied-controls');
@@ -155,5 +156,34 @@ export const actions: Actions = {
 
 		const result = await response.json();
 		return { aiAnalysis: result };
+	},
+	createTaskFromGap: async (event) => {
+		const schema = modelSchema('task-templates');
+		const contentType = event.request.headers.get('content-type') ?? '';
+		const form = contentType.includes('application/json')
+			? await superValidate(await event.request.json(), zod(schema))
+			: await superValidate(await event.request.formData(), zod(schema));
+
+		if (!form.valid) {
+			return fail(400, { form });
+		}
+
+		const response = await event.fetch(`${BASE_API_URL}/task-templates/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(form.data)
+		});
+
+		if (!response.ok) return handleErrorResponse({ event, response, form });
+
+		const writtenObject = await response.json();
+		setFlash(
+			{
+				type: 'success',
+				message: m.successfullyCreatedObject({ object: m.taskTemplate() })
+			},
+			event
+		);
+		return message(form, { object: writtenObject });
 	}
 };

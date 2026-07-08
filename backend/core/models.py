@@ -3947,7 +3947,16 @@ class AiAnalysisResult(models.Model):
         null=True,
         blank=True,
     )
-    
+
+    evidence = models.ForeignKey(
+        "Evidence",
+        on_delete=models.CASCADE,
+        related_name="ai_analyses",
+        verbose_name=_("Evidence"),
+        null=True,
+        blank=True,
+    )
+
     result = models.JSONField(
         verbose_name=_("Analysis Result"),
         help_text=_("The full JSON result from the AI analysis")
@@ -4009,10 +4018,15 @@ class AiAnalysisResult(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=['applied_control', '-created_at']),
+            models.Index(fields=['evidence', '-created_at']),
         ]
     
     def __str__(self):
-        target = self.applied_control or self.requirement_assessment
+        target = (
+            self.applied_control
+            or self.requirement_assessment
+            or self.evidence
+        )
         return f"AI Analysis for {target} at {self.created_at}"
 
 
@@ -7901,6 +7915,20 @@ class TaskTemplate(NameDescriptionMixin, FolderMixin):
         max_length=2048,
         help_text=_("Link to the evidence (eg. Jira ticket, etc.)"),
         verbose_name=_("Link"),
+    )
+
+    class TaskAnalysisSource(models.TextChoices):
+        REQUIREMENT = "requirement", _("Requirement analysis")
+        CONTROL = "control", _("Control analysis")
+        EVIDENCE = "evidence", _("Evidence analysis")
+
+    source = models.CharField(
+        max_length=20,
+        choices=TaskAnalysisSource.choices,
+        blank=True,
+        default="",
+        verbose_name=_("Source"),
+        help_text=_("Analysis type that created this task"),
     )
 
     def _get_task_node_value(self, field, date_filter=None, order_by=None):

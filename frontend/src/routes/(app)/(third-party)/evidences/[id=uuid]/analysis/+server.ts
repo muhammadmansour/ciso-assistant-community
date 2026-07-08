@@ -1,7 +1,8 @@
 import { BASE_API_URL } from '$lib/utils/constants';
+import { MURAJI_ENTITY_EXTRACTION_API_URL } from '$lib/server/muraji';
 import type { RequestHandler } from './$types';
 
-const ENTITY_EXTRACTION_API_URL = 'https://muraji-api.wathbah.dev/api/entity-extraction/extract';
+const ENTITY_EXTRACTION_API_URL = MURAJI_ENTITY_EXTRACTION_API_URL;
 // Maximum file size for AI analysis (in bytes)
 const MAX_FILE_SIZE_FOR_AI = 50 * 1024 * 1024; // 50MB
 // Timeout for AI analysis (in milliseconds) - AI processing can take time

@@ -412,3 +412,120 @@ def compute_proposed_status(current_status):
     if old_idx < target_idx:
         return 'in_review'
     return current_status
+
+
+def gather_evidence_linked_audit_context(evidence):
+    """Collect requirements, questions, and typical evidence from linked RAs."""
+    questions = []
+    typical_evidence = []
+    requirements_context = []
+
+    for ra in evidence.requirement_assessments.select_related(
+        'requirement', 'requirement__framework'
+    ).all():
+        req = ra.requirement
+        requirements_context.append({
+            'ref_id': req.ref_id,
+            'name': req.name,
+            'description': req.description or '',
+            'framework': req.framework.name if req.framework else '',
+            'provider': req.framework.provider if req.framework else '',
+        })
+
+        if req.questions:
+            if isinstance(req.questions, dict):
+                for q_val in req.questions.values():
+                    if isinstance(q_val, dict):
+                        if q_val.get('excluded') is True:
+                            continue
+                        if 'text' in q_val:
+                            questions.append(q_val['text'])
+                    elif isinstance(q_val, str):
+                        questions.append(q_val)
+            elif isinstance(req.questions, list):
+                for q in req.questions:
+                    if isinstance(q, dict):
+                        if q.get('excluded') is True:
+                            continue
+                        questions.append(q.get('text', ''))
+                    else:
+                        questions.append(q)
+
+        if req.typical_evidence:
+            if isinstance(req.typical_evidence, str):
+                for line in req.typical_evidence.strip().split('\n'):
+                    if '[EXCLUDED]' in line:
+                        continue
+                    line = line.strip().lstrip('-').lstrip('•').strip()
+                    if line:
+                        typical_evidence.append(line)
+            elif isinstance(req.typical_evidence, list):
+                for item in req.typical_evidence:
+                    if isinstance(item, str) and '[EXCLUDED]' in item:
+                        continue
+                    typical_evidence.append(item)
+
+    questions = list(dict.fromkeys([q for q in questions if q]))
+    typical_evidence = list(dict.fromkeys(typical_evidence))
+    return questions, typical_evidence, requirements_context
+
+
+def collect_evidence_gemini_documents(evidence):
+    """Return indexed Gemini File Search document refs for one evidence."""
+    from core.models import FileSearchTable
+
+    gemini_documents = []
+    for revision in evidence.revisions.all():
+        if not revision.attachment:
+            continue
+        fs_entry = FileSearchTable.objects.filter(evidence_revision=revision).first()
+        if fs_entry and fs_entry.has_durable_document():
+            gemini_documents.append({
+                'gemini_document_id': fs_entry.gemini_document_id,
+                'gemini_store_id': fs_entry.gemini_store_id,
+                'evidence_name': evidence.name,
+                'evidence_description': evidence.description or '',
+                'evidence_revision_id': str(revision.id),
+                'evidence_id': str(evidence.id),
+            })
+    return gemini_documents
+
+
+def build_evidence_muraji_audit_body(evidence):
+    """Build Muraji /api/audit/analyze payload for assessment_type=evidence."""
+    import os
+
+    questions, typical_evidence, requirements_context = gather_evidence_linked_audit_context(
+        evidence
+    )
+    gemini_documents = collect_evidence_gemini_documents(evidence)
+
+    return {
+        'assessment_type': 'evidence',
+        'applied_control': {
+            'id': str(evidence.id),
+            'ref_id': '',
+            'name': evidence.name,
+            'description': evidence.description or '',
+            'status': evidence.status or '',
+            'category': 'evidence',
+            'csf_function': '',
+        },
+        'gemini_file_search': {
+            'document_ids': [d['gemini_document_id'] for d in gemini_documents],
+            'evidences': gemini_documents,
+        },
+        'requirements': requirements_context,
+        'questions': questions,
+        'typical_evidence': typical_evidence,
+        'analysis_config': {
+            'return_compliance_result': True,
+            'include_gap_analysis': True,
+            'include_typical_evidence_check': True,
+            'include_recommendations': True,
+            'include_entity_extraction': False,
+            'include_compliance_check': False,
+            'response_language': 'auto',
+            'model': os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
+        },
+    }, gemini_documents, requirements_context
