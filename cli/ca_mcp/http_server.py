@@ -12,8 +12,11 @@ Run with: `uv run ca_mcp_http.py` (see `mcp.md` for full setup, including the
 required `MCP_PUBLIC_URL` environment variable).
 """
 
+from urllib.parse import urlparse
+
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -31,6 +34,32 @@ def _require_public_url() -> str:
             "before starting the HTTP/OAuth transport."
         )
     return config.MCP_PUBLIC_URL
+
+
+def _build_transport_security(public_url: str) -> TransportSecuritySettings:
+    """
+    Allow the public domain's Host/Origin headers through DNS-rebinding protection.
+
+    FastMCP only auto-allows `127.0.0.1`/`localhost` Host headers. Since this server
+    typically binds to 127.0.0.1 and sits behind a reverse proxy that forwards the
+    real public Host header (e.g. `gov-grc.wathbah.dev`), we need to explicitly
+    allow that host too, or every request gets rejected with HTTP 421.
+    """
+    parsed = urlparse(public_url)
+    public_host = parsed.netloc
+
+    allowed_hosts = [public_host, f"{public_host}:*", "127.0.0.1:*", "localhost:*", "[::1]:*"]
+    allowed_origins = [
+        f"{parsed.scheme}://{public_host}",
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    ]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
 
 
 def build_http_mcp() -> FastMCP:
@@ -51,6 +80,7 @@ def build_http_mcp() -> FastMCP:
         ),
         host=config.MCP_HTTP_HOST,
         port=config.MCP_HTTP_PORT,
+        transport_security=_build_transport_security(public_url),
     )
 
     register_all_tools(http_mcp)
