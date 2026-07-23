@@ -13,3 +13,5 @@ build/
 *.egg
 *.whl
 .clica.env
+.mcp.env
+.oauth_clients.json
