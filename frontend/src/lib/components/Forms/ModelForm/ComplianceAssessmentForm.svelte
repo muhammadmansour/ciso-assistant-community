@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { run } from 'svelte/legacy';
 	import AutocompleteSelect from '../AutocompleteSelect.svelte';
 	import Select from '../Select.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
@@ -10,6 +11,7 @@
 	import Dropdown from '$lib/components/Dropdown/Dropdown.svelte';
 	import { page } from '$app/state';
 	import FrameworkResultSnippet from '$lib/components/Snippets/AutocompleteSelect/FrameworkResultSnippet.svelte';
+	import { getDefaultReviewers, setDefaultReviewers } from '$lib/utils/defaultReviewers';
 
 	interface Props {
 		form: SuperValidated<any>;
@@ -40,6 +42,32 @@
 	let is_dynamic = $state(false);
 
 	let isLocked = $derived(form.data?.is_locked || object?.is_locked || false);
+
+	function resolveDefaultReviewerIds(): string[] {
+		const stored = getDefaultReviewers();
+		if (stored.length) return stored;
+		const actorId = page.data.user?.actor_id;
+		return actorId ? [actorId] : [];
+	}
+
+	function ensureDefaultReviewers() {
+		if (object?.id && object?.reviewers?.length) return;
+		const current = form.data?.reviewers;
+		if (current?.length) return;
+		const defaults = resolveDefaultReviewerIds();
+		if (!defaults.length) return;
+		form.form.update((data) => ({ ...data, reviewers: defaults }));
+		formDataCache['reviewers'] = defaults;
+	}
+
+	function handleReviewersChange(value: string | string[] | undefined) {
+		const ids = Array.isArray(value) ? value : value ? [value] : [];
+		if (ids.length) setDefaultReviewers(ids);
+	}
+
+	run(() => {
+		ensureDefaultReviewers();
+	});
 
 	async function handleFrameworkChange(id: string) {
 		if (id) {
@@ -170,6 +198,21 @@
 	bind:cachedValue={formDataCache['authors']}
 	label={m.authors()}
 />
+<AutocompleteSelect
+	{form}
+	multiple
+	optionsEndpoint="actors"
+	optionsLabelField="str"
+	optionsInfoFields={{
+		fields: [{ field: 'type', translate: true }],
+		position: 'prefix'
+	}}
+	field="reviewers"
+	cacheLock={cacheLocks['reviewers']}
+	bind:cachedValue={formDataCache['reviewers']}
+	label={m.reviewers()}
+	onChange={handleReviewersChange}
+/>
 <TextField
 	{form}
 	field="version"
@@ -266,20 +309,6 @@
 		label={m.status()}
 		cacheLock={cacheLocks['status']}
 		bind:cachedValue={formDataCache['status']}
-	/>
-	<AutocompleteSelect
-		{form}
-		multiple
-		optionsEndpoint="actors"
-		optionsLabelField="str"
-		optionsInfoFields={{
-			fields: [{ field: 'type', translate: true }],
-			position: 'prefix'
-		}}
-		field="reviewers"
-		cacheLock={cacheLocks['reviewers']}
-		bind:cachedValue={formDataCache['reviewers']}
-		label={m.reviewers()}
 	/>
 	<TextField
 		type="date"

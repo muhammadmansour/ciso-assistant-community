@@ -10,7 +10,7 @@ from core.models import (
     ValidationFlow,
 )
 from iam.models import User
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, send_mail
 from django.conf import settings
 from django.db import models
 import logging
@@ -189,31 +189,6 @@ def check_evidences_expiring_tomorrow():
 
 # @db_periodic_task(crontab(minute="*/1"))  # for testing
 @db_periodic_task(crontab(hour="6", minute="40"))
-def check_evidences_expired():
-    """Check for expired Evidences"""
-    expired_evidences = Evidence.objects.filter(
-        expiry_date__lt=date.today()
-    ).prefetch_related("owner")
-
-    # Group by individual owner
-    owner_evidences = defaultdict(list)
-    for evidence in expired_evidences:
-        for owner in evidence.owner.all():
-            for email in owner.get_emails():
-                owner_evidences[email].append(evidence)
-
-    # Send personalized email to each owner
-    for owner_email, evidences in owner_evidences.items():
-        days = 0
-        days_list = [(date.today() - ev.expiry_date).days for ev in evidences]
-        if days_list:
-            days = max(days_list)
-
-        send_notification_email_expired_evidence(owner_email, evidences, days=days)
-
-
-# @db_periodic_task(crontab(minute="*/1"))  # for testing
-@db_periodic_task(crontab(hour="6", minute="40"))
 def check_validation_flows_deadline_in_week():
     """Check for ValidationFlows with deadline in 7 days (only submitted status)"""
     target_date = date.today() + timedelta(days=7)
@@ -258,6 +233,223 @@ def check_validation_flows_deadline_tomorrow():
         send_validation_deadline_notification(approver_email, validations, days=1)
 
 
+# ------ ValidationFlow: deadline today (per-validation, branded HTML) ----------
+
+
+# Statuses a ValidationFlow can still be acted on (deadline reminder is pointless
+# for terminal states). For now only "submitted" actually waits on the approver,
+# matching the existing -7d/-1d jobs.
+_VALIDATION_OPEN_STATUSES = (ValidationFlow.Status.SUBMITTED,)
+
+
+def _format_validation_user(user) -> str:
+    """Render a User as 'First Last' or fall back to email, mirroring the
+    rendering used by `send_validation_flow_created_notification`."""
+    if not user:
+        return "Unknown"
+    name = f"{(user.first_name or '').strip()} {(user.last_name or '').strip()}".strip()
+    return name or (user.email or "Unknown")
+
+
+def _validation_event_status_label(event_type: str) -> str:
+    try:
+        return ValidationFlow.Status(event_type).label
+    except ValueError:
+        return event_type.replace("_", " ").title()
+
+
+def _format_validation_events_history(validation) -> str:
+    """Plain-text events timeline for validation outcome emails (newest first)."""
+    lines = []
+    for event in validation.events.select_related("event_actor").order_by("-created_at"):
+        actor = _format_validation_user(event.event_actor)
+        timestamp = event.created_at.strftime("%m/%d/%Y, %I:%M:%S %p")
+        line = f"- {_validation_event_status_label(event.event_type)} — {actor} — {timestamp}"
+        if event.event_notes:
+            line += f"\n  {event.event_notes.strip()}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_validation_events_history_html(validation) -> str:
+    """HTML events timeline block for validation outcome emails (newest first)."""
+    from html import escape
+
+    items = []
+    for event in validation.events.select_related("event_actor").order_by("-created_at"):
+        status_label = escape(_validation_event_status_label(event.event_type))
+        actor = escape(_format_validation_user(event.event_actor))
+        timestamp = escape(event.created_at.strftime("%m/%d/%Y, %I:%M:%S %p"))
+        note_html = ""
+        if event.event_notes:
+            note_html = (
+                f'<div style="margin-top:4px;color:#374151;font-size:13px;">'
+                f"{escape(event.event_notes.strip())}</div>"
+            )
+        items.append(
+            f'<div style="padding:12px 0;border-bottom:1px solid #e5e7eb;">'
+            f'<div style="font-weight:bold;color:#111827;">{status_label}</div>'
+            f'<div style="color:#6b7280;font-size:13px;">{actor} · {timestamp}</div>'
+            f"{note_html}"
+            f"</div>"
+        )
+    if not items:
+        return ""
+    return (
+        '<div style="margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;'
+        'overflow:hidden;background:#fafafa;padding:0 16px;">'
+        f"{''.join(items)}"
+        "</div>"
+    )
+
+
+def _validation_common_context(validation) -> dict:
+    """Base context shared by every validation-flow email (created / deadline /
+    outcome). Subject lines and detail tables can pick whichever keys they need.
+    """
+    return {
+        "validation_ref_id": validation.ref_id or "",
+        "validation_deadline": validation.validation_deadline.strftime("%Y-%m-%d")
+        if validation.validation_deadline
+        else "Not set",
+        "folder_name": validation.folder.name if validation.folder else "Unknown",
+        "request_notes": validation.request_notes or "",
+        "validation_url": _assignment_url(f"validation-flows/{validation.id}"),
+    }
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="18"))
+def check_validation_flows_deadline_today():
+    """Notify each approver when one of their validations is due *today*.
+
+    Sends one branded HTML email per (validation, approver) pair so the
+    approver sees the full validation details and a CTA, matching the
+    style of the "created" and reminder emails. Naturally idempotent
+    under a daily cron because the filter is `validation_deadline = today`.
+    """
+    queryset = ValidationFlow.objects.filter(
+        validation_deadline=date.today(),
+        status__in=_VALIDATION_OPEN_STATUSES,
+    ).select_related("approver", "requester", "folder")
+
+    for validation in queryset:
+        if not validation.approver or not validation.approver.email:
+            continue
+        approver_email = validation.approver.email
+        if not check_email_configuration(approver_email, [validation]):
+            continue
+
+        context = _validation_common_context(validation)
+        context["requester_name"] = _format_validation_user(validation.requester)
+
+        detail_specs = [
+            ("ref_id_label", context["validation_ref_id"]),
+            ("requester_label", context["requester_name"]),
+            ("deadline_label", context["validation_deadline"]),
+            ("domain_label", context["folder_name"]),
+            ("notes_label", context["request_notes"]),
+        ]
+
+        _deliver_assignment_email(
+            "validation_deadline_today",
+            context,
+            detail_specs,
+            context["validation_url"],
+            approver_email,
+        )
+
+
+# ------ ValidationFlow: outcome -> requester (per-validation, branded HTML) -----
+
+
+# Map terminal/feedback statuses to the YAML template used for the requester
+# notification. Expired is omitted — that transition is system-driven and has
+# no requester-facing template yet.
+_VALIDATION_OUTCOME_TEMPLATES = {
+    ValidationFlow.Status.ACCEPTED: "validation_accepted",
+    ValidationFlow.Status.REJECTED: "validation_rejected",
+    ValidationFlow.Status.CHANGE_REQUESTED: "validation_change_requested",
+    ValidationFlow.Status.DROPPED: "validation_dropped",
+    ValidationFlow.Status.REVOKED: "validation_revoked",
+}
+
+
+@task()
+def send_validation_outcome_notification(
+    validation_flow_id, new_status, decider_user_id=None, event_notes=""
+):
+    """Notify the requester when an approver settles a validation flow.
+
+    Picks the template by the new status (accepted / rejected /
+    change_requested / dropped / revoked). Includes the full events history
+    so the requester can review the timeline without opening the app.
+
+    Decider + notes are passed in (rather than re-read from FlowEvent)
+    because this is called from the serializer right after the transition
+    and we already have both values in hand.
+    """
+    template_name = _VALIDATION_OUTCOME_TEMPLATES.get(new_status)
+    if not template_name:
+        logger.debug(
+            "No outcome template for validation status %s; skipping email",
+            new_status,
+        )
+        return
+
+    try:
+        validation = ValidationFlow.objects.select_related(
+            "requester", "folder"
+        ).prefetch_related("events__event_actor").get(id=validation_flow_id)
+    except ValidationFlow.DoesNotExist:
+        logger.error(
+            f"ValidationFlow with id {validation_flow_id} not found "
+            "for outcome notification"
+        )
+        return
+
+    if not validation.requester or not validation.requester.email:
+        logger.warning(
+            f"No requester email for validation flow {validation.ref_id}; "
+            "outcome email skipped"
+        )
+        return
+
+    requester_email = validation.requester.email
+    if not check_email_configuration(requester_email, [validation]):
+        return
+
+    decider = None
+    if decider_user_id:
+        decider = User.objects.filter(id=decider_user_id).first()
+    approver_name = _format_validation_user(decider or validation.approver)
+
+    context = _validation_common_context(validation)
+    context["approver_name"] = approver_name
+    context["events_history"] = _format_validation_events_history(validation)
+    # Outcome-specific notes override request_notes so the requester sees the
+    # decision-time message (approver feedback / rejection reason / change
+    # request body) rather than what they originally submitted.
+    context["request_notes"] = event_notes or ""
+
+    detail_specs = [
+        ("ref_id_label", context["validation_ref_id"]),
+        ("approver_label", approver_name),
+        ("domain_label", context["folder_name"]),
+        ("notes_label", context["request_notes"]),
+    ]
+
+    _deliver_assignment_email(
+        template_name,
+        context,
+        detail_specs,
+        context["validation_url"],
+        requester_email,
+        secondary_section_html=_format_validation_events_history_html(validation),
+        secondary_heading="Events history",
+    )
+
+
 @task()
 def send_notification_email_expired_eta(owner_email, controls):
     if not check_email_configuration(owner_email, controls):
@@ -280,7 +472,7 @@ def send_notification_email_expired_eta(owner_email, controls):
 
 
 @task()
-def send_notification_email(subject, message, owner_email):
+def send_notification_email(subject, message, owner_email, html_message=None):
     try:
         logger.debug(
             "Sending notification email",
@@ -288,13 +480,24 @@ def send_notification_email(subject, message, owner_email):
             message=message,
             recipient=owner_email,
         )
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[owner_email],
-            fail_silently=False,
-        )
+        if html_message:
+            # HTML-only avoids Gmail clipping from large multipart/alternative payloads.
+            email = EmailMessage(
+                subject=subject,
+                body=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[owner_email],
+            )
+            email.content_subtype = "html"
+            email.send(fail_silently=False)
+        else:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[owner_email],
+                fail_silently=False,
+            )
         logger.info(
             "Notification email sent successfully",
             recipient=owner_email,
@@ -361,14 +564,314 @@ def auditlog_prune():
         logger.error(f"Failed to prune the audit logs: {str(e)}")
 
 
+# ==============================================================================
+# Deadline / ETA reminders
+#
+# Spec (per docs/notifications):
+#   - Compliance Assessments       -> authors, at due - 3d / due / due + 3d
+#   - Risk / Findings / Entity     -> authors, at due
+#   - Applied Controls / Policies  -> owners, on the ETA day, only when status
+#                                     is still "to_do" or "in_progress"
+#
+# All reminders are suppressed when the underlying object is already in a
+# terminal status (done / deprecated for assessments; deprecated/active for
+# controls — handled per-task because the status vocabularies differ).
+#
+# Each task scans the matching rows for "today + offset" (exact-day match)
+# which makes them naturally idempotent: a daily cron will fire each reminder
+# once per object/recipient on the right day and never again.
+# ==============================================================================
+
+
+# Statuses that suppress every assessment-style reminder. Matches Assessment
+# (and subclasses RiskAssessment / FindingsAssessment / EntityAssessment) and
+# ComplianceAssessment, which share the same vocabulary.
+_ASSESSMENT_TERMINAL_STATUSES = ("done", "deprecated")
+
+# Statuses for which an Applied Control / Policy ETA reminder is still useful.
+# Excludes "active" (work delivered), "deprecated" (no longer tracked),
+# "on_hold" (intentionally paused) and "--" (undefined / placeholder).
+_CONTROL_ACTIVE_REMINDER_STATUSES = ("to_do", "in_progress")
+
+
+def _assessment_reminder_payload(assessment, *, url_prefix: str) -> tuple:
+    """Build context, detail rows, and deep link for an assessment reminder.
+
+    Shared by every assessment subtype (Compliance / Risk / Findings / Entity)
+    so each reminder email has the same shape, regardless of which periodic
+    task triggered it.
+    """
+    framework = getattr(assessment, "framework", None)
+    context = {
+        "assessment_id": str(assessment.id),
+        "assessment_name": assessment.name,
+        "assessment_status": assessment.get_status_display()
+        if assessment.status
+        else "Not set",
+        "assessment_due_date": assessment.due_date.strftime("%Y-%m-%d")
+        if assessment.due_date
+        else "Not set",
+        "framework_name": framework.name if framework else "No framework",
+        "folder_name": assessment.folder.name if assessment.folder else "Default",
+    }
+    detail_specs = [
+        ("name_label", context["assessment_name"]),
+        ("framework_label", context["framework_name"]) if framework else None,
+        ("status_label", context["assessment_status"]),
+        ("due_date_label", context["assessment_due_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    detail_specs = [spec for spec in detail_specs if spec is not None]
+    object_url = _assignment_url(f"{url_prefix}/{assessment.id}")
+    return context, detail_specs, object_url
+
+
+def _send_assessment_reminders(
+    queryset, *, template_name: str, url_prefix: str, recipient_field: str = "authors"
+) -> None:
+    """Send a reminder per (assessment, recipient) pair.
+
+    `recipient_field` resolves to an M2M of Actors on the assessment. We send
+    one branded email per recipient so each Actor's clients see the deep link
+    rendered as a CTA without merging unrelated objects into a single digest.
+    """
+    for assessment in queryset:
+        recipients = getattr(assessment, recipient_field).all()
+        if not recipients:
+            continue
+        context, detail_specs, object_url = _assessment_reminder_payload(
+            assessment, url_prefix=url_prefix
+        )
+        sent_to = set()
+        for actor in recipients:
+            for email in actor.get_emails():
+                if not email or email in sent_to:
+                    continue
+                sent_to.add(email)
+                _deliver_assignment_email(
+                    template_name, context, detail_specs, object_url, email
+                )
+
+
+def _send_control_eta_reminders(
+    queryset, *, template_name: str, url_prefix: str, prefix: str
+) -> None:
+    """Send ETA-day reminders for AppliedControl / Policy rows to their owners.
+
+    `prefix` is the YAML/context key prefix ("control" or "policy") so the
+    same code path renders both templates with their natural variable names.
+    """
+    for control in queryset:
+        owners = control.owner.all()
+        if not owners:
+            continue
+        context = {
+            f"{prefix}_id": str(control.id),
+            f"{prefix}_name": control.name,
+            f"{prefix}_description": control.description or "No description provided",
+            f"{prefix}_ref_id": control.ref_id or "N/A",
+            f"{prefix}_status": control.get_status_display(),
+            f"{prefix}_priority": control.get_priority_display()
+            if control.priority
+            else "Not set",
+            f"{prefix}_eta": control.eta.strftime("%Y-%m-%d")
+            if control.eta
+            else "Not set",
+            "folder_name": control.folder.name if control.folder else "Default",
+        }
+        detail_specs = [
+            ("name_label", context[f"{prefix}_name"]),
+            ("description_label", control.description or ""),
+            ("ref_id_label", control.ref_id or ""),
+            ("status_label", context[f"{prefix}_status"]),
+            ("priority_label", context[f"{prefix}_priority"]),
+            ("eta_label", context[f"{prefix}_eta"]),
+            ("domain_label", context["folder_name"]),
+        ]
+        object_url = _assignment_url(f"{url_prefix}/{control.id}")
+        sent_to = set()
+        for actor in owners:
+            for email in actor.get_emails():
+                if not email or email in sent_to:
+                    continue
+                sent_to.add(email)
+                _deliver_assignment_email(
+                    template_name, context, detail_specs, object_url, email
+                )
+
+
+# ------ Compliance assessments: due - 3d / due / due + 3d ----------------------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="5"))
+def check_compliance_assessments_due_in_3d():
+    """Notify authors when a ComplianceAssessment is due in exactly 3 days."""
+    target_date = date.today() + timedelta(days=3)
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=target_date)
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_due_in_3d",
+        url_prefix="compliance-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="8"))
+def check_compliance_assessments_due_today():
+    """Notify authors when a ComplianceAssessment is due today."""
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_due_today",
+        url_prefix="compliance-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="11"))
+def check_compliance_assessments_delayed_3d():
+    """Notify authors when a ComplianceAssessment is 3 days past due."""
+    target_date = date.today() - timedelta(days=3)
+    queryset = (
+        ComplianceAssessment.objects.filter(due_date=target_date)
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "framework", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="compliance_assessment_delayed",
+        url_prefix="compliance-assessments",
+    )
+
+
+# ------ Risk / Findings / Entity assessments: due today ------------------------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="14"))
+def check_risk_assessments_due_today():
+    """Notify authors when a RiskAssessment is due today."""
+    from core.models import RiskAssessment
+
+    queryset = (
+        RiskAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="risk_assessment_due_today",
+        url_prefix="risk-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="17"))
+def check_findings_assessments_due_today():
+    """Notify authors when a FindingsAssessment is due today."""
+    from core.models import FindingsAssessment
+
+    queryset = (
+        FindingsAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="findings_assessment_due_today",
+        url_prefix="findings-assessments",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="20"))
+def check_entity_assessments_due_today():
+    """Notify authors when an EntityAssessment is due today."""
+    try:
+        from tprm.models import EntityAssessment
+    except Exception as exc:  # noqa: BLE001 - tprm app may be optional
+        logger.warning(f"EntityAssessment reminder skipped, import failed: {exc}")
+        return
+
+    queryset = (
+        EntityAssessment.objects.filter(due_date=date.today())
+        .exclude(status__in=_ASSESSMENT_TERMINAL_STATUSES)
+        .prefetch_related("authors", "folder")
+    )
+    _send_assessment_reminders(
+        queryset,
+        template_name="entity_assessment_due_today",
+        url_prefix="entity-assessments",
+    )
+
+
+# ------ Applied Controls / Policies: ETA day, only to_do / in_progress ----------
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="23"))
+def check_applied_controls_eta_today():
+    """Notify owners when an Applied Control's ETA is today and it's not yet done.
+
+    Excludes policies, which are AppliedControl rows with category='policy' and
+    are handled by `check_policies_eta_today` so they deep-link to /policies/.
+    """
+    queryset = (
+        AppliedControl.objects.filter(
+            eta=date.today(), status__in=_CONTROL_ACTIVE_REMINDER_STATUSES
+        )
+        .exclude(category="policy")
+        .prefetch_related("owner", "folder")
+    )
+    _send_control_eta_reminders(
+        queryset,
+        template_name="applied_control_eta_reached",
+        url_prefix="applied-controls",
+        prefix="control",
+    )
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="6", minute="26"))
+def check_policies_eta_today():
+    """Notify owners when a Policy's ETA is today and it's not yet done.
+
+    Policies share the AppliedControl table; we filter on category='policy' and
+    deep-link to /policies/ so the recipient lands on the right surface.
+    """
+    queryset = (
+        AppliedControl.objects.filter(
+            eta=date.today(),
+            status__in=_CONTROL_ACTIVE_REMINDER_STATUSES,
+            category="policy",
+        ).prefetch_related("owner", "folder")
+    )
+    _send_control_eta_reminders(
+        queryset,
+        template_name="policy_eta_reached",
+        url_prefix="policies",
+        prefix="policy",
+    )
+
+
 # Assignment notification functions
 
 
 def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via Muraji API"""
     import requests
-    
-    MURAJI_API_URL = "https://muraji-singleview.wathbahs.com/api/mail/send"
+    from django.conf import settings
+
+    MURAJI_API_URL = settings.MURAJI_MAIL_SEND_API_URL
     
     try:
         payload = {
@@ -390,10 +893,85 @@ def send_muraji_email(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
+def _deliver_assignment_email(
+    template_name: str,
+    context: dict,
+    detail_specs: list,
+    object_url: str,
+    recipient_email: str,
+    *,
+    secondary_section_html: str | None = None,
+    secondary_heading: str | None = None,
+) -> bool:
+    """Render an assignment template into Wathbah-branded HTML and send it.
+
+    Shared helper used by every per-entity assignment notifier so they share
+    the same visual layout as the audit-status notifications.
+
+    Args:
+        template_name: YAML template name (without extension).
+        context: Variables for substitution in the template.
+        detail_specs: List of (label_key, value) tuples. `label_key` is the
+            YAML key for the label (e.g. "name_label"); `value` is the actual
+            value to render. Rows with empty values are skipped.
+        object_url: Deep link the CTA button points to.
+        recipient_email: Recipient address.
+
+    Returns:
+        True if the email was queued/sent, False otherwise.
+    """
+    from .email_utils import render_assignment_html_email, render_email_template
+
+    rendered = render_email_template(template_name, context)
+    if not rendered:
+        logger.error(
+            f"Failed to render {template_name} email template for {recipient_email}"
+        )
+        return False
+
+    details = [
+        (rendered.get(label_key, label_key.replace("_label", "").replace("_", " ").title()), value)
+        for label_key, value in detail_specs
+    ]
+
+    html_body = render_assignment_html_email(
+        intro=rendered.get("intro", ""),
+        action=rendered.get("action", ""),
+        details=details,
+        object_url=object_url,
+        details_heading=rendered.get("details_heading", "Details"),
+        secondary_heading=secondary_heading
+        or rendered.get("events_history_heading", "Events history"),
+        secondary_section_html=secondary_section_html,
+        cta_label=rendered.get("cta_label", "Open in Wathbah GRC"),
+        greeting=rendered.get("greeting", "Hello,"),
+        closing=rendered.get("closing", "Thank you."),
+    )
+
+    send_notification_email(
+        rendered["subject"],
+        rendered["body"],
+        recipient_email,
+        html_message=html_body,
+    )
+    return True
+
+
+def _assignment_url(path: str) -> str:
+    """Build a deep link from CISO_ASSISTANT_URL + an app path."""
+    base_url = getattr(
+        settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
+    ).rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
+
+
 def send_applied_control_assignment_notification(control_id, assigned_user_emails):
-    """Send notification when AppliedControl is assigned to users via Muraji API"""
-    logger.info(f"send_applied_control_assignment_notification called with control_id={control_id}, emails={assigned_user_emails}")
-    
+    """Notify newly-assigned AppliedControl owners with a branded email."""
+    logger.info(
+        f"send_applied_control_assignment_notification called with "
+        f"control_id={control_id}, emails={assigned_user_emails}"
+    )
+
     if not assigned_user_emails:
         logger.warning("No emails provided for applied control assignment notification")
         return
@@ -403,8 +981,6 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
     except AppliedControl.DoesNotExist:
         logger.error(f"AppliedControl with id {control_id} not found")
         return
-
-    from .email_utils import render_email_template
 
     context = {
         "control_id": str(control.id),
@@ -419,23 +995,25 @@ def send_applied_control_assignment_notification(control_id, assigned_user_email
         "folder_name": control.folder.name if control.folder else "Default",
     }
 
+    detail_specs = [
+        ("name_label", context["control_name"]),
+        ("description_label", control.description or ""),
+        ("ref_id_label", control.ref_id or ""),
+        ("status_label", context["control_status"]),
+        ("priority_label", context["control_priority"]),
+        ("eta_label", context["control_eta"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"applied-controls/{control.id}")
+
     for email in assigned_user_emails:
-        logger.info(f"Processing email notification for: {email}")
-        rendered = render_email_template("applied_control_assignment", context)
-        if rendered:
-            logger.info(f"Sending Muraji email to {email}")
-            # Use Muraji API instead of Django send_mail
-            success = send_muraji_email(email, rendered["subject"], rendered["body"])
-            logger.info(f"Muraji email result for {email}: {'success' if success else 'failed'}")
+        _deliver_assignment_email(
+            "applied_control_assignment", context, detail_specs, object_url, email
+        )
 
 
 def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
-    """Send notification when Evidence is assigned to owners via Muraji API.
-
-    Mirrors send_applied_control_assignment_notification: synchronous send through
-    the same Muraji /api/mail/send endpoint that already powers AppliedControl
-    assignments, so production email deliverability is unchanged.
-    """
+    """Notify newly-assigned Evidence owners with a branded email."""
     logger.info(
         f"send_evidence_assignment_notification called with evidence_id={evidence_id}, "
         f"emails={assigned_user_emails}"
@@ -451,8 +1029,6 @@ def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
         logger.error(f"Evidence with id {evidence_id} not found")
         return
 
-    from .email_utils import render_email_template
-
     context = {
         "evidence_id": str(evidence.id),
         "evidence_name": evidence.name,
@@ -464,20 +1040,418 @@ def send_evidence_assignment_notification(evidence_id, assigned_user_emails):
         "folder_name": evidence.folder.name if evidence.folder else "Default",
     }
 
+    detail_specs = [
+        ("name_label", context["evidence_name"]),
+        ("description_label", evidence.description or ""),
+        ("status_label", context["evidence_status"]),
+        ("expiry_label", context["evidence_expiry_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"evidences/{evidence.id}")
+
     for email in assigned_user_emails:
-        logger.info(f"Processing evidence-assignment email notification for: {email}")
-        rendered = render_email_template("evidence_assignment", context)
-        if rendered:
-            logger.info(f"Sending Muraji evidence-assignment email to {email}")
-            success = send_muraji_email(email, rendered["subject"], rendered["body"])
-            logger.info(
-                f"Muraji evidence-assignment email result for {email}: "
-                f"{'success' if success else 'failed'}"
-            )
-        else:
-            logger.error(
-                f"Failed to render evidence_assignment email template for {email}"
-            )
+        _deliver_assignment_email(
+            "evidence_assignment", context, detail_specs, object_url, email
+        )
+
+
+# ------ Evidence lifecycle outcomes (approved / rejected / expired) -------------
+
+
+_EVIDENCE_OUTCOME_TEMPLATES = {
+    Evidence.Status.APPROVED: "evidence_approved",
+    Evidence.Status.REJECTED: "evidence_rejected",
+    Evidence.Status.EXPIRED: "evidence_expired",
+}
+
+
+def _collect_actor_emails(actors) -> set:
+    """Return a deduplicated set of non-empty emails for a queryset/list of Actors."""
+    emails = set()
+    for actor in actors:
+        for email in actor.get_emails():
+            if email:
+                emails.add(email)
+    return emails
+
+
+def _evidence_common_context(evidence) -> dict:
+    return {
+        "evidence_id": str(evidence.id),
+        "evidence_name": evidence.name,
+        "evidence_description": evidence.description or "No description provided",
+        "evidence_status": evidence.get_status_display(),
+        "evidence_expiry_date": evidence.expiry_date.strftime("%Y-%m-%d")
+        if evidence.expiry_date
+        else "Not set",
+        "folder_name": evidence.folder.name if evidence.folder else "Default",
+    }
+
+
+def _evidence_outcome_recipient_emails(evidence, new_status: str) -> set:
+    """Evidence owners; for approved, also owners of every linked AppliedControl."""
+    emails = _collect_actor_emails(evidence.owner.all())
+    if new_status == Evidence.Status.APPROVED:
+        for control in evidence.applied_controls.prefetch_related("owner").all():
+            emails |= _collect_actor_emails(control.owner.all())
+    return emails
+
+
+@task()
+def send_evidence_outcome_notification(
+    evidence_id, new_status, decider_user_id=None
+):
+    """Notify evidence owners (and linked control owners on approval) of a
+    lifecycle outcome: approved, rejected, or expired.
+
+    Fired from EvidenceWriteSerializer on manual status transitions and from
+    mark_expired_evidences when the cron auto-flips status on expiry_date.
+    """
+    template_name = _EVIDENCE_OUTCOME_TEMPLATES.get(new_status)
+    if not template_name:
+        logger.debug(
+            "No outcome template for evidence status %s; skipping email",
+            new_status,
+        )
+        return
+
+    try:
+        evidence = Evidence.objects.select_related("folder").prefetch_related(
+            "owner", "applied_controls__owner"
+        ).get(id=evidence_id)
+    except Evidence.DoesNotExist:
+        logger.error(f"Evidence with id {evidence_id} not found for outcome email")
+        return
+
+    recipient_emails = _evidence_outcome_recipient_emails(evidence, new_status)
+    if not recipient_emails:
+        logger.warning(
+            f"No recipient emails for evidence outcome {new_status}: "
+            f"{evidence.name} (ID: {evidence.id})"
+        )
+        return
+
+    context = _evidence_common_context(evidence)
+    decider_name = None
+    if decider_user_id and new_status in (
+        Evidence.Status.APPROVED,
+        Evidence.Status.REJECTED,
+    ):
+        decider = User.objects.filter(id=decider_user_id).first()
+        decider_name = _format_validation_user(decider)
+        context["decider_name"] = decider_name
+
+    detail_specs = [
+        ("name_label", context["evidence_name"]),
+        ("description_label", evidence.description or ""),
+        ("status_label", context["evidence_status"]),
+    ]
+    if decider_name:
+        detail_specs.append(("decider_label", decider_name))
+    detail_specs.extend(
+        [
+            ("expiry_label", context["evidence_expiry_date"]),
+            ("domain_label", context["folder_name"]),
+        ]
+    )
+
+    object_url = _assignment_url(f"evidences/{evidence.id}")
+
+    for email in recipient_emails:
+        if not check_email_configuration(email, [evidence]):
+            continue
+        _deliver_assignment_email(
+            template_name, context, detail_specs, object_url, email
+        )
+
+
+# ------ SecurityException lifecycle outcomes (expired) --------------------------
+
+
+def _security_exception_common_context(exception) -> dict:
+    return {
+        "exception_id": str(exception.id),
+        "exception_name": exception.name,
+        "exception_description": exception.description or "No description provided",
+        "exception_ref_id": exception.ref_id or "N/A",
+        "exception_status": exception.get_status_display(),
+        "exception_expiration_date": exception.expiration_date.strftime("%Y-%m-%d")
+        if exception.expiration_date
+        else "Not set",
+        "folder_name": exception.folder.name if exception.folder else "Default",
+    }
+
+
+@task()
+def send_security_exception_outcome_notification(exception_id, new_status):
+    """Notify exception owners when a SecurityException expires.
+
+    Only `expired` is wired today; the helper is structured so in_review /
+    approved outcomes (spec #4) can reuse the same entry point later.
+    """
+    if new_status != "expired":
+        logger.debug(
+            "No outcome template for security exception status %s; skipping",
+            new_status,
+        )
+        return
+
+    try:
+        from core.models import SecurityException
+
+        exception = SecurityException.objects.select_related("folder").prefetch_related(
+            "owners"
+        ).get(id=exception_id)
+    except Exception as exc:
+        logger.error(
+            f"SecurityException with id {exception_id} not found: {exc}"
+        )
+        return
+
+    recipient_emails = _collect_actor_emails(exception.owners.all())
+    if not recipient_emails:
+        logger.warning(
+            f"No owner emails for expired security exception {exception.name} "
+            f"(ID: {exception.id})"
+        )
+        return
+
+    context = _security_exception_common_context(exception)
+    detail_specs = [
+        ("name_label", context["exception_name"]),
+        ("description_label", exception.description or ""),
+        ("ref_id_label", context["exception_ref_id"]),
+        ("status_label", context["exception_status"]),
+        ("expiration_label", context["exception_expiration_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"security-exceptions/{exception.id}")
+
+    for email in recipient_emails:
+        if not check_email_configuration(email, [exception]):
+            continue
+        _deliver_assignment_email(
+            "security_exception_expired",
+            context,
+            detail_specs,
+            object_url,
+            email,
+        )
+
+
+def send_policy_assignment_notification(policy_id, assigned_user_emails):
+    """Notify newly-assigned Policy owners with a branded email.
+
+    Policies are persisted as AppliedControl rows with category=policy. We use a
+    dedicated template so the deep link points at /policies/<id> rather than
+    /applied-controls/<id>, matching where the UI actually surfaces them.
+    """
+    logger.info(
+        f"send_policy_assignment_notification called with policy_id={policy_id}, "
+        f"emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for policy assignment notification")
+        return
+
+    try:
+        policy = AppliedControl.objects.get(id=policy_id)
+    except AppliedControl.DoesNotExist:
+        logger.error(f"Policy (AppliedControl) with id {policy_id} not found")
+        return
+
+    context = {
+        "policy_id": str(policy.id),
+        "policy_name": policy.name,
+        "policy_description": policy.description or "No description provided",
+        "policy_ref_id": policy.ref_id or "N/A",
+        "policy_status": policy.get_status_display(),
+        "policy_priority": policy.get_priority_display()
+        if policy.priority
+        else "Not set",
+        "policy_eta": policy.eta.strftime("%Y-%m-%d") if policy.eta else "Not set",
+        "folder_name": policy.folder.name if policy.folder else "Default",
+    }
+
+    detail_specs = [
+        ("name_label", context["policy_name"]),
+        ("description_label", policy.description or ""),
+        ("ref_id_label", policy.ref_id or ""),
+        ("status_label", context["policy_status"]),
+        ("priority_label", context["policy_priority"]),
+        ("eta_label", context["policy_eta"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"policies/{policy.id}")
+
+    for email in assigned_user_emails:
+        _deliver_assignment_email(
+            "policy_assignment", context, detail_specs, object_url, email
+        )
+
+
+def send_security_exception_assignment_notification(exception_id, assigned_user_emails):
+    """Notify newly-assigned SecurityException owners with a branded email."""
+    logger.info(
+        f"send_security_exception_assignment_notification called with "
+        f"exception_id={exception_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for security exception assignment notification")
+        return
+
+    try:
+        from core.models import SecurityException
+
+        exception = SecurityException.objects.get(id=exception_id)
+    except SecurityException.DoesNotExist:
+        logger.error(f"SecurityException with id {exception_id} not found")
+        return
+
+    context = {
+        "exception_id": str(exception.id),
+        "exception_name": exception.name,
+        "exception_description": exception.description or "No description provided",
+        "exception_ref_id": exception.ref_id or "N/A",
+        "exception_severity": exception.get_severity_display(),
+        "exception_status": exception.get_status_display(),
+        "exception_expiration_date": exception.expiration_date.strftime("%Y-%m-%d")
+        if exception.expiration_date
+        else "Not set",
+        "folder_name": exception.folder.name if exception.folder else "Default",
+    }
+
+    detail_specs = [
+        ("name_label", context["exception_name"]),
+        ("description_label", exception.description or ""),
+        ("ref_id_label", exception.ref_id or ""),
+        ("severity_label", context["exception_severity"]),
+        ("status_label", context["exception_status"]),
+        ("expiration_label", context["exception_expiration_date"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"security-exceptions/{exception.id}")
+
+    for email in assigned_user_emails:
+        _deliver_assignment_email(
+            "security_exception_assignment", context, detail_specs, object_url, email
+        )
+
+
+def send_risk_scenario_assignment_notification(scenario_id, assigned_user_emails):
+    """Notify newly-assigned RiskScenario owners with a branded email."""
+    logger.info(
+        f"send_risk_scenario_assignment_notification called with "
+        f"scenario_id={scenario_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for risk scenario assignment notification")
+        return
+
+    try:
+        from core.models import RiskScenario
+
+        scenario = RiskScenario.objects.select_related(
+            "risk_assessment", "risk_assessment__folder"
+        ).get(id=scenario_id)
+    except RiskScenario.DoesNotExist:
+        logger.error(f"RiskScenario with id {scenario_id} not found")
+        return
+
+    try:
+        treatment_display = scenario.get_treatment_display()
+    except Exception:
+        treatment_display = getattr(scenario, "treatment", "N/A") or "N/A"
+
+    folder = (
+        scenario.risk_assessment.folder
+        if scenario.risk_assessment and scenario.risk_assessment.folder
+        else None
+    )
+
+    context = {
+        "scenario_id": str(scenario.id),
+        "scenario_name": scenario.name,
+        "scenario_description": scenario.description or "No description provided",
+        "scenario_ref_id": scenario.ref_id or "N/A",
+        "risk_assessment_name": scenario.risk_assessment.name
+        if scenario.risk_assessment
+        else "N/A",
+        "scenario_treatment": treatment_display,
+        "folder_name": folder.name if folder else "Default",
+    }
+
+    detail_specs = [
+        ("name_label", context["scenario_name"]),
+        ("description_label", scenario.description or ""),
+        ("ref_id_label", scenario.ref_id or ""),
+        ("risk_assessment_label", context["risk_assessment_name"]),
+        ("treatment_label", context["scenario_treatment"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"risk-scenarios/{scenario.id}")
+
+    for email in assigned_user_emails:
+        _deliver_assignment_email(
+            "risk_scenario_assignment", context, detail_specs, object_url, email
+        )
+
+
+def send_metric_instance_assignment_notification(instance_id, assigned_user_emails):
+    """Notify newly-assigned MetricInstance owners with a branded email."""
+    logger.info(
+        f"send_metric_instance_assignment_notification called with "
+        f"instance_id={instance_id}, emails={assigned_user_emails}"
+    )
+
+    if not assigned_user_emails:
+        logger.warning("No emails provided for metric instance assignment notification")
+        return
+
+    try:
+        from metrology.models import MetricInstance
+
+        instance = MetricInstance.objects.select_related("folder").get(id=instance_id)
+    except Exception as exc:
+        logger.error(f"MetricInstance with id {instance_id} not found: {exc}")
+        return
+
+    target_value = getattr(instance, "target_value", None)
+    frequency = (
+        instance.get_collection_frequency_display()
+        if instance.collection_frequency
+        else "Not set"
+    )
+
+    context = {
+        "metric_id": str(instance.id),
+        "metric_name": instance.name,
+        "metric_description": instance.description or "No description provided",
+        "metric_ref_id": instance.ref_id or "N/A",
+        "metric_status": instance.get_status_display(),
+        "metric_target_value": str(target_value) if target_value is not None else "Not set",
+        "metric_collection_frequency": frequency,
+        "folder_name": instance.folder.name if instance.folder else "Default",
+    }
+
+    detail_specs = [
+        ("name_label", context["metric_name"]),
+        ("description_label", instance.description or ""),
+        ("ref_id_label", instance.ref_id or ""),
+        ("status_label", context["metric_status"]),
+        ("target_value_label", context["metric_target_value"]),
+        ("frequency_label", context["metric_collection_frequency"]),
+        ("domain_label", context["folder_name"]),
+    ]
+    object_url = _assignment_url(f"metric-instances/{instance.id}")
+
+    for email in assigned_user_emails:
+        _deliver_assignment_email(
+            "metric_instance_assignment", context, detail_specs, object_url, email
+        )
 
 
 @task()
@@ -518,7 +1492,12 @@ def send_task_template_assignment_notification(task_template_id, emails):
 def send_compliance_assessment_assignment_notification(
     assessment_id, assigned_user_emails
 ):
-    """Send notification when ComplianceAssessment is assigned to users"""
+    """Notify newly-assigned ComplianceAssessment authors with a branded email.
+
+    Uses the same Wathbah-branded HTML layout (`_deliver_assignment_email`) as
+    every other assignment notification, and sends the full audit deep link
+    (`/compliance-assessments/<id>`) rather than just the host.
+    """
     if not assigned_user_emails:
         return
 
@@ -530,30 +1509,140 @@ def send_compliance_assessment_assignment_notification(
         logger.error(f"ComplianceAssessment with id {assessment_id} not found")
         return
 
-    from .email_utils import render_email_template
+    assessment_url = _assignment_url(f"compliance-assessments/{assessment.id}")
+    framework_name = (
+        assessment.framework.name if assessment.framework else "No framework"
+    )
+    folder_name = assessment.folder.name if assessment.folder else "Default"
+    assessment_due_date = (
+        assessment.due_date.strftime("%Y-%m-%d") if assessment.due_date else "Not set"
+    )
 
     context = {
+        "assessment_id": str(assessment.id),
         "assessment_name": assessment.name,
         "assessment_description": assessment.description or "No description provided",
         "assessment_ref_id": assessment.ref_id or "N/A",
-        "framework_name": assessment.framework.name
-        if assessment.framework
-        else "No framework",
+        "framework_name": framework_name,
         "assessment_status": assessment.get_status_display(),
         "assessment_version": assessment.version or "1.0",
-        "assessment_due_date": assessment.due_date.strftime("%Y-%m-%d")
-        if assessment.due_date
-        else "Not set",
-        "folder_name": assessment.folder.name if assessment.folder else "Default",
+        "assessment_due_date": assessment_due_date,
+        "folder_name": folder_name,
+        "assessment_url": assessment_url,
     }
+
+    detail_specs = [
+        ("name_label", assessment.name),
+        ("description_label", assessment.description or ""),
+        ("ref_id_label", assessment.ref_id or ""),
+        ("framework_label", framework_name),
+        ("status_label", context["assessment_status"]),
+        ("due_date_label", assessment_due_date),
+        ("domain_label", folder_name),
+        ("audit_url_label", assessment_url),
+    ]
 
     for email in assigned_user_emails:
         if email and check_email_configuration(email, [assessment]):
-            rendered = render_email_template(
-                "compliance_assessment_assignment", context
+            _deliver_assignment_email(
+                "compliance_assessment_assignment",
+                context,
+                detail_specs,
+                assessment_url,
+                email,
             )
-            if rendered:
-                send_notification_email(rendered["subject"], rendered["body"], email)
+
+
+@task()
+def send_compliance_assessment_status_notification(
+    assessment_id, recipient_emails, template_name, old_status="", new_status=""
+):
+    """Send a notification when a ComplianceAssessment (Audit) changes status.
+
+    Drives the review cycle described in the spec:
+      - audit_in_review        -> reviewers ("awaiting your review")
+      - audit_review_completed -> authors   ("review completed")
+      - audit_rejected         -> authors   ("rejected", back to In Progress)
+      - audit_deprecated       -> authors   ("deprecated")
+
+    Deduplicates recipient emails and renders the given template with a deep
+    link to the audit detail page.
+    """
+    if not recipient_emails:
+        return
+
+    try:
+        from core.models import ComplianceAssessment
+
+        assessment = ComplianceAssessment.objects.get(id=assessment_id)
+    except ComplianceAssessment.DoesNotExist:
+        logger.error(f"ComplianceAssessment with id {assessment_id} not found")
+        return
+
+    status_labels = dict(ComplianceAssessment.Status.choices)
+
+    def status_label(status: str) -> str:
+        if not status:
+            return "—"
+        return status_labels.get(status, status.replace("_", " ").title())
+
+    base_url = getattr(
+        settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
+    ).rstrip("/")
+    # Full deep link to the audit detail page — used by both the plain-text
+    # body (${assessment_url}) and the HTML CTA button. The host-only form is
+    # never enough; downstream we always need /compliance-assessments/<id>.
+    assessment_url = f"{base_url}/compliance-assessments/{assessment.id}"
+    framework_name = (
+        assessment.framework.name if assessment.framework else "No framework"
+    )
+    folder_name = assessment.folder.name if assessment.folder else "Default"
+    status_change = f"{status_label(old_status)} → {status_label(new_status)}"
+
+    context = {
+        "assessment_name": assessment.name,
+        "framework_name": framework_name,
+        "assessment_status": assessment.get_status_display(),
+        "old_status": status_label(old_status),
+        "new_status": status_label(new_status),
+        "folder_name": folder_name,
+        "assessment_url": assessment_url,
+    }
+
+    # Same detail-table layout as applied_control / evidence / policy
+    # assignment emails. The status change is rendered as a single row
+    # instead of a separate highlighted box so the audit emails look
+    # visually identical to every other notification.
+    # `assessment_url` is added as its own row so the full deep link is
+    # always visible as plain text (not only behind the CTA button).
+    detail_specs = [
+        ("name_label", assessment.name),
+        ("framework_label", framework_name),
+        ("domain_label", folder_name),
+        ("status_change_label", status_change),
+        ("audit_url_label", assessment_url),
+    ]
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_emails = [
+        e for e in recipient_emails if e and not (e in seen or seen.add(e))
+    ]
+
+    for email in unique_emails:
+        if not check_email_configuration(email, [assessment]):
+            continue
+        delivered = _deliver_assignment_email(
+            template_name=template_name,
+            context=context,
+            detail_specs=detail_specs,
+            object_url=assessment_url,
+            recipient_email=email,
+        )
+        if not delivered:
+            logger.error(
+                f"Failed to render {template_name} email template for {email}"
+            )
 
 
 @task()
@@ -607,29 +1696,6 @@ def send_applied_control_expiring_soon_notification(owner_email, controls, days)
 
 
 @task()
-def send_notification_email_expired_evidence(owner_email, evidences, days=0):
-    if not check_email_configuration(owner_email, evidences):
-        return
-
-    from .email_utils import render_email_template, format_evidence_list
-
-    context = {
-        "evidence_count": len(evidences),
-        "evidence_list": format_evidence_list(evidences),
-        "expired_since": days,
-        "days_text": "day" if days == 1 else "days",
-    }
-
-    rendered = render_email_template("expired_evidences", context)
-    if rendered:
-        send_notification_email(rendered["subject"], rendered["body"], owner_email)
-    else:
-        logger.error(
-            f"Failed to render expired_evidences email template for {owner_email}"
-        )
-
-
-@task()
 def send_evidence_expiring_soon_notification(owner_email, evidences, days):
     """Send notification when Evidence is expiring soon"""
     if not check_email_configuration(owner_email, evidences):
@@ -656,7 +1722,13 @@ def send_evidence_expiring_soon_notification(owner_email, evidences, days):
 
 @task()
 def send_validation_flow_created_notification(validation_flow):
-    """Send notification to approver when validation flow is created"""
+    """Send a branded HTML notification to the approver when a validation
+    flow is submitted for review.
+
+    Uses the same Wathbah HTML layout as the assignment/audit emails so the
+    approver sees a logo header, intro, details table and CTA button rather
+    than the previous plain-text body.
+    """
     if not validation_flow.approver or not validation_flow.approver.email:
         logger.warning(
             f"No approver email for validation flow {validation_flow.ref_id}"
@@ -666,8 +1738,6 @@ def send_validation_flow_created_notification(validation_flow):
     approver_email = validation_flow.approver.email
     if not check_email_configuration(approver_email, [validation_flow]):
         return
-
-    from .email_utils import render_email_template
 
     requester_name = (
         f"{validation_flow.requester.first_name} {validation_flow.requester.last_name}".strip()
@@ -688,21 +1758,32 @@ def send_validation_flow_created_notification(validation_flow):
             if validation_flow.validation_deadline
             else "Not set"
         ),
+        "request_notes": validation_flow.request_notes or "",
         "folder_name": validation_flow.folder.name
         if validation_flow.folder
         else "Unknown",
-        "validation_url": f"{getattr(settings, 'CISO_ASSISTANT_URL', 'http://localhost:5173')}/validation-flows/{validation_flow.id}",
+        "validation_url": _assignment_url(f"validation-flows/{validation_flow.id}"),
     }
 
-    rendered = render_email_template("validation_flow_created", context)
-    if rendered:
-        send_notification_email(rendered["subject"], rendered["body"], approver_email)
+    detail_specs = [
+        ("ref_id_label", context["validation_ref_id"]),
+        ("requester_label", requester_name),
+        ("deadline_label", context["validation_deadline"]),
+        ("domain_label", context["folder_name"]),
+        ("notes_label", context["request_notes"]),
+    ]
+
+    delivered = _deliver_assignment_email(
+        "validation_flow_created",
+        context,
+        detail_specs,
+        context["validation_url"],
+        approver_email,
+    )
+    if delivered:
         logger.info(
-            f"Sent validation flow creation notification to {approver_email} for {validation_flow.ref_id}"
-        )
-    else:
-        logger.error(
-            f"Failed to render validation_flow_created email template for {approver_email}"
+            f"Sent validation flow creation notification to {approver_email} "
+            f"for {validation_flow.ref_id}"
         )
 
 
@@ -801,7 +1882,7 @@ def deactivate_expired_users():
 # @db_periodic_task(crontab(minute="*/1"))  # for testing
 @db_periodic_task(crontab(hour="3", minute="35"))
 def mark_expired_evidences():
-    """Mark evidences as expired when their expiry_date has passed"""
+    """Mark evidences as expired when their expiry_date has passed and notify owners."""
     today = date.today()
     expired_evidences = Evidence.objects.filter(
         expiry_date__lt=today,
@@ -814,13 +1895,50 @@ def mark_expired_evidences():
         evidence.save()
         count += 1
         logger.info(
-            f"Marked evidence as expired: {evidence.name} (ID: {evidence.id}), expiry date: {evidence.expiry_date}"
+            f"Marked evidence as expired: {evidence.name} (ID: {evidence.id}), "
+            f"expiry date: {evidence.expiry_date}"
         )
+        send_evidence_outcome_notification(evidence.id, Evidence.Status.EXPIRED)
 
     if count > 0:
         logger.info(f"Successfully marked {count} evidences as expired")
     else:
         logger.debug("No expired evidences found to mark")
+
+
+# @db_periodic_task(crontab(minute="*/1"))  # for testing
+@db_periodic_task(crontab(hour="3", minute="40"))
+def mark_expired_security_exceptions():
+    """Mark security exceptions as expired when expiration_date has passed."""
+    today = date.today()
+    try:
+        from core.models import SecurityException
+    except Exception as exc:
+        logger.warning(f"SecurityException expiry cron skipped: {exc}")
+        return
+
+    expired_exceptions = SecurityException.objects.filter(
+        expiration_date__lt=today,
+        expiration_date__isnull=False,
+    ).exclude(status=SecurityException.Status.EXPIRED)
+
+    count = 0
+    for exception in expired_exceptions:
+        exception.status = SecurityException.Status.EXPIRED
+        exception.save()
+        count += 1
+        logger.info(
+            f"Marked security exception as expired: {exception.name} "
+            f"(ID: {exception.id}), expiration date: {exception.expiration_date}"
+        )
+        send_security_exception_outcome_notification(
+            exception.id, SecurityException.Status.EXPIRED
+        )
+
+    if count > 0:
+        logger.info(f"Successfully marked {count} security exceptions as expired")
+    else:
+        logger.debug("No expired security exceptions found to mark")
 
 
 @task()
@@ -831,10 +1949,11 @@ def run_evidence_auto_analysis(evidence_id: str):
     """
     import base64
     import requests
+    from django.conf import settings
     from django.utils import timezone
-    
-    ENTITY_EXTRACTION_API_URL = "https://muraji-singleview.wathbahs.com/api/entity-extraction/extract"
-    AUDIT_ANALYSIS_API_URL = "https://muraji-singleview.wathbahs.com/api/audit/analyze"
+
+    ENTITY_EXTRACTION_API_URL = settings.MURAJI_ENTITY_EXTRACTION_API_URL
+    AUDIT_ANALYSIS_API_URL = settings.MURAJI_ANALYSIS_API_URL
     
     try:
         evidence = Evidence.objects.get(id=evidence_id)
@@ -998,10 +2117,9 @@ except ImportError:
 # Applied Control AI Analysis using Muraji API
 # ==============================================================================
 
-MURAJI_ANALYSIS_API_URL = os.environ.get(
-    'MURAJI_ANALYSIS_API_URL',
-    'https://muraji-singleview.wathbahs.com/api/audit/analyze'
-)
+from django.conf import settings as _django_settings
+
+MURAJI_ANALYSIS_API_URL = _django_settings.MURAJI_ANALYSIS_API_URL
 
 
 @task()

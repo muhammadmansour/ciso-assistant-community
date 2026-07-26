@@ -1,0 +1,26 @@
+subject: "Wathbah GRC : statut d'audit passé à « Déprécié » — '${assessment_name}'"
+intro: "Le statut de l'audit suivant a changé et il n'est plus actif."
+action: "Ouvrez l'audit dans Wathbah GRC pour plus de détails."
+details_heading: "Détails de l'audit"
+name_label: "Nom"
+framework_label: "Référentiel"
+domain_label: "Domaine"
+status_change_label: "Changement de statut"
+audit_url_label: "Lien de l'audit"
+cta_label: "Ouvrir l'audit"
+greeting: "Bonjour,"
+closing: "Merci."
+body: |
+  Bonjour,
+
+  Le statut de l'audit suivant a changé et il n'est plus actif :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Domaine : ${folder_name}
+  - Changement de statut : ${old_status} → ${new_status}
+
+  Ouvrez l'audit dans Wathbah GRC pour plus de détails :
+  ${assessment_url}
+
+  Merci.

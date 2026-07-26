@@ -17,7 +17,7 @@ module.exports = {
   apps: [
     {
       // BACKEND - Django Development Server (staging ports)
-      name: 'ciso-stage-backend',
+      name: 'dev-backend',
       cwd: path.join(projectRoot, 'backend'),
       script: poetryPath,
       args: `run python manage.py runserver 0.0.0.0:${STAGE_BACKEND_PORT}`,
@@ -53,13 +53,13 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '1G',
-      error_file: path.join(logsDir, 'stage-backend-error.log'),
-      out_file: path.join(logsDir, 'stage-backend-out.log'),
+      error_file: path.join(logsDir, 'dev-backend-error.log'),
+      out_file: path.join(logsDir, 'dev-backend-out.log'),
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
       // HUEY - Task Queue Worker
-      name: 'ciso-stage-huey',
+      name: 'dev-huey',
       cwd: path.join(projectRoot, 'backend'),
       script: poetryPath,
       args: 'run python manage.py run_huey -w 2 --scheduler-interval 60',
@@ -90,13 +90,13 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '500M',
-      error_file: path.join(logsDir, 'stage-huey-error.log'),
-      out_file: path.join(logsDir, 'stage-huey-out.log'),
+      error_file: path.join(logsDir, 'dev-huey-error.log'),
+      out_file: path.join(logsDir, 'dev-huey-out.log'),
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
       // FRONTEND - adapter-node production build (port 3020; run `pnpm run build:staging` in frontend first)
-      name: 'ciso-stage-frontend',
+      name: 'dev-frontend',
       cwd: path.join(projectRoot, 'frontend'),
       script: 'node',
       args: 'build/index.js',
@@ -113,8 +113,8 @@ module.exports = {
       },
       watch: false,
       max_memory_restart: '1G',
-      error_file: path.join(logsDir, 'stage-frontend-error.log'),
-      out_file: path.join(logsDir, 'stage-frontend-out.log'),
+      error_file: path.join(logsDir, 'dev-frontend-error.log'),
+      out_file: path.join(logsDir, 'dev-frontend-out.log'),
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     }
   ]

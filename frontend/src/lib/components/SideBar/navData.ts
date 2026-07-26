@@ -4,6 +4,12 @@ export const navData = {
 			name: 'compliance',
 			items: [
 				{
+					name: 'legislativeUpdates',
+					fa_icon: 'fa-solid fa-gavel',
+					href: '/legislative-updates',
+					alwaysShow: true
+				},
+				{
 					name: 'complianceAssessments',
 					fa_icon: 'fa-solid fa-certificate',
 					href: '/compliance-assessments'

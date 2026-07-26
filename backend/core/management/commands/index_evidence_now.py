@@ -32,7 +32,7 @@ import time
 from django.core.management.base import BaseCommand, CommandError
 
 from core.gemini_file_search import GEMINI_ENABLED, get_gemini_client
-from core.models import EvidenceRevision, FileSearchTable
+from core.models import Evidence, EvidenceRevision, FileSearchTable
 from core.tasks_gemini import (
     _build_evidence_custom_metadata,
     _materialize_attachment,
@@ -50,7 +50,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "revision_id",
             type=str,
-            help="UUID of the EvidenceRevision to index.",
+            help=(
+                "UUID of the EvidenceRevision to index. You may also pass an "
+                "Evidence UUID (e.g. the id from /evidences/<id>) and the latest "
+                "revision with an attachment is selected automatically."
+            ),
         )
         parser.add_argument(
             "--reset",
@@ -108,14 +112,42 @@ class Command(BaseCommand):
         )
 
         # 2. Load revision ---------------------------------------------------
+        # Accept either an EvidenceRevision id or an Evidence id (the id shown in
+        # the /evidences/<id> URL). If it's not a revision, resolve it as an
+        # Evidence and pick the latest revision that has an attachment.
         try:
             revision = EvidenceRevision.objects.select_related("evidence").get(
                 id=revision_id
             )
-        except EvidenceRevision.DoesNotExist:
-            raise CommandError(f"EvidenceRevision {revision_id} not found.")
         except ValueError as exc:
-            raise CommandError(f"Invalid revision UUID '{revision_id}': {exc}")
+            raise CommandError(f"Invalid UUID '{revision_id}': {exc}")
+        except EvidenceRevision.DoesNotExist:
+            try:
+                evidence = Evidence.objects.get(id=revision_id)
+            except (Evidence.DoesNotExist, ValueError):
+                raise CommandError(
+                    f"No EvidenceRevision or Evidence found with id {revision_id}."
+                )
+
+            revision = (
+                evidence.revisions.filter(attachment__isnull=False)
+                .exclude(attachment="")
+                .order_by("-version")
+                .select_related("evidence")
+                .first()
+            )
+            if revision is None:
+                raise CommandError(
+                    f"Evidence '{evidence.name}' ({revision_id}) has no revision "
+                    "with an attachment to index."
+                )
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Resolved Evidence {revision_id} -> latest revision with a "
+                    f"file: {revision.id} (v{revision.version})"
+                )
+            )
+            revision_id = str(revision.id)
 
         if not revision.attachment:
             raise CommandError(
@@ -144,10 +176,10 @@ class Command(BaseCommand):
                 f"doc={fs_row.gemini_document_id or '-'} "
                 f"updated_at={fs_row.updated_at}"
             )
-            if fs_row.has_durable_document() and not reset:
+            if fs_row.is_indexed() and not reset:
                 self.stdout.write(
                     self.style.WARNING(
-                        "Already has a durable gemini_document_id. "
+                        f"Already indexed ({fs_row.chunk_count or 1} document(s)). "
                         "Pass --reset to force re-index."
                     )
                 )
@@ -205,11 +237,12 @@ class Command(BaseCommand):
                 t_before_upload = time.monotonic()
                 self.stdout.write(
                     f"  [t={t_before_upload - t_start:6.2f}s] "
-                    "calling upload_to_store_and_wait(...) — this blocks until "
-                    "Gemini reports done / failed / timeout."
+                    "calling upload_evidence_file_and_wait(...) — splits large "
+                    "PDFs into page-range chunks; blocks until Gemini reports "
+                    "done / failed / timeout."
                 )
 
-                result = client.upload_to_store_and_wait(**upload_kwargs)
+                result = client.upload_evidence_file_and_wait(**upload_kwargs)
 
             t_total = time.monotonic() - t_start
             self.stdout.write(
@@ -221,9 +254,13 @@ class Command(BaseCommand):
             )
 
             if result["status"] == "completed":
-                fs_row.gemini_document_id = result.get(
-                    "gemini_document_id", ""
+                doc_ids = result.get("gemini_document_ids") or (
+                    [result["gemini_document_id"]]
+                    if result.get("gemini_document_id") else []
                 )
+                fs_row.gemini_document_ids = doc_ids
+                fs_row.gemini_document_id = doc_ids[0] if doc_ids else ""
+                fs_row.chunk_count = result.get("chunk_count", len(doc_ids))
                 fs_row.gemini_store_id = result.get("gemini_store_id", "")
                 fs_row.operation_id = (
                     result.get("operation_id", "") or fs_row.operation_id
@@ -233,9 +270,16 @@ class Command(BaseCommand):
                 fs_row.save()
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  PASS — indexed: {fs_row.gemini_document_id}"
+                        f"  PASS — indexed {fs_row.chunk_count} document(s)"
                     )
                 )
+                for d in result.get("documents", []) or []:
+                    self.stdout.write(
+                        f"    - pages {d.get('page_range', '?')}: "
+                        f"{d.get('gemini_document_id', '-')}"
+                    )
+                if not result.get("documents"):
+                    self.stdout.write(f"    - {fs_row.gemini_document_id}")
                 self.stdout.write(
                     "\nConclusion: Gemini works for this evidence. The "
                     "earlier 'uploading' state was a worker-side issue "

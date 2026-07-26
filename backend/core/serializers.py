@@ -21,6 +21,7 @@ from django.contrib.auth.models import Permission
 
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist
 
 from integrations.models import IntegrationConfiguration, SyncMapping
 
@@ -748,6 +749,54 @@ class RiskScenarioWriteSerializer(BaseModelSerializer):
 
         return super().validate(attrs)
 
+    def create(self, validated_data: Any):
+        owner_data = validated_data.get("owner", [])
+        scenario = super().create(validated_data)
+
+        if owner_data:
+            self._send_assignment_notifications(
+                scenario, [actor.id for actor in owner_data]
+            )
+
+        return scenario
+
+    def update(self, instance, validated_data):
+        old_owner_ids = set(instance.owner.values_list("id", flat=True))
+
+        updated_instance = super().update(instance, validated_data)
+
+        new_owner_ids = set(updated_instance.owner.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_ids)
+            )
+
+        return updated_instance
+
+    def _send_assignment_notifications(self, scenario, owner_ids):
+        """Send assignment notifications to newly-assigned risk scenario owners."""
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_risk_scenario_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_risk_scenario_assignment_notification(
+                    scenario.id, assigned_emails
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send RiskScenario assignment notification: {str(e)}"
+            )
+
     class Meta:
         model = RiskScenario
         fields = "__all__"
@@ -1192,6 +1241,29 @@ class AppliedControlImportExportSerializer(BaseModelSerializer):
 
 
 class PolicyWriteSerializer(AppliedControlWriteSerializer):
+    def _send_assignment_notifications(self, policy, owner_ids):
+        """Send assignment notifications to newly-assigned policy owners.
+
+        Overrides the AppliedControl version so the email deep link points to
+        the dedicated /policies/<id> page rather than /applied-controls/<id>.
+        """
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_policy_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_policy_assignment_notification(policy.id, assigned_emails)
+        except Exception as e:
+            logger.error(f"Failed to send Policy assignment notification: {str(e)}")
+
     class Meta:
         model = Policy
         fields = "__all__"
@@ -1563,6 +1635,13 @@ class EvidenceReadSerializer(BaseModelSerializer):
     indexing_error = serializers.SerializerMethodField()
     indexing_updated_at = serializers.SerializerMethodField()
 
+    def _latest_revision_for_indexing(self, obj):
+        """Latest EvidenceRevision by version (aligns with attachment / FileSearchTable)."""
+        revs = list(obj.revisions.all())
+        if not revs:
+            return None
+        return max(revs, key=lambda r: (r.version, str(r.pk)))
+
     def get_attachment(self, obj):
         last_revision = obj.last_revision
         if last_revision and last_revision.attachment:
@@ -1574,20 +1653,20 @@ class EvidenceReadSerializer(BaseModelSerializer):
         return last_revision.link if last_revision else None
 
     def _get_file_search(self, obj):
-        """Return the FileSearchTable row for the latest revision with an attachment.
-
-        Returns None when there is no attachment yet (nothing to index)."""
-        last_revision = obj.last_revision
-        if not last_revision or not last_revision.attachment:
+        """Return FileSearchTable for the latest revision with a file attachment."""
+        rev = self._latest_revision_for_indexing(obj)
+        if not rev or not rev.attachment:
             return None
         try:
-            return last_revision.file_search
+            return rev.file_search
+        except ObjectDoesNotExist:
+            return None
         except Exception:
             return None
 
     def get_indexing_status(self, obj):
-        last_revision = obj.last_revision
-        if not last_revision or not last_revision.attachment:
+        rev = self._latest_revision_for_indexing(obj)
+        if not rev or not rev.attachment:
             return None
         fs = self._get_file_search(obj)
         if fs is None:
@@ -1601,6 +1680,19 @@ class EvidenceReadSerializer(BaseModelSerializer):
     def get_indexing_updated_at(self, obj):
         fs = self._get_file_search(obj)
         return fs.updated_at.isoformat() if fs and fs.updated_at else None
+
+    def to_representation(self, instance):
+        """
+        List/table views map a fixed set of keys from JSON (`tableSourceMapper`).
+        With Meta.fields = '__all__', extra SerializerMethodFields may be omitted
+        from the output; merge indexing fields explicitly so they match
+        FileSearchTable.upload_status.
+        """
+        data = super().to_representation(instance)
+        data["indexing_status"] = self.get_indexing_status(instance)
+        data["indexing_error"] = self.get_indexing_error(instance)
+        data["indexing_updated_at"] = self.get_indexing_updated_at(instance)
+        return data
 
     class Meta:
         model = Evidence
@@ -1659,6 +1751,7 @@ class EvidenceWriteSerializer(BaseModelSerializer):
         old_folder_id = instance.folder_id
         # Snapshot existing owners so we only notify newly-added ones.
         old_owner_ids = set(instance.owner.values_list("id", flat=True))
+        old_status = instance.status
 
         # Handle properly owner field cleaning
         owners = validated_data.get("owner", None)
@@ -1677,7 +1770,39 @@ class EvidenceWriteSerializer(BaseModelSerializer):
         if newly_assigned_ids:
             self._send_assignment_notifications(instance, list(newly_assigned_ids))
 
+        if old_status != instance.status and instance.status in (
+            Evidence.Status.APPROVED,
+            Evidence.Status.REJECTED,
+            Evidence.Status.EXPIRED,
+        ):
+            # Best-effort only — email failures must never block status updates.
+            try:
+                self._send_outcome_notification(instance, instance.status)
+            except Exception as e:
+                logger.error(
+                    "Failed to send Evidence outcome notification",
+                    evidence_id=str(instance.id),
+                    new_status=instance.status,
+                    error=str(e),
+                )
+
         return instance
+
+    def _send_outcome_notification(self, evidence, new_status):
+        """Notify owners (and linked control owners on approval) of lifecycle outcomes."""
+        from .tasks import send_evidence_outcome_notification
+
+        decider_user_id = None
+        try:
+            user = self.context["request"].user
+            if user and getattr(user, "is_authenticated", False):
+                decider_user_id = user.pk
+        except (KeyError, AttributeError, TypeError):
+            pass
+
+        send_evidence_outcome_notification(
+            evidence.pk, new_status, decider_user_id=decider_user_id
+        )
 
     def _send_assignment_notifications(self, evidence, owner_ids):
         """Send assignment notifications to the specified owners.
@@ -1759,6 +1884,8 @@ class EvidenceRevisionReadSerializer(BaseModelSerializer):
             if fs is not None:
                 return {
                     'gemini_document_id': fs.gemini_document_id,
+                    'gemini_document_ids': fs.all_document_ids(),
+                    'chunk_count': fs.chunk_count,
                     'gemini_store_id': fs.gemini_store_id,
                     'upload_status': fs.upload_status,
                     'updated_at': fs.updated_at.isoformat() if fs.updated_at else None,
@@ -1965,6 +2092,8 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
         authors_data = validated_data.get("authors", [])
         assessment = super().create(validated_data)
 
+        self._assign_default_reviewers(assessment)
+
         # Send notification to newly assigned authors
         if authors_data:
             self._send_assignment_notifications(
@@ -1985,9 +2114,26 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
 
         return assessment
 
+    def _assign_default_reviewers(self, assessment):
+        """Assign the current user's actor as reviewer when none were set."""
+        if assessment.reviewers.exists():
+            return
+        request = self.context.get("request")
+        if not request or not getattr(request.user, "is_authenticated", False):
+            return
+        try:
+            actor = request.user.actor
+            assessment.reviewers.add(actor)
+        except Exception:
+            logger.warning(
+                "Could not assign default reviewer for compliance assessment %s",
+                assessment.id,
+            )
+
     def update(self, instance, validated_data):
-        # Track old authors before update
+        # Track old authors/reviewers before update
         old_author_ids = set(instance.authors.values_list("id", flat=True))
+        old_reviewer_ids = set(instance.reviewers.values_list("id", flat=True))
 
         # Check if status is changing to deprecated
         old_status = instance.status
@@ -1999,17 +2145,84 @@ class ComplianceAssessmentWriteSerializer(BaseModelSerializer):
 
         updated_instance = super().update(instance, validated_data)
 
-        # Get new authors after update
+        # Get new authors/reviewers after update
         new_author_ids = set(updated_instance.authors.values_list("id", flat=True))
+        new_reviewer_ids = set(updated_instance.reviewers.values_list("id", flat=True))
 
-        # Send notifications only to newly assigned authors
-        newly_assigned_ids = new_author_ids - old_author_ids
-        if newly_assigned_ids:
+        # Send notifications only to newly assigned authors/reviewers
+        newly_assigned_author_ids = new_author_ids - old_author_ids
+        if newly_assigned_author_ids:
             self._send_assignment_notifications(
-                updated_instance, list(newly_assigned_ids)
+                updated_instance, list(newly_assigned_author_ids)
+            )
+
+        newly_assigned_reviewer_ids = new_reviewer_ids - old_reviewer_ids
+        status_entering_review = new_status != old_status and new_status == "in_review"
+        if newly_assigned_reviewer_ids and not status_entering_review:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_reviewer_ids)
+            )
+
+        # Ensure a reviewer exists before review-cycle emails go out
+        if new_status == "in_review" and not updated_instance.reviewers.exists():
+            self._assign_default_reviewers(updated_instance)
+            updated_instance.refresh_from_db()
+
+        # Send review-cycle notifications when the status transitions
+        if new_status != old_status:
+            self._send_status_transition_notifications(
+                updated_instance, old_status, new_status
             )
 
         return updated_instance
+
+    def _send_status_transition_notifications(self, assessment, old_status, new_status):
+        """Notify reviewers/authors when an Audit moves through the review cycle.
+
+        - any -> in_review    : reviewers, "awaiting your review"
+        - in_review -> done   : authors, "review completed" (review passed)
+        - in_review -> in_progress : authors, "rejected" (review failed)
+        - any -> deprecated   : authors, "deprecated"
+        """
+        recipients_relation = None
+        template_name = None
+
+        if new_status == "in_review":
+            recipients_relation = "reviewers"
+            template_name = "audit_in_review"
+        elif old_status == "in_review" and new_status == "done":
+            recipients_relation = "authors"
+            template_name = "audit_review_completed"
+        elif old_status == "in_review" and new_status == "in_progress":
+            recipients_relation = "authors"
+            template_name = "audit_rejected"
+        elif new_status == "deprecated":
+            recipients_relation = "authors"
+            template_name = "audit_deprecated"
+
+        if not template_name:
+            return
+
+        try:
+            from .tasks import send_compliance_assessment_status_notification
+
+            emails = []
+            for actor in getattr(assessment, recipients_relation).all():
+                emails.extend(actor.get_emails())
+
+            if emails:
+                send_compliance_assessment_status_notification(
+                    assessment.id,
+                    emails,
+                    template_name,
+                    old_status,
+                    new_status,
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send ComplianceAssessment status notification "
+                f"({template_name}): {str(e)}"
+            )
 
     def _send_assignment_notifications(self, assessment, author_ids):
         """Send assignment notifications to the specified authors"""
@@ -2391,6 +2604,74 @@ class SecurityExceptionWriteSerializer(BaseModelSerializer):
         many=True, queryset=Asset.objects.all(), required=False
     )
 
+    def create(self, validated_data: Any):
+        owners_data = validated_data.get("owners", [])
+        exception = super().create(validated_data)
+
+        if owners_data:
+            self._send_assignment_notifications(
+                exception, [actor.id for actor in owners_data]
+            )
+
+        return exception
+
+    def update(self, instance, validated_data):
+        old_owner_ids = set(instance.owners.values_list("id", flat=True))
+        old_status = instance.status
+
+        updated_instance = super().update(instance, validated_data)
+
+        new_owner_ids = set(updated_instance.owners.values_list("id", flat=True))
+        newly_assigned_ids = new_owner_ids - old_owner_ids
+        if newly_assigned_ids:
+            self._send_assignment_notifications(
+                updated_instance, list(newly_assigned_ids)
+            )
+
+        if (
+            old_status != updated_instance.status
+            and updated_instance.status == "expired"
+        ):
+            self._send_outcome_notification(updated_instance, updated_instance.status)
+
+        return updated_instance
+
+    def _send_outcome_notification(self, exception, new_status):
+        """Notify owners when a security exception reaches a terminal lifecycle state."""
+        try:
+            from .tasks import send_security_exception_outcome_notification
+
+            send_security_exception_outcome_notification(exception.id, new_status)
+        except Exception as e:
+            logger.error(
+                f"Failed to send SecurityException outcome notification: {str(e)}",
+                exception_id=str(exception.id),
+                new_status=new_status,
+            )
+
+    def _send_assignment_notifications(self, exception, owner_ids):
+        """Send assignment notifications to newly-assigned exception owners."""
+        if not owner_ids:
+            return
+
+        try:
+            from core.models import Actor
+            from .tasks import send_security_exception_assignment_notification
+
+            assigned_actors = Actor.objects.filter(id__in=owner_ids)
+            assigned_emails = []
+            for actor in assigned_actors:
+                assigned_emails.extend(actor.get_emails())
+
+            if assigned_emails:
+                send_security_exception_assignment_notification(
+                    exception.id, assigned_emails
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to send SecurityException assignment notification: {str(e)}"
+            )
+
     class Meta:
         model = SecurityException
         fields = "__all__"
@@ -2431,6 +2712,40 @@ class SecurityExceptionReadSerializer(BaseModelSerializer):
 
     class Meta:
         model = SecurityException
+        fields = "__all__"
+
+
+class PolicyViolationWriteSerializer(BaseModelSerializer):
+    policy = serializers.PrimaryKeyRelatedField(queryset=Policy.objects.all())
+
+    def validate_policy(self, policy):
+        if policy.category != "policy":
+            raise serializers.ValidationError("Selected control is not a policy.")
+        return policy
+
+    def create(self, validated_data):
+        policy = validated_data["policy"]
+        if "folder" not in validated_data and policy.folder_id:
+            validated_data["folder"] = policy.folder
+        request = self.context.get("request")
+        if request and request.user.is_authenticated and "detected_by" not in validated_data:
+            validated_data["detected_by"] = request.user
+        return super().create(validated_data)
+
+    class Meta:
+        model = PolicyViolation
+        fields = "__all__"
+
+
+class PolicyViolationReadSerializer(BaseModelSerializer):
+    path = PathField(read_only=True)
+    folder = FieldsRelatedField()
+    policy = FieldsRelatedField(["id", "name", "ref_id", "str"])
+    detected_by = FieldsRelatedField(["id", "email", "first_name", "last_name"])
+    severity = serializers.CharField(source="get_severity_display")
+
+    class Meta:
+        model = PolicyViolation
         fields = "__all__"
 
 
@@ -2596,6 +2911,7 @@ class QuickStartSerializer(serializers.Serializer):
         if not compliance_asssessment_serializer.is_valid(raise_exception=True):
             return None
         audit = compliance_asssessment_serializer.save()
+        compliance_asssessment_serializer._assign_default_reviewers(audit)
         audit.create_requirement_assessments()
 
         created_objects = {
@@ -3064,9 +3380,47 @@ class ValidationFlowWriteSerializer(BaseModelSerializer):
                 updated_instance, current_status, new_status
             )
 
+            # Notify the requester when someone else updates the validation
+            # (accepted / rejected / change_requested / dropped / revoked).
+            # Skip when the requester drops their own request — they already
+            # know; approver-initiated drops still email with events history.
+            if current_status != new_status and not (
+                updated_instance.requester == request_user
+                and new_status == "dropped"
+            ):
+                self._send_outcome_notification(
+                    updated_instance, new_status, request_user, event_notes
+                )
+
             return updated_instance
 
         return super().update(instance, validated_data)
+
+    def _send_outcome_notification(
+        self, validation_flow, new_status, decider_user, event_notes
+    ):
+        """Fire-and-forget outcome email to the requester.
+
+        Wrapped in try/except so a notification problem never breaks the
+        status transition the user is performing, mirroring the pattern
+        used in `create()` for the initial approver email.
+        """
+        try:
+            from core.tasks import send_validation_outcome_notification
+
+            send_validation_outcome_notification(
+                validation_flow.id,
+                new_status,
+                decider_user_id=decider_user.id if decider_user else None,
+                event_notes=event_notes or "",
+            )
+        except Exception:
+            logger.error(
+                "Failed to send validation outcome notification",
+                validation_flow_id=str(validation_flow.id),
+                ref_id=validation_flow.ref_id,
+                new_status=new_status,
+            )
 
     def _manage_associated_objects_lock(
         self, validation_flow, old_status: str, new_status: str

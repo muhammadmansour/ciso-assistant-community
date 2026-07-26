@@ -9,17 +9,23 @@
 */
 @import '../ciso-theme.css';
 
-/* Cairo Font — Global */
-:root {
+/* ── Cairo Font — Global ────────────────────────────────────────── */
+
+/* 1. Register as a Tailwind v4 theme token → enables font-cairo utility */
+@theme {
   --font-cairo: 'Cairo', sans-serif;
 }
 
+/* 2. Apply as the default font for the whole app */
 html,
 body {
-  font-family: var(--font-cairo), sans-serif;
+  font-family: 'Cairo', sans-serif;
 }
 
-* {
+/* 3. Ensure everything inherits (overrides any component resets) */
+*,
+::before,
+::after {
   font-family: inherit;
 }
 

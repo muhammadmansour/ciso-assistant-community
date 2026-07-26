@@ -1,0 +1,25 @@
+subject: "Wathbah GRC: Findings assessment '${assessment_name}' is due today"
+intro: "A findings assessment you are responsible for is due today."
+action: "Open the findings assessment in Wathbah GRC to update its status or hand it over for review."
+details_heading: "Findings assessment details"
+name_label: "Name"
+status_label: "Status"
+due_date_label: "Due date"
+domain_label: "Domain"
+cta_label: "Open findings assessment"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  A findings assessment you are responsible for is due today:
+
+  - Name: ${assessment_name}
+  - Status: ${assessment_status}
+  - Due date: ${assessment_due_date}
+  - Domain: ${folder_name}
+
+  Open the findings assessment in Wathbah GRC:
+  ${ciso_assistant_url}/findings-assessments/${assessment_id}
+
+  Thank you.

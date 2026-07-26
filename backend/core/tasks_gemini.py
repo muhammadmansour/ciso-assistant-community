@@ -11,12 +11,21 @@ import os
 import shutil
 import tempfile
 from contextlib import contextmanager
+from typing import Any, Dict
 
 import structlog
 from huey.contrib.djhuey import task
+from django.utils import timezone
 
 from core.models import FileSearchTable, EvidenceRevision
-from core.gemini_file_search import get_gemini_client
+from core.gemini_file_search import get_gemini_client, GEMINI_INDEX_MAX_WAIT_SECONDS
+
+# A FileSearchTable row left at UPLOADING this long is considered orphaned (the
+# worker was killed mid-upload, e.g. on restart) and becomes retryable instead
+# of blocking re-indexing forever. Defaults to the indexing wait plus a buffer.
+GEMINI_UPLOAD_STALE_SECONDS = int(
+    os.getenv('GEMINI_UPLOAD_STALE_SECONDS', str(GEMINI_INDEX_MAX_WAIT_SECONDS + 600))
+)
 
 
 @contextmanager
@@ -144,20 +153,34 @@ def ensure_evidence_indexed(evidence_revision):
         base['gemini_store_id'] = fs_row.gemini_store_id or ''
         base['error_message'] = fs_row.error_message or None
 
-        if fs_row.has_durable_document():
+        if fs_row.is_indexed():
             base['status'] = INDEXING_STATUS_COMPLETED
             return base
 
         if fs_row.upload_status == FileSearchTable.UploadStatus.UPLOADING:
-            # Another worker is mid-upload. Re-enqueueing now would race with it
-            # and could double-index.
-            base['status'] = INDEXING_STATUS_UPLOADING
-            return base
+            updated = getattr(fs_row, 'updated_at', None)
+            age = (timezone.now() - updated).total_seconds() if updated else None
+            if age is None or age < GEMINI_UPLOAD_STALE_SECONDS:
+                # A worker is (probably) mid-upload. Re-enqueueing now would race
+                # with it and could double-index.
+                base['status'] = INDEXING_STATUS_UPLOADING
+                return base
+            # Stale: the previous worker died mid-upload (e.g. restart). Treat as
+            # retryable so it doesn't stay stuck forever — fall through to reset.
+            logger.warning(
+                "Stale UPLOADING FileSearchTable row; treating as retryable",
+                revision_id=revision_id,
+                age_seconds=int(age),
+                stale_after_seconds=GEMINI_UPLOAD_STALE_SECONDS,
+            )
 
-    # No row yet, or the row is PENDING / FAILED — kick off (or retry) indexing.
-    # Reset a FAILED row back to PENDING with the previous error cleared so the
-    # UI sees a fresh attempt rather than a stale failure during the re-run.
-    if fs_row is not None and fs_row.upload_status == FileSearchTable.UploadStatus.FAILED:
+    # No row yet, or the row is PENDING / FAILED / stale-UPLOADING — kick off (or
+    # retry) indexing. Reset a FAILED or stale-UPLOADING row back to PENDING with
+    # the previous error cleared so the UI sees a fresh attempt.
+    if fs_row is not None and fs_row.upload_status in (
+        FileSearchTable.UploadStatus.FAILED,
+        FileSearchTable.UploadStatus.UPLOADING,
+    ):
         fs_row.upload_status = FileSearchTable.UploadStatus.PENDING
         fs_row.error_message = None
         fs_row.save(update_fields=['upload_status', 'error_message', 'updated_at'])
@@ -180,12 +203,19 @@ def ensure_evidence_indexed(evidence_revision):
     return base
 
 
-@task()
+@task(retries=2, retry_delay=30)
 def upload_evidence_to_gemini(evidence_revision_id: str):
     """Upload an evidence file to the Gemini File Search Store.
 
     Idempotent: if a durable ``gemini_document_id`` already exists for the
     revision, the task is a no-op.
+
+    ``retries=2`` (with a 30-second backoff) is a safety net for transient
+    failures only — PM2 OOM-kills, Gemini 5xx, network blips, Huey worker
+    restarts mid-flight. The task is already idempotent: stale documents from
+    a previous attempt are cleared in ``delete_store_documents`` before each
+    re-upload, so retries can never produce duplicate indexed chunks in the
+    File Search Store.
     """
     try:
         revision = EvidenceRevision.objects.get(id=evidence_revision_id)
@@ -206,7 +236,7 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             },
         )
 
-        if not created and file_search.has_durable_document():
+        if not created and file_search.is_indexed():
             logger.info(
                 "Evidence already indexed in File Search Store",
                 revision_id=evidence_revision_id,
@@ -238,8 +268,18 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
             file_search.save()
             return
 
+        # If a previous (partial/failed) attempt left documents in the store,
+        # remove them first so we never accumulate orphans or duplicate a chunk
+        # set across retries.
+        stale_docs = file_search.all_document_ids()
+        if stale_docs:
+            client.delete_store_documents(stale_docs)
+
         file_search.upload_status = FileSearchTable.UploadStatus.UPLOADING
         file_search.error_message = None
+        file_search.gemini_document_id = ''
+        file_search.gemini_document_ids = []
+        file_search.chunk_count = 0
         file_search.save()
 
         logger.info(
@@ -252,18 +292,47 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
 
         # Stream from the configured storage backend into a tempfile. This
         # works for local FS, GCS, S3, etc — ``revision.attachment.path``
-        # would raise NotImplementedError on cloud backends.
+        # would raise NotImplementedError on cloud backends. Large PDFs are split
+        # into overlapping page-range chunks (same store, same evidence_revision_id).
         custom_metadata = _build_evidence_custom_metadata(revision)
 
+        # Live progress: bump chunk_count after every successful chunk so
+        # `watch_evidence_indexing` and the UI move from 0/N to N/N instead
+        # of jumping at the very end. We deliberately do NOT write document
+        # ids here — the upload still rolls them back on a later-chunk
+        # failure, and a partial doc_id list would lie about what's indexed.
+        # ``updated_at`` is bumped at the same time so the stale-detector in
+        # ``ensure_evidence_indexed`` correctly treats a slow-but-progressing
+        # multi-hour upload as still alive (instead of orphaning it at the
+        # 40-minute mark).
+        def _bump_progress(progress: Dict[str, Any]) -> None:
+            try:
+                FileSearchTable.objects.filter(pk=file_search.pk).update(
+                    chunk_count=progress['completed_chunks'],
+                    updated_at=timezone.now(),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to persist chunk progress; non-fatal",
+                    revision_id=evidence_revision_id,
+                    error=str(exc),
+                )
+
         with _materialize_attachment(revision.attachment) as file_path:
-            result = client.upload_to_store_and_wait(
+            result = client.upload_evidence_file_and_wait(
                 file_path=file_path,
                 display_name=display_name,
                 custom_metadata=custom_metadata,
+                progress_callback=_bump_progress,
             )
 
         if result['status'] == 'completed':
-            file_search.gemini_document_id = result.get('gemini_document_id', '')
+            doc_ids = result.get('gemini_document_ids') or (
+                [result['gemini_document_id']] if result.get('gemini_document_id') else []
+            )
+            file_search.gemini_document_ids = doc_ids
+            file_search.gemini_document_id = doc_ids[0] if doc_ids else ''
+            file_search.chunk_count = result.get('chunk_count', len(doc_ids))
             file_search.gemini_store_id = result.get('gemini_store_id', '')
             file_search.operation_id = result.get('operation_id', '') or file_search.operation_id
             file_search.upload_status = FileSearchTable.UploadStatus.COMPLETED
@@ -274,6 +343,7 @@ def upload_evidence_to_gemini(evidence_revision_id: str):
                 "Gemini File Search Store upload completed",
                 revision_id=evidence_revision_id,
                 gemini_document_id=file_search.gemini_document_id,
+                chunk_count=file_search.chunk_count,
                 evidence_name=revision.evidence.name,
             )
         else:

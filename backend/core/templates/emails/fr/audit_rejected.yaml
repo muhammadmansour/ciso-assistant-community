@@ -1,0 +1,26 @@
+subject: "Wathbah GRC : revue d'audit rejetée — '${assessment_name}'"
+intro: "Le statut de l'audit suivant a changé. La revue n'a pas été validée et l'audit a été renvoyé pour reprise."
+action: "En tant qu'auteur, veuillez traiter les retours du relecteur dans Wathbah GRC et soumettre à nouveau l'audit."
+details_heading: "Détails de l'audit"
+name_label: "Nom"
+framework_label: "Référentiel"
+domain_label: "Domaine"
+status_change_label: "Changement de statut"
+audit_url_label: "Lien de l'audit"
+cta_label: "Ouvrir l'audit"
+greeting: "Bonjour,"
+closing: "Merci."
+body: |
+  Bonjour,
+
+  Le statut de l'audit suivant a changé. La revue n'a pas été validée et l'audit a été renvoyé pour reprise :
+
+  - Nom : ${assessment_name}
+  - Référentiel : ${framework_name}
+  - Domaine : ${folder_name}
+  - Changement de statut : ${old_status} → ${new_status}
+
+  Traitez les retours du relecteur dans Wathbah GRC et soumettez à nouveau l'audit :
+  ${assessment_url}
+
+  Merci.

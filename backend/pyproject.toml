@@ -52,6 +52,7 @@ prometheus-client = "^0.22.1"
 jira = "^3.10.5"
 google-genai = "^1.62.0"
 msal = "^1.31.0"
+pypdf = "^5.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest-django = "4.8.0"

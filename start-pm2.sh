@@ -86,7 +86,36 @@ GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-pro}"
 # Gemini long-running indexing wait (huey worker + optional sync paths).
 # Override in backend/.env if needed; indexing must reach the Huey process.
 GEMINI_INDEX_MAX_WAIT_SECONDS="${GEMINI_INDEX_MAX_WAIT_SECONDS:-1800}"
-MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-https://muraji-singleview.wathbahs.com/api/audit/analyze}"
+
+# -----------------------------------------------------------------------------
+# Muraji + GRC-admin upstream hosts (per-environment).
+# -----------------------------------------------------------------------------
+# Every muraji/grc-admin URL across the codebase (backend tasks, views, the
+# frontend AI analysis routes, and the legislative-updates page) reads from
+# these env vars. Override per host in backend/.env, e.g.:
+#   echo 'MURAJI_API_BASE_URL=https://muraji-stage.wathbahs.com' >> backend/.env
+#   echo 'GRC_ADMIN_BASE_URL=https://grc-admin-stage.wathbah.dev' >> backend/.env
+#   echo 'PUBLIC_WATHBAH_ADMIN_CONSOLE_URL=https://grc-admin-stage.wathbah.dev/' >> backend/.env
+#
+# Individual endpoint vars (MURAJI_ANALYSIS_API_URL, LEGISLATIVE_UPDATES_API_URL,
+# etc.) take precedence over the base when set; the code derives sensible
+# defaults from the bases when they're not.
+#
+# Default below preserves this deployment's previous SingleView-specific
+# behaviour (muraji-singleview.*); other environments override MURAJI_API_BASE_URL.
+MURAJI_API_BASE_URL="${MURAJI_API_BASE_URL:-https://muraji-singleview.wathbahs.com}"
+MURAJI_ANALYSIS_API_URL="${MURAJI_ANALYSIS_API_URL:-${MURAJI_API_BASE_URL%/}/api/audit/analyze}"
+MURAJI_ENTITY_EXTRACTION_API_URL="${MURAJI_ENTITY_EXTRACTION_API_URL:-${MURAJI_API_BASE_URL%/}/api/entity-extraction/extract}"
+MURAJI_MAIL_SEND_API_URL="${MURAJI_MAIL_SEND_API_URL:-${MURAJI_API_BASE_URL%/}/api/mail/send}"
+MURAJI_LIBRARIES_API_URL="${MURAJI_LIBRARIES_API_URL:-${MURAJI_API_BASE_URL%/}/api/libraries}"
+
+GRC_ADMIN_BASE_URL="${GRC_ADMIN_BASE_URL:-https://grc-admin.wathbah.dev}"
+LEGISLATIVE_UPDATES_API_URL="${LEGISLATIVE_UPDATES_API_URL:-${GRC_ADMIN_BASE_URL%/}/api/ai-tools/pipeline-legislative-updates}"
+LEGISLATIVE_UPDATE_DETAIL_API_URL="${LEGISLATIVE_UPDATE_DETAIL_API_URL:-$LEGISLATIVE_UPDATES_API_URL}"
+
+# User-facing "Sign in to GRC Admin" link (svelte $env/dynamic/public, read at
+# runtime — no rebuild required).
+PUBLIC_WATHBAH_ADMIN_CONSOLE_URL="${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL:-${GRC_ADMIN_BASE_URL%/}/}"
 
 # CISO PM2 process names (only restart these, not all PM2 services)
 CISO_APPS="ciso-stage-backend ciso-stage-frontend ciso-stage-huey"
@@ -149,7 +178,14 @@ else
     echo -e "${YELLOW}Warning: GEMINI_FILE_SEARCH_STORE_NAME is not set — evidences cannot be indexed.${NC}"
 fi
 echo -e "${GREEN}Gemini indexing max wait: ${GEMINI_INDEX_MAX_WAIT_SECONDS}s (Huey + backend PM2 env)${NC}"
-echo -e "${GREEN}Muraji audit URL: ${MURAJI_ANALYSIS_API_URL}${NC}"
+echo -e "${GREEN}Muraji API base: ${MURAJI_API_BASE_URL}${NC}"
+echo -e "${GREEN}  analysis:           ${MURAJI_ANALYSIS_API_URL}${NC}"
+echo -e "${GREEN}  entity-extraction:  ${MURAJI_ENTITY_EXTRACTION_API_URL}${NC}"
+echo -e "${GREEN}  mail/send:          ${MURAJI_MAIL_SEND_API_URL}${NC}"
+echo -e "${GREEN}  libraries:          ${MURAJI_LIBRARIES_API_URL}${NC}"
+echo -e "${GREEN}GRC admin base: ${GRC_ADMIN_BASE_URL}${NC}"
+echo -e "${GREEN}  legislative-updates: ${LEGISLATIVE_UPDATES_API_URL}${NC}"
+echo -e "${GREEN}  admin console link:  ${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL}${NC}"
 
 # Check if PM2 is installed
 if ! command -v pm2 &> /dev/null; then
@@ -198,7 +234,11 @@ module.exports = {
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
         GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
+        MURAJI_ENTITY_EXTRACTION_API_URL: '${MURAJI_ENTITY_EXTRACTION_API_URL}',
+        MURAJI_MAIL_SEND_API_URL: '${MURAJI_MAIL_SEND_API_URL}',
+        GRC_ADMIN_BASE_URL: '${GRC_ADMIN_BASE_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -235,7 +275,11 @@ module.exports = {
         GEMINI_FILE_SEARCH_STORE_NAME: '${GEMINI_FILE_SEARCH_STORE_NAME}',
         GEMINI_MODEL: '${GEMINI_MODEL}',
         GEMINI_INDEX_MAX_WAIT_SECONDS: '${GEMINI_INDEX_MAX_WAIT_SECONDS}',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
         MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
+        MURAJI_ENTITY_EXTRACTION_API_URL: '${MURAJI_ENTITY_EXTRACTION_API_URL}',
+        MURAJI_MAIL_SEND_API_URL: '${MURAJI_MAIL_SEND_API_URL}',
+        GRC_ADMIN_BASE_URL: '${GRC_ADMIN_BASE_URL}',
         PATH: os.homedir() + '/.local/bin:' + (process['env']['PATH'] || '')
       },
       watch: false,
@@ -260,7 +304,15 @@ module.exports = {
         ORIGIN: 'https://singleview-grc.wathbahs.com',
         PROTOCOL_HEADER: 'x-forwarded-proto',
         PUBLIC_DEFAULT_LANGUAGE: 'en',
-        BODY_SIZE_LIMIT: '104857600'
+        BODY_SIZE_LIMIT: '104857600',
+        MURAJI_API_BASE_URL: '${MURAJI_API_BASE_URL}',
+        MURAJI_ANALYSIS_API_URL: '${MURAJI_ANALYSIS_API_URL}',
+        MURAJI_ENTITY_EXTRACTION_API_URL: '${MURAJI_ENTITY_EXTRACTION_API_URL}',
+        MURAJI_LIBRARIES_API_URL: '${MURAJI_LIBRARIES_API_URL}',
+        GRC_ADMIN_BASE_URL: '${GRC_ADMIN_BASE_URL}',
+        LEGISLATIVE_UPDATES_API_URL: '${LEGISLATIVE_UPDATES_API_URL}',
+        LEGISLATIVE_UPDATE_DETAIL_API_URL: '${LEGISLATIVE_UPDATE_DETAIL_API_URL}',
+        PUBLIC_WATHBAH_ADMIN_CONSOLE_URL: '${PUBLIC_WATHBAH_ADMIN_CONSOLE_URL}'
       },
       watch: false,
       max_memory_restart: '2G',

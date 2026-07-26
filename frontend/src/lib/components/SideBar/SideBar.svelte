@@ -166,7 +166,7 @@
 		},
 		{
 			id: 18,
-			element: 'button[type="button"][id$="overview"]',
+			element: '[data-testid="sidebar-home"]',
 			popover: {
 				title: m.tourAnalyticsTitle(),
 				description: m.tourAnalyticsDescription()

@@ -1,8 +1,19 @@
 subject: "Wathbah GRC: You have been assigned to evidence '${evidence_name}'"
+intro: "You have been assigned as an owner of the following Evidence."
+action: "Open the evidence in Wathbah GRC to upload attachments or update its status."
+details_heading: "Evidence details"
+name_label: "Name"
+description_label: "Description"
+status_label: "Status"
+expiry_label: "Expiry date"
+domain_label: "Domain"
+cta_label: "Open evidence"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
-  You have been assigned as an owner of the following evidence:
+  You have been assigned as an owner of the following Evidence:
 
   - Name: ${evidence_name}
   - Description: ${evidence_description}
@@ -10,7 +21,7 @@ body: |
   - Expiry date: ${evidence_expiry_date}
   - Domain: ${folder_name}
 
-  View this evidence directly:
+  Open the evidence in Wathbah GRC:
   ${ciso_assistant_url}/evidences/${evidence_id}
 
   Thank you.

@@ -9,6 +9,7 @@
 
 	import Toast from '$lib/components/Toast/Toast.svelte';
 	import Modal from '$lib/components/Modals/Modal.svelte';
+	import NavigationProgress from '$lib/components/LoadingIndicator/NavigationProgress.svelte';
 	import DisplayJSONModal from '$lib/components/Modals/DisplayJSONModal.svelte';
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import DeleteConfirmModal from '$lib/components/Modals/DeleteConfirmModal.svelte';
@@ -98,8 +99,16 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </svelte:head>
+<NavigationProgress />
 <Modal components={modalRegistry} />
-<Toast />
+<!--
+  `position="tr"` puts toasts in the top-right (industry convention for
+  alerts) instead of the default bottom-center. `zIndex="z-[9999]"` lifts
+  the toast wrapper above Skeleton's modal/backdrop layer so error toasts
+  fired while a modal is open (e.g. PDF page-limit rejection) are never
+  obscured by the modal itself.
+-->
+<Toast position="tr" zIndex="z-[9999]" />
 {@render children?.()}
 
 {#if $flash}

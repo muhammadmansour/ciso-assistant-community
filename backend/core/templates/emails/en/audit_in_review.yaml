@@ -1,0 +1,26 @@
+subject: "Wathbah GRC: Audit status changed to In Review — '${assessment_name}'"
+intro: "The status of the following Audit has changed and now requires your review."
+action: "Open the audit in Wathbah GRC to complete your review."
+details_heading: "Audit details"
+name_label: "Name"
+framework_label: "Framework"
+domain_label: "Domain"
+status_change_label: "Status change"
+audit_url_label: "Audit link"
+cta_label: "Open audit"
+greeting: "Hello,"
+closing: "Thank you."
+body: |
+  Hello,
+
+  The status of the following Audit has changed and now requires your review:
+
+  - Name: ${assessment_name}
+  - Framework: ${framework_name}
+  - Domain: ${folder_name}
+  - Status change: ${old_status} → ${new_status}
+
+  Open the audit in Wathbah GRC:
+  ${assessment_url}
+
+  Thank you.

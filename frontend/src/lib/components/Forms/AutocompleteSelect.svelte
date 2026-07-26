@@ -377,8 +377,17 @@
 		// Only update value after options are loaded
 		if (!isInternalUpdate && optionsLoaded && !arraysEqual(selectedValues, $value)) {
 			isInternalUpdate = true;
-			$value = multiple ? selectedValues : (selectedValues[0] ?? default_value);
-			handleSelectChange();
+			const formHasValues = multiple
+				? Array.isArray($value) && $value.length > 0
+				: Boolean($value);
+			// Keep programmatic defaults (e.g. pre-filled reviewers) until the UI catches up.
+			if (selectedValues.length === 0 && formHasValues) {
+				const valueArray = Array.isArray($value) ? $value : [$value];
+				selected = options.filter((item) => valueArray.includes(item.value));
+			} else {
+				$value = multiple ? selectedValues : (selectedValues[0] ?? default_value);
+				handleSelectChange();
+			}
 			isInternalUpdate = false;
 		}
 	});

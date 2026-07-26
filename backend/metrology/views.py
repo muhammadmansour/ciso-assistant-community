@@ -153,9 +153,41 @@ class BuiltinMetricSampleViewSet(BaseModelViewSet):
 
     def get_queryset(self):
         """
-        Optionally filter by content_type model name.
+        BuiltinMetricSample has no folder field, so the inherited BaseModelViewSet
+        IAM filter (which filters by accessible folder-scoped object IDs) always
+        returns an empty queryset for this model.
+
+        Instead, we build the queryset directly from BuiltinMetricSample and scope
+        it to samples whose linked objects (ComplianceAssessment, RiskAssessment,
+        FindingsAssessment, Folder) the requesting user can already access.
         """
-        queryset = super().get_queryset()
+        from django.db.models import Q
+        from iam.models import RoleAssignment, Folder as IamFolder
+        from core.models import ComplianceAssessment, RiskAssessment, FindingsAssessment
+        from iam.models import Folder as FolderModel
+
+        user = self.request.user
+        root = IamFolder.get_root_folder()
+
+        scoped_models = [
+            ComplianceAssessment,
+            RiskAssessment,
+            FindingsAssessment,
+            FolderModel,
+        ]
+
+        q = Q()
+        for model in scoped_models:
+            try:
+                accessible_ids, _, _ = RoleAssignment.get_accessible_object_ids(
+                    root, user, model
+                )
+                ct = ContentType.objects.get_for_model(model)
+                q |= Q(content_type=ct, object_id__in=accessible_ids)
+            except Exception:
+                pass
+
+        queryset = BuiltinMetricSample.objects.filter(q)
 
         # Allow filtering by model name (e.g., ?model=ComplianceAssessment)
         model_name = self.request.query_params.get("model")

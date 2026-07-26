@@ -45,6 +45,39 @@ LOG_OUTFILE = os.environ.get("LOG_OUTFILE", "")
 CISO_ASSISTANT_URL = os.environ.get("CISO_ASSISTANT_URL", "http://localhost:5173")
 FORCE_CREATE_ADMIN = os.environ.get("FORCE_CREATE_ADMIN", "False").lower() == "true"
 
+# ---------------------------------------------------------------------------
+# Muraji + GRC-admin upstream API endpoints.
+# ---------------------------------------------------------------------------
+# These hosts are per-environment (dev / staging / prod), so they must NEVER
+# be hardcoded inside views/tasks. Set a single base URL via env to override
+# every derived endpoint at once, or override individual endpoints for finer
+# control (e.g. when staging muraji is on a different path layout).
+#
+#   MURAJI_API_BASE_URL          -> all muraji endpoints below
+#   MURAJI_ANALYSIS_API_URL      -> /api/audit/analyze
+#   MURAJI_ENTITY_EXTRACTION_API_URL -> /api/entity-extraction/extract
+#   MURAJI_MAIL_SEND_API_URL     -> /api/mail/send
+#   GRC_ADMIN_BASE_URL           -> base for grc-admin AI pipelines
+#
+# Defaults point at the dev environment so local boxes keep working
+# untouched; staging/prod set these via ~/.ciso-staging.env (or similar).
+MURAJI_API_BASE_URL = os.environ.get(
+    "MURAJI_API_BASE_URL", "https://muraji-api.wathbah.dev"
+).rstrip("/")
+MURAJI_ANALYSIS_API_URL = os.environ.get(
+    "MURAJI_ANALYSIS_API_URL", f"{MURAJI_API_BASE_URL}/api/audit/analyze"
+)
+MURAJI_ENTITY_EXTRACTION_API_URL = os.environ.get(
+    "MURAJI_ENTITY_EXTRACTION_API_URL",
+    f"{MURAJI_API_BASE_URL}/api/entity-extraction/extract",
+)
+MURAJI_MAIL_SEND_API_URL = os.environ.get(
+    "MURAJI_MAIL_SEND_API_URL", f"{MURAJI_API_BASE_URL}/api/mail/send"
+)
+GRC_ADMIN_BASE_URL = os.environ.get(
+    "GRC_ADMIN_BASE_URL", "https://grc-admin.wathbah.dev"
+).rstrip("/")
+
 
 def set_ciso_assistant_url(_, __, event_dict):
     event_dict["ciso_assistant_url"] = CISO_ASSISTANT_URL
@@ -137,6 +170,7 @@ ALLOWED_HOSTS = os.environ.get(
 # Always ensure these hosts are allowed regardless of env var
 for _host in [
     "grc.wathbah.dev",
+    "grc-admin.wathbah.dev",
     "grc.wathbahs.com",
     "grc-stage.wathbahs.com",
     "grc-hrsd.wathbahs.com",
@@ -154,6 +188,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
 for _origin in [
     "http://localhost:5555",
     "https://grc.wathbah.dev",
+    "https://grc-admin.wathbah.dev",
     "https://grc.wathbahs.com",
     "https://grc-stage.wathbahs.com",
     "https://grc-hrsd.wathbahs.com",

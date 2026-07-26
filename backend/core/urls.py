@@ -113,6 +113,11 @@ router.register(
     basename="security-exceptions",
 )
 router.register(
+    r"policy-violations",
+    PolicyViolationViewSet,
+    basename="policy-violations",
+)
+router.register(
     r"findings-assessments", FindingsAssessmentViewSet, basename="findings-assessments"
 )
 router.register(r"findings", FindingViewSet, basename="findings")

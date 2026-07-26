@@ -210,6 +210,27 @@
 	}
 	setContext('updateMissingConstraint', updateMissingConstraint);
 
+	// Async-validation gate (currently driven by FileInput's PDF page-count
+	// check). When any child reports it's mid-validation we lock the submit
+	// button below so the user can't race ahead and submit an oversized file
+	// before the client-side validator has had a chance to clear / reject it.
+	let pdfValidating = $state(false);
+	setContext('updatePdfValidating', (validating: boolean) => {
+		pdfValidating = validating;
+	});
+
+	// Expose the modal-close handle to children. FileInput uses it to close
+	// the surrounding modal on validation failure so the (top-right) error
+	// toast isn't competing for attention with a still-open modal — matches
+	// the explicit UX request from product. Null when we're not inside a
+	// modal (plain page form), so children must guard with optional chaining.
+	setContext(
+		'requestModalClose',
+		closeModal && parent && typeof parent.onClose === 'function'
+			? () => parent.onClose()
+			: null
+	);
+
 	onDestroy(() => {
 		missingConstraints = [];
 		createModalCache.garbageCollect();
@@ -871,13 +892,14 @@
 					}}>{m.cancel()}</button
 				>
 			<button
-				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting ||
+				pdfValidating
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"
 				type="submit"
-				disabled={$submitting}
-				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+				disabled={$submitting || pdfValidating}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else if pdfValidating}{m.pdfValidating()} <LoadingSpinner />{:else}{m.save()}{/if}</button
 			>
 			{:else}
 				{#if cancelButton}
@@ -889,13 +911,14 @@
 					>
 				{/if}
 			<button
-				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting
+				class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] font-semibold w-full rounded-lg shadow-sm transition-all {$submitting ||
+				pdfValidating
 					? 'cursor-wait opacity-75'
 					: ''}"
 				data-testid="save-button"
 				type="submit"
-				disabled={$submitting}
-				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else}{m.save()}{/if}</button
+				disabled={$submitting || pdfValidating}
+				>{#if $submitting}{m.loading()} <LoadingSpinner />{:else if pdfValidating}{m.pdfValidating()} <LoadingSpinner />{:else}{m.save()}{/if}</button
 			>
 			{/if}
 		</div>

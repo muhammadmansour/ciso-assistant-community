@@ -2,7 +2,7 @@
 
 ## API Endpoint
 ```
-POST https://muraji-stage.wathbahs.com/api/audit/analyze
+POST https://muraji-api.wathbah.dev/api/audit/analyze
 ```
 
 ## Request Headers
@@ -241,7 +241,7 @@ Configuration for the analysis.
 ```python
 import requests
 
-url = "https://muraji-stage.wathbahs.com/api/audit/analyze"
+url = "https://muraji-api.wathbah.dev/api/audit/analyze"
 
 payload = {
     "applied_control": {

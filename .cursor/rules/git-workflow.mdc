@@ -1,0 +1,30 @@
+---
+description: Default git workflow for feature work on this repo
+alwaysApply: true
+---
+
+# Git workflow (default)
+
+When implementing features or fixes unless the user says otherwise:
+
+1. **Base branch**: `dev-version`
+2. **Feature branch**: create or reuse a named branch (e.g. `email-notifications-cycle`, kebab-case; no spaces)
+3. **Commit on the feature branch** — never commit directly to `dev-version` for feature work
+4. **Integrate**: switch to `dev-version`, fast-forward merge the feature branch (`git merge --ff-only <branch>`)
+5. **Push**: `git push origin dev-version` when the user asks to push or deploy
+
+## Before switching branches
+
+- Stash or commit uncommitted work if it would block the switch
+- Do not commit `.env`, secrets, or `__pycache__`
+
+## Commit messages
+
+- Prefix: `feat`, `fix`, `chore`, `refactor`, etc.
+- One or two sentences focused on **why**, not a file list
+
+## When user says "push" or "merge to dev-version"
+
+Run the full cycle: commit on feature branch → ff-merge into `dev-version` → push `dev-version`.
+
+Do not force-push `dev-version` unless explicitly requested.

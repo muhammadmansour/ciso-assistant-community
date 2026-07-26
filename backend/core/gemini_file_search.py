@@ -9,9 +9,10 @@ grounded ``fileSearch`` tool against these documents.
 """
 
 import os
+import tempfile
 import time
 import structlog
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Callable
 
 logger = structlog.get_logger(__name__)
 
@@ -44,6 +45,319 @@ GEMINI_HTTP_TIMEOUT_MS = int(os.getenv('GEMINI_HTTP_TIMEOUT_MS', '600000'))
 # backpressure often exceed minutes; tune via GEMINI_INDEX_MAX_WAIT_SECONDS on
 # the host (must include the Huey worker process — see start-pm2.sh).
 GEMINI_INDEX_MAX_WAIT_SECONDS = int(os.getenv('GEMINI_INDEX_MAX_WAIT_SECONDS', '1800'))
+
+# Conditional chunking for Gemini File Search indexing.
+#
+# Gemini chunks/embeds/indexes server-side; the only knob we have is the
+# ``chunking_config`` passed at upload time. We pick one of two profiles based
+# on document length. Small documents are usually structured/clause-based
+# (policies, certificates) and benefit from smaller, more precise chunks; large
+# documents are usually long-form narrative (reports, manuals) and benefit from
+# larger, more coherent chunks.
+#
+# Routing:
+#   * PDFs: route on the real page count (via pypdf) against
+#     GEMINI_CHUNK_PAGE_THRESHOLD (default 50 pages).
+#   * Everything else (docx/xlsx/csv/txt/images), or a PDF we can't parse, or
+#     when pypdf is unavailable: fall back to a file-size proxy against
+#     GEMINI_CHUNK_SIZE_THRESHOLD_BYTES (default ~2 MB).
+#
+# Profiles:
+#   * below threshold -> small profile (512 / 100)
+#   * at/above        -> large profile (1024 / 150)
+#
+# All values are env-tunable. Set a *_MAX_TOKENS value to 0 to disable that
+# profile and fall back to Gemini's automatic chunking.
+# Gemini File Search hard-caps tokens per chunk at 512 (the API returns
+# "number of tokens per chunk must be between 0 and 512" otherwise). We clamp to
+# this so a misconfigured env can never produce an invalid request again.
+GEMINI_MAX_CHUNK_TOKENS_LIMIT = 512
+
+GEMINI_CHUNK_PAGE_THRESHOLD = int(os.getenv('GEMINI_CHUNK_PAGE_THRESHOLD', '50'))
+GEMINI_CHUNK_SIZE_THRESHOLD_BYTES = int(os.getenv('GEMINI_CHUNK_SIZE_THRESHOLD_BYTES', '2000000'))
+
+# Document splitting for very large PDFs.
+#
+# ``chunking_config`` above only controls how the *extracted text* is sliced into
+# embedding chunks — it does NOT change how many pages Gemini ingests from a
+# single uploaded document. Very large PDFs (hundreds/thousands of pages) can be
+# only partially ingested, so deep pages never become retrievable. To guarantee
+# full coverage we physically split a large PDF into overlapping page-range
+# sub-PDFs and upload each as its own document into the SAME File Search store,
+# all tagged with the same evidence_revision_id. Retrieval (metadataFilter) then
+# spans every chunk transparently — querying is unchanged.
+#
+#   * GEMINI_SPLIT_PAGE_LIMIT   max pages per chunk (0 disables splitting)
+#   * GEMINI_SPLIT_PAGE_OVERLAP pages duplicated between adjacent chunks so
+#                               content that straddles a boundary is never cut
+#
+# Only PDFs are split (we need a page model); other file types upload whole.
+GEMINI_SPLIT_PAGE_LIMIT = int(os.getenv('GEMINI_SPLIT_PAGE_LIMIT', '100'))
+GEMINI_SPLIT_PAGE_OVERLAP = int(os.getenv('GEMINI_SPLIT_PAGE_OVERLAP', '10'))
+GEMINI_CHUNK_SMALL_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_MAX_TOKENS', '512'))
+GEMINI_CHUNK_SMALL_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_SMALL_OVERLAP_TOKENS', '100'))
+# Large profile is also capped at 512 (the API maximum); larger values are
+# clamped down in _build_chunking_config.
+GEMINI_CHUNK_LARGE_MAX_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_MAX_TOKENS', '512'))
+GEMINI_CHUNK_LARGE_OVERLAP_TOKENS = int(os.getenv('GEMINI_CHUNK_LARGE_OVERLAP_TOKENS', '150'))
+
+# Resumable uploads of large files can be torn down by a transient 503/network
+# blip; the SDK then retries the dead session and gets a 400 "Upload has already
+# been terminated". We retry the *whole* upload (a fresh session each time) with
+# exponential backoff to ride over these.
+GEMINI_UPLOAD_MAX_RETRIES = int(os.getenv('GEMINI_UPLOAD_MAX_RETRIES', '3'))
+GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS = float(
+    os.getenv('GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS', '5')
+)
+
+# Substrings (lowercased) that mark an upload error as transient/retryable.
+# Deliberately excludes generic "bad request"/"invalid" so genuine validation
+# errors fail fast instead of being retried.
+_TRANSIENT_UPLOAD_ERROR_MARKERS = (
+    'upload has already been terminated',
+    'terminated',
+    '503',
+    'service unavailable',
+    'unavailable',
+    'internal server error',
+    'internal error',
+    '429',
+    'too many requests',
+    'resource exhausted',
+    'rate limit',
+    'deadline',
+    'timeout',
+    'timed out',
+    'connection reset',
+    'connection aborted',
+    'broken pipe',
+    'eof occurred',
+    # Resumable upload sessions can be GC'd between the init POST (which
+    # returns 200 with an upload_id) and the follow-up data POST; the data
+    # POST then 404s on the session even though the file/store are fine.
+    # A retry opens a fresh session and recovers, so treat as transient.
+    '404',
+    'not_found',
+    'not found',
+    'requested entity was not found',
+)
+
+
+def _is_transient_upload_error(exc) -> bool:
+    """True when an upload error looks transient and worth retrying."""
+    msg = str(exc).lower()
+    return any(marker in msg for marker in _TRANSIENT_UPLOAD_ERROR_MARKERS)
+
+
+def _count_pdf_pages(file_path: str) -> Optional[int]:
+    """Return the PDF page count, or ``None`` when it can't be determined.
+
+    Returns ``None`` (so the caller falls back to the file-size proxy) when the
+    file is not a PDF, ``pypdf`` is not installed, the PDF is encrypted/corrupt,
+    or any parse error occurs. Never raises.
+    """
+    try:
+        with open(file_path, 'rb') as fh:
+            header = fh.read(5)
+    except OSError as exc:
+        logger.warning(
+            "Could not read file header for page count; using file-size proxy",
+            file_path=file_path,
+            error=str(exc),
+        )
+        return None
+
+    # Detect PDFs by magic bytes rather than extension — the upload tempfile may
+    # not carry a reliable suffix, and we never want to mis-parse a non-PDF.
+    if not header.startswith(b'%PDF'):
+        return None
+
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        logger.info(
+            "pypdf not installed; using file-size proxy for chunking. "
+            "Install pypdf to route PDFs by page count."
+        )
+        return None
+
+    try:
+        reader = PdfReader(file_path)
+        page_count = len(reader.pages)
+    except Exception as exc:  # noqa: BLE001 — never fail an upload over page counting
+        logger.warning(
+            "Could not read PDF page count; using file-size proxy",
+            file_path=file_path,
+            error=str(exc),
+        )
+        return None
+
+    return page_count if page_count > 0 else None
+
+
+def _build_chunking_config(file_path: str) -> Optional[Dict[str, Any]]:
+    """Pick a Gemini ``chunking_config`` based on the document's length.
+
+    For PDFs we route on the real page count (``pypdf``) against
+    ``GEMINI_CHUNK_PAGE_THRESHOLD``. For everything else — or when a PDF can't be
+    parsed / ``pypdf`` is missing — we fall back to a file-size proxy against
+    ``GEMINI_CHUNK_SIZE_THRESHOLD_BYTES``. Returns the
+    ``{'white_space_config': {...}}`` mapping expected by
+    ``upload_to_file_search_store``, or ``None`` when the selected profile's
+    ``max_tokens`` is ``0``/unset (falls back to Gemini's automatic chunking).
+    Never raises — on any error it returns ``None`` so the upload proceeds with
+    default chunking.
+    """
+    page_count = _count_pdf_pages(file_path)
+
+    if page_count is not None:
+        is_large = page_count >= GEMINI_CHUNK_PAGE_THRESHOLD
+        basis = {"routed_by": "pages", "page_count": page_count, "page_threshold": GEMINI_CHUNK_PAGE_THRESHOLD}
+    else:
+        try:
+            size_bytes = os.path.getsize(file_path)
+        except OSError as exc:
+            logger.warning(
+                "Could not stat file for chunking config; using Gemini default chunking",
+                file_path=file_path,
+                error=str(exc),
+            )
+            return None
+        is_large = size_bytes >= GEMINI_CHUNK_SIZE_THRESHOLD_BYTES
+        basis = {"routed_by": "size", "size_bytes": size_bytes, "threshold_bytes": GEMINI_CHUNK_SIZE_THRESHOLD_BYTES}
+
+    if is_large:
+        profile = "large"
+        max_tokens = GEMINI_CHUNK_LARGE_MAX_TOKENS
+        overlap_tokens = GEMINI_CHUNK_LARGE_OVERLAP_TOKENS
+    else:
+        profile = "small"
+        max_tokens = GEMINI_CHUNK_SMALL_MAX_TOKENS
+        overlap_tokens = GEMINI_CHUNK_SMALL_OVERLAP_TOKENS
+
+    if not max_tokens or max_tokens <= 0:
+        logger.info(
+            "Chunking profile disabled; using Gemini automatic chunking",
+            profile=profile,
+            **basis,
+        )
+        return None
+
+    # Gemini File Search rejects max_tokens_per_chunk > 512 with a 400. Clamp so
+    # an over-large env value degrades gracefully instead of failing the upload.
+    if max_tokens > GEMINI_MAX_CHUNK_TOKENS_LIMIT:
+        logger.warning(
+            "max_tokens_per_chunk exceeds Gemini limit; clamping",
+            profile=profile,
+            requested=max_tokens,
+            clamped_to=GEMINI_MAX_CHUNK_TOKENS_LIMIT,
+        )
+        max_tokens = GEMINI_MAX_CHUNK_TOKENS_LIMIT
+
+    # Overlap must be strictly smaller than the window; clamp defensively so a
+    # misconfigured env can't produce an invalid request.
+    if overlap_tokens < 0:
+        overlap_tokens = 0
+    if overlap_tokens >= max_tokens:
+        overlap_tokens = max(0, max_tokens // 5)
+
+    logger.info(
+        "Selected Gemini chunking profile",
+        profile=profile,
+        max_tokens_per_chunk=max_tokens,
+        max_overlap_tokens=overlap_tokens,
+        **basis,
+    )
+    return {
+        'white_space_config': {
+            'max_tokens_per_chunk': max_tokens,
+            'max_overlap_tokens': overlap_tokens,
+        }
+    }
+
+
+def _split_pdf_into_page_ranges(
+    file_path: str,
+    page_limit: int,
+    overlap: int,
+) -> List[Dict[str, Any]]:
+    """Split a PDF into overlapping page-range temp files.
+
+    Returns a list of ``{'path', 'start_page', 'end_page', 'index'}`` (page
+    numbers 1-indexed, inclusive). Returns an empty list — so the caller uploads
+    the file whole — when splitting is not applicable: ``page_limit`` <= 0, the
+    file is not a PDF, ``pypdf`` is missing, the page count is within the limit,
+    or any error occurs. Never raises.
+
+    The caller owns the returned temp files and must delete them.
+    """
+    if page_limit <= 0:
+        return []
+
+    page_count = _count_pdf_pages(file_path)
+    if not page_count or page_count <= page_limit:
+        return []
+
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        logger.info(
+            "pypdf not installed; cannot split large PDF, uploading whole. "
+            "Install pypdf to enable page-range splitting."
+        )
+        return []
+
+    if overlap < 0:
+        overlap = 0
+    if overlap >= page_limit:
+        # Overlap must leave forward progress; clamp to a fifth of the window.
+        overlap = max(0, page_limit // 5)
+    step = page_limit - overlap
+    if step <= 0:
+        step = page_limit
+
+    chunks: List[Dict[str, Any]] = []
+    try:
+        reader = PdfReader(file_path)
+        n = len(reader.pages)
+        start = 0
+        idx = 0
+        while start < n:
+            end = min(start + page_limit, n)
+            writer = PdfWriter()
+            for p in range(start, end):
+                writer.add_page(reader.pages[p])
+            tmp = tempfile.NamedTemporaryFile(
+                prefix='gemini-pdf-chunk-', suffix='.pdf', delete=False
+            )
+            tmp_path = tmp.name
+            tmp.close()
+            with open(tmp_path, 'wb') as fh:
+                writer.write(fh)
+            chunks.append({
+                'path': tmp_path,
+                'start_page': start + 1,
+                'end_page': end,
+                'index': idx,
+            })
+            idx += 1
+            if end >= n:
+                break
+            start += step
+    except Exception as exc:  # noqa: BLE001 — never fail an upload over splitting
+        logger.warning(
+            "Failed to split PDF into page ranges; will upload whole file",
+            file_path=file_path,
+            error=str(exc),
+        )
+        for c in chunks:
+            try:
+                os.unlink(c['path'])
+            except OSError:
+                pass
+        return []
+
+    return chunks
 
 
 class GeminiFileSearchClient:
@@ -116,49 +430,52 @@ class GeminiFileSearchClient:
         if encoded_metadata:
             upload_config['custom_metadata'] = encoded_metadata
 
-        try:
-            logger.info(
-                "Uploading file to Gemini File Search Store",
-                file_path=file_path,
-                display_name=display_name,
-                store_name=self.store_name,
-                custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
-            )
-            operation = self.client.file_search_stores.upload_to_file_search_store(
-                file=file_path,
-                file_search_store_name=self.store_name,
-                config=upload_config,
-            )
-        except TypeError as e:
-            # Older google-genai versions may not accept ``custom_metadata`` in
-            # the upload config. Retry once without metadata so the upload
-            # still succeeds; the operator gets a clear log line to upgrade.
-            if encoded_metadata and 'custom_metadata' in str(e):
-                logger.warning(
-                    "google-genai SDK rejected custom_metadata; retrying without it. "
-                    "Upgrade google-genai to enable per-document metadata filtering.",
-                    error=str(e),
+        chunking_config = _build_chunking_config(file_path)
+        if chunking_config:
+            upload_config['chunking_config'] = chunking_config
+
+        # Retry the whole upload on transient failures. Each attempt opens a
+        # *fresh* upload session — critical because the SDK can't recover a
+        # session torn down mid-stream by a 503 (it retries the dead session and
+        # gets a 400 "Upload has already been terminated"). Larger files take
+        # longer to stream and are far more exposed to such transient blips.
+        operation = None
+        for attempt in range(1, GEMINI_UPLOAD_MAX_RETRIES + 1):
+            try:
+                logger.info(
+                    "Uploading file to Gemini File Search Store",
+                    file_path=file_path,
+                    display_name=display_name,
+                    store_name=self.store_name,
+                    custom_metadata_keys=[m.get('key') for m in encoded_metadata] if encoded_metadata else [],
+                    chunking_config=chunking_config,
+                    attempt=attempt,
+                    max_attempts=GEMINI_UPLOAD_MAX_RETRIES,
                 )
-                upload_config.pop('custom_metadata', None)
-                operation = self.client.file_search_stores.upload_to_file_search_store(
-                    file=file_path,
-                    file_search_store_name=self.store_name,
-                    config=upload_config,
-                )
-            else:
+                operation = self._upload_to_file_search_store(file_path, upload_config)
+                break
+            except Exception as e:
+                transient = _is_transient_upload_error(e)
+                if attempt < GEMINI_UPLOAD_MAX_RETRIES and transient:
+                    delay = GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Transient error uploading to Gemini File Search Store; "
+                        "retrying with a fresh session",
+                        attempt=attempt,
+                        max_attempts=GEMINI_UPLOAD_MAX_RETRIES,
+                        retry_in_seconds=delay,
+                        error=str(e),
+                    )
+                    time.sleep(delay)
+                    continue
                 logger.error(
                     "Failed to upload file to Gemini File Search Store",
                     error=str(e),
                     file_path=file_path,
+                    attempt=attempt,
+                    transient=transient,
                 )
                 raise
-        except Exception as e:
-            logger.error(
-                "Failed to upload file to Gemini File Search Store",
-                error=str(e),
-                file_path=file_path,
-            )
-            raise
 
         operation_id = getattr(operation, 'name', '') or ''
 
@@ -237,6 +554,211 @@ class GeminiFileSearchClient:
             'gemini_store_id': self.store_name,
         }
 
+    def upload_evidence_file_and_wait(
+        self,
+        file_path: str,
+        display_name: str,
+        custom_metadata: Optional[Dict[str, Any]] = None,
+        max_wait_seconds: int = GEMINI_INDEX_MAX_WAIT_SECONDS,
+        poll_interval: int = 3,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> Dict[str, Any]:
+        """Upload a file, splitting very large PDFs into overlapping page chunks.
+
+        A large PDF is split into overlapping page-range sub-PDFs; each is
+        uploaded as its own document into the **same** store, all carrying the
+        **same** ``custom_metadata`` (notably ``evidence_revision_id``). Retrieval
+        via ``metadataFilter`` therefore spans every chunk — the split is purely
+        an upload-time detail, querying is unchanged. Non-PDFs and small PDFs are
+        uploaded whole (identical to ``upload_to_store_and_wait``).
+
+        ``progress_callback`` is invoked after every successful chunk with a
+        dict of ``{chunk_index, page_range, completed_chunks, total_chunks,
+        gemini_document_id}``. It is the caller's chance to surface live
+        progress (e.g. bump ``FileSearchTable.chunk_count``) without waiting
+        for the whole document to finish indexing. Exceptions raised by the
+        callback are logged and swallowed — they never abort the upload.
+
+        Returns an aggregate dict:
+            * status: 'completed' (all chunks indexed) | 'failed' | 'timeout'
+            * gemini_document_ids: list of durable document names
+            * gemini_document_id: first durable name (backward compat)
+            * gemini_store_id: the store name
+            * chunk_count: number of chunks (1 = uploaded whole)
+            * documents: per-chunk [{page_range, index, status, gemini_document_id}]
+            * operation_id / error: as applicable
+        """
+        chunks = _split_pdf_into_page_ranges(
+            file_path, GEMINI_SPLIT_PAGE_LIMIT, GEMINI_SPLIT_PAGE_OVERLAP
+        )
+
+        # No split needed → single whole-file upload (unchanged behaviour), but
+        # normalize the result to the aggregate shape.
+        if not chunks:
+            result = self.upload_to_store_and_wait(
+                file_path, display_name, custom_metadata,
+                max_wait_seconds, poll_interval,
+            )
+            doc_id = (
+                result.get('gemini_document_id', '')
+                if result.get('status') == 'completed' else ''
+            )
+            result['chunk_count'] = 1 if doc_id else 0
+            result['gemini_document_ids'] = [doc_id] if doc_id else []
+            return result
+
+        logger.info(
+            "Splitting large PDF for File Search upload",
+            file_path=file_path,
+            total_chunks=len(chunks),
+            page_limit=GEMINI_SPLIT_PAGE_LIMIT,
+            page_overlap=GEMINI_SPLIT_PAGE_OVERLAP,
+        )
+
+        documents: List[Dict[str, Any]] = []
+        doc_ids: List[str] = []
+        failed: Optional[Dict[str, Any]] = None
+        try:
+            for c in chunks:
+                page_range = f"{c['start_page']}-{c['end_page']}"
+                chunk_meta = dict(custom_metadata or {})
+                chunk_meta['chunk_index'] = str(c['index'])
+                chunk_meta['page_range'] = page_range
+                chunk_display = f"{display_name} [pages {page_range}]"
+
+                # Catch exceptions per-chunk so a hard failure on chunk N still
+                # lets us roll back chunks 0..N-1 (instead of crashing out with
+                # them left as orphans in the store).
+                try:
+                    res = self.upload_to_store_and_wait(
+                        c['path'], chunk_display, chunk_meta,
+                        max_wait_seconds, poll_interval,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "Chunk upload raised; will roll back successful chunks",
+                        chunk_index=c['index'],
+                        page_range=page_range,
+                        error=str(exc),
+                    )
+                    res = {
+                        'status': 'failed',
+                        'error': f'{type(exc).__name__}: {exc}',
+                    }
+
+                documents.append({
+                    'page_range': page_range,
+                    'index': c['index'],
+                    'status': res.get('status'),
+                    'gemini_document_id': res.get('gemini_document_id', ''),
+                })
+                if res.get('status') == 'completed' and res.get('gemini_document_id'):
+                    doc_ids.append(res['gemini_document_id'])
+
+                    # Surface live progress (e.g. bump FileSearchTable.chunk_count)
+                    # so the UI sees 1/N, 2/N, ... instead of staring at 0/N for
+                    # 20 minutes. Callback exceptions are non-fatal: we have a
+                    # successful indexed chunk in the store either way.
+                    if progress_callback is not None:
+                        try:
+                            progress_callback({
+                                'chunk_index': c['index'],
+                                'page_range': page_range,
+                                'completed_chunks': len(doc_ids),
+                                'total_chunks': len(chunks),
+                                'gemini_document_id': res['gemini_document_id'],
+                            })
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning(
+                                "progress_callback raised; continuing upload",
+                                chunk_index=c['index'],
+                                page_range=page_range,
+                                error=str(exc),
+                            )
+                else:
+                    failed = res
+                    break  # stop on first failing chunk
+        finally:
+            for c in chunks:
+                try:
+                    os.unlink(c['path'])
+                except OSError:
+                    pass
+
+        if failed is not None:
+            # Roll back the chunks that DID index so a retry starts clean and we
+            # never leave a half-indexed document set behind.
+            if doc_ids:
+                self.delete_store_documents(doc_ids)
+            failed_range = documents[-1]['page_range'] if documents else '?'
+            return {
+                'status': failed.get('status', 'failed'),
+                'gemini_document_ids': [],
+                'gemini_document_id': '',
+                'gemini_store_id': self.store_name,
+                'chunk_count': len(chunks),
+                'documents': documents,
+                'error': (
+                    f"chunk {len(doc_ids) + 1}/{len(chunks)} (pages {failed_range}) "
+                    f"failed: {failed.get('error', 'unknown error')}"
+                ),
+            }
+
+        logger.info(
+            "Large PDF fully indexed across chunks",
+            store_name=self.store_name,
+            chunk_count=len(chunks),
+            document_count=len(doc_ids),
+        )
+        return {
+            'status': 'completed',
+            'gemini_document_ids': doc_ids,
+            'gemini_document_id': doc_ids[0] if doc_ids else '',
+            'gemini_store_id': self.store_name,
+            'chunk_count': len(chunks),
+            'documents': documents,
+        }
+
+    def _upload_to_file_search_store(self, file_path: str, upload_config: Dict[str, Any]):
+        """One upload attempt, with graceful fallback for older SDKs.
+
+        Older google-genai versions may not accept ``custom_metadata`` or
+        ``chunking_config`` in the upload config (raising ``TypeError``). We drop
+        whichever key the SDK complained about and retry once within this single
+        attempt, so the upload still succeeds. ``upload_config`` is mutated in
+        place so dropped keys stay dropped on subsequent transient retries.
+        """
+        try:
+            return self.client.file_search_stores.upload_to_file_search_store(
+                file=file_path,
+                file_search_store_name=self.store_name,
+                config=upload_config,
+            )
+        except TypeError as e:
+            err_str = str(e)
+            dropped = []
+            if 'custom_metadata' in upload_config and 'custom_metadata' in err_str:
+                upload_config.pop('custom_metadata', None)
+                dropped.append('custom_metadata')
+            if 'chunking_config' in upload_config and 'chunking_config' in err_str:
+                upload_config.pop('chunking_config', None)
+                dropped.append('chunking_config')
+
+            if not dropped:
+                raise
+
+            logger.warning(
+                "google-genai SDK rejected upload config keys; retrying without them. "
+                "Upgrade google-genai to enable these features.",
+                dropped_keys=dropped,
+                error=err_str,
+            )
+            return self.client.file_search_stores.upload_to_file_search_store(
+                file=file_path,
+                file_search_store_name=self.store_name,
+                config=upload_config,
+            )
+
     @staticmethod
     def _encode_custom_metadata(custom_metadata):
         """Encode a ``{key: value}`` dict into the SDK's ``CustomMetadata`` shape.
@@ -307,13 +829,27 @@ class GeminiFileSearchClient:
 
         Returns True on success, False on any failure (logged). Never raises —
         deletion is a cleanup operation, not a critical path.
+
+        Indexed documents in a File Search Store are "non-empty" (they contain
+        Chunks), and Gemini returns ``400 FAILED_PRECONDITION: Cannot delete
+        non-empty Document`` unless ``force=true`` is set. We pass ``force=True``
+        so cleanup of indexed documents actually succeeds; on older SDK versions
+        that don't accept the ``config`` kwarg we transparently fall back.
         """
         if not document_name or not document_name.startswith('fileSearchStores/'):
             return False
         if not self.client:
             return False
         try:
-            self.client.file_search_stores.documents.delete(name=document_name)
+            try:
+                self.client.file_search_stores.documents.delete(
+                    name=document_name, config={'force': True}
+                )
+            except TypeError:
+                # Older google-genai SDKs don't accept ``config`` here; fall
+                # back to the no-flag call (will 400 on indexed docs but lets
+                # us still clean up empty ones, e.g. a failed-mid-upload row).
+                self.client.file_search_stores.documents.delete(name=document_name)
             logger.info("Deleted File Search Store document", document_name=document_name)
             return True
         except Exception as e:
@@ -323,6 +859,18 @@ class GeminiFileSearchClient:
                 error=str(e),
             )
             return False
+
+    def delete_store_documents(self, document_names: List[str]) -> int:
+        """Best-effort deletion of several File Search Store documents.
+
+        Returns the count successfully deleted. Used to clean up every chunk of a
+        split upload (e.g. on revision delete or to roll back a partial upload).
+        """
+        deleted = 0
+        for name in document_names or []:
+            if self.delete_store_document(name):
+                deleted += 1
+        return deleted
 
 
 def list_gemini_file_search_stores_metadata(

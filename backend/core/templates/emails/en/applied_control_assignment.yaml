@@ -1,8 +1,21 @@
 subject: "Wathbah GRC: You have been assigned to '${control_name}'"
+intro: "You have been assigned as an owner of the following Applied Control."
+action: "Open the control in Wathbah GRC to update its status, evidences or owners."
+details_heading: "Control details"
+name_label: "Name"
+description_label: "Description"
+ref_id_label: "Reference ID"
+status_label: "Status"
+priority_label: "Priority"
+eta_label: "ETA"
+domain_label: "Domain"
+cta_label: "Open control"
+greeting: "Hello,"
+closing: "Thank you."
 body: |
   Hello,
 
-  You have been assigned to the following Control:
+  You have been assigned as an owner of the following Applied Control:
 
   - Name: ${control_name}
   - Description: ${control_description}
@@ -12,7 +25,7 @@ body: |
   - ETA: ${control_eta}
   - Domain: ${folder_name}
 
-  View this control directly:
+  Open the control in Wathbah GRC:
   ${ciso_assistant_url}/applied-controls/${control_id}
 
   Thank you.

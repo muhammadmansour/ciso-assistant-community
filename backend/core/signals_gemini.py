@@ -17,13 +17,17 @@ logger = structlog.get_logger(__name__)
 
 @receiver(post_delete, sender=FileSearchTable)
 def delete_gemini_store_document(sender, instance: FileSearchTable, **kwargs):
-    """Best-effort: delete the corresponding File Search Store document.
+    """Best-effort: delete every File Search Store document for this revision.
 
-    Failures are logged and swallowed — the local row is already gone, and the
-    upstream document (if any) can be reconciled by a periodic sweep job.
+    A split (large-PDF) upload produces multiple chunk documents, so we delete
+    them all. Failures are logged and swallowed — the local row is already gone,
+    and any leftover document can be reconciled by a periodic sweep job.
     """
-    document_name = getattr(instance, 'gemini_document_id', '') or ''
-    if not document_name.startswith('fileSearchStores/'):
+    try:
+        document_names = instance.all_document_ids()
+    except Exception:
+        document_names = []
+    if not document_names:
         return
 
     try:
@@ -32,10 +36,10 @@ def delete_gemini_store_document(sender, instance: FileSearchTable, **kwargs):
         client = get_gemini_client()
         if not client:
             return
-        client.delete_store_document(document_name)
+        client.delete_store_documents(document_names)
     except Exception as e:
         logger.warning(
-            "Failed to delete Gemini store document on FileSearchTable delete",
-            document_name=document_name,
+            "Failed to delete Gemini store document(s) on FileSearchTable delete",
+            document_count=len(document_names),
             error=str(e),
         )
