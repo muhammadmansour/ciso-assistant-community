@@ -94,8 +94,12 @@ jobs:
 
       # ── pp-instance ────────────────────────────────────────────────
       - name: Setup SSH key (pp-instance)
+        # Stored base64-encoded (single line) so it can't be corrupted by
+        # newline/whitespace mangling when pasted into the GitHub secret box —
+        # a raw multi-line PEM key is fragile to copy/paste and fails with
+        # "Load key ...: error in libcrypto" if any line breaks get lost.
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_PP_INSTANCE }}" > ~/.ssh/id_rsa_pp_instance
+          echo "${{ secrets.SSH_PRIVATE_KEY_PP_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_pp_instance
           chmod 600 ~/.ssh/id_rsa_pp_instance
           ssh-keyscan -H ${{ secrets.SSH_HOST_PP_INSTANCE }} >> ~/.ssh/known_hosts
 
@@ -124,8 +128,9 @@ jobs:
 
       # ── singleview-instance ───────────────────────────────────────
       - name: Setup SSH key (singleview-instance)
+        # base64-encoded for the same reason as the pp-instance key above.
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_SINGLEVIEW_INSTANCE }}" > ~/.ssh/id_rsa_singleview_instance
+          echo "${{ secrets.SSH_PRIVATE_KEY_SINGLEVIEW_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_singleview_instance
           chmod 600 ~/.ssh/id_rsa_singleview_instance
           ssh-keyscan -H ${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} >> ~/.ssh/known_hosts
 
