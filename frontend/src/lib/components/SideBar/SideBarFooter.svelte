@@ -59,14 +59,14 @@
 				zIndex="1000"
 			>
 				{#snippet trigger()}
-					<button
+					<span
 						class="btn bg-initial text-white/50 hover:text-white transition-colors"
 						data-testid="sidebar-more-btn"
 						aria-label="More options"
 						id="sidebar-more-btn"
 					>
 						<i class="fa-solid fa-ellipsis-vertical"></i>
-					</button>
+					</span>
 				{/snippet}
 				{#snippet content()}
 					<div data-testid="sidebar-more-panel">

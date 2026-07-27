@@ -468,13 +468,12 @@
 									{:else if count > 1}
 										<Popover triggerBase="w-full" positioning={{ placement: 'top' }}>
 											{#snippet trigger()}
-												<button
-													type="button"
+												<div
 													class="{cellClass} w-full cursor-pointer hover:ring-2 hover:ring-blue-400/70"
 													style={cellStyle(count, score)}
 												>
 													{count}
-												</button>
+												</div>
 											{/snippet}
 											{#snippet content()}
 												<div class="card bg-white border border-gray-200 shadow-lg p-3 min-w-[10rem]">
