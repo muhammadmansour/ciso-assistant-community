@@ -466,11 +466,7 @@
 											{count}
 										</Anchor>
 									{:else if count > 1}
-										<Popover
-											triggerBase="w-full"
-											positioning={{ placement: 'top' }}
-											arrow
-										>
+										<Popover triggerBase="w-full" positioning={{ placement: 'top' }}>
 											{#snippet trigger()}
 												<button
 													type="button"
