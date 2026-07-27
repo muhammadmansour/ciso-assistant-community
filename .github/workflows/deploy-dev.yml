@@ -91,3 +91,63 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "bash ~/ciso-dev/ciso-assistant-community/start-pm2.sh restart"
+
+      # ── pp-instance ────────────────────────────────────────────────
+      - name: Setup SSH key (pp-instance)
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY_PP_INSTANCE }}" > ~/.ssh/id_rsa_pp_instance
+          chmod 600 ~/.ssh/id_rsa_pp_instance
+          ssh-keyscan -H ${{ secrets.SSH_HOST_PP_INSTANCE }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest backend code on pp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_pp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
+            "cd ~/ciso-assistant-community && \
+             git fetch origin dev-version && \
+             git reset --hard origin/dev-version && \
+             git clean -fdx backend/core/migrations/ && \
+             git log -1 --pretty=oneline"
+
+      - name: Copy build to pp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_pp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
+            "mkdir -p ~/ciso-assistant-community/frontend/build"
+          rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
+            -e "ssh -i ~/.ssh/id_rsa_pp_instance" \
+            ./frontend/build/ \
+            ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+
+      - name: Run remote start script on pp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_pp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
+            "bash ~/ciso-assistant-community/start-pm2.sh restart"
+
+      # ── singleview-instance ───────────────────────────────────────
+      - name: Setup SSH key (singleview-instance)
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY_SINGLEVIEW_INSTANCE }}" > ~/.ssh/id_rsa_singleview_instance
+          chmod 600 ~/.ssh/id_rsa_singleview_instance
+          ssh-keyscan -H ${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest backend code on singleview-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_singleview_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
+            "cd ~/ciso-assistant-community && \
+             git fetch origin dev-version && \
+             git reset --hard origin/dev-version && \
+             git clean -fdx backend/core/migrations/ && \
+             git log -1 --pretty=oneline"
+
+      - name: Copy build to singleview-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_singleview_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
+            "mkdir -p ~/ciso-assistant-community/frontend/build"
+          rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
+            -e "ssh -i ~/.ssh/id_rsa_singleview_instance" \
+            ./frontend/build/ \
+            ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+
+      - name: Run remote start script on singleview-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_singleview_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
+            "bash ~/ciso-assistant-community/start-pm2.sh restart"
