@@ -3,20 +3,20 @@
 import requests
 import sys
 from rich import print as rprint
-from .config import API_URL, TOKEN, VERIFY_CERTIFICATE, HTTP_TIMEOUT
+from .config import API_URL, VERIFY_CERTIFICATE, HTTP_TIMEOUT, resolve_token
 
 
 def get_headers():
     """Get common headers for API requests"""
     return {
-        "Authorization": f"Token {TOKEN}",
+        "Authorization": f"Token {resolve_token()}",
     }
 
 
 def get_json_headers():
     """Get headers for JSON API requests"""
     return {
-        "Authorization": f"Token {TOKEN}",
+        "Authorization": f"Token {resolve_token()}",
         "Content-Type": "application/json",
     }
 
