@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: Mesure expirant dans ${days_remaining} jour(s)"
+subject: "Muhkam: Mesure expirant dans ${days_remaining} jour(s)"
 body: |
   Bonjour,
 
@@ -6,7 +6,7 @@ body: |
 
   ${control_list}
 
-  Veuillez vous connecter à votre portail Wathbah GRC pour réviser et compléter ces mesures:
+  Veuillez vous connecter à votre portail Muhkam pour réviser et compléter ces mesures:
   ${ciso_assistant_url}
 
   Merci.

@@ -77,10 +77,11 @@
 					<span class="text-white/90 text-xs font-semibold uppercase tracking-widest">Admin Console</span>
 				</div>
 
-				<!-- Title -->
-				<div class="text-5xl font-extrabold tracking-tight mb-1">
-					<span class="text-[#0077CC]">W</span><span class="text-white">athbahGRC</span>
-				</div>
+				<img
+					src="/brand/muhkam/svg/muhkam-lockup-stacked-reversed.svg"
+					alt="Muhkam"
+					class="h-20 w-auto max-w-xs mb-1"
+				/>
 
 				<!-- Subtitle -->
 				<h2 class="text-2xl font-bold text-white mb-4">Admin</h2>
@@ -135,7 +136,7 @@
 				class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
 			>
 				<i class="fa-solid fa-arrow-left text-xs"></i>
-				Back to WathbahGRC
+				Back to Muhkam
 			</a>
 		</div>
 
@@ -143,13 +144,12 @@
 		<div class="flex-1 flex items-center justify-center">
 			<div class="w-full max-w-[420px]">
 				<!-- Mobile logo -->
-				<div class="lg:hidden flex items-center gap-3 mb-10">
-					<div
-						class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
-					>
-						W
-					</div>
-					<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC Admin</span>
+				<div class="lg:hidden flex items-center mb-10">
+					<img
+						src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
+						alt="Muhkam Admin"
+						class="h-10 w-auto max-w-[220px]"
+					/>
 				</div>
 
 				<!-- Admin Login Card -->
@@ -246,16 +246,12 @@
 					Protected by enterprise-grade security
 				</p>
 
-				<!-- Powered by Wathbah -->
-				<div class="mt-8 flex flex-col items-center gap-1.5">
-					<span class="text-gray-400 text-xs">Powered by</span>
-					<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
-						<img
-							src="/wathba_logo_full.png"
-							alt="Wathbah"
-							class="h-10 hover:opacity-90 transition-opacity"
-						/>
-					</a>
+				<div class="mt-8 flex justify-center">
+					<img
+						src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
+						alt="Muhkam"
+						class="h-8 w-auto opacity-80"
+					/>
 				</div>
 			</div>
 		</div>

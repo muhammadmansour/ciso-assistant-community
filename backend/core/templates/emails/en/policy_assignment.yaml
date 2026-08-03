@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to policy '${policy_name}'"
+subject: "Muhkam: You have been assigned to policy '${policy_name}'"
 intro: "You have been assigned as an owner of the following Policy."
-action: "Open the policy in Wathbah GRC to review or update its details."
+action: "Open the policy in Muhkam to review or update its details."
 details_heading: "Policy details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - ETA: ${policy_eta}
   - Domain: ${folder_name}
 
-  Open the policy in Wathbah GRC:
+  Open the policy in Muhkam:
   ${ciso_assistant_url}/policies/${policy_id}
 
   Thank you.

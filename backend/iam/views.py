@@ -287,7 +287,7 @@ class PasswordResetView(views.APIView):
                     )
                     associated_user.mailing(
                         email_template_name="registration/password_reset_email.html",
-                        subject=_("Wathbah GRC: Password Reset"),
+                        subject=_("Muhkam: Password Reset"),
                     )
                     logger.info(
                         "Password reset email request processed", recipient=email

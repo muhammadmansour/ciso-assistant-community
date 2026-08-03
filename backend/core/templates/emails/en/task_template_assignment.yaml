@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to '${task_name}'"
+subject: "Muhkam: You have been assigned to '${task_name}'"
 intro: "You have been assigned to the following task."
-action: "Open the task in Wathbah GRC to update its status, observation or assignment."
+action: "Open the task in Muhkam to update its status, observation or assignment."
 details_heading: "Task details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - Observation: ${task_observation}
   - Domain: ${folder_name}
 
-  Open the task in Wathbah GRC:
+  Open the task in Muhkam:
   ${ciso_assistant_url}/task-templates/${task_id}
 
   Thank you.

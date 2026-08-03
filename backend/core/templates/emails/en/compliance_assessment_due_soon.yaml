@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: Audit due in ${days_remaining} ${days_text}"
+subject: "Muhkam: Audit due in ${days_remaining} ${days_text}"
 body: |
   Hello,
 
@@ -6,7 +6,7 @@ body: |
 
   ${assessment_list}
 
-  Please log in to your Wathbah GRC portal to review and complete these audits:
+  Please log in to your Muhkam portal to review and complete these audits:
   ${ciso_assistant_url}
 
   Thank you.

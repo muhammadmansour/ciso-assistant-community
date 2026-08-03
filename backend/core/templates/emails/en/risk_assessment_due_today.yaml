@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Risk assessment '${assessment_name}' is due today"
+subject: "Muhkam: Risk assessment '${assessment_name}' is due today"
 intro: "A risk assessment you are responsible for is due today."
-action: "Open the risk assessment in Wathbah GRC to update its status or hand it over for review."
+action: "Open the risk assessment in Muhkam to update its status or hand it over for review."
 details_heading: "Risk assessment details"
 name_label: "Name"
 status_label: "Status"
@@ -19,7 +19,7 @@ body: |
   - Due date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Open the risk assessment in Wathbah GRC:
+  Open the risk assessment in Muhkam:
   ${ciso_assistant_url}/risk-assessments/${assessment_id}
 
   Thank you.

@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Exception '${exception_name}' has expired"
+subject: "Muhkam: Exception '${exception_name}' has expired"
 intro: "A security exception assigned to you has expired."
-action: "Open the exception in Wathbah GRC to review its status and renew or close it if needed."
+action: "Open the exception in Muhkam to review its status and renew or close it if needed."
 details_heading: "Exception details"
 name_label: "Name"
 description_label: "Description"
@@ -23,7 +23,7 @@ body: |
   - Expiration date: ${exception_expiration_date}
   - Domain: ${folder_name}
 
-  Open the exception in Wathbah GRC:
+  Open the exception in Muhkam:
   ${ciso_assistant_url}/security-exceptions/${exception_id}
 
   Thank you.

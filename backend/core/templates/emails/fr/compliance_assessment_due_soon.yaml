@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: Audit à échoir dans ${days_remaining} jour(s)"
+subject: "Muhkam: Audit à échoir dans ${days_remaining} jour(s)"
 body: |
   Bonjour,
 
@@ -6,7 +6,7 @@ body: |
 
   ${assessment_list}
 
-  Veuillez vous connecter à votre portail Wathbah GRC pour réviser et compléter ces audits:
+  Veuillez vous connecter à votre portail Muhkam pour réviser et compléter ces audits:
   ${ciso_assistant_url}
 
   Merci.

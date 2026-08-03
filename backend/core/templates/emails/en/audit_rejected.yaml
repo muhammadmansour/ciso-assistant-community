@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: Audit review rejected — '${assessment_name}'"
+subject: "Muhkam: Audit review rejected — '${assessment_name}'"
 intro: "The status of the following Audit has changed. The review did not pass and the audit has been sent back for rework."
 action: "As an author, please address the reviewer's feedback and resubmit the audit."
 details_heading: "Audit details"

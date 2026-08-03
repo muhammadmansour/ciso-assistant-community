@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: Audit status changed to Deprecated — '${assessment_name}'"
+subject: "Muhkam: Audit status changed to Deprecated — '${assessment_name}'"
 intro: "The status of the following Audit has changed and it is no longer active."
 action: "Open the audit for details."
 details_heading: "Audit details"

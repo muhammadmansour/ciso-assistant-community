@@ -1,4 +1,4 @@
-subject: "Wathbah GRC : statut de l'audit passé à Déprécié — '${assessment_name}'"
+subject: "Muhkam : statut de l'audit passé à Déprécié — '${assessment_name}'"
 intro: "Le statut de l'audit suivant a changé et il n'est plus actif."
 action: "Ouvrez l'audit pour plus de détails."
 details_heading: "Détails de l'audit"

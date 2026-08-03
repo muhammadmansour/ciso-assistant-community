@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Applied control '${control_name}' has reached its ETA"
+subject: "Muhkam: Applied control '${control_name}' has reached its ETA"
 intro: "An applied control assigned to you has reached its ETA while still in progress."
-action: "Open the control in Wathbah GRC to move it forward or update its ETA."
+action: "Open the control in Muhkam to move it forward or update its ETA."
 details_heading: "Control details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - ETA: ${control_eta}
   - Domain: ${folder_name}
 
-  Open the control in Wathbah GRC:
+  Open the control in Muhkam:
   ${ciso_assistant_url}/applied-controls/${control_id}
 
   Thank you.

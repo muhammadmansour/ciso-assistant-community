@@ -51,7 +51,7 @@
 					<QR
 						data={totp.totp_url.replace(
 							/issuer=[^&]+/,
-							'issuer=' + encodeURIComponent('Wathbah GRC')
+							'issuer=' + encodeURIComponent('Muhkam')
 						)}
 						anchorInnerFill="black"
 						anchorOuterFill="black"

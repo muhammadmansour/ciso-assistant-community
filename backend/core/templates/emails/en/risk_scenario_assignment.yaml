@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to risk scenario '${scenario_name}'"
+subject: "Muhkam: You have been assigned to risk scenario '${scenario_name}'"
 intro: "You have been assigned as an owner of the following Risk Scenario."
-action: "Open the scenario in Wathbah GRC to update its treatment, controls or owners."
+action: "Open the scenario in Muhkam to update its treatment, controls or owners."
 details_heading: "Risk scenario details"
 name_label: "Name"
 description_label: "Description"
@@ -23,7 +23,7 @@ body: |
   - Treatment: ${scenario_treatment}
   - Domain: ${folder_name}
 
-  Open the scenario in Wathbah GRC:
+  Open the scenario in Muhkam:
   ${ciso_assistant_url}/risk-scenarios/${scenario_id}
 
   Thank you.

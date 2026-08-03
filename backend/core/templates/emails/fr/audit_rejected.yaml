@@ -1,4 +1,4 @@
-subject: "Wathbah GRC : revue de l'audit rejetée — '${assessment_name}'"
+subject: "Muhkam : revue de l'audit rejetée — '${assessment_name}'"
 intro: "Le statut de l'audit suivant a changé. La revue n'a pas été validée et l'audit a été renvoyé pour correction."
 action: "En tant qu'auteur, veuillez traiter les retours du relecteur et soumettre à nouveau l'audit."
 details_heading: "Détails de l'audit"

@@ -942,7 +942,7 @@ def _deliver_assignment_email(
         secondary_heading=secondary_heading
         or rendered.get("events_history_heading", "Events history"),
         secondary_section_html=secondary_section_html,
-        cta_label=rendered.get("cta_label", "Open in Wathbah GRC"),
+        cta_label=rendered.get("cta_label", "Open in Muhkam"),
         greeting=rendered.get("greeting", "Hello,"),
         closing=rendered.get("closing", "Thank you."),
     )

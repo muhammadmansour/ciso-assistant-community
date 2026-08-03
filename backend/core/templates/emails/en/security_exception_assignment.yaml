@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to exception '${exception_name}'"
+subject: "Muhkam: You have been assigned to exception '${exception_name}'"
 intro: "You have been assigned as an owner of the following Security Exception."
-action: "Open the exception in Wathbah GRC to review the justification, approver and expiry."
+action: "Open the exception in Muhkam to review the justification, approver and expiry."
 details_heading: "Exception details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - Expiration date: ${exception_expiration_date}
   - Domain: ${folder_name}
 
-  Open the exception in Wathbah GRC:
+  Open the exception in Muhkam:
   ${ciso_assistant_url}/security-exceptions/${exception_id}
 
   Thank you.

@@ -18,13 +18,13 @@ logger = structlog.getLogger(__name__)
 TEMPLATE_BASE_PATH = Path(__file__).parent / "templates" / "emails"
 
 # Logo lives in the frontend static root, served at <CISO_ASSISTANT_URL>/<file>.
-LOGO_FILENAME = "wathba_logo_full.png"
+LOGO_FILENAME = "muhkam-logo.png"
 
 _URL_RE = re.compile(r"(https?://[^\s<]+)")
 
 
 def get_logo_url() -> str:
-    """Public URL of the Wathbah logo, derived from CISO_ASSISTANT_URL (.env)."""
+    """Public URL of the Muhkam logo, derived from CISO_ASSISTANT_URL (.env)."""
     base_url = getattr(
         settings, "CISO_ASSISTANT_URL", "http://localhost:5173"
     ).rstrip("/")
@@ -90,7 +90,7 @@ def render_audit_status_html_email(
         f'<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">'
         f'<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
         f'<div style="padding:20px 24px;text-align:center;border-bottom:1px solid #e5e7eb;">'
-        f'<img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;border:0;">'
+        f'<img src="{logo_url}" alt="Muhkam" height="48" style="height:48px;border:0;">'
         f"</div>"
         f'<div style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">'
         f"<p style=\"margin:0 0 8px;\">{escape(greeting)}</p>"
@@ -105,7 +105,7 @@ def render_audit_status_html_email(
         f"{cta_button}"
         f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
         f"</div>"
-        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Powered by Wathbah</div>'
+        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Muhkam</div>'
         f"</div></body></html>"
     )
 
@@ -120,7 +120,7 @@ def render_assignment_html_email(
     details_heading: str = "Details",
     secondary_heading: Optional[str] = None,
     secondary_section_html: Optional[str] = None,
-    cta_label: str = "Open in Wathbah GRC",
+    cta_label: str = "Open in Muhkam",
     greeting: str = "Hello,",
     closing: str = "Thank you.",
 ) -> str:
@@ -128,7 +128,7 @@ def render_assignment_html_email(
 
     Mirrors `render_audit_status_html_email` so every assignment email
     (controls, evidences, policies, exceptions, risk scenarios, metric
-    instances, ...) shares the same Wathbah-branded layout: logo header,
+    instances, ...) shares the same Muhkam-branded layout: logo header,
     greeting + bold intro, two-column details table, CTA button, closing,
     footer.
 
@@ -197,7 +197,7 @@ def render_assignment_html_email(
         f'<body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">'
         f'<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
         f'<div style="padding:20px 24px;text-align:center;border-bottom:1px solid #e5e7eb;">'
-        f'<img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;border:0;">'
+        f'<img src="{logo_url}" alt="Muhkam" height="48" style="height:48px;border:0;">'
         f"</div>"
         f'<div style="padding:24px;color:#111827;font-size:14px;line-height:1.6;">'
         f"<p style=\"margin:0 0 8px;\">{escape(greeting)}</p>"
@@ -209,14 +209,14 @@ def render_assignment_html_email(
         f"{cta_button}"
         f'<p style="margin:0;color:#6b7280;">{escape(closing)}</p>'
         f"</div>"
-        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Powered by Wathbah</div>'
+        f'<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Muhkam</div>'
         f"</div></body></html>"
     )
 
 
 def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
     """Wrap a plain-text email body in a simple, client-friendly HTML layout
-    with the Wathbah logo as a header.
+    with the Muhkam logo as a header.
 
     The body is HTML-escaped, bare URLs are turned into links, and newlines are
     converted to <br> so the YAML templates remain the single source of content.
@@ -240,7 +240,7 @@ def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
             <tr>
               <td align="center" style="padding:24px;background-color:#ffffff;border-bottom:1px solid #e5e7eb;">
-                <img src="{logo_url}" alt="Wathbah GRC" height="48" style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
+                <img src="{logo_url}" alt="Muhkam" height="48" style="height:48px;display:block;border:0;outline:none;text-decoration:none;" />
               </td>
             </tr>
             <tr>
@@ -250,7 +250,7 @@ def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
             </tr>
             <tr>
               <td style="padding:16px 24px;background-color:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">
-                Powered by Wathbah
+                Muhkam
               </td>
             </tr>
           </table>

@@ -45,10 +45,12 @@
 </script>
 
 <div class="flex flex-col items-center text-center">
-	<!-- Title -->
-	<div class="text-5xl font-extrabold tracking-tight mb-3">
-		<span class="text-[#0077CC]">W</span><span class="text-white">athbahGRC</span>
-	</div>
+	<!-- Logo -->
+	<img
+		src="/brand/muhkam/svg/muhkam-lockup-stacked-reversed.svg"
+		alt="Muhkam"
+		class="h-24 w-auto max-w-sm mb-3"
+	/>
 
 	<!-- Subtitle -->
 	<h1 class="text-3xl font-bold text-white leading-tight mb-4 whitespace-nowrap">

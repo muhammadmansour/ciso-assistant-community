@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Evidence '${evidence_name}' was rejected"
+subject: "Muhkam: Evidence '${evidence_name}' was rejected"
 intro: "An evidence record assigned to you has been rejected."
-action: "Open the evidence in Wathbah GRC to review the feedback and upload a revised version if needed."
+action: "Open the evidence in Muhkam to review the feedback and upload a revised version if needed."
 details_heading: "Evidence details"
 name_label: "Name"
 description_label: "Description"
@@ -22,7 +22,7 @@ body: |
   - Expiry date: ${evidence_expiry_date}
   - Domain: ${folder_name}
 
-  Open the evidence in Wathbah GRC:
+  Open the evidence in Muhkam:
   ${ciso_assistant_url}/evidences/${evidence_id}
 
   Thank you.

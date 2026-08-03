@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to '${control_name}'"
+subject: "Muhkam: You have been assigned to '${control_name}'"
 intro: "You have been assigned as an owner of the following Applied Control."
-action: "Open the control in Wathbah GRC to update its status, evidences or owners."
+action: "Open the control in Muhkam to update its status, evidences or owners."
 details_heading: "Control details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - ETA: ${control_eta}
   - Domain: ${folder_name}
 
-  Open the control in Wathbah GRC:
+  Open the control in Muhkam:
   ${ciso_assistant_url}/applied-controls/${control_id}
 
   Thank you.

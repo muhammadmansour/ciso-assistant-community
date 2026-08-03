@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Vous avez été affecté à '${task_name}'"
+subject: "Muhkam: Vous avez été affecté à '${task_name}'"
 intro: "Vous avez été affecté à la tâche suivante."
-action: "Ouvrez la tâche dans Wathbah GRC pour mettre à jour son statut, son observation ou son affectation."
+action: "Ouvrez la tâche dans Muhkam pour mettre à jour son statut, son observation ou son affectation."
 details_heading: "Détails de la tâche"
 name_label: "Nom"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - Observation : ${task_observation}
   - Domaine : ${folder_name}
 
-  Ouvrez la tâche dans Wathbah GRC :
+  Ouvrez la tâche dans Muhkam :
   ${ciso_assistant_url}/task-templates/${task_id}
 
   Merci.

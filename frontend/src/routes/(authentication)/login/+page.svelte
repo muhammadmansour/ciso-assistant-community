@@ -36,13 +36,12 @@
 	<div class="flex-1 bg-gray-50 flex items-center justify-center px-6 py-6">
 		<div class="w-full max-w-[420px]">
 			<!-- Mobile logo -->
-			<div class="lg:hidden flex items-center gap-3 mb-10">
-				<div
-					class="w-10 h-10 bg-[#0A1628] rounded-xl flex items-center justify-center font-bold text-white text-lg"
-				>
-					W
-				</div>
-				<span class="font-semibold text-xl text-[#0A1628] tracking-tight">WathbahGRC</span>
+			<div class="lg:hidden flex items-center mb-10">
+				<img
+					src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
+					alt="Muhkam"
+					class="h-10 w-auto max-w-[200px]"
+				/>
 			</div>
 
 			<FormCard {data} {form} />
@@ -52,16 +51,12 @@
 				Protected by enterprise-grade security
 			</p>
 
-			<!-- Powered by Wathbah -->
-			<div class="mt-8 flex flex-col items-center gap-1.5">
-				<span class="text-gray-400 text-xs">Powered by</span>
-				<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
-					<img
-						src="/wathba_logo_full.png"
-						alt="Wathbah"
-						class="h-10 hover:opacity-90 transition-opacity"
-					/>
-				</a>
+			<div class="mt-8 flex justify-center">
+				<img
+					src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
+					alt="Muhkam"
+					class="h-8 w-auto opacity-80"
+				/>
 			</div>
 		</div>
 	</div>

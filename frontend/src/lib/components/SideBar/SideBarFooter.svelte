@@ -116,7 +116,7 @@
 			data-testid="sidebar-wathbah-admin-console"
 		>
 			<i class="fa-solid fa-gear text-white/80"></i>
-			<span class="font-medium">WathbahGRC Admin</span>
+			<span class="font-medium">Muhkam Admin</span>
 		</a>
 	{/if}
 </div>

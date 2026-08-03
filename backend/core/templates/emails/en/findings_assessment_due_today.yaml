@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Findings assessment '${assessment_name}' is due today"
+subject: "Muhkam: Findings assessment '${assessment_name}' is due today"
 intro: "A findings assessment you are responsible for is due today."
-action: "Open the findings assessment in Wathbah GRC to update its status or hand it over for review."
+action: "Open the findings assessment in Muhkam to update its status or hand it over for review."
 details_heading: "Findings assessment details"
 name_label: "Name"
 status_label: "Status"
@@ -19,7 +19,7 @@ body: |
   - Due date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Open the findings assessment in Wathbah GRC:
+  Open the findings assessment in Muhkam:
   ${ciso_assistant_url}/findings-assessments/${assessment_id}
 
   Thank you.

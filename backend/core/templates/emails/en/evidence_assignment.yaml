@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to evidence '${evidence_name}'"
+subject: "Muhkam: You have been assigned to evidence '${evidence_name}'"
 intro: "You have been assigned as an owner of the following Evidence."
-action: "Open the evidence in Wathbah GRC to upload attachments or update its status."
+action: "Open the evidence in Muhkam to upload attachments or update its status."
 details_heading: "Evidence details"
 name_label: "Name"
 description_label: "Description"
@@ -21,7 +21,7 @@ body: |
   - Expiry date: ${evidence_expiry_date}
   - Domain: ${folder_name}
 
-  Open the evidence in Wathbah GRC:
+  Open the evidence in Muhkam:
   ${ciso_assistant_url}/evidences/${evidence_id}
 
   Thank you.

@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Audit '${assessment_name}' is due today"
+subject: "Muhkam: Audit '${assessment_name}' is due today"
 intro: "An audit you are responsible for is due today."
-action: "Open the audit in Wathbah GRC to complete it or mark it ready for review."
+action: "Open the audit in Muhkam to complete it or mark it ready for review."
 details_heading: "Audit details"
 name_label: "Name"
 framework_label: "Framework"
@@ -21,7 +21,7 @@ body: |
   - Due date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Open the audit in Wathbah GRC:
+  Open the audit in Muhkam:
   ${ciso_assistant_url}/compliance-assessments/${assessment_id}
 
   Thank you.

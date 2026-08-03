@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: You have been assigned to metric '${metric_name}'"
+subject: "Muhkam: You have been assigned to metric '${metric_name}'"
 intro: "You have been assigned as an owner of the following Metric Instance."
-action: "Open the metric in Wathbah GRC to log a new sample or adjust the target."
+action: "Open the metric in Muhkam to log a new sample or adjust the target."
 details_heading: "Metric details"
 name_label: "Name"
 description_label: "Description"
@@ -25,7 +25,7 @@ body: |
   - Collection frequency: ${metric_collection_frequency}
   - Domain: ${folder_name}
 
-  Open the metric in Wathbah GRC:
+  Open the metric in Muhkam:
   ${ciso_assistant_url}/metric-instances/${metric_id}
 
   Thank you.

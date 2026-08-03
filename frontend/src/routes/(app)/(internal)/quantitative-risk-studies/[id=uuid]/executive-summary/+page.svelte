@@ -18,7 +18,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.executiveSummary()} - Wathbah GRC</title>
+	<title>{m.executiveSummary()} - Muhkam</title>
 </svelte:head>
 
 <main class="p-6 space-y-6">

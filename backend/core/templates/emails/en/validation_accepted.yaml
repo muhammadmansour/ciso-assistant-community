@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Validation '${validation_ref_id}' was approved"
+subject: "Muhkam: Validation '${validation_ref_id}' was approved"
 intro: "Your validation request has been approved."
-action: "Open the validation in Wathbah GRC to view the approval details and any reviewer notes."
+action: "Open the validation in Muhkam to view the approval details and any reviewer notes."
 details_heading: "Validation details"
 events_history_heading: "Events history"
 ref_id_label: "Reference"
@@ -22,7 +22,7 @@ body: |
   Events history:
   ${events_history}
 
-  Open the validation in Wathbah GRC:
+  Open the validation in Muhkam:
   ${validation_url}
 
   Thank you.

@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Audit '${assessment_name}' completion is delayed"
+subject: "Muhkam: Audit '${assessment_name}' completion is delayed"
 intro: "An audit you are responsible for has not been completed within 3 days of its due date."
-action: "Open the audit in Wathbah GRC to update its status or hand it over for review."
+action: "Open the audit in Muhkam to update its status or hand it over for review."
 details_heading: "Audit details"
 name_label: "Name"
 framework_label: "Framework"
@@ -21,7 +21,7 @@ body: |
   - Due date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Open the audit in Wathbah GRC:
+  Open the audit in Muhkam:
   ${ciso_assistant_url}/compliance-assessments/${assessment_id}
 
   Thank you.

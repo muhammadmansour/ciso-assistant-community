@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ fetch, request, locals }) => {
 
 	const form = await superValidate(request, zod(loginSchema));
 
-	return { form, title: 'WathbahGRC Admin' };
+	return { form, title: 'Muhkam Admin' };
 };
 
 export const actions: Actions = {

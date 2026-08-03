@@ -1,4 +1,4 @@
-subject: "Wathbah GRC: You have been assigned to '${assessment_name}'"
+subject: "Muhkam: You have been assigned to '${assessment_name}'"
 body: |
   Hello,
 
@@ -11,7 +11,7 @@ body: |
   - Due Date: ${assessment_due_date}
   - Domain: ${folder_name}
 
-  Log in to your Wathbah GRC portal to view and manage this audit:
+  Log in to your Muhkam portal to view and manage this audit:
   ${ciso_assistant_url}
 
   Thank you.

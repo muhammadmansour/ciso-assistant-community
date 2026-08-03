@@ -1,6 +1,6 @@
-subject: "Wathbah GRC: Evidence '${evidence_name}' has expired"
+subject: "Muhkam: Evidence '${evidence_name}' has expired"
 intro: "An evidence record assigned to you has expired."
-action: "Open the evidence in Wathbah GRC to renew it or replace it with an updated version."
+action: "Open the evidence in Muhkam to renew it or replace it with an updated version."
 details_heading: "Evidence details"
 name_label: "Name"
 description_label: "Description"
@@ -21,7 +21,7 @@ body: |
   - Expiry date: ${evidence_expiry_date}
   - Domain: ${folder_name}
 
-  Open the evidence in Wathbah GRC:
+  Open the evidence in Muhkam:
   ${ciso_assistant_url}/evidences/${evidence_id}
 
   Thank you.

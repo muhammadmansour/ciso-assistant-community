@@ -55,15 +55,12 @@
 	<aside class="w-56 bg-[#0A1628] flex flex-col flex-shrink-0">
 		<!-- Logo -->
 		<div class="px-4 py-5">
-			<div class="flex items-center gap-2.5">
-				<div class="w-8 h-8 bg-[#0077CC] rounded-lg flex items-center justify-center font-bold text-white text-sm">
-					W
-				</div>
-				<div>
-					<div class="text-white font-bold text-sm tracking-tight">WathbaGRC</div>
-					<div class="text-[#0077CC] text-[10px] font-semibold uppercase tracking-widest">Admin</div>
-				</div>
-			</div>
+			<img
+				src="/brand/muhkam/svg/muhkam-lockup-horizontal-reversed.svg"
+				alt="Muhkam"
+				class="h-8 w-auto max-w-[160px]"
+			/>
+			<div class="text-[#316FD3] text-[10px] font-semibold uppercase tracking-widest mt-1">Admin</div>
 		</div>
 
 		<!-- Dashboard Link -->
@@ -112,14 +109,14 @@
 			{/each}
 		</nav>
 
-		<!-- Back to WathbahGRC -->
+		<!-- Back to Muhkam -->
 		<div class="px-3 py-4 border-t border-white/10">
 			<a
 				href="/recap"
 				class="flex items-center gap-2 px-3 py-2 text-white/50 hover:text-white text-sm transition-colors"
 			>
 				<i class="fa-solid fa-arrow-left text-xs"></i>
-				Back to WathbahGRC
+				Back to Muhkam
 			</a>
 		</div>
 	</aside>
@@ -131,7 +128,7 @@
 			<div class="flex items-center gap-4">
 				<div class="flex items-center gap-2 text-sm font-medium text-gray-700">
 					<i class="fa-solid fa-gear text-gray-400"></i>
-					WathbahGRC Admin
+					Muhkam Admin
 				</div>
 				<div class="relative">
 					<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -143,10 +140,11 @@
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
-				<span class="text-gray-400 text-xs">Powered by</span>
-				<a href="https://wathbahs.com" target="_blank" rel="noopener noreferrer">
-					<img src="/wathba_logo_full.png" alt="Wathbah" class="h-6 hover:opacity-90 transition-opacity" />
-				</a>
+				<img
+					src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
+					alt="Muhkam"
+					class="h-6 w-auto max-w-[120px]"
+				/>
 			</div>
 		</header>
 

@@ -1,4 +1,4 @@
-subject: "Wathbah GRC : revue de l'audit terminée — '${assessment_name}'"
+subject: "Muhkam : revue de l'audit terminée — '${assessment_name}'"
 intro: "Le statut de l'audit suivant a changé suite à une revue concluante."
 action: "L'audit est désormais marqué comme Terminé. Ouvrez-le pour consulter le résultat."
 details_heading: "Détails de l'audit"
