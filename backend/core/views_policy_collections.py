@@ -1,5 +1,6 @@
 """Policy collections widget: list Gemini File Search stores and chat (no GRC DB)."""
 
+import os
 import uuid
 
 from django.core.cache import cache
@@ -13,6 +14,11 @@ from core.gemini_file_search import (
     policy_chat_with_file_search_stores,
     GEMINI_ENABLED,
 )
+
+
+# Every stored turn is resent on each request, so an unbounded history makes
+# later turns in a long session slower, costlier and more diluted.
+POLICY_CHAT_MAX_TURNS = int(os.getenv("POLICY_CHAT_MAX_TURNS", "12"))
 
 
 def _policy_chat_cache_key(user_id, session_id: str) -> str:
@@ -101,7 +107,8 @@ class PolicyCollectionsChatView(APIView):
             session_id = str(uuid.uuid4())
 
         cache_key = _policy_chat_cache_key(request.user.pk, session_id)
-        history = cache.get(cache_key) or []  # list of ["user"|"model", str]
+        # list of ["user"|"model", str]
+        history = (cache.get(cache_key) or [])[-POLICY_CHAT_MAX_TURNS * 2 :]
 
         try:
             history.append(("user", message))

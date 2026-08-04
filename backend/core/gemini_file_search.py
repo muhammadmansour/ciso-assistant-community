@@ -110,6 +110,40 @@ GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS = float(
     os.getenv('GEMINI_UPLOAD_RETRY_BASE_DELAY_SECONDS', '5')
 )
 
+# Policy chat generation settings.
+#
+# max_output_tokens is pinned explicitly rather than left to the API default:
+# the SDK docs say an unset value falls back to the model's output_token_limit
+# (65536 for gemini-2.5-pro), but there are field reports of silent truncation
+# at 8192. Setting it removes the ambiguity. Thinking tokens are billed against
+# this same budget on 2.5 models, so it must stay generous — a value sized only
+# for the visible answer can be consumed entirely by reasoning, which makes the
+# API return a candidate with no text at all.
+GEMINI_POLICY_CHAT_MAX_OUTPUT_TOKENS = int(
+    os.getenv('GEMINI_POLICY_CHAT_MAX_OUTPUT_TOKENS', '32768')
+)
+GEMINI_POLICY_CHAT_TEMPERATURE = float(
+    os.getenv('GEMINI_POLICY_CHAT_TEMPERATURE', '0.2')
+)
+
+# Override per-deployment with GEMINI_POLICY_CHAT_SYSTEM_INSTRUCTION so the
+# wording can be tuned without a code change.
+DEFAULT_POLICY_CHAT_SYSTEM_INSTRUCTION = """\
+You are a governance, risk and compliance analyst answering questions grounded \
+in the user's indexed policy and regulatory documents.
+
+- Be exhaustive. Enumerate every applicable framework, regulation, policy or \
+control supported by the documents, not just the most obvious two or three.
+- Open with a short framing paragraph, then give a numbered entry per item.
+- Each entry states the official name (Arabic and English where both exist), \
+the obligation it imposes, and why it applies to the entity in question.
+- Ground every claim in the retrieved documents and name the source document. \
+Never invent a regulation, article number or requirement.
+- Where the documents do not cover part of the question, say so explicitly in a \
+labelled section rather than omitting it silently.
+- Reply in the language the question was asked in.
+"""
+
 # Substrings (lowercased) that mark an upload error as transient/retryable.
 # Deliberately excludes generic "bad request"/"invalid" so genuine validation
 # errors fail fast instead of being retried.
@@ -1108,52 +1142,75 @@ def policy_chat_with_file_search_stores(
     from google.genai import types
 
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
+    system_instruction = os.getenv(
+        "GEMINI_POLICY_CHAT_SYSTEM_INSTRUCTION",
+        DEFAULT_POLICY_CHAT_SYSTEM_INSTRUCTION,
+    )
 
     response = client.models.generate_content(
         model=model,
         contents=contents,
         config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            max_output_tokens=GEMINI_POLICY_CHAT_MAX_OUTPUT_TOKENS,
+            temperature=GEMINI_POLICY_CHAT_TEMPERATURE,
             tools=[
                 types.Tool(
                     file_search=types.FileSearch(
                         file_search_store_names=list(store_names),
                     )
                 )
-            ]
+            ],
         ),
     )
 
+    candidates = getattr(response, "candidates", None) or []
+    candidate = candidates[0] if candidates else None
+
     text = getattr(response, "text", None) or ""
-    if not text and getattr(response, "candidates", None):
+    if not text and candidate is not None:
         try:
-            parts = response.candidates[0].content.parts
+            parts = candidate.content.parts
             text = "".join(getattr(p, "text", "") or "" for p in parts)
-        except (IndexError, AttributeError, TypeError):
+        except (AttributeError, TypeError):
             text = ""
 
+    # Grounding metadata hangs off the candidate, not the response, and File
+    # Search reports its hits under `retrieved_context` (`web` is the Search
+    # grounding shape).
     sources = []
+    seen = set()
+    chunk_count = 0
     try:
-        gm = getattr(response, "grounding_metadata", None)
-        chunks = getattr(gm, "grounding_chunks", None) if gm else None
-        if chunks:
-            for ch in chunks:
-                web = getattr(ch, "web", None)
-                title = getattr(web, "title", None) if web else None
-                uri = getattr(web, "uri", None) if web else None
-                if title or uri:
-                    sources.append(
-                        {"title": title or "Source", "uri": uri or "#"}
-                    )
-        ctx = getattr(gm, "retrieval_metadata", None) if gm else None
-        docs = getattr(ctx, "grounding_file_metadata", None) if ctx else None
-        if docs:
-            for d in docs:
-                t = getattr(d, "display_name", None) or getattr(d, "uri", None)
-                u = getattr(d, "uri", None) or "#"
-                if t:
-                    sources.append({"title": str(t), "uri": str(u)})
-    except Exception:
-        pass
+        gm = getattr(candidate, "grounding_metadata", None) if candidate else None
+        for ch in getattr(gm, "grounding_chunks", None) or []:
+            chunk_count += 1
+            holder = getattr(ch, "retrieved_context", None) or getattr(ch, "web", None)
+            if holder is None:
+                continue
+            title = getattr(holder, "title", None)
+            uri = getattr(holder, "uri", None)
+            if not (title or uri):
+                continue
+            key = (str(title), str(uri))
+            if key in seen:
+                continue
+            seen.add(key)
+            sources.append({"title": str(title or "Source"), "uri": str(uri or "#")})
+    except Exception as exc:
+        logger.warning("grounding metadata parse failed", error=str(exc))
+
+    usage = getattr(response, "usage_metadata", None)
+    logger.info(
+        "policy chat turn",
+        model=model,
+        stores=len(store_names),
+        finish_reason=str(getattr(candidate, "finish_reason", None)),
+        grounding_chunks=chunk_count,
+        tool_use_prompt_tokens=getattr(usage, "tool_use_prompt_token_count", None),
+        thoughts_tokens=getattr(usage, "thoughts_token_count", None),
+        candidates_tokens=getattr(usage, "candidates_token_count", None),
+    )
 
     return {
         "text": text.strip() or "No response from model.",
