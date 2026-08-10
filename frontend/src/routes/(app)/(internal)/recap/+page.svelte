@@ -348,7 +348,10 @@
 			{#each data.frameworks.slice(0, 4) as fwk, i}
 				{@const dp   = donutParams(fwk.progress, 96, 8)}
 				{@const days = daysUntil(fwk.due_date)}
-				<a href="/compliance-assessments"
+				{@const href = fwk.assessmentId
+					? `/compliance-assessments/${fwk.assessmentId}`
+					: '/compliance-assessments'}
+				<a href={href}
 					class="dashboard-card dashboard-card-hover border-t-4 {frameworkAccentClass(fwk.progress)} p-5 min-h-[148px] text-left block">
 					<div class="flex items-start justify-between gap-3">
 						<div class="flex-1 min-w-0">

@@ -55,6 +55,8 @@ export type PolicyPosture = {
 
 export type ComplianceFrameworkSummary = {
 	id?: string;
+	/** Primary compliance assessment to open from the recap card. */
+	assessmentId?: string;
 	name: string;
 	progress: number;
 	score?: number | null;
@@ -137,7 +139,14 @@ export const load: PageServerLoad = async (event) => {
 	const frameworks: ComplianceFrameworkSummary[] = (() => {
 		const byFwk = new Map<
 			string,
-			{ id?: string; sum: number; count: number; due?: string | null }
+			{
+				id?: string;
+				assessmentId?: string;
+				bestProgress: number;
+				sum: number;
+				count: number;
+				due?: string | null;
+			}
 		>();
 		for (const a of complianceList.results) {
 			const fwkName =
@@ -145,15 +154,29 @@ export const load: PageServerLoad = async (event) => {
 					? a.framework
 					: (a.framework?.str ?? 'Framework');
 			const fwkId = typeof a.framework === 'object' ? a.framework?.id : undefined;
-			const cur = byFwk.get(fwkName) ?? { id: fwkId, sum: 0, count: 0, due: null };
-			cur.sum += typeof a.progress === 'number' ? a.progress : 0;
+			const progress = typeof a.progress === 'number' ? a.progress : 0;
+			const cur = byFwk.get(fwkName) ?? {
+				id: fwkId,
+				assessmentId: a.id,
+				bestProgress: progress,
+				sum: 0,
+				count: 0,
+				due: null
+			};
+			cur.sum += progress;
 			cur.count += 1;
+			// Prefer the assessment with the highest progress for the card link.
+			if (!cur.assessmentId || progress >= cur.bestProgress) {
+				cur.assessmentId = a.id;
+				cur.bestProgress = progress;
+			}
 			if (a.due_date && (!cur.due || a.due_date < cur.due)) cur.due = a.due_date;
 			byFwk.set(fwkName, cur);
 		}
 		return Array.from(byFwk.entries())
 			.map(([name, v]) => ({
 				id: v.id,
+				assessmentId: v.assessmentId,
 				name,
 				progress: v.count ? Math.round(v.sum / v.count) : 0,
 				assessmentsCount: v.count,
