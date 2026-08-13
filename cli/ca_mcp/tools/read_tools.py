@@ -1192,3 +1192,140 @@ async def get_task_template_details(task_id: str):
         return result
     except Exception as e:
         return f"Error in get_task_template_details: {str(e)}"
+
+
+# Audit log action names, as exposed by the API, mapped to the numeric codes the
+# /log-entries/ endpoint filters on.
+ACTIVITY_ACTIONS = {
+    "create": 0,
+    "update": 1,
+    "delete": 2,
+    "access": 3,
+    "login_failed": 4,
+}
+
+MAX_ACTIVITY_ENTRIES = 200
+
+
+def _summarize_changes(changes) -> str:
+    """Render an audit log 'changes' payload as a short list of touched fields."""
+    if isinstance(changes, str):
+        try:
+            changes = json.loads(changes)
+        except ValueError:
+            return "--"
+
+    if not isinstance(changes, dict) or not changes:
+        return "--"
+
+    fields = list(changes.keys())
+    summary = ", ".join(fields[:5])
+    if len(fields) > 5:
+        summary += f" (+{len(fields) - 5} more)"
+    return summary
+
+
+async def get_user_activity_logs(
+    user: str = None,
+    action: str = None,
+    object_type: str = None,
+    limit: int = 50,
+):
+    """List user activity from the audit log, newest first; requires administrator rights
+
+    Records who created, updated or deleted what, plus failed logins. Reads and
+    page views are not tracked.
+
+    Args:
+        user: User email, full or partial (e.g. "khalid" or "khalid@example.com")
+        action: One of create, update, delete, access, login_failed
+        object_type: Type of object touched, e.g. "risk scenario", "applied control", "user"
+        limit: Maximum number of entries to return (default 50, max 200)
+    """
+    try:
+        params = {"ordering": "-timestamp"}
+        filters = {}
+
+        if user:
+            params["actor"] = user
+            filters["user"] = user
+
+        if action:
+            normalized = action.strip().lower().replace(" ", "_").replace("-", "_")
+            if normalized not in ACTIVITY_ACTIONS:
+                return error_response(
+                    "Invalid Input",
+                    f"Unknown action '{action}'",
+                    f"Retry using one of: {', '.join(ACTIVITY_ACTIONS)}",
+                    retry_allowed=True,
+                )
+            params["action"] = ACTIVITY_ACTIONS[normalized]
+            filters["action"] = normalized
+
+        if object_type:
+            params["content_type"] = object_type
+            filters["object_type"] = object_type
+
+        try:
+            requested = int(limit)
+        except (TypeError, ValueError):
+            requested = 50
+        params["limit"] = max(1, min(requested, MAX_ACTIVITY_ENTRIES))
+
+        res = make_get_request("/log-entries/", params=params)
+
+        if res.status_code == 403:
+            return error_response(
+                "Permission Denied",
+                "Reading the audit log requires administrator privileges",
+                "Inform the user that only administrators can read activity logs",
+                retry_allowed=False,
+            )
+
+        if res.status_code != 200:
+            return http_error_response(res.status_code, res.text)
+
+        data = res.json()
+        entries = get_paginated_results(data)
+
+        if not entries:
+            return empty_response("activity log entries", filters)
+
+        result = f"Found {len(entries)} activity log entries"
+        if filters:
+            result += f" ({', '.join(f'{k}={v}' for k, v in filters.items())})"
+        result += "\n\n"
+        result += "|Timestamp|User|Action|Object Type|Object|Folder|Changed Fields|\n"
+        result += "|---|---|---|---|---|---|---|\n"
+
+        for entry in entries:
+            timestamp = (entry.get("timestamp") or "N/A")[:19].replace("T", " ")
+            # Failed logins have no actor; the attempted username is in object_repr.
+            actor = entry.get("actor") or "--"
+            entry_action = entry.get("action", "N/A")
+            content_type = entry.get("content_type", "N/A")
+            object_repr = (entry.get("object_repr") or "--")[:60]
+            folder = entry.get("folder") or "--"
+            changed = _summarize_changes(entry.get("changes"))
+
+            result += (
+                f"|{timestamp}|{actor}|{entry_action}|{content_type}"
+                f"|{object_repr}|{folder}|{changed}|\n"
+            )
+
+        total = data.get("count") if isinstance(data, dict) else None
+        if total is not None and total > len(entries):
+            result += f"\nShowing {len(entries)} of {total} matching entries.\n"
+
+        return success_response(
+            result,
+            "get_user_activity_logs",
+            "Use this table to answer the user's question about who did what and when",
+        )
+    except Exception as e:
+        return error_response(
+            "Internal Error",
+            str(e),
+            "Report this error to the user",
+            retry_allowed=False,
+        )

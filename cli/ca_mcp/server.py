@@ -27,6 +27,7 @@ from .tools.read_tools import (
     get_quantitative_risk_hypotheses,
     get_task_templates,
     get_task_template_details,
+    get_user_activity_logs,
 )
 
 from .tools.analysis_tools import (
@@ -152,6 +153,7 @@ def register_all_tools(target_mcp):
     target_mcp.tool()(get_quantitative_risk_hypotheses)
     target_mcp.tool()(get_task_templates)
     target_mcp.tool()(get_task_template_details)
+    target_mcp.tool()(get_user_activity_logs)
 
     target_mcp.tool()(get_all_audits_with_metrics)
     target_mcp.tool()(get_audit_gap_analysis)
