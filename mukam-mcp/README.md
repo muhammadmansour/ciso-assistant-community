@@ -1,0 +1,81 @@
+# mukam-mcp
+
+A single-purpose MCP server exposing one tool: `get_user_activity_logs`, which
+reads user activity from the CISO Assistant audit log.
+
+It is deliberately separate from `cli/ca_mcp`, which exposes the full GRC
+toolset. Keeping the audit trail in its own server means it can be deployed,
+restarted, and access-controlled on its own — useful because reading it requires
+an administrator token, while most GRC tools do not.
+
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/)
+- A CISO Assistant instance serving `GET /api/activity-logs/`
+- A Personal Access Token belonging to an **administrator** account
+
+## Setup
+
+```bash
+cd mukam-mcp
+cp .env.example .env
+# fill in API_URL and TOKEN
+uv run server.py
+```
+
+The server listens on `MUKAM_MCP_HOST:MUKAM_MCP_PORT` (default
+`127.0.0.1:8282`) and speaks streamable HTTP at `/mcp`.
+
+## Deploying behind a reverse proxy
+
+The server does not authenticate its callers — anyone who can reach the port can
+read the audit log with the configured admin token. Bind it to localhost and
+terminate TLS in front of it, restricting access there.
+
+```nginx
+location /mcp {
+    proxy_pass http://127.0.0.1:8282/mcp;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+}
+```
+
+Set `MUKAM_MCP_PUBLIC_URL` to the public URL, otherwise FastMCP's DNS-rebinding
+protection rejects proxied requests with HTTP 421.
+
+Under pm2:
+
+```bash
+pm2 start "uv run server.py" --name mukam-mcp --cwd /path/to/mukam-mcp
+```
+
+## The tool
+
+`get_user_activity_logs(user, action, object_type, since, until, limit)`
+
+| Argument | Meaning |
+|---|---|
+| `user` | Email, full or partial. Also matches entries whose actor was not resolved. |
+| `action` | `create`, `update`, `delete`, `access`, `login_failed`. Comma-separated for several. |
+| `object_type` | Object type touched, e.g. `risk scenario`, `applied control`, `user` |
+| `since` / `until` | ISO date or datetime bounds |
+| `limit` | Rows to return, default 50, capped by `MUKAM_MCP_MAX_ENTRIES` (200) |
+
+Returns a markdown table of timestamp, user, action, object type, object,
+folder, and which fields changed.
+
+## Limits worth knowing
+
+- **Reads are not recorded.** Only create/update/delete, plus failed sign-ins.
+  An empty result means no *tracked changes*, not that the user was inactive.
+- **Retention is bounded.** The backend prunes entries older than
+  `AUDITLOG_RETENTION_DAYS` (90 by default) and caps the table at
+  `AUDITLOG_MAX_RECORDS`.
+- **Some entries have no user.** Changes made outside a request — management
+  commands, scheduled tasks, imports — are recorded without an actor and cannot
+  be attributed.
+- **Passwords are redacted** by the backend before they reach this server.

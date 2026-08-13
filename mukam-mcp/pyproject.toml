@@ -1,0 +1,20 @@
+[project]
+name = "mukam-mcp"
+version = "0.1.0"
+description = "Mukam MCP server: user activity from the CISO Assistant audit log"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # 2.x restructured the package and dropped mcp.server.fastmcp; pin to the
+    # 1.x line the rest of this repo runs on.
+    "mcp[cli]>=1.25.0,<2",
+    "python-dotenv>=1.0.0",
+    "requests>=2.32.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mukam_mcp"]
