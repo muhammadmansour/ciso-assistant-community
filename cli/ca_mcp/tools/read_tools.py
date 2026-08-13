@@ -1194,15 +1194,7 @@ async def get_task_template_details(task_id: str):
         return f"Error in get_task_template_details: {str(e)}"
 
 
-# Audit log action names, as exposed by the API, mapped to the numeric codes the
-# /log-entries/ endpoint filters on.
-ACTIVITY_ACTIONS = {
-    "create": 0,
-    "update": 1,
-    "delete": 2,
-    "access": 3,
-    "login_failed": 4,
-}
+ACTIVITY_ACTIONS = ("create", "update", "delete", "access", "login_failed")
 
 MAX_ACTIVITY_ENTRIES = 200
 
@@ -1247,7 +1239,7 @@ async def get_user_activity_logs(
         filters = {}
 
         if user:
-            params["actor"] = user
+            params["user"] = user
             filters["user"] = user
 
         if action:
@@ -1259,11 +1251,11 @@ async def get_user_activity_logs(
                     f"Retry using one of: {', '.join(ACTIVITY_ACTIONS)}",
                     retry_allowed=True,
                 )
-            params["action"] = ACTIVITY_ACTIONS[normalized]
+            params["action"] = normalized
             filters["action"] = normalized
 
         if object_type:
-            params["content_type"] = object_type
+            params["object_type"] = object_type
             filters["object_type"] = object_type
 
         try:
@@ -1272,7 +1264,7 @@ async def get_user_activity_logs(
             requested = 50
         params["limit"] = max(1, min(requested, MAX_ACTIVITY_ENTRIES))
 
-        res = make_get_request("/log-entries/", params=params)
+        res = make_get_request("/activity-logs/", params=params)
 
         if res.status_code == 403:
             return error_response(
@@ -1300,10 +1292,9 @@ async def get_user_activity_logs(
 
         for entry in entries:
             timestamp = (entry.get("timestamp") or "N/A")[:19].replace("T", " ")
-            # Failed logins have no actor; the attempted username is in object_repr.
-            actor = entry.get("actor") or "--"
+            actor = entry.get("user") or "--"
             entry_action = entry.get("action", "N/A")
-            content_type = entry.get("content_type", "N/A")
+            content_type = entry.get("object_type") or "N/A"
             object_repr = (entry.get("object_repr") or "--")[:60]
             folder = entry.get("folder") or "--"
             changed = _summarize_changes(entry.get("changes"))

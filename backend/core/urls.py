@@ -1,4 +1,5 @@
 from .views import *
+from .activity_log import ActivityLogViewSet
 from .views_policy_collections import (
     PolicyCollectionsGeminiView,
     PolicyCollectionsChatView,
@@ -126,6 +127,7 @@ router.register(r"timeline-entries", TimelineEntryViewSet, basename="timeline-en
 router.register(r"task-templates", TaskTemplateViewSet, basename="task-templates")
 router.register(r"task-nodes", TaskNodeViewSet, basename="task-nodes")
 router.register(r"terminologies", TerminologyViewSet, basename="terminologies")
+router.register(r"activity-logs", ActivityLogViewSet, basename="activity-logs")
 
 ROUTES = settings.ROUTES
 MODULES = settings.MODULES.values()
