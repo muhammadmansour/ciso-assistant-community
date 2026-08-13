@@ -36,6 +36,10 @@ PORT = int(os.getenv("MUKAM_MCP_PORT", "8282"))
 # rejects proxied requests with HTTP 421.
 PUBLIC_URL = os.getenv("MUKAM_MCP_PUBLIC_URL", "").rstrip("/")
 
+# URL path the MCP endpoint is served on. Change it to share a hostname with
+# another MCP server already answering on /mcp.
+PATH = "/" + os.getenv("MUKAM_MCP_PATH", "/mcp").strip("/")
+
 # Hard ceiling on rows returned per call, so an agent cannot pull the whole
 # audit table into a model's context.
 MAX_ENTRIES = int(os.getenv("MUKAM_MCP_MAX_ENTRIES", "200"))

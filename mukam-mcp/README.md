@@ -25,7 +25,8 @@ uv run server.py
 ```
 
 The server listens on `MUKAM_MCP_HOST:MUKAM_MCP_PORT` (default
-`127.0.0.1:8282`) and speaks streamable HTTP at `/mcp`.
+`127.0.0.1:8282`) and speaks streamable HTTP at `MUKAM_MCP_PATH` (default
+`/mcp`).
 
 ## Deploying behind a reverse proxy
 
@@ -33,19 +34,25 @@ The server does not authenticate its callers — anyone who can reach the port c
 read the audit log with the configured admin token. Bind it to localhost and
 terminate TLS in front of it, restricting access there.
 
+It can share a hostname with the OAuth MCP server in `cli/`, which already
+answers on `/mcp`. Give this one its own path with `MUKAM_MCP_PATH=/mukam-mcp`
+so nginx passes the prefix straight through without rewriting:
+
 ```nginx
-location /mcp {
-    proxy_pass http://127.0.0.1:8282/mcp;
+location /mukam-mcp {
+    proxy_pass http://127.0.0.1:8282;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
-    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Connection "";
     proxy_buffering off;
+    proxy_read_timeout 300s;
 }
 ```
 
-Set `MUKAM_MCP_PUBLIC_URL` to the public URL, otherwise FastMCP's DNS-rebinding
-protection rejects proxied requests with HTTP 421.
+Set `MUKAM_MCP_PUBLIC_URL` to the public origin, otherwise FastMCP's
+DNS-rebinding protection rejects proxied requests with HTTP 421 — it trusts only
+localhost `Host` headers by default.
 
 Under pm2:
 

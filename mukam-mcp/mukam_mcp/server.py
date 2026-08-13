@@ -39,6 +39,7 @@ def build() -> FastMCP:
         "mukam",
         host=config.HOST,
         port=config.PORT,
+        streamable_http_path=config.PATH,
         transport_security=_transport_security(),
     )
     mcp.tool()(get_user_activity_logs)
