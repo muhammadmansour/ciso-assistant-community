@@ -24,6 +24,19 @@ cp .env.example .env
 uv run server.py
 ```
 
+Config is read from the environment first, then from an env file: whatever
+`MUKAM_MCP_ENV_FILE` points at, else the first of `.env` or `.mcp.env` present.
+`MCP_HTTP_HOST`, `MCP_HTTP_PORT` and `MCP_PUBLIC_URL` are accepted as fallbacks
+for their `MUKAM_MCP_*` equivalents, so the `cli/.mcp.env` from the OAuth server
+drives this one too once a `TOKEN` is added:
+
+```bash
+uv run --env-file ../cli/.mcp.env server.py    # or MUKAM_MCP_ENV_FILE=../cli/.mcp.env
+```
+
+Reusing that file means reusing its port, so only one of the two servers can run
+at a time. To run both, give this one its own port and path (see below).
+
 The server listens on `MUKAM_MCP_HOST:MUKAM_MCP_PORT` (default
 `127.0.0.1:8282`) and speaks streamable HTTP at `MUKAM_MCP_PATH` (default
 `/mcp`).
