@@ -117,14 +117,14 @@ async def get_user_activity_logs(
         if res.status_code == 401:
             return _fail(
                 "Authentication Failed",
-                "The configured API token is invalid or expired",
-                "Tell the user to refresh the TOKEN in the mukam-mcp .env file",
+                "The signed-in user's API token is invalid or expired",
+                "Tell the user to reconnect the Muhkam MCP connector and sign in again",
             )
         if res.status_code == 403:
             return _fail(
                 "Permission Denied",
                 "Reading the audit log requires administrator privileges",
-                "Tell the user the configured token's account needs the administrator role",
+                "Tell the user to sign in with an administrator Muhkam account",
             )
         if res.status_code == 404:
             return _fail(

@@ -8,7 +8,7 @@ from . import config
 def get(endpoint: str, params: dict | None = None) -> requests.Response:
     return requests.get(
         f"{config.API_URL}{endpoint}",
-        headers={"Authorization": f"Token {config.TOKEN}"},
+        headers={"Authorization": f"Token {config.resolve_token()}"},
         params=params,
         verify=config.VERIFY_CERTIFICATE,
         timeout=config.HTTP_TIMEOUT,

@@ -1,55 +1,44 @@
 # mukam-mcp
 
-A single-purpose MCP server exposing one tool: `get_user_activity_logs`, which
-reads user activity from the CISO Assistant audit log.
+A single-purpose MCP server exposing `get_user_activity_logs` from the Muhkam
+/ CISO Assistant audit log.
 
-It is deliberately separate from `cli/ca_mcp`, which exposes the full GRC
-toolset. Keeping the audit trail in its own server means it can be deployed,
-restarted, and access-controlled on its own — useful because reading it requires
-an administrator token, while most GRC tools do not.
+It is separate from `cli/ca_mcp`, which exposes the full GRC toolset. Callers
+**sign in on a login page** (OAuth). The server then mints a Personal Access
+Token for that user — the same pattern as `cli/ca_mcp_http.py`. A static
+`TOKEN` in `.env` is not required.
+
+Reading the audit log still requires an **administrator** Muhkam account.
 
 ## Requirements
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
-- A CISO Assistant instance serving `GET /api/activity-logs/`
-- A Personal Access Token belonging to an **administrator** account
+- A Muhkam instance serving `GET /api/activity-logs/`
+- `MUKAM_MCP_PUBLIC_URL` set to the public HTTPS origin
 
 ## Setup
 
 ```bash
 cd mukam-mcp
 cp .env.example .env
-# fill in API_URL and TOKEN
+# set API_URL and MUKAM_MCP_PUBLIC_URL; leave TOKEN empty
 uv run server.py
 ```
 
-Config is read from the environment first, then from an env file: whatever
-`MUKAM_MCP_ENV_FILE` points at, else the first of `.env` or `.mcp.env` present.
-`MCP_HTTP_HOST`, `MCP_HTTP_PORT` and `MCP_PUBLIC_URL` are accepted as fallbacks
-for their `MUKAM_MCP_*` equivalents, so the `cli/.mcp.env` from the OAuth server
-drives this one too once a `TOKEN` is added:
+The server listens on `127.0.0.1:8282` and is mounted at `MUKAM_MCP_PATH`
+(default `/mukam-mcp`):
 
-```bash
-uv run --env-file ../cli/.mcp.env server.py    # or MUKAM_MCP_ENV_FILE=../cli/.mcp.env
-```
+| Path | Role |
+|---|---|
+| `/mukam-mcp/mcp` | Streamable HTTP MCP endpoint (use this URL in Cursor) |
+| `/mukam-mcp/login` | Sign-in page (opened by the OAuth flow) |
 
-Reusing that file means reusing its port, so only one of the two servers can run
-at a time. To run both, give this one its own port and path (see below).
+## nginx (same host as CISO MCP)
 
-The server listens on `MUKAM_MCP_HOST:MUKAM_MCP_PORT` (default
-`127.0.0.1:8282`) and speaks streamable HTTP at `MUKAM_MCP_PATH` (default
-`/mcp`).
-
-## Deploying behind a reverse proxy
-
-The server does not authenticate its callers — anyone who can reach the port can
-read the audit log with the configured admin token. Bind it to localhost and
-terminate TLS in front of it, restricting access there.
-
-It can share a hostname with the OAuth MCP server in `cli/`, which already
-answers on `/mcp`. Give this one its own path with `MUKAM_MCP_PATH=/mukam-mcp`
-so nginx passes the prefix straight through without rewriting:
+CISO MCP stays on port 8181 (`/mcp`, `/wathbah/login`). Proxy the whole
+`/mukam-mcp` prefix to 8282 so OAuth metadata and the login page stay on this
+process:
 
 ```nginx
 location /mukam-mcp {
@@ -63,15 +52,27 @@ location /mukam-mcp {
 }
 ```
 
-Set `MUKAM_MCP_PUBLIC_URL` to the public origin, otherwise FastMCP's
-DNS-rebinding protection rejects proxied requests with HTTP 421 — it trusts only
-localhost `Host` headers by default.
+Set `MUKAM_MCP_PUBLIC_URL` to the origin only, e.g.
+`https://muhkam-grc.wathbah.dev`. Do not reuse `cli/.mcp.env` — that file's
+port is 8181 and would collide with CISO MCP.
 
-Under pm2:
+## PM2
 
 ```bash
-pm2 start "uv run server.py" --name mukam-mcp --cwd /path/to/mukam-mcp
+pm2 start uv --name muhkam-mcp --cwd /home/USER/ciso-assistant-community/mukam-mcp --interpreter none -- run server.py
+pm2 save
 ```
+
+## Cursor
+
+```json
+"muhkam": {
+  "url": "https://muhkam-grc.wathbah.dev/mukam-mcp/mcp"
+}
+```
+
+On first use, Cursor opens the Muhkam sign-in page. Use an administrator
+account.
 
 ## The tool
 
@@ -79,23 +80,14 @@ pm2 start "uv run server.py" --name mukam-mcp --cwd /path/to/mukam-mcp
 
 | Argument | Meaning |
 |---|---|
-| `user` | Email, full or partial. Also matches entries whose actor was not resolved. |
-| `action` | `create`, `update`, `delete`, `access`, `login_failed`. Comma-separated for several. |
-| `object_type` | Object type touched, e.g. `risk scenario`, `applied control`, `user` |
+| `user` | Email, full or partial |
+| `action` | `create`, `update`, `delete`, `access`, `login_failed` |
+| `object_type` | e.g. `risk scenario`, `applied control`, `user` |
 | `since` / `until` | ISO date or datetime bounds |
-| `limit` | Rows to return, default 50, capped by `MUKAM_MCP_MAX_ENTRIES` (200) |
+| `limit` | Default 50, capped by `MUKAM_MCP_MAX_ENTRIES` (200) |
 
-Returns a markdown table of timestamp, user, action, object type, object,
-folder, and which fields changed.
+## Limits
 
-## Limits worth knowing
-
-- **Reads are not recorded.** Only create/update/delete, plus failed sign-ins.
-  An empty result means no *tracked changes*, not that the user was inactive.
-- **Retention is bounded.** The backend prunes entries older than
-  `AUDITLOG_RETENTION_DAYS` (90 by default) and caps the table at
-  `AUDITLOG_MAX_RECORDS`.
-- **Some entries have no user.** Changes made outside a request — management
-  commands, scheduled tasks, imports — are recorded without an actor and cannot
-  be attributed.
-- **Passwords are redacted** by the backend before they reach this server.
+- Reads are not recorded. Empty results mean no tracked *changes*.
+- Retention is bounded by `AUDITLOG_RETENTION_DAYS` / `AUDITLOG_MAX_RECORDS`.
+- Some entries have no user (management commands, scheduled tasks).

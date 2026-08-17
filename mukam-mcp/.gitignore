@@ -1,1 +1,3 @@
 *.egg-info/
+.oauth_clients.json
+.env
