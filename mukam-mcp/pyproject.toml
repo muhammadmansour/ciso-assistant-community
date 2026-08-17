@@ -14,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 mukam-mcp-purge = "mukam_mcp.purge:main"
+mukam-mcp-purge-pats = "mukam_mcp.purge_pats:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
