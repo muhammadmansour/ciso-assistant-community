@@ -31,7 +31,7 @@ The server listens on `127.0.0.1:8282` and is mounted at `MUKAM_MCP_PATH`
 
 | Path | Role |
 |---|---|
-| `/mukam-mcp/mcp` | Streamable HTTP MCP endpoint (use this URL in Cursor) |
+| `/mukam-mcp/` | Streamable HTTP MCP endpoint (use this URL in Cursor) |
 | `/mukam-mcp/login` | Sign-in page (opened by the OAuth flow) |
 
 ## nginx (same host as CISO MCP)
@@ -67,7 +67,7 @@ pm2 save
 
 ```json
 "muhkam": {
-  "url": "https://muhkam-grc.wathbah.dev/mukam-mcp/mcp"
+  "url": "https://muhkam-grc.wathbah.dev/mukam-mcp/"
 }
 ```
 

@@ -55,7 +55,9 @@ def build() -> FastMCP:
         ),
         host=config.HOST,
         port=config.PORT,
-        streamable_http_path="/mcp",
+        # Serve MCP at the mount root so the public endpoint is
+        # {PUBLIC_URL}{PATH}/ instead of {PUBLIC_URL}{PATH}/mcp.
+        streamable_http_path="/",
         transport_security=_transport_security(),
     )
     mcp.tool()(get_user_activity_logs)
