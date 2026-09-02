@@ -33,8 +33,10 @@ Usage:
     poetry run python manage.py run_ac_evidence_analysis <ac_id> --cleanup
 """
 
+import io
 import os
 import time
+from contextlib import redirect_stdout
 from datetime import datetime, timezone as dt_timezone
 
 from django.contrib.auth import get_user_model
@@ -446,9 +448,14 @@ class Command(BaseCommand):
         )
         force_authenticate(request, user=user)
         view = viewset_cls.as_view({"post": "run_ai_analysis"})
-        response = view(request, pk=str(pk))
-        if hasattr(response, "render") and not getattr(response, "is_rendered", True):
-            response.render()
+        # The analysis views are chatty (print the full Muraji request/response).
+        # Swallow their stdout so only our PASS/FAIL summary shows.
+        with redirect_stdout(io.StringIO()):
+            response = view(request, pk=str(pk))
+            if hasattr(response, "render") and not getattr(
+                response, "is_rendered", True
+            ):
+                response.render()
         return response
 
     @staticmethod
