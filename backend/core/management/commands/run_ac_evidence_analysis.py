@@ -159,7 +159,7 @@ class Command(BaseCommand):
 
         try:
             # 0. Resolve the applied control -----------------------------------
-            self.stdout.write("Step 1/5: resolving applied control...")
+            self.stdout.write("Step 1/6: resolving applied control...")
             try:
                 applied_control = AppliedControl.objects.get(id=ac_id)
             except (AppliedControl.DoesNotExist, ValueError):
@@ -171,7 +171,7 @@ class Command(BaseCommand):
             )
 
             # 1. Validate Gemini configuration ---------------------------------
-            self.stdout.write("Step 2/5: validating Gemini configuration...")
+            self.stdout.write("Step 2/6: validating Gemini configuration...")
             if not GEMINI_ENABLED:
                 raise CommandError(
                     "GEMINI_API_KEY is missing in this process's environment - "
@@ -187,28 +187,40 @@ class Command(BaseCommand):
             self._ok(f"  OK - Gemini configured (store={client.store_name})")
 
             # 2. Resolve the acting user (RBAC) --------------------------------
-            self.stdout.write("Step 3/5: resolving acting user (RBAC)...")
+            self.stdout.write("Step 3/6: resolving acting user (RBAC)...")
             user = self._resolve_user(user_email, applied_control)
             self._ok(f"  OK - running analyses as '{user}'")
 
-            # 3. Create + link + index the evidence ----------------------------
-            self.stdout.write("Step 4/5: creating, linking and indexing evidence...")
-            evidence, fs_row = self._create_and_index_evidence(
+            # 3. Create + link the evidence ------------------------------------
+            self.stdout.write("Step 4/6: uploading + linking evidence to the AC...")
+            evidence, revision = self._create_and_link_evidence(
                 applied_control=applied_control,
                 folder=folder,
-                client=client,
                 file_path_opt=file_path_opt,
+            )
+            self._ok(
+                f"  OK - evidence '{evidence.name}' uploaded and linked to the AC "
+                f"(file={revision.filename()})"
+            )
+
+            # 4. Index the evidence in the Gemini File Search Store ------------
+            self.stdout.write(
+                "Step 5/6: indexing evidence in Gemini File Search Store..."
+            )
+            fs_row = self._index_revision(
+                evidence=evidence,
+                revision=revision,
+                client=client,
                 max_wait=max_wait,
                 poll_interval=poll_interval,
             )
-            applied_control.evidences.add(evidence)
             self._ok(
-                f"  OK - evidence '{evidence.name}' linked to AC and indexed "
+                f"  OK - evidence indexed and verified "
                 f"({fs_row.chunk_count} document(s))"
             )
 
-            # 4. Run the analyses ---------------------------------------------
-            self.stdout.write("Step 5/5: running analyses (Muraji)...")
+            # 5. Run the analyses ---------------------------------------------
+            self.stdout.write("Step 6/6: running analyses (Muraji)...")
 
             if skip_control:
                 self._warn("  - control analysis skipped (--skip-control)")
@@ -341,9 +353,8 @@ class Command(BaseCommand):
             user, add_ac, applied_control.folder
         )
 
-    def _create_and_index_evidence(
-        self, applied_control, folder, client, file_path_opt, max_wait, poll_interval
-    ):
+    def _create_and_link_evidence(self, applied_control, folder, file_path_opt):
+        """Create an Evidence + revision, attach the file, and link it to the AC."""
         stamp = datetime.now(dt_timezone.utc).strftime("%Y%m%d-%H%M%S")
         evidence = Evidence.objects.create(
             name=f"[analysis check] {applied_control.name} {stamp}",
@@ -367,7 +378,11 @@ class Command(BaseCommand):
             filename = f"analysis-check-{stamp}.txt"
 
         revision.attachment.save(filename, ContentFile(content), save=True)
+        applied_control.evidences.add(evidence)
+        return evidence, revision
 
+    def _index_revision(self, evidence, revision, client, max_wait, poll_interval):
+        """Upload the revision's attachment to the File Search Store and verify."""
         fs_row = FileSearchTable.objects.create(
             evidence_revision=revision,
             upload_status=FileSearchTable.UploadStatus.UPLOADING,
@@ -416,7 +431,7 @@ class Command(BaseCommand):
                 "Evidence indexed upload finished but is_indexed() is False "
                 f"(status={fs_row.upload_status})."
             )
-        return evidence, fs_row
+        return fs_row
 
     def _run_control_analysis(self, applied_control, user, additional_prompt):
         from core.views import AppliedControlViewSet
