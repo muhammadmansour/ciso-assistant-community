@@ -270,55 +270,74 @@ class Command(BaseCommand):
 
     # -- helpers ---------------------------------------------------------------
     def _resolve_user(self, user_email, applied_control):
-        """Pick a user that can access the AC's folder (RBAC has no superuser bypass)."""
+        """Pick a user that can access the AC's folder (RBAC has no superuser bypass).
+
+        get_object() only requires the AC to be in the user's *view* list; the
+        POST object-permission check then requires ``add_appliedcontrol`` on the
+        AC folder. We prefer a user that satisfies both, but fall back to a
+        view-only user so the real per-analysis HTTP status is what gets
+        reported (instead of failing to pick anyone).
+        """
         if user_email:
             user = User.objects.filter(email=user_email).first()
             if not user:
                 raise CommandError(f"User '{user_email}' not found.")
-            if not self._can_access(user, applied_control):
+            if not self._can_view(user, applied_control):
                 raise CommandError(
-                    f"User '{user_email}' has no access to the control's folder. "
-                    "Pick a user with the Administrator role on that domain."
+                    f"User '{user_email}' cannot access the control's folder "
+                    "(get_object would 404). Assign them the Administrator role "
+                    "on that domain."
+                )
+            if not self._can_write(user, applied_control):
+                self._warn(
+                    f"  note: '{user_email}' can view but may lack write "
+                    "permission on the control folder; the analysis call may 403."
                 )
             return user
 
-        # Auto-pick: superusers first, then everyone else.
+        # Auto-pick: superusers first, then everyone else. Prefer a user with
+        # full write access; otherwise fall back to any user that can view it.
         candidates = list(User.objects.filter(is_superuser=True).order_by("id"))
-        candidates += list(
-            User.objects.filter(is_superuser=False).order_by("id")
-        )
+        candidates += list(User.objects.filter(is_superuser=False).order_by("id"))
+        view_only = None
         for user in candidates:
-            if self._can_access(user, applied_control):
+            if self._can_write(user, applied_control):
                 return user
+            if view_only is None and self._can_view(user, applied_control):
+                view_only = user
+        if view_only is not None:
+            self._warn(
+                f"  note: '{view_only}' can view the control but may lack write "
+                "permission; the analysis call may 403. Pass --user to override."
+            )
+            return view_only
         raise CommandError(
             "Could not find any user with access to this control's folder. "
-            "Create an Administrator on that domain or pass --user."
+            "A superuser WITHOUT an Administrator role assignment has no RBAC "
+            "access. Pass --user <email> for a user that has the Administrator "
+            "role on this domain."
         )
 
     @staticmethod
-    def _can_access(user, applied_control):
-        """True if the user can both fetch the AC (get_queryset) and pass the
-        POST object-permission check on both analysis viewsets.
-
-        get_object() filters by the view list, while the POST detail actions
-        require the ``add_*`` permission on the folder (RBACPermissions maps
-        POST -> add_%(model)s). Requirement analysis needs the same on
-        RequirementAssessment, so an Administrator on the folder satisfies both.
-        """
+    def _can_view(user, applied_control):
+        """True if get_object() would return the AC for this user."""
         view_ids = RoleAssignment.get_accessible_object_ids(
             Folder.get_root_folder(), user, AppliedControl
         )[0]
-        if applied_control.id not in view_ids:
+        return applied_control.id in view_ids
+
+    @classmethod
+    def _can_write(cls, user, applied_control):
+        """True if the user also passes the POST object-permission check on the AC."""
+        if not cls._can_view(user, applied_control):
             return False
-        folder = applied_control.folder
         try:
             add_ac = Permission.objects.get(codename="add_appliedcontrol")
-            add_ra = Permission.objects.get(codename="add_requirementassessment")
         except Permission.DoesNotExist:
             return False
         return RoleAssignment.is_access_allowed(
-            user, add_ac, folder
-        ) and RoleAssignment.is_access_allowed(user, add_ra, folder)
+            user, add_ac, applied_control.folder
+        )
 
     def _create_and_index_evidence(
         self, applied_control, folder, client, file_path_opt, max_wait, poll_interval
