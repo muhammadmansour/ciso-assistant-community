@@ -37,11 +37,20 @@ export interface AiAnalysisJob {
 	analysisComplete: boolean;
 	pendingResult: Record<string, unknown> | null;
 	error: string | null;
+	attempt: number;
+	maxAttempts: number;
+	retrying: boolean;
 }
 
 export const activeAiAnalysisJob = writable<AiAnalysisJob | null>(null);
 
+// Auto-retry configuration for transient analysis failures (e.g. Muraji 5xx,
+// timeouts, network blips). Permanent/validation errors are not retried.
+export const AI_ANALYSIS_MAX_ATTEMPTS = 3;
+
 let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function getAnalysisPagePath(entityType: AiAnalysisEntityType, entityId: string): string {
 	switch (entityType) {
@@ -181,6 +190,9 @@ function buildJobConfig(options: StartAiAnalysisJobOptions): Omit<
 	| 'analysisComplete'
 	| 'pendingResult'
 	| 'error'
+	| 'attempt'
+	| 'maxAttempts'
+	| 'retrying'
 > {
 	const pagePath = getAnalysisPagePath(options.entityType, options.entityId);
 	switch (options.entityType) {
@@ -236,7 +248,10 @@ export function startAiAnalysisJob(options: StartAiAnalysisJobOptions) {
 		analysisPercent: 0,
 		analysisComplete: false,
 		pendingResult: null,
-		error: null
+		error: null,
+		attempt: 1,
+		maxAttempts: AI_ANALYSIS_MAX_ATTEMPTS,
+		retrying: false
 	};
 
 	activeAiAnalysisJob.set(job);
@@ -244,7 +259,55 @@ export function startAiAnalysisJob(options: StartAiAnalysisJobOptions) {
 	void runAnalysisFetch(job, options.requirementsCount ?? 0);
 }
 
-async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
+interface AttemptOutcome {
+	ok: boolean;
+	pendingResult?: Record<string, unknown>;
+	error?: string;
+	retriable?: boolean;
+}
+
+/**
+ * Decide whether a failed attempt is worth retrying. Transient failures
+ * (server 5xx, Muraji 5xx, timeouts, network errors, unexpected responses) are
+ * retriable; clear user/validation errors are not.
+ */
+function isRetriableError(message: string, httpStatus: number): boolean {
+	const m = (message || '').toLowerCase();
+	const permanent = [
+		'no evidences',
+		'no applied controls',
+		'please upload evidence',
+		'please link',
+		'permission denied',
+		'no indexed'
+	];
+	if (permanent.some((p) => m.includes(p))) return false;
+	if (httpStatus >= 500) return true;
+	const transient = [
+		'muraji api error: 5',
+		'timed out',
+		'timeout',
+		'unexpected response',
+		'network error',
+		'temporarily',
+		'try again',
+		'502',
+		'503',
+		'504'
+	];
+	return transient.some((t) => m.includes(t));
+}
+
+/** Reset the animated progress for a fresh retry attempt (keeps the timer running). */
+function resetProgressForRetry() {
+	patchJob({ analysisStep: 0, analysisPercent: 0, analysisComplete: false });
+}
+
+/** Perform a single analysis request and normalize the outcome. */
+async function attemptAnalysisFetch(
+	job: AiAnalysisJob,
+	requirementsCount: number
+): Promise<AttemptOutcome> {
 	const formData = new FormData();
 	if (job.additionalPrompt?.trim()) {
 		formData.append('additionalPrompt', job.additionalPrompt.trim());
@@ -254,6 +317,7 @@ async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
 
 	try {
 		const response = await fetch(actionUrl, { method: 'POST', body: formData });
+		const httpStatus = response.status;
 		const text = await response.text();
 
 		let result: {
@@ -265,21 +329,14 @@ async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
 		try {
 			result = deserialize(text);
 		} catch {
-			stopProgressTimer(false);
-			patchJob({
-				status: 'error',
-				error: 'Server returned an unexpected response. The backend may be unreachable.'
-			});
-			notifyError(job);
-			return;
+			return {
+				ok: false,
+				error: 'Server returned an unexpected response. The backend may be unreachable.',
+				retriable: true
+			};
 		}
 
-		const errorKey =
-			job.actionName === 'runAuditAnalysis'
-				? 'auditError'
-				: job.entityType === 'requirement'
-					? 'aiError'
-					: 'aiError';
+		const errorKey = job.actionName === 'runAuditAnalysis' ? 'auditError' : 'aiError';
 
 		if (result.type === 'success' && result.data?.aiAnalysis) {
 			const pendingResult = parseSuccessResult(
@@ -287,46 +344,65 @@ async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
 				result.data.aiAnalysis as Record<string, unknown>,
 				requirementsCount
 			);
+			return { ok: true, pendingResult };
+		}
+
+		let message = '';
+		if (result.data?.[errorKey]) {
+			message = String(result.data[errorKey]);
+		} else if (result.type === 'error' && result.error?.message) {
+			message = result.error.message;
+		} else {
+			message = 'Unexpected response from server';
+		}
+		return { ok: false, error: message, retriable: isRetriableError(message, httpStatus) };
+	} catch (err) {
+		const message =
+			err instanceof Error && err.message.includes('Failed to fetch')
+				? 'Network error — please check your connection and try again.'
+				: `Request failed: ${err instanceof Error ? err.message : String(err)}`;
+		return { ok: false, error: message, retriable: true };
+	}
+}
+
+async function runAnalysisFetch(job: AiAnalysisJob, requirementsCount: number) {
+	const maxAttempts = get(activeAiAnalysisJob)?.maxAttempts ?? AI_ANALYSIS_MAX_ATTEMPTS;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		patchJob({ attempt, retrying: false, error: null });
+
+		const outcome = await attemptAnalysisFetch(job, requirementsCount);
+
+		if (outcome.ok) {
 			stopProgressTimer(true);
-			patchJob({ status: 'complete', pendingResult, showProgressModal: true });
+			patchJob({
+				status: 'complete',
+				pendingResult: outcome.pendingResult ?? null,
+				showProgressModal: true,
+				retrying: false
+			});
 			await invalidateAll();
 			notifyComplete(get(activeAiAnalysisJob)!);
 			return;
 		}
 
-		if (result.type === 'failure' && result.data?.[errorKey]) {
-			stopProgressTimer(false);
-			patchJob({
-				status: 'error',
-				error: String(result.data[errorKey])
-			});
-			notifyError(get(activeAiAnalysisJob)!);
-			return;
+		const canRetry = Boolean(outcome.retriable) && attempt < maxAttempts;
+		if (canRetry) {
+			// Surface the retry in the UI, back off briefly, then re-run.
+			patchJob({ retrying: true, error: outcome.error ?? null });
+			await delay(1000 * attempt);
+			resetProgressForRetry();
+			continue;
 		}
 
-		if (result.data?.[errorKey]) {
-			stopProgressTimer(false);
-			patchJob({
-				status: 'error',
-				error: String(result.data[errorKey])
-			});
-			notifyError(get(activeAiAnalysisJob)!);
-			return;
-		}
-
-		stopProgressTimer(false);
-		patchJob({ status: 'error', error: 'Unexpected response from server' });
-		notifyError(get(activeAiAnalysisJob)!);
-	} catch (err) {
 		stopProgressTimer(false);
 		patchJob({
 			status: 'error',
-			error:
-				err instanceof Error && err.message.includes('Failed to fetch')
-					? 'Network error — please check your connection and try again.'
-					: `Request failed: ${err instanceof Error ? err.message : String(err)}`
+			error: outcome.error ?? 'Unexpected response from server',
+			retrying: false
 		});
 		notifyError(get(activeAiAnalysisJob)!);
+		return;
 	}
 }
 

@@ -21,6 +21,9 @@
 	let { data }: Props = $props();
 
 	let isAnalyzing = $state(false);
+	let isRetrying = $state(false);
+	let retryAttempt = $state(1);
+	let retryMaxAttempts = $state(3);
 	let aiAnalysisResult: any = $state(null);
 	let aiAnalysisError: string | null = $state(null);
 	let deletingAnalysisId: string | null = $state(null);
@@ -39,10 +42,14 @@
 		const job = $activeAiAnalysisJob;
 		if (!job || job.entityId !== entityId) {
 			isAnalyzing = false;
+			isRetrying = false;
 			return;
 		}
 
 		isAnalyzing = job.status === 'running';
+		isRetrying = job.status === 'running' && job.retrying;
+		retryAttempt = job.attempt;
+		retryMaxAttempts = job.maxAttempts;
 
 		if (job.status === 'error' && job.error) {
 			aiAnalysisError = job.error;
@@ -165,7 +172,10 @@
 			title="Start AI Analysis on Associated Evidences"
 			onclick={() => runAiAnalysis()}
 		>
-			{#if isAnalyzing}
+			{#if isRetrying}
+				<i class="fa-solid fa-rotate-right fa-spin mr-2"></i>
+				<span>Retrying ({retryAttempt}/{retryMaxAttempts})…</span>
+			{:else if isAnalyzing}
 				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
 				<span>Analyzing...</span>
 			{:else}

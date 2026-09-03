@@ -35,6 +35,9 @@
 		runningInBackground={job.status === 'running'}
 		showGoToPage={!onAnalysisPage}
 		goToPageLabel={job ? getGoToPageLabel(job.entityType) : undefined}
+		attempt={job.attempt}
+		maxAttempts={job.maxAttempts}
+		retrying={job.retrying}
 		onClose={dismissProgressModal}
 		onRunInBackground={dismissProgressModal}
 		onGoToPage={navigateToAnalysisPage}
@@ -62,6 +65,8 @@
 				>
 					{#if job.status === 'complete'}
 						<i class="fa-solid fa-circle-check text-emerald-500"></i>
+					{:else if job.retrying}
+						<i class="fa-solid fa-rotate-right fa-spin text-amber-500"></i>
 					{:else}
 						<i class="fa-solid fa-spinner fa-spin ai-analysis-indicator__spinner"></i>
 					{/if}
@@ -70,6 +75,8 @@
 					<p class="truncate text-sm font-semibold text-gray-900">
 						{#if job.status === 'complete'}
 							Analysis ready
+						{:else if job.retrying}
+							Retrying analysis ({job.attempt}/{job.maxAttempts})
 						{:else}
 							Analyzing in background
 						{/if}

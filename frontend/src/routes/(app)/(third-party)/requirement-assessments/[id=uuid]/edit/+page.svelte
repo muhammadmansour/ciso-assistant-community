@@ -344,6 +344,11 @@
 	let reanalysisPrompt = $state('');
 	let isReanalyzing = $state(false);
 
+	// Auto-retry indicator state
+	let isRetrying = $state(false);
+	let retryAttempt = $state(1);
+	let retryMaxAttempts = $state(3);
+
 	const entityId = $derived(data.requirementAssessment.id);
 	const entityLabel = $derived(
 		`${data.requirement?.ref_id ?? ''} - ${data.requirement?.name || data.requirementAssessment?.name || ''}`.trim()
@@ -353,11 +358,15 @@
 		const job = $activeAiAnalysisJob;
 		if (!job || job.entityId !== entityId) {
 			isAnalyzing = false;
+			isRetrying = false;
 			return;
 		}
 
 		isAnalyzing = job.status === 'running';
 		isReanalyzing = job.status === 'running' && !!job.additionalPrompt;
+		isRetrying = job.status === 'running' && job.retrying;
+		retryAttempt = job.attempt;
+		retryMaxAttempts = job.maxAttempts;
 
 		if (job.status === 'error' && job.error) {
 			aiAnalysisError = job.error;
@@ -945,7 +954,10 @@
 		title="Run AI Analysis on Associated Evidences"
 		onclick={() => runAiAnalysis()}
 	>
-		{#if isAnalyzing}
+		{#if isRetrying}
+			<i class="fa-solid fa-rotate-right fa-spin mr-2"></i>
+			<span>Retrying ({retryAttempt}/{retryMaxAttempts})…</span>
+		{:else if isAnalyzing}
 			<i class="fa-solid fa-spinner fa-spin mr-2"></i>
 			<span>Analyzing...</span>
 		{:else}

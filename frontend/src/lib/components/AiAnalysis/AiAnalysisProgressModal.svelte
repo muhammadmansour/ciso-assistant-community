@@ -12,6 +12,9 @@
 		runningInBackground?: boolean;
 		showGoToPage?: boolean;
 		goToPageLabel?: string;
+		attempt?: number;
+		maxAttempts?: number;
+		retrying?: boolean;
 		onClose?: () => void;
 		onViewResults?: () => void;
 		onRunInBackground?: () => void;
@@ -29,6 +32,9 @@
 		runningInBackground = false,
 		showGoToPage = false,
 		goToPageLabel = 'Go to Analysis Page',
+		attempt = 1,
+		maxAttempts = 3,
+		retrying = false,
 		onClose,
 		onViewResults,
 		onRunInBackground,
@@ -76,7 +82,14 @@
 						<i class="fa-solid fa-circle-check text-green-500 text-3xl"></i>
 					</div>
 				{:else}
-					<div class="w-14 h-14 rounded-full bg-[#005FA3]/10 flex items-center justify-center">
+					<div
+						class="w-14 h-14 rounded-full flex items-center justify-center {retrying
+							? 'bg-amber-100'
+							: 'bg-[#005FA3]/10'}"
+					>
+						{#if retrying}
+							<i class="fa-solid fa-rotate-right fa-spin text-amber-500 text-2xl"></i>
+						{:else}
 						<svg class="w-8 h-8 text-[#005FA3] animate-pulse" viewBox="0 0 24 24" fill="currentColor">
 							<path
 								d="M12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2Z"
@@ -84,17 +97,21 @@
 							/>
 							<path d="M12 5.5L13.6 9.5L18 9.87L14.67 12.76L15.77 17L12 14.67L8.23 17L9.33 12.76L6 9.87L10.4 9.5L12 5.5Z" />
 						</svg>
+						{/if}
 					</div>
 				{/if}
 			</div>
 
 			<div class="px-6 pb-4">
 				<div class="flex items-center justify-between mb-2">
-					<span class="text-sm font-medium text-gray-700">
+					<span class="text-sm font-medium {retrying ? 'text-amber-600' : 'text-gray-700'}">
 						{#if analysisComplete}
 							Analysis complete
+						{:else if retrying}
+							Retrying… (attempt {attempt} of {maxAttempts})
 						{:else}
-							Analyzing...
+							Analyzing...{#if attempt > 1}
+								(attempt {attempt} of {maxAttempts}){/if}
 						{/if}
 					</span>
 					<span class="text-sm font-medium text-gray-500">{Math.round(analysisPercent)}%</span>
@@ -107,6 +124,17 @@
 						style="width: {analysisPercent}%"
 					></div>
 				</div>
+				{#if retrying}
+					<div
+						class="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+					>
+						<i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+						<span>
+							The analysis service returned a transient error. Automatically retrying
+							(attempt {attempt} of {maxAttempts})…
+						</span>
+					</div>
+				{/if}
 			</div>
 
 			<div class="px-6 pb-4 space-y-3">

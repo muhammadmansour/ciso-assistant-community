@@ -143,6 +143,9 @@
 	// Audit Analysis state
 	let auditLoading = $state(false);
 	let auditError: string | null = $state(null);
+	let isRetrying = $state(false);
+	let retryAttempt = $state(1);
+	let retryMaxAttempts = $state(3);
 	let localAiAnalyses: any[] = $state(data.aiAnalyses || []);
 	let deletingAnalysisId: string | null = $state(null);
 	let showAnalysisModal = $state(false);
@@ -158,10 +161,14 @@
 		const job = $activeAiAnalysisJob;
 		if (!job || job.entityId !== entityId) {
 			auditLoading = false;
+			isRetrying = false;
 			return;
 		}
 
 		auditLoading = job.status === 'running';
+		isRetrying = job.status === 'running' && job.retrying;
+		retryAttempt = job.attempt;
+		retryMaxAttempts = job.maxAttempts;
 
 		if (job.status === 'error' && job.error) {
 			auditError = job.error;
@@ -820,7 +827,10 @@
 								onclick={() => runAuditAnalysis()}
 								disabled={auditLoading}
 							>
-								{#if auditLoading}
+								{#if isRetrying}
+									<i class="fa-solid fa-rotate-right fa-spin mr-2"></i>
+									Retrying ({retryAttempt}/{retryMaxAttempts})…
+								{:else if auditLoading}
 									<i class="fa-solid fa-spinner fa-spin mr-2"></i>
 									Analyzing...
 								{:else}
