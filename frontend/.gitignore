@@ -10,7 +10,7 @@ vite.config.ts.timestamp-*
 /packages/create-svelte/template/CHANGELOG.md
 /packages/package/test/**/package
 /documentation/types.js
-# /build  # Committed for production deployment
+/build
 .env
 .vercel_build_output
 .svelte-kit
