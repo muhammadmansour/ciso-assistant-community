@@ -7502,6 +7502,9 @@ class FindingsAssessment(Assessment):
         AUDIT = "audit", "Audit"
         SELF_IDENTIFIED = "self_identified", "Self-identified"
 
+    # Names are often AI-generated (e.g. "convert gap to finding"), so allow long text.
+    name = models.CharField(max_length=1000, verbose_name=_("Name"), unique=False)
+
     owner = models.ManyToManyField(
         "core.Actor",
         blank=True,
@@ -7632,6 +7635,9 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
         (3, _("P3")),
         (4, _("P4")),
     ]
+
+    # Names are often AI-generated (e.g. "convert gap to finding"), so allow long text.
+    name = models.CharField(max_length=1000, verbose_name=_("Name"), unique=False)
 
     findings_assessment = models.ForeignKey(
         FindingsAssessment, on_delete=models.CASCADE, related_name="findings"
