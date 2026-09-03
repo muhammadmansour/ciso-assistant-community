@@ -1,8 +1,13 @@
-<!doctype html>
+{% load core_extras %}<!doctype html>
 <html lang="en">
 <head>
     <link href="/static/cache/fontawesome-free-6.3.0-web/css/all.min.css" rel="stylesheet">
     <style>
+/* Cairo (bundled) so Arabic content renders correctly and on-brand */
+{% cairo_font_css %}
+html, body {
+    font-family: 'Cairo', 'Source Sans Pro', sans-serif;
+}
 @page {
     size: A3 landscape; /* Change from the default size of A4 */
     margin: 0.3cm; /* Set margin on each page */
@@ -15,7 +20,7 @@
 }
 
 .main {
-font-family: 'Source Sans Pro', sans-serif;
+font-family: 'Cairo', 'Source Sans Pro', sans-serif;
 
 }
 .flex {

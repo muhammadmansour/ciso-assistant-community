@@ -427,8 +427,10 @@ def gen_audit_context(id, doc, tree, lang):
 
     context = dict()
 
-    authors = ", ".join([a.email for a in audit.authors.all()])
-    reviewers = ", ".join([a.email for a in audit.reviewers.all()])
+    # authors/reviewers are Actor instances (user/team/entity), not User — use
+    # their string representation instead of the removed `.email` attribute.
+    authors = ", ".join([str(a) for a in audit.authors.all()])
+    reviewers = ", ".join([str(a) for a in audit.reviewers.all()])
 
     spider_data = list()
     result_counts = count_category_results(tree)

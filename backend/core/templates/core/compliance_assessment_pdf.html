@@ -1,0 +1,121 @@
+{% extends 'core/base_pdf.html' %}
+{% block content %}
+{% load i18n core_extras %}
+
+<style>
+    /* Muhkam brand: repeating logo header + footer on every page */
+    @page {
+        margin: 2.3cm 0.5cm 1.3cm 0.5cm;
+        @top-left { content: element(muhkamHeader); }
+        @bottom-center { content: element(muhkamFooter); }
+    }
+    .muhkam-header {
+        position: running(muhkamHeader);
+        padding-bottom: 0.15cm;
+        border-bottom: 2px solid #316FD3;
+        width: 100%;
+    }
+    .muhkam-header img { height: 1cm; width: auto; }
+    .muhkam-footer {
+        position: running(muhkamFooter);
+        font-size: 0.68rem;
+        color: #192A44;
+    }
+    h1 { color: #192A44; }
+    .meta-table td { border: none; padding: 0.15rem 0.5rem; }
+    table.req, table.req th, table.req td { border: 1px solid #A8A29E; border-collapse: collapse; }
+    table.req { width: 100%; }
+    table.req thead tr { background-color: #192A44; color: #FFFFFF; }
+    table.req thead tr th { color: #FFFFFF; padding: 0.4rem; }
+    table.req td { padding: 0.35rem; vertical-align: top; font-size: 0.8rem; }
+    .summary td { border: 1px solid #A8A29E; padding: 0.3rem 0.6rem; }
+    .summary thead tr { background-color: #316FD3; color: #FFFFFF; }
+    .pill { font-weight: 600; }
+</style>
+
+<div class="muhkam-header"><img src="{% muhkam_logo %}" alt="Muhkam"></div>
+<div class="muhkam-footer">Muhkam &middot; {{ compliance_assessment.name }} &middot; {% trans "Assessment report" %}</div>
+
+<main class="p-2 m-2 main">
+    <h1 class="flex justify-center">{% trans "Assessment report" %}</h1>
+
+    <table class="meta-table m-2">
+        <tr>
+            <td class="font-semibold">{% trans "Domain" %}:</td>
+            <td>{{ compliance_assessment.perimeter.folder }}</td>
+            <td class="font-semibold">{% trans "Perimeter" %}:</td>
+            <td>{{ compliance_assessment.perimeter.name }}</td>
+        </tr>
+        <tr>
+            <td class="font-semibold">{% trans "Audit" %}:</td>
+            <td>{{ compliance_assessment.name }} - {{ compliance_assessment.version }}</td>
+            <td class="font-semibold">{% trans "Framework" %}:</td>
+            <td>{{ compliance_assessment.framework }}</td>
+        </tr>
+        <tr>
+            <td class="font-semibold">{% trans "Status" %}:</td>
+            <td>{{ compliance_assessment.get_status_display|default:"--" }}</td>
+            <td class="font-semibold">{% trans "Requirements" %}:</td>
+            <td>{{ total_count }}</td>
+        </tr>
+    </table>
+
+    <p class="p-2 m-2 text-lg font-semibold">{% trans "Results summary" %}</p>
+    <table class="summary m-2">
+        <thead>
+            <tr>
+                {% for key, label in result_labels.items %}
+                    <th>{{ label }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                {% for key, label in result_labels.items %}
+                    <td class="text-center">{{ result_counts|get_item:key|default:0 }}</td>
+                {% endfor %}
+            </tr>
+        </tbody>
+    </table>
+
+    <p class="p-2 m-2 text-lg font-semibold">{% trans "Requirements" %}</p>
+    <table class="req m-2">
+        <thead>
+            <tr class="uppercase">
+                <th>{% trans "Ref" %}</th>
+                <th>{% trans "Requirement" %}</th>
+                <th>{% trans "Result" %}</th>
+                <th>{% trans "Score" %}</th>
+                <th>{% trans "Observation" %}</th>
+                <th>{% trans "Applied controls" %}</th>
+                <th>{% trans "Evidences" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ra in requirement_assessments %}
+            <tr>
+                <td>{{ ra.requirement.ref_id|default:"--" }}</td>
+                <td>{{ ra.requirement.description|default:ra.requirement.name|default:"--"|linebreaksbr }}</td>
+                <td>{{ ra.get_result_display }}</td>
+                <td class="text-center">
+                    {% if ra.is_scored %}{{ ra.score|default_if_none:"--" }}{% else %}--{% endif %}
+                </td>
+                <td>{{ ra.observation|default:"--"|linebreaksbr }}</td>
+                <td>
+                    {% for ac in ra.applied_controls.all %}
+                        {{ ac.name }}<br>
+                    {% empty %}--{% endfor %}
+                </td>
+                <td>
+                    {% for ev in ra.evidences.all %}
+                        {{ ev.name }}<br>
+                    {% empty %}--{% endfor %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center">{% trans "No entries found" %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock %}

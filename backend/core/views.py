@@ -9450,6 +9450,54 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         else:
             return Response({"error": "Permission denied"})
 
+    @action(detail=True, name="Get compliance assessment report as PDF")
+    def assessment_pdf(self, request, pk):
+        """Full assessment report PDF: every assessable requirement with its
+        result, score, observation, applied controls and evidences."""
+        (object_ids_view, _, _) = RoleAssignment.get_accessible_object_ids(
+            Folder.get_root_folder(), request.user, ComplianceAssessment
+        )
+        if UUID(pk) not in object_ids_view:
+            return Response(
+                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+            )
+        if not WEASYPRINT_AVAILABLE:
+            return Response(
+                {
+                    "error": "PDF export is not available. WeasyPrint library is not installed."
+                },
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+
+        compliance_assessment_object: ComplianceAssessment = self.get_object()
+        requirement_assessments = (
+            compliance_assessment_object.get_requirement_assessments(
+                include_non_assessable=False
+            )
+        )
+        requirement_assessments = sorted(
+            requirement_assessments,
+            key=lambda ra: (ra.requirement.order_id or 0),
+        )
+
+        # Aggregate result counts for a small summary table.
+        result_labels = dict(RequirementAssessment.Result.choices)
+        result_counts = {key: 0 for key in result_labels}
+        for ra in requirement_assessments:
+            result_counts[ra.result] = result_counts.get(ra.result, 0) + 1
+
+        data = {
+            "compliance_assessment": compliance_assessment_object,
+            "requirement_assessments": requirement_assessments,
+            "result_labels": result_labels,
+            "result_counts": result_counts,
+            "total_count": len(requirement_assessments),
+        }
+        html = render_to_string("core/compliance_assessment_pdf.html", data)
+        pdf_file = HTML(string=html).write_pdf()
+        response = HttpResponse(pdf_file, content_type="application/pdf")
+        return response
+
     @action(
         detail=True,
         methods=["post"],

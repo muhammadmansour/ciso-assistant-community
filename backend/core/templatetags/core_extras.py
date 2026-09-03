@@ -24,6 +24,12 @@ def muhkam_logo_reversed():
 
 
 @register.simple_tag()
+def cairo_font_css():
+    """@font-face CSS registering the bundled Cairo font for PDF exports."""
+    return mark_safe(branding.cairo_font_face_css())
+
+
+@register.simple_tag()
 def muhkam_ink():
     return branding.MUHKAM_INK_CSS
 

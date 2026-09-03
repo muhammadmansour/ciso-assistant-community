@@ -1013,6 +1013,7 @@
 								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
 								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
 								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/word" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asWord()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/pdf" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asPDF()}</a>
 							{/if}
 							<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asZIP()}</a>
 							{#if !page.data.user.is_third_party}

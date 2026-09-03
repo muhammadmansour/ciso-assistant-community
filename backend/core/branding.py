@@ -30,9 +30,15 @@ MUHKAM_BLUE_CSS = f"#{MUHKAM_BLUE}"
 MUHKAM_WHITE_CSS = f"#{MUHKAM_WHITE}"
 
 _STATIC_DIR = Path(settings.BASE_DIR) / "core" / "static" / "muhkam"
+_FONTS_DIR = Path(settings.BASE_DIR) / "core" / "static" / "fonts"
 _LOGO_FILENAME = "muhkam-lockup-horizontal-1000w.png"
 _LOGO_REVERSED_FILENAME = "muhkam-lockup-horizontal-reversed-1000w.png"
 _MARK_FILENAME = "muhkam-mark-256w.png"
+
+# Cairo (Google Fonts, OFL) — variable TTF covering weights 100..900. Used so
+# Arabic content renders correctly (and on-brand) in PDF/Word exports.
+CAIRO_FONT_FAMILY = "Cairo"
+_CAIRO_FONT_FILENAME = "Cairo.ttf"
 
 
 def logo_png_path() -> Path:
@@ -71,6 +77,36 @@ def logo_data_uri() -> str:
 def logo_reversed_data_uri() -> str:
     """Base64 data URI for the reversed lockup (dark backgrounds)."""
     return _data_uri(str(logo_reversed_png_path()))
+
+
+# -- Cairo font (PDF via WeasyPrint) ------------------------------------------
+def cairo_font_path() -> Path:
+    """Absolute path to the bundled Cairo variable TTF."""
+    return _FONTS_DIR / _CAIRO_FONT_FILENAME
+
+
+@lru_cache(maxsize=1)
+def cairo_font_face_css() -> str:
+    """``@font-face`` CSS registering Cairo for WeasyPrint.
+
+    Uses a ``file://`` URI (portable across environments via ``BASE_DIR``) so
+    WeasyPrint loads the font without needing a ``base_url``/``/static`` server.
+    Returns an empty string if the font file is missing (export still works,
+    just without the custom font).
+    """
+    path = cairo_font_path()
+    if not path.is_file():
+        return ""
+    uri = path.as_uri()
+    return (
+        "@font-face {"
+        f" font-family: '{CAIRO_FONT_FAMILY}';"
+        f" src: url('{uri}') format('truetype');"
+        " font-weight: 100 900;"
+        " font-style: normal;"
+        " font-display: swap;"
+        "}"
+    )
 
 
 # -- Excel (openpyxl) ---------------------------------------------------------
@@ -136,6 +172,25 @@ def apply_xlsx_branding(worksheet, title: str, header_row: int) -> None:
 
 
 # -- Word (python-docx) -------------------------------------------------------
+def set_docx_cairo_font(document) -> None:
+    """Set Cairo as the default font on the ``Normal`` style.
+
+    Also sets the complex-script (``w:cs``) slot so Arabic text uses Cairo, not
+    just the Latin ascii/hAnsi slots. Best-effort: never raises.
+    """
+    try:
+        from docx.oxml.ns import qn
+
+        normal = document.styles["Normal"]
+        normal.font.name = CAIRO_FONT_FAMILY
+        rpr = normal.element.get_or_add_rPr()
+        rfonts = rpr.get_or_add_rFonts()
+        for attr in ("w:ascii", "w:hAnsi", "w:cs"):
+            rfonts.set(qn(attr), CAIRO_FONT_FAMILY)
+    except Exception:
+        pass
+
+
 def add_docx_branding(document, title: str) -> None:
     """Add a Muhkam logo header and a brand footer to a python-docx Document.
 
@@ -145,6 +200,8 @@ def add_docx_branding(document, title: str) -> None:
     try:
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.shared import Inches, Pt, RGBColor
+
+        set_docx_cairo_font(document)
 
         section = document.sections[0]
 
