@@ -155,7 +155,6 @@
 			action="?/createFindingsAssessment"
 		>
 			{#snippet children({ form })}
-				<HiddenInput {form} field="perimeter" />
 				<HiddenInput {form} field="category" />
 				<HiddenInput {form} field="version" />
 				<HiddenInput {form} field="source" />
@@ -191,6 +190,13 @@
 						<TextField {form} field="name" label={m.name()} />
 						<TextArea {form} field="description" label={m.description()} rows={3} />
 						<TextArea {form} field="observation" label={m.observation()} rows={3} />
+						<AutocompleteSelect
+							{form}
+							optionsEndpoint="perimeters"
+							optionsExtraFields={[['folder', 'str']]}
+							field="perimeter"
+							label={m.perimeter()}
+						/>
 						<Select {form} options={statusOptions} field="status" label={m.status()} />
 						<AutocompleteSelect
 							{form}
