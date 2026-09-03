@@ -3,10 +3,34 @@
 {% load i18n core_extras %}
 
 <style>
+    /* Muhkam brand: repeating logo header + footer on every page */
+    @page {
+        margin: 2.3cm 0.5cm 1.3cm 0.5cm;
+        @top-left { content: element(muhkamHeader); }
+        @bottom-center { content: element(muhkamFooter); }
+    }
+    .muhkam-header {
+        position: running(muhkamHeader);
+        padding-bottom: 0.15cm;
+        border-bottom: 2px solid #316FD3;
+        width: 100%;
+    }
+    .muhkam-header img { height: 1cm; width: auto; }
+    .muhkam-footer {
+        position: running(muhkamFooter);
+        font-size: 0.68rem;
+        color: #192A44;
+    }
+    h1 { color: #192A44; }
     table, th, td {
         border: 1px solid black;
       }
+    thead tr { background-color: #192A44; color: #FFFFFF; }
+    thead tr th { color: #FFFFFF; }
 </style>
+
+<div class="muhkam-header"><img src="{% muhkam_logo %}" alt="Muhkam"></div>
+<div class="muhkam-footer">Muhkam &middot; {{ compliance_assessment.name }} &middot; {% trans "Action plan" %}</div>
 
 <main class="p-2 m-2 main">
     <h1 class="flex justify-center">{% trans "Action plan" %}</h1>

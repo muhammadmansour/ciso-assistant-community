@@ -6,8 +6,31 @@ from ciso_assistant.settings import VERSION, BUILD, DEBUG
 from core.utils import COUNTRY_FLAGS, LANGUAGES
 from core.models import RequirementAssessment
 from core.helpers import color_css_class
+from core import branding
 
 register = template.Library()
+
+
+@register.simple_tag()
+def muhkam_logo():
+    """Base64 data URI of the Muhkam horizontal lockup for PDF/HTML headers."""
+    return branding.logo_data_uri()
+
+
+@register.simple_tag()
+def muhkam_logo_reversed():
+    """Base64 data URI of the reversed lockup (for dark/Ink backgrounds)."""
+    return branding.logo_reversed_data_uri()
+
+
+@register.simple_tag()
+def muhkam_ink():
+    return branding.MUHKAM_INK_CSS
+
+
+@register.simple_tag()
+def muhkam_blue():
+    return branding.MUHKAM_BLUE_CSS
 
 
 @register.simple_tag()

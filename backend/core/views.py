@@ -9159,8 +9159,11 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         df = pd.DataFrame(entries)
         buffer = io.BytesIO()
 
+        from core.branding import apply_xlsx_branding, XLSX_BRAND_ROWS
+
+        header_row = XLSX_BRAND_ROWS + 1
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False)
+            df.to_excel(writer, index=False, startrow=XLSX_BRAND_ROWS)
             worksheet = writer.sheets["Sheet1"]
 
             wrap_columns = ["name", "description", "observations"]
@@ -9169,7 +9172,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             ]
 
             for col_idx in wrap_indices:
-                for row_idx in range(2, len(df) + 2):
+                for row_idx in range(header_row + 1, header_row + 1 + len(df)):
                     cell = worksheet.cell(row=row_idx, column=col_idx)
                     cell.alignment = Alignment(wrap_text=True)
 
@@ -9180,6 +9183,8 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 worksheet.column_dimensions[
                     worksheet.cell(row=1, column=idx + 1).column_letter
                 ].width = column_width
+
+            apply_xlsx_branding(worksheet, audit.name, header_row)
 
         buffer.seek(0)
         response = HttpResponse(
@@ -9220,6 +9225,12 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         filter_graph_by_implementation_groups(tree, implementation_groups)
         context = gen_audit_context(pk, doc, tree, lang)
         doc.render(context)
+        try:
+            from core.branding import add_docx_branding
+
+            add_docx_branding(doc.docx, self.get_object().name)
+        except Exception as e:
+            logger.warning("Could not apply Muhkam branding to Word report", error=str(e))
         buffer_doc = io.BytesIO()
         doc.save(buffer_doc)
         buffer_doc.seek(0)
@@ -9342,8 +9353,11 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         df = pd.DataFrame(entries)
         buffer = io.BytesIO()
 
+        from core.branding import apply_xlsx_branding, XLSX_BRAND_ROWS
+
+        header_row = XLSX_BRAND_ROWS + 1
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-            df.to_excel(writer, index=False)
+            df.to_excel(writer, index=False, startrow=XLSX_BRAND_ROWS)
             worksheet = writer.sheets["Sheet1"]
 
             wrap_columns = ["name", "description", "covered_requirements"]
@@ -9352,7 +9366,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             ]
 
             for col_idx in wrap_indices:
-                for row_idx in range(2, len(df) + 2):
+                for row_idx in range(header_row + 1, header_row + 1 + len(df)):
                     cell = worksheet.cell(row=row_idx, column=col_idx)
                     cell.alignment = Alignment(wrap_text=True)
 
@@ -9363,6 +9377,10 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 worksheet.column_dimensions[
                     worksheet.cell(row=1, column=idx + 1).column_letter
                 ].width = column_width
+
+            apply_xlsx_branding(
+                worksheet, f"{compliance_assessment.name} - Action plan", header_row
+            )
 
         buffer.seek(0)
         response = HttpResponse(
