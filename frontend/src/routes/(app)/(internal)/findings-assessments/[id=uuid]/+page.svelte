@@ -96,16 +96,16 @@
 					<div>
 						<p class="block px-4 py-2 text-sm text-gray-800">{m.findingsAssessment()}</p>
 						<a
-							href="/findings-assessments/{data.data.id}/export/xlsx"
+							data-sveltekit-reload href="/findings-assessments/{data.data.id}/export/xlsx"
 							class="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200">... {m.asXLSX()}</a
 						>
 						<a
-							href="/findings-assessments/{data.data.id}/export/md"
+							data-sveltekit-reload href="/findings-assessments/{data.data.id}/export/md"
 							class="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200"
 							>... {m.asMarkdown()}</a
 						>
 						<a
-							href="/findings-assessments/{data.data.id}/export/pdf"
+							data-sveltekit-reload href="/findings-assessments/{data.data.id}/export/pdf"
 							class="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200">... {m.asPDF()}</a
 						>
 					</div>

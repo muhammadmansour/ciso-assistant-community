@@ -205,12 +205,12 @@
 						<div>
 							<p class="block px-4 py-2 text-sm text-gray-800">{m.incident()}</p>
 							<a
-								href="/incidents/{data.data.id}/export/md"
+								data-sveltekit-reload href="/incidents/{data.data.id}/export/md"
 								class="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200"
 								>... {m.asMarkdown()}</a
 							>
 							<a
-								href="/incidents/{data.data.id}/export/pdf"
+								data-sveltekit-reload href="/incidents/{data.data.id}/export/pdf"
 								class="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-200">... {m.asPDF()}</a
 							>
 						</div>

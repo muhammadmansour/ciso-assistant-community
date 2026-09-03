@@ -1010,17 +1010,17 @@
 						<div>
 							<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.complianceAssessment()}</p>
 							{#if !page.data.user.is_third_party}
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/export/word" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asWord()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export/word" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asWord()}</a>
 							{/if}
-							<a href="/compliance-assessments/{data.compliance_assessment.id}/export" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asZIP()}</a>
+							<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/export" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asZIP()}</a>
 							{#if !page.data.user.is_third_party}
 								<div class="border-t border-gray-100 my-1"></div>
 								<p class="block px-4 py-2 text-sm font-medium text-gray-800">{m.actionPlan()}</p>
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
-								<a href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/pdf" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asPDF()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/csv" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asCSV()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/xlsx" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asXLSX()}</a>
+								<a data-sveltekit-reload href="/compliance-assessments/{data.compliance_assessment.id}/action-plan/export/pdf" class="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">... {m.asPDF()}</a>
 							{/if}
 						</div>
 					{/snippet}
