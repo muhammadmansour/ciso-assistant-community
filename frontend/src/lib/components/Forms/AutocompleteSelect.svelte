@@ -146,6 +146,7 @@
 	);
 	let isInternalUpdate = false;
 	let optionsLoaded = $state(Boolean(options.length));
+	let hydratedFromValue = $state(Boolean(options.length));
 	const initialValue = resetForm ? undefined : $value;
 	const default_value = nullable ? null : selectedValues[0];
 
@@ -206,6 +207,7 @@
 			} else if (options.length === 1 && $constraints?.required) {
 				selected = [options[0]];
 			}
+			hydratedFromValue = true;
 		} catch (error) {
 			console.error(`Error fetching ${optionsEndpoint}:`, error);
 		} finally {
@@ -380,14 +382,16 @@
 			const formHasValues = multiple
 				? Array.isArray($value) && $value.length > 0
 				: Boolean($value);
-			// Keep programmatic defaults (e.g. pre-filled reviewers) until the UI catches up.
-			if (selectedValues.length === 0 && formHasValues) {
+			// Hydrate once from form values (e.g. pre-filled reviewers). After that,
+			// an empty selection is a user clear and must persist.
+			if (selectedValues.length === 0 && formHasValues && !hydratedFromValue) {
 				const valueArray = Array.isArray($value) ? $value : [$value];
 				selected = options.filter((item) => valueArray.includes(item.value));
 			} else {
 				$value = multiple ? selectedValues : (selectedValues[0] ?? default_value);
 				handleSelectChange();
 			}
+			hydratedFromValue = true;
 			isInternalUpdate = false;
 		}
 	});
