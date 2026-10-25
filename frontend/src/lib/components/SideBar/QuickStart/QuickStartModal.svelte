@@ -43,7 +43,6 @@
 
 	const form = defaults(
 		{
-			framework: 'urn:intuitem:risk:library:iso27001-2022',
 			risk_matrix: 'urn:intuitem:risk:library:critical_risk_matrix_5x5',
 			audit_name: `Quick start audit ${new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
 			risk_assessment_name: `Quick start risk assessment ${new Date().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
@@ -102,12 +101,12 @@
 				{form}
 				field="framework"
 				label={m.framework()}
-				optionsEndpoint="stored-libraries"
-				optionsDetailedUrlParameters={[
-					['object_type', 'framework'],
-					['is_loaded', 'true']
-				]}
-				optionsValueField="urn"
+				optionsEndpoint="frameworks"
+				optionsLabelField="name"
+				optionsValueField="id"
+				additionalMultiselectOptions={{
+					liOptionClass: 'whitespace-normal break-words'
+				}}
 			/>
 			<TextField {form} field="audit_name" label={m.auditName()} />
 			<div class="flex flex-row justify-between space-x-4">

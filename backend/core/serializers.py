@@ -1,5 +1,6 @@
 import importlib
 from typing import Any
+from uuid import UUID
 
 import structlog
 from django.db import models
@@ -2887,18 +2888,30 @@ class QuickStartSerializer(serializers.Serializer):
                 return None
             perimeter = perimeter_serializer.save()
 
-        framework_lib_urn = validated_data["framework"]
-        if not LoadedLibrary.objects.filter(urn=framework_lib_urn).exists():
-            framework_stored_lib = StoredLibrary.objects.get(urn=framework_lib_urn)
-            try:
-                framework_stored_lib.load()
-            except Exception as e:
-                logger.error(e)
-                raise serializers.ValidationError(
-                    {"error": "Could not load the selected framework library"}
-                )
-        framework_lib = LoadedLibrary.objects.get(urn=framework_lib_urn)
-        framework = Framework.objects.get(library=framework_lib)
+        framework_value = str(validated_data["framework"])
+        framework = None
+        try:
+            framework = Framework.objects.get(id=UUID(framework_value))
+        except (ValueError, TypeError, Framework.DoesNotExist):
+            framework = Framework.objects.filter(urn=framework_value).first()
+        if framework is None:
+            if not LoadedLibrary.objects.filter(urn=framework_value).exists():
+                framework_stored_lib = StoredLibrary.objects.filter(
+                    urn=framework_value
+                ).first()
+                if framework_stored_lib is None:
+                    raise serializers.ValidationError(
+                        {"framework": "Selected framework was not found"}
+                    )
+                try:
+                    framework_stored_lib.load()
+                except Exception as e:
+                    logger.error(e)
+                    raise serializers.ValidationError(
+                        {"error": "Could not load the selected framework library"}
+                    )
+            framework_lib = LoadedLibrary.objects.get(urn=framework_value)
+            framework = Framework.objects.get(library=framework_lib)
         compliance_assessment_data = {
             "folder": folder.id,
             "perimeter": perimeter.id,
