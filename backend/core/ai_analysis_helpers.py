@@ -306,8 +306,13 @@ def build_observation_text(ai_result, existing_observation=''):
             gap_lines = []
             for gap in gaps[:5]:
                 if isinstance(gap, dict):
+                    gap_title = gap.get('title') or gap.get('gapTitle') or gap.get('findingName')
                     gap_text = gap.get('gap') or gap.get('description') or gap.get('finding', '')
-                    if gap_text:
+                    if gap_title and gap_text:
+                        gap_lines.append(f"  - {gap_title}: {gap_text}")
+                    elif gap_title:
+                        gap_lines.append(f"  - {gap_title}")
+                    elif gap_text:
                         gap_lines.append(f"  - {gap_text}")
                 elif isinstance(gap, str):
                     gap_lines.append(f"  - {gap}")

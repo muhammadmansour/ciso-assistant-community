@@ -69,10 +69,12 @@
 	function buildGapFindingPrefill(
 		idx: number,
 		gGap: string | null,
-		gRec: string | null
+		gRec: string | null,
+		gTitle: string | null = null
 	): GapFindingPrefill {
 		const ac = data.data as Record<string, any>;
 		const gapText = gGap?.trim() || '';
+		const titleText = gTitle?.trim() || '';
 		let perimeterId = '';
 
 		for (const ra of ac.requirement_assessments ?? []) {
@@ -89,7 +91,7 @@
 		);
 
 		return {
-			name: gapText || `Gap ${idx + 1}`,
+			name: titleText || gapText || `Gap ${idx + 1}`,
 			description: gapText,
 			observation: gRec?.trim() || '',
 			perimeter: perimeterId,
@@ -102,8 +104,13 @@
 		};
 	}
 
-	function openConvertGapToFindingModal(idx: number, gGap: string | null, gRec: string | null) {
-		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec);
+	function openConvertGapToFindingModal(
+		idx: number,
+		gGap: string | null,
+		gRec: string | null,
+		gTitle: string | null = null
+	) {
+		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec, gTitle);
 		showGapFindingModal = true;
 	}
 

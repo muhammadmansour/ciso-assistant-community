@@ -404,10 +404,12 @@
 	function buildGapFindingPrefill(
 		idx: number,
 		gGap: string | null,
-		gRec: string | null
+		gRec: string | null,
+		gTitle: string | null = null
 	): GapFindingPrefill {
 		const ca = data.complianceAssessment;
 		const gapText = gGap?.trim() || '';
+		const titleText = gTitle?.trim() || '';
 		const perimeterId = ca?.perimeter?.id ?? ca?.perimeter ?? '';
 		const userActorId = data.userActorId;
 		const evidences = (data.gapContextEvidences ?? []).map((ev: { id: string }) => ev.id);
@@ -416,7 +418,7 @@
 		);
 
 		return {
-			name: gapText || `Gap ${idx + 1}`,
+			name: titleText || gapText || `Gap ${idx + 1}`,
 			description: gapText,
 			observation: gRec?.trim() || '',
 			perimeter: perimeterId,
@@ -432,8 +434,13 @@
 	let showGapFindingModal = $state(false);
 	let gapFindingPrefill: GapFindingPrefill | null = $state(null);
 
-	function openConvertGapToFindingModal(idx: number, gGap: string | null, gRec: string | null) {
-		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec);
+	function openConvertGapToFindingModal(
+		idx: number,
+		gGap: string | null,
+		gRec: string | null,
+		gTitle: string | null = null
+	) {
+		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec, gTitle);
 		showGapFindingModal = true;
 	}
 
@@ -2251,6 +2258,7 @@
 									{:else}
 										<div class="space-y-3">
 											{#each gapItems as item, idx}
+												{@const gTitle = typeof item === 'object' ? (getField(item, 'title') || getField(item, 'gapTitle') || getField(item, 'findingName')) : null}
 												{@const gRequirement = typeof item === 'object' ? (getField(item, 'requirement') || getField(item, 'requirement_text')) : null}
 												{@const gCurrentState = typeof item === 'object' ? (getField(item, 'currentState') || getField(item, 'current_state') || getField(item, 'currentStatus')) : null}
 												{@const gGap = typeof item === 'string' ? item : (getField(item, 'gap') || getField(item, 'description') || getField(item, 'text'))}
@@ -2259,7 +2267,7 @@
 													<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
 														<span class="font-semibold text-orange-800 text-sm">
 															<i class="fa-solid fa-triangle-exclamation mr-1"></i>
-															Gap {idx + 1}
+															{#if gTitle}{gTitle}{:else}Gap {idx + 1}{/if}
 														</span>
 													</div>
 													<div class="p-4 space-y-3 text-sm">
@@ -2291,7 +2299,7 @@
 															<button
 																type="button"
 																class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
-																onclick={() => openConvertGapToFindingModal(idx, gGap, gRec)}
+																onclick={() => openConvertGapToFindingModal(idx, gGap, gRec, gTitle)}
 															>
 																<i class="fa-solid fa-clipboard-list mr-1"></i>
 																{m.convertToFinding()}

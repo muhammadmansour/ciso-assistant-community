@@ -8,7 +8,12 @@
 		enableReanalyze?: boolean;
 		reanalyzeDisabled?: boolean;
 		onClose: () => void;
-		onConvertGap?: (idx: number, gap: string | null, recommendation: string | null) => void;
+		onConvertGap?: (
+			idx: number,
+			gap: string | null,
+			recommendation: string | null,
+			title?: string | null
+		) => void;
 		onReanalyze?: () => void;
 	}
 
@@ -303,6 +308,7 @@
 										{:else}
 											<div class="space-y-3">
 												{#each gapItems as item, idx}
+													{@const gTitle = getField(item as Record<string, unknown>, 'title') || getField(item as Record<string, unknown>, 'gapTitle') || getField(item as Record<string, unknown>, 'findingName')}
 													{@const gRequirement = getField(item as Record<string, unknown>, 'requirement') || getField(item as Record<string, unknown>, 'requirement_text')}
 													{@const gCurrentState = getField(item as Record<string, unknown>, 'currentState') || getField(item as Record<string, unknown>, 'current_state') || getField(item as Record<string, unknown>, 'currentStatus')}
 													{@const gGap = getField(item as Record<string, unknown>, 'gap') || getField(item as Record<string, unknown>, 'description') || getField(item as Record<string, unknown>, 'text')}
@@ -311,7 +317,7 @@
 														<div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
 															<span class="font-semibold text-orange-800 text-sm">
 																<i class="fa-solid fa-triangle-exclamation mr-1"></i>
-																Gap {idx + 1}
+																{#if gTitle}{gTitle}{:else}Gap {idx + 1}{/if}
 															</span>
 														</div>
 														<div class="p-4 space-y-3 text-sm">
@@ -344,7 +350,7 @@
 																	<button
 																		type="button"
 																		class="btn btn-sm rounded-lg bg-[#0A1628] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a2740]"
-																		onclick={() => onConvertGap(idx, gGap ? String(gGap) : null, gRec ? String(gRec) : null)}
+																		onclick={() => onConvertGap(idx, gGap ? String(gGap) : null, gRec ? String(gRec) : null, gTitle ? String(gTitle) : null)}
 																	>
 																		<i class="fa-solid fa-clipboard-list mr-1"></i>
 																		{m.convertToFinding()}
