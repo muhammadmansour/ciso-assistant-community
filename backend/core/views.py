@@ -11998,7 +11998,7 @@ def assessment_zip_layout(
     graph = filter_graph_by_implementation_groups(
         graph, compliance_assessment.selected_implementation_groups
     )
-    in_scope_urns = set(flatten_dict(graph).values())
+    in_scope_urns = {v for v in flatten_dict(graph).values() if isinstance(v, str)}
 
     nodes = [n for n in requirement_nodes if n.urn in in_scope_urns]
     assessment_per_urn = {
