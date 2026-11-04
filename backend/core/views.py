@@ -9975,34 +9975,26 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         )
         if UUID(pk) in object_ids_view:
             compliance_assessment = self.get_object()
-            (index_content, evidences) = generate_html(compliance_assessment)
+            (index_content, evidence_files, requirement_dirs) = generate_html(
+                compliance_assessment
+            )
             zip_name = f"{sanitize_filename(compliance_assessment.name)}-{sanitize_filename(compliance_assessment.framework.name)}-{datetime.now():%Y-%m-%d-%H-%M}.zip"
 
             # Create temporary file that will be automatically deleted
             temp_file = tempfile.NamedTemporaryFile(delete=True, suffix=".zip")
 
             try:
-                with zipfile.ZipFile(temp_file, "w") as zipf:
-                    for evidence in evidences:
-                        if (
-                            evidence.last_revision
-                            and evidence.last_revision.attachment
-                            and default_storage.exists(
-                                evidence.last_revision.attachment.name
-                            )
-                        ):
-                            with default_storage.open(
-                                evidence.last_revision.attachment.name
-                            ) as attachment_file:
-                                zipf.writestr(
-                                    os.path.join(
-                                        "evidences",
-                                        os.path.basename(
-                                            evidence.last_revision.attachment.name
-                                        ),
-                                    ),
-                                    attachment_file.read(),
-                                )
+                with zipfile.ZipFile(
+                    temp_file, "w", compression=zipfile.ZIP_DEFLATED
+                ) as zipf:
+                    for requirement_dir in requirement_dirs:
+                        zipf.writestr(f"{requirement_dir}/", "")
+                    for zip_path, evidence in evidence_files:
+                        attachment_name = evidence.last_revision.attachment.name
+                        if not default_storage.exists(attachment_name):
+                            continue
+                        with default_storage.open(attachment_name) as attachment_file:
+                            zipf.writestr(zip_path, attachment_file.read())
                     zipf.writestr("index.html", index_content)
 
                 # Seek to beginning for reading
@@ -11944,10 +11936,40 @@ def get_build(request):
 # NOTE: Important functions/classes from old views.py, to be reviewed
 
 
+_ZIP_UNSAFE_CHARS = regex.compile(r'[\\/:*?"<>|\p{Cc}]+')
+_ZIP_SEGMENT_MAX_LEN = 80
+
+
+def _zip_segment(label: str, fallback: str) -> str:
+    """Folder/file name safe for ZIP on Windows, macOS and Linux."""
+    name = _ZIP_UNSAFE_CHARS.sub("_", label or "").strip().strip(".").strip()
+    name = regex.sub(r"\s+", " ", name)[:_ZIP_SEGMENT_MAX_LEN].strip().strip(".")
+    return name or fallback
+
+
+def _unique_zip_name(name: str, taken: set) -> str:
+    if name not in taken:
+        taken.add(name)
+        return name
+    stem, ext = os.path.splitext(name)
+    i = 2
+    while f"{stem} ({i}){ext}" in taken:
+        i += 1
+    unique = f"{stem} ({i}){ext}"
+    taken.add(unique)
+    return unique
+
+
 def generate_html(
     compliance_assessment: ComplianceAssessment,
-) -> Tuple[str, list[Evidence]]:
-    selected_evidences = []
+) -> Tuple[str, list[Tuple[str, Evidence]], list[str]]:
+    """Render the ZIP index and lay out evidence files along the requirement tree.
+
+    Returns (index_html, [(zip_path, evidence)], [zip_dir]) where every
+    requirement node gets a folder and its evidences sit inside it.
+    """
+    zip_files: list[Tuple[str, Evidence]] = []
+    zip_dirs: list[str] = []
 
     requirement_nodes = RequirementNode.objects.filter(
         framework=compliance_assessment.framework
@@ -11979,11 +12001,37 @@ def generate_html(
             p = req.parent_urn
             req = None if not (p) else node_per_urn[p]
 
-    def generate_data_rec(requirement_node: RequirementNode):
-        selected_evidences = []
-        children_nodes = [
-            req for req in requirement_nodes if req.parent_urn == requirement_node.urn
-        ]
+    def node_order(node: RequirementNode):
+        return (node.order_id if node.order_id is not None else 0, node.urn)
+
+    def add_evidence_files(zip_dir: str, evidences, evidence_paths: dict, taken: set):
+        for evidence in evidences:
+            if evidence.id in evidence_paths:
+                continue
+            revision = evidence.last_revision
+            if not (revision and revision.attachment):
+                continue
+            file_name = _zip_segment(
+                os.path.basename(revision.attachment.name), f"evidence-{evidence.id}"
+            )
+            zip_path = f"{zip_dir}/{_unique_zip_name(file_name, taken)}"
+            evidence_paths[evidence.id] = zip_path
+            zip_files.append((zip_path, evidence))
+
+    def generate_data_rec(requirement_node: RequirementNode, parent_dir: str, siblings: set):
+        children_nodes = sorted(
+            (req for req in requirement_nodes if req.parent_urn == requirement_node.urn),
+            key=node_order,
+        )
+
+        label = requirement_node.display_short or (
+            requirement_node.get_description_translated or ""
+        )
+        segment = _unique_zip_name(
+            _zip_segment(label, requirement_node.urn.rsplit(":", 1)[-1]), siblings
+        )
+        zip_dir = f"{parent_dir}/{segment}" if parent_dir else segment
+        zip_dirs.append(zip_dir)
 
         node_data = {
             "requirement_node": requirement_node,
@@ -11992,10 +12040,12 @@ def generate_html(
             "bar_graph": None,
             "direct_evidences": [],
             "applied_controls": [],
+            "evidence_paths": {},
             "result": "",
             "status": "",
             "color_class": "",
         }
+        files_in_dir: set = set()
 
         node_data["bar_graph"] = True if children_nodes else False
 
@@ -12013,8 +12063,10 @@ def generate_html(
                 node_data["status_color_class"] = color_css_class(assessment.status)
                 direct_evidences = assessment.evidences.all()
                 if direct_evidences:
-                    selected_evidences += direct_evidences
                     node_data["direct_evidences"] = direct_evidences
+                    add_evidence_files(
+                        zip_dir, direct_evidences, node_data["evidence_paths"], files_in_dir
+                    )
 
                 measures = assessment.applied_controls.all()
                 if measures:
@@ -12027,23 +12079,28 @@ def generate_html(
                                 "evidences": evidences,
                             }
                         )
-                        selected_evidences += evidences
+                        add_evidence_files(
+                            zip_dir, evidences, node_data["evidence_paths"], files_in_dir
+                        )
                     node_data["applied_controls"] = applied_controls
 
+        child_segments: set = set()
         for child_node in children_nodes:
-            child_data, child_evidences = generate_data_rec(child_node)
-            node_data["children"].append(child_data)
-            selected_evidences += child_evidences
+            node_data["children"].append(
+                generate_data_rec(child_node, zip_dir, child_segments)
+            )
 
-        return node_data, selected_evidences
+        return node_data
 
-    top_level_nodes = [req for req in requirement_nodes if not req.parent_urn]
+    top_level_nodes = sorted(
+        (req for req in requirement_nodes if not req.parent_urn), key=node_order
+    )
     update_translations_in_object(top_level_nodes)
-    top_level_nodes_data = []
-    for requirement_node in top_level_nodes:
-        node_data, node_evidences = generate_data_rec(requirement_node)
-        top_level_nodes_data.append(node_data)
-        selected_evidences += node_evidences
+    top_level_segments: set = set()
+    top_level_nodes_data = [
+        generate_data_rec(requirement_node, "", top_level_segments)
+        for requirement_node in top_level_nodes
+    ]
 
     data = {
         "compliance_assessment": compliance_assessment,
@@ -12052,9 +12109,7 @@ def generate_html(
         "ancestors": ancestors,
     }
 
-    return render_to_string("core/audit_report.html", data), list(
-        set(selected_evidences)
-    )
+    return render_to_string("core/audit_report.html", data), zip_files, zip_dirs
 
 
 def export_mp_csv(request):
