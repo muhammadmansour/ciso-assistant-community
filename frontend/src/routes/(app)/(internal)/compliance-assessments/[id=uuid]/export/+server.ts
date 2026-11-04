@@ -37,12 +37,18 @@ export const GET: RequestHandler = async ({ fetch, params }) => {
 	const urlEncodedFileName = encodeURIComponent(finalFileName);
 
 	// Fetch the ZIP blob
-	const blobData = await fetch(endpoint).then((res) => {
-		if (!res.ok) {
-			throw error(400, 'Error fetching the ZIP file');
+	const res = await fetch(endpoint);
+	if (!res.ok) {
+		let detail = '';
+		try {
+			const body = await res.json();
+			detail = body?.error || body?.detail || '';
+		} catch {
+			// non-JSON error body
 		}
-		return res.blob();
-	});
+		throw error(res.status, `Error fetching the ZIP file${detail ? `: ${detail}` : ''}`);
+	}
+	const blobData = await res.blob();
 
 	// Return the file with proper headers
 	return new Response(blobData, {

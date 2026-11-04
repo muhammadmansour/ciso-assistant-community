@@ -9975,9 +9975,16 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         )
         if UUID(pk) in object_ids_view:
             compliance_assessment = self.get_object()
-            (evidence_files, requirement_dirs) = assessment_zip_layout(
-                compliance_assessment
-            )
+            try:
+                (evidence_files, requirement_dirs) = assessment_zip_layout(
+                    compliance_assessment
+                )
+            except Exception as e:
+                logger.exception("assessment ZIP layout failed", pk=pk)
+                return Response(
+                    {"error": f"ZIP export failed: {e}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
             zip_name = f"{sanitize_filename(compliance_assessment.name)}-{sanitize_filename(compliance_assessment.framework.name)}-{datetime.now():%Y-%m-%d-%H-%M}.zip"
 
             # Create temporary file that will be automatically deleted
@@ -10005,13 +10012,18 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 )
                 return response
 
-            except Exception:
-                # Clean up on error
+            except Exception as e:
                 temp_file.close()
-                raise
+                logger.exception("assessment ZIP export failed", pk=pk)
+                return Response(
+                    {"error": f"ZIP export failed: {e}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
         else:
-            return Response({"error": "Permission denied"})
+            return Response(
+                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+            )
 
     @action(detail=True, methods=["get"])
     def donut_data(self, request, pk):
