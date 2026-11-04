@@ -97,14 +97,15 @@ def cairo_font_face_css() -> str:
     path = cairo_font_path()
     if not path.is_file():
         return ""
-    uri = path.as_uri()
+    # Data URI so WeasyPrint does not have to fetch a file:// URL (that
+    # fetch is a common source of PDF export 500s in Docker/PM2).
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
     return (
         "@font-face {"
         f" font-family: '{CAIRO_FONT_FAMILY}';"
-        f" src: url('{uri}') format('truetype');"
+        f" src: url('data:font/ttf;base64,{encoded}') format('truetype');"
         " font-weight: 100 900;"
         " font-style: normal;"
-        " font-display: swap;"
         "}"
     )
 

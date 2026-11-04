@@ -119,6 +119,37 @@ except (ImportError, OSError) as e:
     HTML = None
     print(f"WeasyPrint not available: {e}. PDF export will be disabled.")
 
+
+def _weasyprint_url_fetcher(url, timeout=10, ssl_context=None):
+    """Fetch stylesheets/fonts for WeasyPrint; skip missing URLs instead of failing the export."""
+    try:
+        from weasyprint.urls import default_url_fetcher
+    except ImportError:
+        from weasyprint import default_url_fetcher
+
+    try:
+        return default_url_fetcher(url, timeout=timeout, ssl_context=ssl_context)
+    except Exception as exc:
+        logger.warning("WeasyPrint skipped URL", url=url, error=str(exc))
+        return {"string": b"", "mime_type": "application/octet-stream"}
+
+
+def _render_weasyprint_pdf(html: str) -> bytes:
+    """Render HTML to PDF. Raises RuntimeError if WeasyPrint is missing."""
+    if not WEASYPRINT_AVAILABLE or HTML is None:
+        raise RuntimeError(
+            "PDF export is not available. WeasyPrint is not installed "
+            "(Debian/Ubuntu: libpango-1.0-0 libpangocairo-1.0-0 libcairo2)."
+        )
+    from pathlib import Path
+
+    base = Path(settings.BASE_DIR) / "core"
+    return HTML(
+        string=html,
+        base_url=base.as_uri() + "/",
+        url_fetcher=_weasyprint_url_fetcher,
+    ).write_pdf()
+
 from core.helpers import *
 from core.models import (
     AppliedControl,
@@ -9493,9 +9524,23 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             "result_counts": result_counts,
             "total_count": len(requirement_assessments),
         }
-        html = render_to_string("core/compliance_assessment_pdf.html", data)
-        pdf_file = HTML(string=html).write_pdf()
+        try:
+            html = render_to_string("core/compliance_assessment_pdf.html", data)
+            pdf_file = _render_weasyprint_pdf(html)
+        except Exception as e:
+            logger.exception(
+                "compliance assessment PDF generation failed",
+                assessment_id=str(pk),
+                error=str(e),
+            )
+            return Response(
+                {"error": f"PDF generation failed: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         response = HttpResponse(pdf_file, content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="assessment_{pk}.pdf"'
+        )
         return response
 
     @action(

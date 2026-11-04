@@ -8,12 +8,26 @@ export const GET: RequestHandler = async ({ fetch, params }) => {
 
 	const res = await fetch(endpoint);
 	if (!res.ok) {
-		error(400, 'Error fetching the PDF file');
+		let detail = 'Error fetching the PDF file';
+		try {
+			const body = await res.text();
+			if (body) {
+				try {
+					const parsed = JSON.parse(body);
+					detail = parsed.error || parsed.detail || body;
+				} catch {
+					detail = body.slice(0, 500);
+				}
+			}
+		} catch {
+			/* keep default */
+		}
+		error(res.status, detail);
 	}
 
-	const fileName = `assessment-${params.id}-${new Date().toISOString()}.pdf`;
+	const fileName = `assessment-${params.id}.pdf`;
 
-	return new Response(await res.blob(), {
+	return new Response(res.body, {
 		headers: {
 			'Content-Type': 'application/pdf',
 			'Content-Disposition': `attachment; filename="${fileName}"`
