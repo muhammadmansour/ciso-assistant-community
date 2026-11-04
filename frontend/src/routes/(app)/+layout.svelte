@@ -13,6 +13,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { m } from '$paraglide/messages';
+	import { getLocale, locales, setLocale } from '$paraglide/runtime';
 
 	import type { PageData, ActionData } from './$types';
 	import QuickStartModal from '$lib/components/SideBar/QuickStart/QuickStartModal.svelte';
@@ -133,6 +134,16 @@
 	}
 
 	let searchQuery = $state('');
+	let langValue = $state(getLocale());
+
+	async function handleLocaleChange(newLang: (typeof locales)[number]) {
+		if (newLang === langValue) return;
+		langValue = newLang;
+		await fetch('/fe-api/user-preferences', {
+			method: 'PATCH',
+			body: JSON.stringify({ lang: newLang })
+		}).then(() => setLocale(newLang));
+	}
 
 	function handleGlobalSearch() {
 		const q = searchQuery.trim();
@@ -182,6 +193,27 @@
 						Start Audit
 					</button>
 				{/if}
+
+				<div
+					class="inline-flex items-center rounded-lg bg-[#f4f6f9] p-0.5"
+					role="group"
+					aria-label="Change language"
+					data-testid="language-toggle"
+				>
+					{#each locales as lang}
+						<button
+							type="button"
+							onclick={() => handleLocaleChange(lang)}
+							aria-pressed={lang === langValue}
+							class="px-2.5 py-1.5 rounded-md text-xs font-semibold uppercase transition-all duration-150 {lang ===
+							langValue
+								? 'bg-white text-[#0A1628] shadow-sm'
+								: 'text-gray-500 hover:text-gray-700'}"
+						>
+							{lang}
+						</button>
+					{/each}
+				</div>
 
 				<img
 					src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
