@@ -9975,7 +9975,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
         )
         if UUID(pk) in object_ids_view:
             compliance_assessment = self.get_object()
-            (index_content, evidence_files, requirement_dirs) = generate_html(
+            (evidence_files, requirement_dirs) = assessment_zip_layout(
                 compliance_assessment
             )
             zip_name = f"{sanitize_filename(compliance_assessment.name)}-{sanitize_filename(compliance_assessment.framework.name)}-{datetime.now():%Y-%m-%d-%H-%M}.zip"
@@ -9995,7 +9995,6 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                             continue
                         with default_storage.open(attachment_name) as attachment_file:
                             zipf.writestr(zip_path, attachment_file.read())
-                    zipf.writestr("index.html", index_content)
 
                 # Seek to beginning for reading
                 temp_file.seek(0)
@@ -11960,13 +11959,14 @@ def _unique_zip_name(name: str, taken: set) -> str:
     return unique
 
 
-def generate_html(
+def assessment_zip_layout(
     compliance_assessment: ComplianceAssessment,
-) -> Tuple[str, list[Tuple[str, Evidence]], list[str]]:
-    """Render the ZIP index and lay out evidence files along the requirement tree.
+) -> Tuple[list[Tuple[str, Evidence]], list[str]]:
+    """Lay out evidence files along the assessment's requirement tree.
 
-    Returns (index_html, [(zip_path, evidence)], [zip_dir]) where every
-    requirement node gets a folder and its evidences sit inside it.
+    Returns ([(zip_path, evidence)], [zip_dir]): every requirement node gets a
+    folder, and the evidences of that requirement (direct and via its applied
+    controls) sit inside it.
     """
     zip_files: list[Tuple[str, Evidence]] = []
     zip_dirs: list[str] = []
@@ -11974,142 +11974,70 @@ def generate_html(
     requirement_nodes = RequirementNode.objects.filter(
         framework=compliance_assessment.framework
     )
-
     assessments = RequirementAssessment.objects.filter(
         compliance_assessment=compliance_assessment,
-    ).all()
+    ).prefetch_related("evidences", "applied_controls__evidences")
 
-    implementation_groups = compliance_assessment.selected_implementation_groups
     graph = get_sorted_requirement_nodes(
         list(requirement_nodes),
         list(assessments),
         compliance_assessment.framework.max_score,
     )
-    graph = filter_graph_by_implementation_groups(graph, implementation_groups)
-    flattened_graph = flatten_dict(graph)
+    graph = filter_graph_by_implementation_groups(
+        graph, compliance_assessment.selected_implementation_groups
+    )
+    in_scope_urns = set(flatten_dict(graph).values())
 
-    requirement_nodes = requirement_nodes.filter(urn__in=flattened_graph.values())
-    assessments = assessments.filter(requirement__urn__in=flattened_graph.values())
+    nodes = [n for n in requirement_nodes if n.urn in in_scope_urns]
+    assessment_per_urn = {
+        a.requirement.urn: a
+        for a in assessments.select_related("requirement")
+        if a.requirement.urn in in_scope_urns
+    }
+    children_per_urn: dict = {}
+    for node in nodes:
+        children_per_urn.setdefault(node.parent_urn, []).append(node)
+    for siblings in children_per_urn.values():
+        siblings.sort(key=lambda n: (n.order_id if n.order_id is not None else 0, n.urn))
 
-    node_per_urn = {r.urn: r for r in requirement_nodes}
-    ancestors = {}
-    for a in assessments:
-        ancestors[a] = set()
-        req = a.requirement
-        while req:
-            ancestors[a].add(req)
-            p = req.parent_urn
-            req = None if not (p) else node_per_urn[p]
-
-    def node_order(node: RequirementNode):
-        return (node.order_id if node.order_id is not None else 0, node.urn)
-
-    def add_evidence_files(zip_dir: str, evidences, evidence_paths: dict, taken: set):
+    def add_evidence_files(zip_dir: str, evidences, seen: set, taken: set):
         for evidence in evidences:
-            if evidence.id in evidence_paths:
+            if evidence.id in seen:
                 continue
+            seen.add(evidence.id)
             revision = evidence.last_revision
             if not (revision and revision.attachment):
                 continue
             file_name = _zip_segment(
                 os.path.basename(revision.attachment.name), f"evidence-{evidence.id}"
             )
-            zip_path = f"{zip_dir}/{_unique_zip_name(file_name, taken)}"
-            evidence_paths[evidence.id] = zip_path
-            zip_files.append((zip_path, evidence))
+            zip_files.append((f"{zip_dir}/{_unique_zip_name(file_name, taken)}", evidence))
 
-    def generate_data_rec(requirement_node: RequirementNode, parent_dir: str, siblings: set):
-        children_nodes = sorted(
-            (req for req in requirement_nodes if req.parent_urn == requirement_node.urn),
-            key=node_order,
-        )
-
-        label = requirement_node.display_short or (
-            requirement_node.get_description_translated or ""
-        )
+    def walk(node: RequirementNode, parent_dir: str, sibling_names: set):
+        label = node.display_short or (node.get_description_translated or "")
         segment = _unique_zip_name(
-            _zip_segment(label, requirement_node.urn.rsplit(":", 1)[-1]), siblings
+            _zip_segment(label, node.urn.rsplit(":", 1)[-1]), sibling_names
         )
         zip_dir = f"{parent_dir}/{segment}" if parent_dir else segment
         zip_dirs.append(zip_dir)
 
-        node_data = {
-            "requirement_node": requirement_node,
-            "children": [],
-            "assessments": None,
-            "bar_graph": None,
-            "direct_evidences": [],
-            "applied_controls": [],
-            "evidence_paths": {},
-            "result": "",
-            "status": "",
-            "color_class": "",
-        }
-        files_in_dir: set = set()
+        assessment = assessment_per_urn.get(node.urn) if node.assessable else None
+        if assessment:
+            seen: set = set()
+            taken: set = set()
+            add_evidence_files(zip_dir, assessment.evidences.all(), seen, taken)
+            for applied_control in assessment.applied_controls.all():
+                add_evidence_files(zip_dir, applied_control.evidences.all(), seen, taken)
 
-        node_data["bar_graph"] = True if children_nodes else False
+        child_names: set = set()
+        for child in children_per_urn.get(node.urn, []):
+            walk(child, zip_dir, child_names)
 
-        if requirement_node.assessable:
-            assessment = RequirementAssessment.objects.filter(
-                requirement__urn=requirement_node.urn,
-                compliance_assessment=compliance_assessment,
-            ).first()
+    top_level_names: set = set()
+    for node in children_per_urn.get(None, []) + children_per_urn.get("", []):
+        walk(node, "", top_level_names)
 
-            if assessment:
-                node_data["assessments"] = assessment
-                node_data["result"] = assessment.get_result_display()
-                node_data["status"] = assessment.get_status_display()
-                node_data["result_color_class"] = color_css_class(assessment.result)
-                node_data["status_color_class"] = color_css_class(assessment.status)
-                direct_evidences = assessment.evidences.all()
-                if direct_evidences:
-                    node_data["direct_evidences"] = direct_evidences
-                    add_evidence_files(
-                        zip_dir, direct_evidences, node_data["evidence_paths"], files_in_dir
-                    )
-
-                measures = assessment.applied_controls.all()
-                if measures:
-                    applied_controls = []
-                    for measure in measures:
-                        evidences = measure.evidences.all()
-                        applied_controls.append(
-                            {
-                                "measure": measure,
-                                "evidences": evidences,
-                            }
-                        )
-                        add_evidence_files(
-                            zip_dir, evidences, node_data["evidence_paths"], files_in_dir
-                        )
-                    node_data["applied_controls"] = applied_controls
-
-        child_segments: set = set()
-        for child_node in children_nodes:
-            node_data["children"].append(
-                generate_data_rec(child_node, zip_dir, child_segments)
-            )
-
-        return node_data
-
-    top_level_nodes = sorted(
-        (req for req in requirement_nodes if not req.parent_urn), key=node_order
-    )
-    update_translations_in_object(top_level_nodes)
-    top_level_segments: set = set()
-    top_level_nodes_data = [
-        generate_data_rec(requirement_node, "", top_level_segments)
-        for requirement_node in top_level_nodes
-    ]
-
-    data = {
-        "compliance_assessment": compliance_assessment,
-        "top_level_nodes": top_level_nodes_data,
-        "assessments": assessments,
-        "ancestors": ancestors,
-    }
-
-    return render_to_string("core/audit_report.html", data), zip_files, zip_dirs
+    return zip_files, zip_dirs
 
 
 def export_mp_csv(request):
