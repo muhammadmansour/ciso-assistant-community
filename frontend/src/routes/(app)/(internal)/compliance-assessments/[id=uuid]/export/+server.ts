@@ -35,6 +35,11 @@ export const GET: RequestHandler = async ({ fetch, params }) => {
 	const sanitizedName = sanitizeFileName(namePart);
 	const finalFileName = `${sanitizedName}-${datePart}.zip`;
 	const urlEncodedFileName = encodeURIComponent(finalFileName);
+	// HTTP headers are Latin-1 only; non-ASCII names live in filename* above
+	const asciiFileName = finalFileName
+		.replace(/[^\x20-\x7E]|"/g, '')
+		.replace(/-+/g, '-')
+		.replace(/^-/, '');
 
 	// Fetch the ZIP blob
 	const res = await fetch(endpoint);
@@ -54,7 +59,7 @@ export const GET: RequestHandler = async ({ fetch, params }) => {
 	return new Response(blobData, {
 		headers: {
 			'Content-Type': 'application/zip',
-			'Content-Disposition': `attachment; filename*=utf-8''${urlEncodedFileName}; filename="${finalFileName}"`
+			'Content-Disposition': `attachment; filename*=utf-8''${urlEncodedFileName}; filename="${asciiFileName}"`
 		}
 	});
 };
