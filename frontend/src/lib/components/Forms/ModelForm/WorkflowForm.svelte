@@ -25,6 +25,18 @@
 	}: Props = $props();
 </script>
 
+{#if !initialData.folder}
+	<AutocompleteSelect
+		{form}
+		optionsEndpoint="folders?content_type=DO&content_type=GL"
+		pathField="path"
+		field="folder"
+		cacheLock={cacheLocks['folder']}
+		bind:cachedValue={formDataCache['folder']}
+		label={m.domain()}
+	/>
+{/if}
+
 <AutocompleteSelect
 	multiple
 	{form}
