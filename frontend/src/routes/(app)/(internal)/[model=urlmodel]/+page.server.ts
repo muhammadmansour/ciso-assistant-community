@@ -290,9 +290,7 @@ export const actions: Actions = {
 			{
 				type: warnings.length ? 'warning' : 'success',
 				message: warnings.length
-					? `${m.workflowImportedWithWarnings({ name: res.name })}
-${warnings.join('
-')}`
+					? `${m.workflowImportedWithWarnings({ name: res.name })}\n${warnings.join('\n')}`
 					: m.workflowImported({ name: res.name }),
 				timeout: warnings.length ? 20000 : 5000
 			},
