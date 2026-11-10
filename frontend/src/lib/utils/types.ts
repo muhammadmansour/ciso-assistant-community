@@ -128,6 +128,9 @@ export const URL_MODEL = [
 	// pmbok
 	'generic-collections',
 	'accreditations',
+	// workflows
+	'workflows',
+	'workflow-versions',
 	// metrology
 	'metric-definitions',
 	'metric-instances',

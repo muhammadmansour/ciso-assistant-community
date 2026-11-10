@@ -74,6 +74,53 @@ class BaseModelSerializer(serializers.ModelSerializer):
             if not ff_is_enabled(flag_name):
                 self.fields.pop(field_name)
 
+    def _check_object_perm(
+        self,
+        instance_or_data,
+        action: str,
+        *,
+        folder: Folder | None = None,
+        model: type[models.Model] | None = None,
+    ) -> None:
+        """Check that the requesting user has *action* permission on the resolved folder.
+
+        `model` overrides the permission codename's model when the checked
+        object is not an instance of the serializer's own model.
+        """
+        if folder is None:
+            folder = Folder.get_folder(instance_or_data)
+        if folder is None:
+            return
+        request = self.context.get("request")
+        if request is None:
+            return
+        model = model or self.Meta.model
+        if not RoleAssignment.is_access_allowed(
+            user=request.user,
+            perm=Permission.objects.get(
+                codename=f"{action}_{model._meta.model_name}",
+            ),
+            folder=folder,
+        ):
+            raise PermissionDenied(
+                {
+                    "folder": f"You do not have permission to {action} objects in this folder"
+                }
+            )
+
+    def _ensure_immutable(self, field_name: str, value) -> None:
+        """Raise PermissionDenied if a field differs from the persisted value.
+
+        This treats null transitions as changes: None -> value, value -> None,
+        and value -> different value are all blocked on update.
+        """
+        if self.instance is None:
+            return
+        current_id = getattr(self.instance, f"{field_name}_id", None)
+        new_id = getattr(value, "id", None)
+        if str(new_id) != str(current_id):
+            raise PermissionDenied({field_name: "This field is immutable"})
+
     def update(self, instance: models.Model, validated_data: Any) -> models.Model:
         if hasattr(instance, "urn") and getattr(instance, "urn"):
             raise PermissionDenied({"urn": "Imported objects cannot be modified"})

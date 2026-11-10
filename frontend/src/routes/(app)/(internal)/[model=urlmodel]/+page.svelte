@@ -2,6 +2,7 @@
 	import { handlers } from 'svelte/legacy';
 
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
+	import ImportWorkflowModal from '$lib/components/Modals/ImportWorkflowModal.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { driverInstance } from '$lib/utils/stores';
@@ -61,6 +62,21 @@
 			type: 'component',
 			component: modalComponent,
 			title: m.quickStart()
+		};
+		modalStore.trigger(modal);
+	}
+
+	function modalWorkflowImportForm(): void {
+		let modalComponent: ModalComponent = {
+			ref: ImportWorkflowModal,
+			props: {
+				form: data.model['workflowImportForm']
+			}
+		};
+		let modal: ModalSettings = {
+			type: 'component',
+			component: modalComponent,
+			title: safeTranslate('importWorkflow')
 		};
 		modalStore.trigger(modal);
 	}
@@ -284,6 +300,16 @@
 										label={m.inspect()}
 										data-testid="viz-button"><i class="fa-solid fa-diagram-project"></i></Anchor
 									>
+								{/if}
+								{#if URLModel === 'workflows'}
+									<button
+										class="text-gray-50 inline-block border-e p-3 bg-[#1a2740] hover:bg-[#2a3a66] w-12 focus:relative"
+										title={m.importWorkflow()}
+										aria-label={m.importWorkflow()}
+										data-testid="import-workflow-button"
+										onclick={modalWorkflowImportForm}
+										><i class="fa-solid fa-file-import"></i>
+									</button>
 								{/if}
 								{#if URLModel === 'vulnerabilities'}
 									<Anchor

@@ -72,6 +72,7 @@
 	import GenericCollectionForm from './ModelForm/GenericCollectionForm.svelte';
 	import AccreditationForm from './ModelForm/AccreditationForm.svelte';
 	import MetricDefinitionForm from './ModelForm/MetricDefinitionForm.svelte';
+	import WorkflowForm from './ModelForm/WorkflowForm.svelte';
 	import MetricInstanceForm from './ModelForm/MetricInstanceForm.svelte';
 	import CustomMetricSampleForm from './ModelForm/CustomMetricSampleForm.svelte';
 	import DashboardForm from './ModelForm/DashboardForm.svelte';
@@ -806,6 +807,8 @@
 			/>
 		{:else if URLModel === 'accreditations'}
 			<AccreditationForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
+		{:else if URLModel === 'workflows'}
+			<WorkflowForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} {context} />
 		{:else if URLModel === 'metric-definitions'}
 			<MetricDefinitionForm
 				{form}

@@ -292,6 +292,7 @@ INSTALLED_APPS = [
     "tprm",
     "privacy",
     "resilience",
+    "automation",
     "crq",
     "metrology",
     "core",
@@ -674,3 +675,22 @@ AUDITLOG_MAX_RECORDS = int(os.environ.get("AUDITLOG_MAX_RECORDS", 50000))
 WEBHOOK_ALLOW_PRIVATE_IPS = (
     os.environ.get("WEBHOOK_ALLOW_PRIVATE_IPS", "False") == "True"
 )
+
+## Workflow engine settings
+# Run workflow instances on the Huey worker instead of inline in the request.
+WORKFLOWS_ASYNC_EXECUTION = (
+    os.environ.get("WORKFLOWS_ASYNC_EXECUTION", "").lower() == "true"
+)
+WORKFLOWS_DISPATCH_TIMEOUT_SECONDS = int(
+    os.environ.get("WORKFLOWS_DISPATCH_TIMEOUT_SECONDS", 900)
+)
+WORKFLOWS_INBOUND_HOOKS = (
+    os.environ.get("WORKFLOWS_INBOUND_HOOKS", "true").lower() != "false"
+)
+WORKFLOWS_WEBHOOK_THROTTLE_RATE = os.environ.get(
+    "WORKFLOWS_WEBHOOK_THROTTLE_RATE", "120/min"
+)
+# Lets outbound workflow HTTP calls reach private/loopback addresses (dev only).
+ALLOW_PRIVATE_NETWORK_REQUESTS = os.environ.get(
+    "ALLOW_PRIVATE_NETWORK_REQUESTS", "False"
+).lower() in ("true", "1", "yes")

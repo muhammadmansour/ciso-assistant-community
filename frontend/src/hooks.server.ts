@@ -72,7 +72,16 @@ async function validateUserSession(event: RequestEvent): Promise<User | null> {
 	return res.json();
 }
 
-export const handle: Handle = async ({ event, resolve }) =>
+export const handle: Handle = async ({ event, resolve }) => {
+	// Inbound webhook passthrough: unauthenticated by design (the URL secret is
+	// the credential), so locale middleware and session validation don't apply.
+	if (event.url.pathname.startsWith('/api/workflows/hooks/')) {
+		return resolve(event);
+	}
+	return handleApp({ event, resolve });
+};
+
+const handleApp: Handle = async ({ event, resolve }) =>
 	paraglideMiddleware(event.request, async ({ request: localizedRequest, locale }) => {
 		event.request = localizedRequest;
 
