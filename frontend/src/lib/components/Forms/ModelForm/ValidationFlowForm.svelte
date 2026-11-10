@@ -101,21 +101,22 @@
 		multiple
 	/>
 {/if}
-<AutocompleteSelect
-	{form}
-	optionsEndpoint="folders?content_type=DO&content_type=GL"
-	field="folder"
-	pathField="path"
-	cacheLock={cacheLocks['folder']}
-	bind:cachedValue={formDataCache['folder']}
-	label={m.domain()}
-	hidden={initialData.folder}
-	onChange={async (e) => {
-		if (e && !object?.id) {
-			await fetchDefaultRefId();
-		}
-	}}
-/>
+{#if !initialData.folder}
+	<AutocompleteSelect
+		{form}
+		optionsEndpoint="folders?content_type=DO&content_type=GL"
+		field="folder"
+		pathField="path"
+		cacheLock={cacheLocks['folder']}
+		bind:cachedValue={formDataCache['folder']}
+		label={m.domain()}
+		onChange={async (e) => {
+			if (e && !object?.id) {
+				await fetchDefaultRefId();
+			}
+		}}
+	/>
+{/if}
 {#if object?.id}
 	<Select
 		{form}
