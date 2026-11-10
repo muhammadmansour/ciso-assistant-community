@@ -83,7 +83,7 @@ def build_http_mcp() -> FastMCP:
         transport_security=_build_transport_security(public_url),
     )
 
-    register_all_tools(http_mcp)
+    register_all_tools(http_mcp, remote=True)
 
     @http_mcp.custom_route("/wathbah/login", methods=["GET", "POST"])
     async def wathbah_login(request: Request) -> Response:

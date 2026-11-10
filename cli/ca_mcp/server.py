@@ -7,7 +7,9 @@ mcp = FastMCP("ciso-assistant")
 
 # Import all tools to register them with the MCP server
 from .tools.read_tools import (
+    get_user_activity_logs,
     get_risk_scenarios,
+    get_risk_scenario,
     get_applied_controls,
     get_audits_progress,
     get_folders,
@@ -27,12 +29,20 @@ from .tools.read_tools import (
     get_quantitative_risk_hypotheses,
     get_task_templates,
     get_task_template_details,
-    get_user_activity_logs,
+    get_vulnerabilities,
+    get_vulnerability,
+    get_asset_classes,
+    get_users,
+    get_teams,
 )
+
+from .tools.aggregate_tools import count_objects
+from .tools.generic_tools import list_objects, get_object
 
 from .tools.analysis_tools import (
     get_all_audits_with_metrics,
     get_audit_gap_analysis,
+    get_audit_global_score,
 )
 
 from .tools.library_tools import (
@@ -43,11 +53,13 @@ from .tools.library_tools import (
 
 from .tools.write_tools import (
     create_folder,
+    create_team,
     create_perimeter,
     create_asset,
     create_threat,
     create_applied_control,
     create_risk_assessment,
+    sync_risk_assessment_from_ebios_rm,
     create_risk_scenario,
     create_business_impact_analysis,
     create_compliance_assessment,
@@ -56,18 +68,36 @@ from .tools.write_tools import (
     create_quantitative_risk_hypothesis,
     refresh_quantitative_risk_study_simulations,
     create_task_template,
+    create_vulnerability,
+    create_findings_assessment,
+    create_finding,
+    create_evidence,
+    create_incident,
+    create_timeline_entry,
 )
 
 from .tools.update_tools import (
+    update_team,
+    update_folder,
+    update_user,
+    update_evidence,
     update_asset,
     update_risk_scenario,
     update_applied_control,
+    update_risk_assessment,
+    update_perimeter,
     update_requirement_assessment,
+    update_requirement_assessments,
     update_quantitative_risk_study,
     update_quantitative_risk_scenario,
     update_quantitative_risk_hypothesis,
     update_task_template,
     delete_task_template,
+    update_vulnerability,
+    delete_vulnerability,
+    update_finding,
+    update_incident,
+    update_timeline_entry,
 )
 
 from .tools.tprm_tools import (
@@ -126,114 +156,151 @@ from .tools.ebios_rm_tools import (
     update_kill_chain_step,
 )
 
-def register_all_tools(target_mcp):
+READ_TOOLS = [
+    get_user_activity_logs,
+    count_objects,
+    list_objects,
+    get_object,
+    get_risk_scenarios,
+    get_risk_scenario,
+    get_applied_controls,
+    get_audits_progress,
+    get_folders,
+    get_perimeters,
+    get_risk_matrices,
+    get_risk_matrix_details,
+    get_risk_assessments,
+    get_threats,
+    get_assets,
+    get_incidents,
+    get_security_exceptions,
+    get_frameworks,
+    get_business_impact_analyses,
+    get_requirement_assessments,
+    get_quantitative_risk_studies,
+    get_quantitative_risk_scenarios,
+    get_quantitative_risk_hypotheses,
+    get_task_templates,
+    get_task_template_details,
+    get_vulnerabilities,
+    get_vulnerability,
+    get_asset_classes,
+    get_users,
+    get_teams,
+    get_all_audits_with_metrics,
+    get_audit_gap_analysis,
+    get_audit_global_score,
+    get_stored_libraries,
+    get_loaded_libraries,
+    get_entities,
+    get_entity_assessments,
+    get_representatives,
+    get_solutions,
+    get_contracts,
+    get_ebios_rm_studies,
+    get_feared_events,
+    get_ro_to_couples,
+    get_stakeholders,
+    get_strategic_scenarios,
+    get_attack_paths,
+    get_operational_scenarios,
+    get_elementary_actions,
+    get_operating_modes,
+    get_kill_chains,
+]
+
+WRITE_TOOLS = [
+    import_stored_library,
+    create_folder,
+    update_folder,
+    create_team,
+    update_team,
+    update_user,
+    create_perimeter,
+    create_asset,
+    create_threat,
+    create_applied_control,
+    create_risk_assessment,
+    sync_risk_assessment_from_ebios_rm,
+    create_risk_scenario,
+    create_business_impact_analysis,
+    create_compliance_assessment,
+    create_quantitative_risk_study,
+    create_quantitative_risk_scenario,
+    create_quantitative_risk_hypothesis,
+    refresh_quantitative_risk_study_simulations,
+    create_task_template,
+    create_vulnerability,
+    update_vulnerability,
+    delete_vulnerability,
+    create_findings_assessment,
+    create_finding,
+    update_finding,
+    create_evidence,
+    update_evidence,
+    create_incident,
+    update_incident,
+    create_timeline_entry,
+    update_timeline_entry,
+    update_asset,
+    update_risk_scenario,
+    update_applied_control,
+    update_risk_assessment,
+    update_perimeter,
+    update_requirement_assessment,
+    update_requirement_assessments,
+    update_quantitative_risk_study,
+    update_quantitative_risk_scenario,
+    update_quantitative_risk_hypothesis,
+    update_task_template,
+    delete_task_template,
+    create_entity,
+    create_entity_assessment,
+    create_representative,
+    create_solution,
+    create_contract,
+    update_entity,
+    update_entity_assessment,
+    update_representative,
+    update_solution,
+    update_contract,
+    create_ebios_rm_study,
+    create_feared_event,
+    create_ro_to_couple,
+    create_stakeholder,
+    create_strategic_scenario,
+    create_attack_path,
+    create_operational_scenario,
+    create_elementary_action,
+    create_operating_mode,
+    create_kill_chain_step,
+    update_ebios_rm_study,
+    update_feared_event,
+    update_ro_to_couple,
+    update_stakeholder,
+    update_strategic_scenario,
+    update_attack_path,
+    update_operational_scenario,
+    update_operating_mode,
+    update_kill_chain_step,
+]
+
+
+def register_all_tools(target_mcp, remote: bool = False):
     """
     Register every CISO Assistant tool with the given FastMCP instance.
 
     Shared between the local stdio server (`ca_mcp.py`) and the remote
-    HTTP/OAuth server (`ca_mcp_http.py`) so both expose the exact same toolset.
+    HTTP/OAuth server (`ca_mcp_http.py`) so both expose the same toolset.
+    `create_evidence` reads files from the MCP host's disk, so it is only
+    offered to the local stdio server.
     """
-    target_mcp.tool()(get_risk_scenarios)
-    target_mcp.tool()(get_applied_controls)
-    target_mcp.tool()(get_audits_progress)
-    target_mcp.tool()(get_folders)
-    target_mcp.tool()(get_perimeters)
-    target_mcp.tool()(get_risk_matrices)
-    target_mcp.tool()(get_risk_matrix_details)
-    target_mcp.tool()(get_risk_assessments)
-    target_mcp.tool()(get_threats)
-    target_mcp.tool()(get_assets)
-    target_mcp.tool()(get_incidents)
-    target_mcp.tool()(get_security_exceptions)
-    target_mcp.tool()(get_frameworks)
-    target_mcp.tool()(get_business_impact_analyses)
-    target_mcp.tool()(get_requirement_assessments)
-    target_mcp.tool()(get_quantitative_risk_studies)
-    target_mcp.tool()(get_quantitative_risk_scenarios)
-    target_mcp.tool()(get_quantitative_risk_hypotheses)
-    target_mcp.tool()(get_task_templates)
-    target_mcp.tool()(get_task_template_details)
-    target_mcp.tool()(get_user_activity_logs)
-
-    target_mcp.tool()(get_all_audits_with_metrics)
-    target_mcp.tool()(get_audit_gap_analysis)
-
-    target_mcp.tool()(get_stored_libraries)
-    target_mcp.tool()(get_loaded_libraries)
-    target_mcp.tool()(import_stored_library)
-
-    target_mcp.tool()(create_folder)
-    target_mcp.tool()(create_perimeter)
-    target_mcp.tool()(create_asset)
-    target_mcp.tool()(create_threat)
-    target_mcp.tool()(create_applied_control)
-    target_mcp.tool()(create_risk_assessment)
-    target_mcp.tool()(create_risk_scenario)
-    target_mcp.tool()(create_business_impact_analysis)
-    target_mcp.tool()(create_compliance_assessment)
-    target_mcp.tool()(create_quantitative_risk_study)
-    target_mcp.tool()(create_quantitative_risk_scenario)
-    target_mcp.tool()(create_quantitative_risk_hypothesis)
-    target_mcp.tool()(refresh_quantitative_risk_study_simulations)
-    target_mcp.tool()(create_task_template)
-
-    target_mcp.tool()(update_asset)
-    target_mcp.tool()(update_risk_scenario)
-    target_mcp.tool()(update_applied_control)
-    target_mcp.tool()(update_requirement_assessment)
-    target_mcp.tool()(update_quantitative_risk_study)
-    target_mcp.tool()(update_quantitative_risk_scenario)
-    target_mcp.tool()(update_quantitative_risk_hypothesis)
-    target_mcp.tool()(update_task_template)
-    target_mcp.tool()(delete_task_template)
-
-    # TPRM tools
-    target_mcp.tool()(get_entities)
-    target_mcp.tool()(get_entity_assessments)
-    target_mcp.tool()(get_representatives)
-    target_mcp.tool()(get_solutions)
-    target_mcp.tool()(get_contracts)
-    target_mcp.tool()(create_entity)
-    target_mcp.tool()(create_entity_assessment)
-    target_mcp.tool()(create_representative)
-    target_mcp.tool()(create_solution)
-    target_mcp.tool()(create_contract)
-    target_mcp.tool()(update_entity)
-    target_mcp.tool()(update_entity_assessment)
-    target_mcp.tool()(update_representative)
-    target_mcp.tool()(update_solution)
-    target_mcp.tool()(update_contract)
-
-    # EBIOS RM tools
-    target_mcp.tool()(get_ebios_rm_studies)
-    target_mcp.tool()(get_feared_events)
-    target_mcp.tool()(get_ro_to_couples)
-    target_mcp.tool()(get_stakeholders)
-    target_mcp.tool()(get_strategic_scenarios)
-    target_mcp.tool()(get_attack_paths)
-    target_mcp.tool()(get_operational_scenarios)
-    target_mcp.tool()(get_elementary_actions)
-    target_mcp.tool()(get_operating_modes)
-    target_mcp.tool()(get_kill_chains)
-    target_mcp.tool()(create_ebios_rm_study)
-    target_mcp.tool()(create_feared_event)
-    target_mcp.tool()(create_ro_to_couple)
-    target_mcp.tool()(create_stakeholder)
-    target_mcp.tool()(create_strategic_scenario)
-    target_mcp.tool()(create_attack_path)
-    target_mcp.tool()(create_operational_scenario)
-    target_mcp.tool()(create_elementary_action)
-    target_mcp.tool()(create_operating_mode)
-    target_mcp.tool()(create_kill_chain_step)
-    target_mcp.tool()(update_ebios_rm_study)
-    target_mcp.tool()(update_feared_event)
-    target_mcp.tool()(update_ro_to_couple)
-    target_mcp.tool()(update_stakeholder)
-    target_mcp.tool()(update_strategic_scenario)
-    target_mcp.tool()(update_attack_path)
-    target_mcp.tool()(update_operational_scenario)
-    target_mcp.tool()(update_operating_mode)
-    target_mcp.tool()(update_kill_chain_step)
+    for tool in READ_TOOLS:
+        target_mcp.tool()(tool)
+    for tool in WRITE_TOOLS:
+        if remote and tool is create_evidence:
+            continue
+        target_mcp.tool()(tool)
 
 
 # Register all tools on the default (stdio) MCP instance

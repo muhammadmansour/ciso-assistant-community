@@ -1,14 +1,48 @@
 """Update MCP tools for CISO Assistant"""
 
-from ..client import make_get_request, make_patch_request, make_delete_request, get_paginated_results
+from ..client import (
+    make_get_request,
+    make_patch_request,
+    make_delete_request,
+    get_paginated_results,
+    fetch_all_results,
+)
 from ..resolvers import (
     resolve_asset_id,
+    resolve_asset_class_id,
     resolve_risk_scenario_id,
     resolve_risk_assessment_id,
     resolve_folder_id,
     resolve_applied_control_id,
     resolve_requirement_assessment_id,
+    resolve_compliance_assessment_id,
     resolve_task_template_id,
+    resolve_perimeter_id,
+    resolve_actor_ids,
+    resolve_reference_control_id,
+    resolve_qualification_ids,
+    resolve_risk_level_index,
+    resolve_team_id,
+    resolve_user_id,
+    resolve_user_ids,
+    resolve_threat_id,
+    resolve_entity_id,
+    resolve_incident_id,
+    resolve_evidence_id,
+    resolve_in_folder_or_global,
+    _is_uuid,
+    resolve_vulnerability_id,
+)
+from .write_tools import (
+    _normalize_applied_control_status,
+    _collect_asset_objective_changes,
+    _build_asset_objectives,
+    _ignored_fields_warning,
+    _invalid_severity_error,
+    _severity_label,
+    _severity_value,
+    MANUAL_TIMELINE_ENTRY_TYPES,
+    INVALID_TIMELINE_ENTRY_TYPE_ERROR,
 )
 
 
@@ -17,20 +51,133 @@ async def update_asset(
     name: str = None,
     description: str = None,
     asset_type: str = None,
-    business_value: str = None,
+    ref_id: str = None,
+    observation: str = None,
+    reference_link: str = None,
+    is_business_function: bool = None,
+    folder_id: str = None,
     parent_assets: list = None,
+    support_assets: list = None,
+    applied_controls: list = None,
+    vulnerabilities: list = None,
+    security_exceptions: list = None,
+    filtering_labels: list = None,
+    owner: list = None,
+    dora_licenced_activity: str = None,
+    dora_criticality_assessment: str = None,
+    dora_criticality_justification: str = None,
+    dora_discontinuing_impact: str = None,
+    sec_confidentiality: int = None,
+    sec_confidentiality_enabled: bool = None,
+    sec_integrity: int = None,
+    sec_integrity_enabled: bool = None,
+    sec_availability: int = None,
+    sec_availability_enabled: bool = None,
+    dro_rto: int | str = None,
+    dro_rpo: int | str = None,
+    dro_mtd: int | str = None,
+    asset_class: str = None,
+    sec_proof: int = None,
+    sec_proof_enabled: bool = None,
+    sec_authenticity: int = None,
+    sec_authenticity_enabled: bool = None,
+    sec_privacy: int = None,
+    sec_privacy_enabled: bool = None,
+    sec_safety: int = None,
+    sec_safety_enabled: bool = None,
+    cap_confidentiality: int = None,
+    cap_confidentiality_enabled: bool = None,
+    cap_integrity: int = None,
+    cap_integrity_enabled: bool = None,
+    cap_availability: int = None,
+    cap_availability_enabled: bool = None,
+    cap_proof: int = None,
+    cap_proof_enabled: bool = None,
+    cap_authenticity: int = None,
+    cap_authenticity_enabled: bool = None,
+    cap_privacy: int = None,
+    cap_privacy_enabled: bool = None,
+    cap_safety: int = None,
+    cap_safety_enabled: bool = None,
+    rcap_rto: int | str = None,
+    rcap_rpo: int | str = None,
+    rcap_mtd: int | str = None,
 ) -> str:
     """Update asset properties
+
+    Objectives (sec_*, dro_*) are effective on primary assets (supporting ones
+    inherit them); capabilities (cap_*, rcap_*) are effective on supporting
+    assets (primary ones aggregate them). Only the criteria you pass change:
+    every other stored criterion is kept. A value without its _enabled flag
+    means enabled; pass <param>_enabled=False to disable a criterion.
+    Values 0-4 are stored as the web form would under the configured scale
+    (e.g. under 1-4, 3 and 4 both display "4" and are stored as 3).
+    Not atomic: objectives/capabilities are read then written back, so a
+    concurrent edit between the two can be overwritten.
 
     Args:
         asset_id: Asset ID/name
         name: New name
         description: New description
-        asset_type: PR | SP
-        business_value: low | medium | high | very_high
-        parent_assets: List of parent asset IDs/names
+        asset_type: PR (Primary) | SP (Support)
+        ref_id: Reference ID
+        observation: Observation text
+        reference_link: External URL (e.g. Jira ticket)
+        is_business_function: Business function flag
+        folder_id: Folder ID/name
+        parent_assets: List of parent asset IDs/names (replaces existing)
+        support_assets: List of support asset UUIDs (replaces existing)
+        applied_controls: List of applied control IDs/names (replaces existing)
+        vulnerabilities: List of vulnerability IDs/names (replaces existing)
+        security_exceptions: List of security exception UUIDs (replaces existing)
+        filtering_labels: List of label UUIDs (replaces existing)
+        owner: List of owners as actor UUIDs, emails or names (replaces existing)
+        dora_licenced_activity: DORA licensed activity code
+        dora_criticality_assessment: DORA criticality assessment code
+        dora_criticality_justification: DORA criticality justification text
+        dora_discontinuing_impact: DORA discontinuing impact code
+        sec_confidentiality: Confidentiality objective 0-4 (0=undefined,1=low,2=med,3=high,4=critical)
+        sec_confidentiality_enabled: Enable/disable confidentiality objective
+        sec_integrity: Integrity objective 0-4
+        sec_integrity_enabled: Enable/disable integrity objective
+        sec_availability: Availability objective 0-4
+        sec_availability_enabled: Enable/disable availability objective
+        dro_rto: Recovery Time Objective: seconds or duration ("90s", "30m", "2h", "1d", "1h30m"); 0 = not set
+        dro_rpo: Recovery Point Objective: seconds or duration; 0 = not set
+        dro_mtd: Maximum Tolerable Downtime: seconds or duration; 0 = not set
+        asset_class: Asset class ID/name
+        sec_proof: Proof (traceability) objective 0-4
+        sec_proof_enabled: Enable/disable proof objective
+        sec_authenticity: Authenticity objective 0-4
+        sec_authenticity_enabled: Enable/disable authenticity objective
+        sec_privacy: Privacy objective 0-4
+        sec_privacy_enabled: Enable/disable privacy objective
+        sec_safety: Safety objective 0-4
+        sec_safety_enabled: Enable/disable safety objective
+        cap_confidentiality: Actual confidentiality capability 0-4
+        cap_confidentiality_enabled: Enable/disable confidentiality capability
+        cap_integrity: Actual integrity capability 0-4
+        cap_integrity_enabled: Enable/disable integrity capability
+        cap_availability: Actual availability capability 0-4
+        cap_availability_enabled: Enable/disable availability capability
+        cap_proof: Actual proof capability 0-4
+        cap_proof_enabled: Enable/disable proof capability
+        cap_authenticity: Actual authenticity capability 0-4
+        cap_authenticity_enabled: Enable/disable authenticity capability
+        cap_privacy: Actual privacy capability 0-4
+        cap_privacy_enabled: Enable/disable privacy capability
+        cap_safety: Actual safety capability 0-4
+        cap_safety_enabled: Enable/disable safety capability
+        rcap_rto: Actual recovery time: seconds or duration; 0 = not set
+        rcap_rpo: Actual recovery point: seconds or duration; 0 = not set
+        rcap_mtd: Actual maximum downtime: seconds or duration; 0 = not set
     """
     try:
+        from ..resolvers import resolve_vulnerability_id
+
+        # Validate objectives first: a bad value sends nothing
+        changes = _collect_asset_objective_changes(locals())
+
         # Resolve asset name to ID if needed
         resolved_asset_id = resolve_asset_id(asset_id)
 
@@ -43,17 +190,69 @@ async def update_asset(
             payload["description"] = description
         if asset_type is not None:
             payload["type"] = asset_type
-        if business_value is not None:
-            payload["business_value"] = business_value
+        if ref_id is not None:
+            payload["ref_id"] = ref_id
+        if observation is not None:
+            payload["observation"] = observation
+        if reference_link is not None:
+            payload["reference_link"] = reference_link
+        if is_business_function is not None:
+            payload["is_business_function"] = is_business_function
+        if dora_licenced_activity is not None:
+            payload["dora_licenced_activity"] = dora_licenced_activity
+        if dora_criticality_assessment is not None:
+            payload["dora_criticality_assessment"] = dora_criticality_assessment
+        if dora_criticality_justification is not None:
+            payload["dora_criticality_justification"] = dora_criticality_justification
+        if dora_discontinuing_impact is not None:
+            payload["dora_discontinuing_impact"] = dora_discontinuing_impact
+        if folder_id is not None:
+            payload["folder"] = resolve_folder_id(folder_id)
+        if filtering_labels is not None:
+            payload["filtering_labels"] = filtering_labels
+        if owner is not None:
+            payload["owner"] = resolve_actor_ids(owner)
+        if security_exceptions is not None:
+            payload["security_exceptions"] = security_exceptions
+        if support_assets is not None:
+            payload["support_assets"] = support_assets
 
-        # Resolve parent asset names to IDs if provided
+        if asset_class is not None:
+            payload["asset_class"] = resolve_asset_class_id(asset_class)
+
         if parent_assets is not None:
             resolved_parents = []
             for parent in parent_assets:
-                resolved_parent_id = resolve_asset_id(parent)
-                resolved_parents.append(resolved_parent_id)
-
+                resolved_parents.append(resolve_asset_id(parent))
             payload["parent_assets"] = resolved_parents
+
+        if applied_controls is not None:
+            resolved_controls = []
+            for control in applied_controls:
+                resolved_controls.append(resolve_applied_control_id(control))
+            payload["applied_controls"] = resolved_controls
+
+        if vulnerabilities is not None:
+            resolved_vulns = []
+            for vuln in vulnerabilities:
+                resolved_vulns.append(resolve_vulnerability_id(vuln))
+            payload["vulnerabilities"] = resolved_vulns
+
+        warning = ""
+        if changes:
+            # /object/ returns the stored (write-format) objectives and type;
+            # the detail endpoint only returns display lists.
+            fetch_res = make_get_request(f"/assets/{resolved_asset_id}/object/")
+            if fetch_res.status_code != 200:
+                return (
+                    "Error updating asset: could not read the stored asset "
+                    f"({fetch_res.status_code} - {fetch_res.text}); nothing sent"
+                )
+            current_asset = fetch_res.json() or {}
+            payload.update(_build_asset_objectives(changes, current_asset))
+            warning = _ignored_fields_warning(
+                changes, asset_type or current_asset.get("type")
+            )
 
         if not payload:
             return "Error: No fields provided to update"
@@ -62,11 +261,187 @@ async def update_asset(
 
         if res.status_code == 200:
             asset = res.json()
-            return f"Updated Asset: {asset.get('name')} (ID: {asset.get('id')})"
+            return (
+                f"Updated Asset: {asset.get('name')} (ID: {asset.get('id')})" + warning
+            )
         else:
             return f"Error updating asset: {res.status_code} - {res.text}"
     except Exception as e:
         return f"Error in update_asset: {str(e)}"
+
+
+async def update_team(
+    team_id: str,
+    name: str = None,
+    description: str = None,
+    folder_id: str = None,
+    team_email: str = None,
+    leader: str = None,
+    deputies: list = None,
+    members: list = None,
+) -> str:
+    """Update team properties
+
+    Args:
+        team_id: Team ID/name
+        name: New name
+        description: New description
+        folder_id: Folder ID/name
+        team_email: Team contact email
+        leader: Leader as User UUID, email or name ("" to remove the leader)
+        deputies: List of deputies as User UUIDs, emails or names (replaces existing)
+        members: List of members as User UUIDs, emails or names (replaces existing)
+    """
+    try:
+        resolved_team_id = resolve_team_id(team_id)
+
+        payload = {}
+
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if folder_id is not None:
+            payload["folder"] = resolve_folder_id(folder_id)
+        if team_email is not None:
+            payload["team_email"] = team_email
+        if leader is not None:
+            payload["leader"] = resolve_user_id(leader) if leader else None
+        if deputies is not None:
+            payload["deputies"] = resolve_user_ids(deputies)
+        if members is not None:
+            payload["members"] = resolve_user_ids(members)
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/teams/{resolved_team_id}/", payload)
+
+        if res.status_code == 200:
+            team = res.json()
+            return f"Updated team: {team.get('name')} (ID: {team.get('id')})"
+        else:
+            return f"Error updating team: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_team: {str(e)}"
+
+
+async def update_folder(
+    folder_id: str,
+    name: str = None,
+    description: str = None,
+) -> str:
+    """Update a domain (folder) - only provided fields are updated
+
+    Args:
+        folder_id: Folder ID/name
+        name: New name
+        description: New description
+    """
+    try:
+        resolved_id = resolve_folder_id(folder_id)
+
+        payload = {}
+
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/folders/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            folder = res.json()
+            return f"Updated folder: {folder.get('name')} (ID: {folder.get('id')})"
+        else:
+            return f"Error updating folder: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_folder: {str(e)}"
+
+
+async def update_user(
+    user_id: str,
+    first_name: str = None,
+    last_name: str = None,
+    email: str = None,
+) -> str:
+    """Update a user - only provided fields are updated
+
+    Args:
+        user_id: User UUID, exact email or exact full/first/last name
+        first_name: New first name
+        last_name: New last name
+        email: New email (login identifier, also used for SSO matching)
+    """
+    try:
+        resolved_id = resolve_user_id(user_id)
+
+        payload = {}
+
+        if first_name is not None:
+            payload["first_name"] = first_name
+        if last_name is not None:
+            payload["last_name"] = last_name
+        if email is not None:
+            payload["email"] = email
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/users/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            user = res.json()
+            return f"Updated user: {user.get('email')} (ID: {user.get('id')})"
+        else:
+            return f"Error updating user: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_user: {str(e)}"
+
+
+async def update_evidence(
+    evidence_id: str,
+    name: str = None,
+    description: str = None,
+    folder_id: str = None,
+) -> str:
+    """Update an evidence - only provided fields are updated
+
+    Args:
+        evidence_id: Evidence UUID or name
+        name: New name
+        description: New description
+        folder_id: Folder ID/name to move the evidence to
+    """
+    try:
+        resolved_id = resolve_evidence_id(evidence_id)
+
+        payload = {}
+
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if folder_id is not None:
+            payload["folder"] = resolve_folder_id(folder_id)
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/evidences/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            evidence = res.json()
+            return (
+                f"Updated evidence: {evidence.get('name')} (ID: {evidence.get('id')})"
+            )
+        else:
+            return f"Error updating evidence: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_evidence: {str(e)}"
 
 
 async def update_risk_scenario(
@@ -74,7 +449,6 @@ async def update_risk_scenario(
     name: str = None,
     description: str = None,
     risk_assessment_id: str = None,
-    existing_controls: str = None,
     inherent_proba: int = None,
     inherent_impact: int = None,
     current_proba: int = None,
@@ -89,6 +463,9 @@ async def update_risk_scenario(
     threats: list = None,
     applied_controls: list = None,
     existing_applied_controls: list = None,
+    vulnerabilities: list = None,
+    qualifications: list = None,
+    owner: list = None,
 ) -> str:
     """Update risk scenario properties and ratings
 
@@ -97,14 +474,13 @@ async def update_risk_scenario(
         name: New name
         description: New description
         risk_assessment_id: Risk assessment ID/name
-        existing_controls: Existing controls description
         inherent_proba: Inherent probability index (from risk matrix)
         inherent_impact: Inherent impact index (from risk matrix)
         current_proba: Current probability index (from risk matrix)
         current_impact: Current impact index (from risk matrix)
         residual_proba: Residual probability index (from risk matrix)
         residual_impact: Residual impact index (from risk matrix)
-        treatment: open | mitigate | accept | avoid | transfer
+        treatment: open | mitigate | accept | avoid | transfer | cancelled
         strength_of_knowledge: -1 to 2
         justification: Justification text
         ref_id: Reference ID
@@ -112,6 +488,12 @@ async def update_risk_scenario(
         threats: List of threat IDs/names (replaces existing)
         applied_controls: List of planned control IDs/names (replaces existing)
         existing_applied_controls: List of existing control IDs/names (replaces existing)
+        vulnerabilities: List of vulnerability IDs/names exploited by this scenario (replaces existing)
+        qualifications: List of qualifications: letters C/I/A(D)/T(P)
+            (confidentiality/integrity/availability/proof), names or UUIDs (replaces existing)
+        owner: List of owners (users or teams) as actor UUIDs, emails or names
+            (replaces existing). Use get_users/get_teams to find a name, or
+            list_objects("actors") for the exact Actor UUID
     """
     try:
         # Resolve risk scenario name to ID if needed
@@ -124,8 +506,6 @@ async def update_risk_scenario(
             payload["name"] = name
         if description is not None:
             payload["description"] = description
-        if existing_controls is not None:
-            payload["existing_controls"] = existing_controls
         if inherent_proba is not None:
             payload["inherent_proba"] = inherent_proba
         if inherent_impact is not None:
@@ -197,6 +577,21 @@ async def update_risk_scenario(
                 resolved_existing_controls.append(resolved_control_id)
             payload["existing_applied_controls"] = resolved_existing_controls
 
+        # Resolve vulnerability names to IDs if provided
+        if vulnerabilities is not None:
+            from ..resolvers import resolve_vulnerability_id
+
+            resolved_vulnerabilities = []
+            for vuln in vulnerabilities:
+                resolved_vulnerabilities.append(resolve_vulnerability_id(vuln))
+            payload["vulnerabilities"] = resolved_vulnerabilities
+
+        if qualifications is not None:
+            payload["qualifications"] = resolve_qualification_ids(qualifications)
+
+        if owner is not None:
+            payload["owner"] = resolve_actor_ids(owner)
+
         if not payload:
             return "Error: No fields provided to update"
 
@@ -227,6 +622,9 @@ async def update_applied_control(
     expiry_date: str = None,
     link: str = None,
     ref_id: str = None,
+    owner: list = None,
+    reference_control: str = None,
+    assets: list = None,
 ) -> str:
     """Update applied control properties
 
@@ -234,12 +632,12 @@ async def update_applied_control(
         control_id: Control ID/name
         name: New name
         description: New description
-        status: to_do | in_progress | on_hold | active | deprecated | --
+        status: to_do | in_progress | on_hold | active | degraded | deprecated | --
         priority: 1-4 (1=P1, 4=P4)
-        category: policy | process | technical | physical
+        category: policy | process | technical | physical | procedure
         csf_function: identify | protect | detect | respond | recover | govern
         effort: XS | S | M | L | XL
-        cost: is a JSON object composed by follwing keys : 
+        cost: is a JSON object composed by follwing keys :
             currency: € (euros),
             amortization_period (typically 1 year),
             build: One-time implementation costs
@@ -254,6 +652,9 @@ async def update_applied_control(
         expiry_date: Expiry date YYYY-MM-DD
         link: External link (e.g. Jira URL)
         ref_id: Reference ID
+        owner: List of owners as actor UUIDs, emails or names (replaces existing)
+        reference_control: Reference control UUID, URN, ref_id or name
+        assets: List of asset IDs/names (replaces existing)
     """
     try:
         # Resolve control name to ID if needed
@@ -267,7 +668,7 @@ async def update_applied_control(
         if description is not None:
             payload["description"] = description
         if status is not None:
-            payload["status"] = status
+            payload["status"] = _normalize_applied_control_status(status)
         if priority is not None:
             payload["priority"] = priority
         if category is not None:
@@ -290,6 +691,14 @@ async def update_applied_control(
             payload["link"] = link
         if ref_id is not None:
             payload["ref_id"] = ref_id
+        if owner is not None:
+            payload["owner"] = resolve_actor_ids(owner)
+        if reference_control is not None:
+            payload["reference_control"] = resolve_reference_control_id(
+                reference_control
+            )
+        if assets is not None:
+            payload["assets"] = [resolve_asset_id(asset) for asset in assets]
 
         if not payload:
             return "Error: No fields provided to update"
@@ -305,12 +714,160 @@ async def update_applied_control(
         return f"Error in update_applied_control: {str(e)}"
 
 
+RISK_ASSESSMENT_STATUSES = ["planned", "in_progress", "in_review", "done", "deprecated"]
+
+
+async def update_risk_assessment(
+    risk_assessment_id: str,
+    name: str = None,
+    description: str = None,
+    version: str = None,
+    ref_id: str = None,
+    status: str = None,
+    risk_tolerance: int | str = None,
+    eta: str = None,
+    due_date: str = None,
+) -> str:
+    """Update risk assessment properties
+
+    Args:
+        risk_assessment_id: Risk assessment ID/name
+        name: New name
+        description: New description
+        version: Version string
+        ref_id: Reference ID
+        status: planned | in_progress | in_review | done | deprecated
+        risk_tolerance: Risk level index of the assessment's matrix (-1 = unset),
+            or a risk level name/abbreviation (e.g. "High")
+        eta: ETA date YYYY-MM-DD
+        due_date: Due date YYYY-MM-DD
+    """
+    try:
+        resolved_assessment_id = resolve_risk_assessment_id(risk_assessment_id)
+
+        payload = {}
+
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if version is not None:
+            payload["version"] = version
+        if ref_id is not None:
+            payload["ref_id"] = ref_id
+        if status is not None:
+            if status not in RISK_ASSESSMENT_STATUSES:
+                return f"Error: Invalid status '{status}'. Must be one of: {', '.join(RISK_ASSESSMENT_STATUSES)}"
+            payload["status"] = status
+        if eta is not None:
+            payload["eta"] = eta
+        if due_date is not None:
+            payload["due_date"] = due_date
+
+        if risk_tolerance is not None:
+            matrix_id = None
+            if (
+                isinstance(risk_tolerance, str)
+                and not risk_tolerance.strip().lstrip("-").isdigit()
+            ):
+                # a level name: resolve it against the assessment's own matrix
+                ra_res = make_get_request(
+                    f"/risk-assessments/{resolved_assessment_id}/"
+                )
+                if ra_res.status_code != 200:
+                    return f"Error fetching risk assessment: {ra_res.status_code} - {ra_res.text}"
+                matrix = ra_res.json().get("risk_matrix")
+                matrix_id = matrix.get("id") if isinstance(matrix, dict) else matrix
+            payload["risk_tolerance"] = resolve_risk_level_index(
+                risk_tolerance, matrix_id
+            )
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(
+            f"/risk-assessments/{resolved_assessment_id}/", payload
+        )
+
+        if res.status_code == 200:
+            assessment = res.json()
+            return f"Updated Risk assessment: {assessment.get('name')} (ID: {assessment.get('id')})"
+        else:
+            return f"Error updating risk assessment: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_risk_assessment: {str(e)}"
+
+
+PERIMETER_LC_STATUSES = [
+    "undefined",
+    "in_design",
+    "in_dev",
+    "in_prod",
+    "eol",
+    "dropped",
+]
+
+
+async def update_perimeter(
+    perimeter_id: str,
+    name: str = None,
+    description: str = None,
+    ref_id: str = None,
+    lc_status: str = None,
+    default_assignee: list = None,
+) -> str:
+    """Update perimeter properties (the folder cannot be changed)
+
+    Args:
+        perimeter_id: Perimeter ID/name
+        name: New name (must not contain "/")
+        description: New description
+        ref_id: Reference ID
+        lc_status: undefined | in_design | in_dev | in_prod | eol | dropped
+        default_assignee: List of default assignees as actor UUIDs, emails or names (replaces existing)
+    """
+    try:
+        resolved_perimeter_id = resolve_perimeter_id(perimeter_id)
+
+        payload = {}
+
+        if name is not None:
+            if "/" in name:
+                return "Error: Perimeter name must not contain '/'"
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if ref_id is not None:
+            payload["ref_id"] = ref_id
+        if lc_status is not None:
+            if lc_status not in PERIMETER_LC_STATUSES:
+                return f"Error: Invalid lc_status '{lc_status}'. Must be one of: {', '.join(PERIMETER_LC_STATUSES)}"
+            payload["lc_status"] = lc_status
+        if default_assignee is not None:
+            payload["default_assignee"] = resolve_actor_ids(default_assignee)
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/perimeters/{resolved_perimeter_id}/", payload)
+
+        if res.status_code == 200:
+            perimeter = res.json()
+            return f"Updated Perimeter: {perimeter.get('name')} (ID: {perimeter.get('id')})"
+        else:
+            return f"Error updating perimeter: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_perimeter: {str(e)}"
+
+
 async def update_requirement_assessment(
     requirement_assessment_id: str,
     status: str = None,
     result: str = None,
     observation: str = None,
     score: int = None,
+    documentation_score: int = None,
+    target_score: float = None,
     is_scored: bool = None,
     eta: str = None,
     due_date: str = None,
@@ -324,7 +881,9 @@ async def update_requirement_assessment(
         status: to_do | in_progress | in_review | done
         result: not_assessed | partially_compliant | non_compliant | compliant | not_applicable
         observation: Observation text
-        score: Score value
+        score: Implementation score value (int, within the assessment's min/max score)
+        documentation_score: Documentation score value (int, within the assessment's min/max score)
+        target_score: Target score value (float)
         is_scored: Scored assessment flag
         eta: ETA date YYYY-MM-DD
         due_date: Due date YYYY-MM-DD
@@ -346,6 +905,10 @@ async def update_requirement_assessment(
             payload["observation"] = observation
         if score is not None:
             payload["score"] = score
+        if documentation_score is not None:
+            payload["documentation_score"] = documentation_score
+        if target_score is not None:
+            payload["target_score"] = target_score
         if is_scored is not None:
             payload["is_scored"] = is_scored
         if eta is not None:
@@ -376,6 +939,109 @@ async def update_requirement_assessment(
             )
     except Exception as e:
         return f"Error in update_requirement_assessment: {str(e)}"
+
+
+async def update_requirement_assessments(
+    compliance_assessment_id: str,
+    updates: list,
+) -> str:
+    """Batch update requirement assessments of a compliance assessment. Each update targets a requirement by ref_id and sets its own fields. Ideal for importing audit results from files.
+
+    Before calling, normalize result values to: not_assessed | partially_compliant | non_compliant | compliant | not_applicable.
+    Common mappings: Yes/Oui/Conforme/Implemented/Met/Pass → compliant, No/Non/Non-conforme/Not implemented/Not met/Fail → non_compliant, Partial/In progress → partially_compliant, N/A → not_applicable.
+
+    Args:
+        compliance_assessment_id: Compliance assessment ID or name (required)
+        updates: List of update objects. Each object must have "ref_id" (str) to identify the requirement, plus any fields to update: "result" (not_assessed|partially_compliant|non_compliant|compliant|not_applicable), "status" (to_do|in_progress|in_review|done), "observation" (str), "score" (int), "documentation_score" (int), "target_score" (float), "is_scored" (bool), "eta" (YYYY-MM-DD), "due_date" (YYYY-MM-DD), "selected" (bool).
+    """
+    try:
+        if not updates:
+            return "Error: No updates provided"
+
+        # Resolve compliance assessment
+        resolved_ca_id = resolve_compliance_assessment_id(compliance_assessment_id)
+
+        # Fetch all requirement assessments for this compliance assessment once
+        # max_items=None: this lookup drives a bulk write. A capped fetch would
+        # not truncate output, it would silently report existing requirements as
+        # "not found" and skip their updates.
+        all_ras, error = fetch_all_results(
+            "/requirement-assessments/",
+            params={"compliance_assessment": resolved_ca_id},
+            max_items=None,
+        )
+        if error:
+            return f"Error fetching requirement assessments: {error}"
+
+        # Build a case-insensitive lookup: ref_id (lowered) → RA id
+        # The actual ref_id lives on the nested requirement object, not on the RA itself
+        ref_id_to_ra = {}
+        for ra in all_ras:
+            req_obj = ra.get("requirement") or {}
+            ref = req_obj.get("ref_id") if isinstance(req_obj, dict) else None
+            if not ref:
+                ref = ra.get("ref_id")
+            if ref:
+                ref_id_to_ra[ref.strip().lower()] = ra["id"]
+
+        succeeded = []
+        failed = []
+        not_found = []
+
+        for update in updates:
+            ref_id = update.get("ref_id")
+            if not ref_id:
+                failed.append("Missing ref_id in update entry")
+                continue
+
+            ra_id = ref_id_to_ra.get(ref_id.strip().lower())
+            if not ra_id:
+                not_found.append(ref_id)
+                continue
+
+            # Build payload from allowed fields
+            payload = {}
+            for field in (
+                "status",
+                "result",
+                "observation",
+                "score",
+                "documentation_score",
+                "target_score",
+                "is_scored",
+                "eta",
+                "due_date",
+                "selected",
+            ):
+                if field in update and update[field] is not None:
+                    payload[field] = update[field]
+
+            if not payload:
+                failed.append(f"{ref_id}: no fields to update")
+                continue
+
+            res = make_patch_request(f"/requirement-assessments/{ra_id}/", payload)
+            if res.status_code == 200:
+                succeeded.append(ref_id)
+            else:
+                failed.append(f"{ref_id}: {res.status_code} - {res.text}")
+
+        # Build response
+        total = len(updates)
+        parts = [
+            f"Processed {total} updates: {len(succeeded)} succeeded, {len(failed)} failed, {len(not_found)} not found"
+        ]
+        if not_found:
+            parts.append(
+                f"\nRef IDs not found in compliance assessment:\n"
+                + ", ".join(not_found)
+            )
+        if failed:
+            parts.append(f"\nFailed:\n" + "\n".join(f"  - {f}" for f in failed))
+
+        return "\n".join(parts)
+    except Exception as e:
+        return f"Error in update_requirement_assessments: {str(e)}"
 
 
 async def update_quantitative_risk_study(
@@ -733,7 +1399,6 @@ async def update_task_template(
     status: str = None,
     observation: str = None,
     evidences: list = None,
-    is_published: bool = None,
     task_date: str = None,
     is_recurrent: bool = None,
     ref_id: str = None,
@@ -743,6 +1408,7 @@ async def update_task_template(
     folder_id: str = None,
     assigned_to: list = None,
     assets: list = None,
+    vulnerabilities: list = None,
     applied_controls: list = None,
     compliance_assessments: list = None,
     risk_assessments: list = None,
@@ -757,7 +1423,6 @@ async def update_task_template(
         status: Status
         observation: Observation text
         evidences: Array of evidence UUIDs
-        is_published: Published flag
         task_date: Task date (YYYY-MM-DD)
         is_recurrent: Recurrent flag
         ref_id: Reference ID
@@ -765,8 +1430,9 @@ async def update_task_template(
         enabled: Enabled flag
         link: Link to evidence (e.g. Jira ticket)
         folder_id: Folder ID/name
-        assigned_to: Array of user UUIDs
-        assets: Array of asset UUIDs
+        assigned_to: List of assignees as actor UUIDs, emails or names
+        assets: List of asset IDs/names (resolved within folder_id when given; replaces existing)
+        vulnerabilities: List of vulnerability IDs/names; replaces existing
         applied_controls: List of applied control IDs/names to associate with this task template. Can be None to leave unchanged, or empty list to clear associations. Elements should be strings representing control identifiers.
         compliance_assessments: Array of compliance assessment UUIDs
         risk_assessments: Array of risk assessment UUIDs
@@ -789,8 +1455,6 @@ async def update_task_template(
             payload["observation"] = observation
         if evidences is not None:
             payload["evidences"] = evidences
-        if is_published is not None:
-            payload["is_published"] = is_published
         if task_date is not None:
             payload["task_date"] = task_date
         if is_recurrent is not None:
@@ -804,9 +1468,18 @@ async def update_task_template(
         if link is not None:
             payload["link"] = link
         if assigned_to is not None:
-            payload["assigned_to"] = assigned_to
+            payload["assigned_to"] = resolve_actor_ids(assigned_to)
+        # Resolve folder name to ID if provided
+        resolved_folder_id = None
+        if folder_id is not None:
+            resolved_folder_id = resolve_folder_id(folder_id)
+            payload["folder"] = resolved_folder_id
+
         if assets is not None:
-            payload["assets"] = assets
+            payload["assets"] = [
+                resolve_asset_id(asset, folder_id=resolved_folder_id)
+                for asset in assets
+            ]
         if applied_controls is not None:
             resolved_controls = []
             for control in applied_controls:
@@ -819,15 +1492,14 @@ async def update_task_template(
             payload["risk_assessments"] = risk_assessments
         if findings_assessment is not None:
             payload["findings_assessment"] = findings_assessment
-
-        # Resolve folder name to ID if provided
-        if folder_id is not None:
-            resolved_folder_id = resolve_folder_id(folder_id)
-            payload["folder"] = resolved_folder_id
+        if vulnerabilities is not None:
+            payload["vulnerabilities"] = [
+                resolve_vulnerability_id(v) for v in vulnerabilities
+            ]
 
         if not payload:
             return "Error: No fields provided to update"
-            
+
         # Resolve task name to ID if needed
         resolved_task_id = resolve_task_template_id(task_id)
 
@@ -860,3 +1532,414 @@ async def delete_task_template(task_id: str) -> str:
             return f"Error deleting task template: {res.status_code} - {res.text}"
     except Exception as e:
         return f"Error in delete_task_template: {str(e)}"
+
+
+async def update_vulnerability(
+    vulnerability_id: str,
+    name: str = None,
+    description: str = None,
+    observation: str = None,
+    owner: list = None,
+    ref_id: str = None,
+    status: str = None,
+    severity: int = None,
+    folder_id: str = None,
+    filtering_labels: list = None,
+    applied_controls: list = None,
+    assets: list = None,
+    security_exceptions: list = None,
+    evidences: list = None,
+    incidents: list = None,
+    task_templates: list = None,
+    detected_at: str = None,
+    published_date: str = None,
+    due_date: str = None,
+    eta: str = None,
+    remediated_at: str = None,
+) -> str:
+    """Partially update a vulnerability (only provided fields are updated)
+
+    Args:
+        vulnerability_id: Vulnerability UUID or name
+        name: New name
+        description: New description
+        observation: How the vulnerability is handled (markdown)
+        owner: List of owners as actor UUIDs, emails or names (replaces existing)
+        ref_id: Reference ID (e.g. CVE identifier)
+        status: -- | potential | exploitable | mitigated | fixed | not_exploitable | unaffected
+        severity: -1 (undefined) | 0 (info) | 1 (low) | 2 (medium) | 3 (high) | 4 (critical)
+        folder_id: Folder ID/name
+        filtering_labels: List of label UUIDs
+        applied_controls: List of applied control IDs/names
+        assets: List of asset IDs/names
+        security_exceptions: List of security exception UUIDs
+        evidences: List of evidence IDs/names (replaces existing)
+        incidents: List of incident IDs/names (replaces existing)
+        task_templates: List of task IDs/names (replaces existing)
+        detected_at: Detection date (YYYY-MM-DD)
+        published_date: Publication date of the advisory (YYYY-MM-DD)
+        due_date: Due date (YYYY-MM-DD); computed from the SLA policy when left empty
+        eta: Expected resolution date (YYYY-MM-DD)
+        remediated_at: Remediation date (YYYY-MM-DD); kept whatever the status, and set to today when the status becomes resolved without one
+    """
+    try:
+        from ..resolvers import (
+            resolve_vulnerability_id,
+            resolve_folder_id,
+            resolve_asset_id,
+            resolve_applied_control_id,
+            resolve_evidence_id,
+            resolve_incident_id,
+            resolve_task_template_id,
+        )
+
+        resolved_id = resolve_vulnerability_id(vulnerability_id)
+
+        payload = {}
+
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if observation is not None:
+            payload["observation"] = observation
+        if owner is not None:
+            payload["owner"] = resolve_actor_ids(owner)
+        if ref_id is not None:
+            payload["ref_id"] = ref_id
+        if status is not None:
+            payload["status"] = status
+        if severity is not None:
+            payload["severity"] = severity
+        if folder_id is not None:
+            payload["folder"] = resolve_folder_id(folder_id)
+        if filtering_labels is not None:
+            payload["filtering_labels"] = filtering_labels
+        if applied_controls is not None:
+            resolved_controls = [
+                resolve_applied_control_id(c) for c in applied_controls
+            ]
+            payload["applied_controls"] = resolved_controls
+        if assets is not None:
+            resolved_assets = [resolve_asset_id(a) for a in assets]
+            payload["assets"] = resolved_assets
+        if security_exceptions is not None:
+            payload["security_exceptions"] = security_exceptions
+        if evidences is not None:
+            payload["evidences"] = [resolve_evidence_id(x) for x in evidences]
+        if incidents is not None:
+            payload["incidents"] = [resolve_incident_id(x) for x in incidents]
+        if task_templates is not None:
+            payload["task_templates"] = [
+                resolve_task_template_id(x) for x in task_templates
+            ]
+        if detected_at is not None:
+            payload["detected_at"] = detected_at
+        if published_date is not None:
+            payload["published_date"] = published_date
+        if due_date is not None:
+            payload["due_date"] = due_date
+        if eta is not None:
+            payload["eta"] = eta
+        if remediated_at is not None:
+            payload["remediated_at"] = remediated_at
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/vulnerabilities/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            vuln = res.json()
+            return f"Updated vulnerability: {vuln.get('name')} (ID: {vuln.get('id')})"
+        else:
+            return f"Error updating vulnerability: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_vulnerability: {str(e)}"
+
+
+async def update_finding(
+    finding_id: str,
+    name: str = None,
+    severity: str = None,
+    description: str = None,
+    status: str = None,
+    eta: str = None,
+    evidences: list = None,
+    ref_id: str = None,
+) -> str:
+    """Partially update a finding (only provided fields are updated)
+
+    No duplicate check on the name: like the app, two findings may share the
+    same name in one binder. A finding of a locked binder is refused by the
+    backend, whose error is returned as is.
+
+    Args:
+        finding_id: Finding UUID or exact name (an ambiguous name is refused)
+        name: New name
+        severity: undefined | info | low | medium | high | critical (case-insensitive)
+        description: New description
+        status: -- | identified | confirmed | dismissed | assigned | in_progress | mitigated | resolved | closed | deprecated
+        eta: Expected resolution date (YYYY-MM-DD)
+        evidences: List of evidence IDs/names (replaces existing)
+        ref_id: Reference ID
+    """
+    if severity is not None and _severity_value(severity) is None:
+        return _invalid_severity_error(severity)
+    try:
+        from ..resolvers import resolve_evidence_id, resolve_finding_id
+
+        payload = {}
+        if name is not None:
+            payload["name"] = name
+        if severity is not None:
+            payload["severity"] = _severity_value(severity)
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        if eta is not None:
+            payload["eta"] = eta
+        if evidences is not None:
+            payload["evidences"] = [resolve_evidence_id(x) for x in evidences]
+        if ref_id is not None:
+            payload["ref_id"] = ref_id
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        resolved_id = resolve_finding_id(finding_id)
+        res = make_patch_request(f"/findings/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            finding = res.json()
+            return (
+                f"Updated finding: {finding.get('name')} (ID: {finding.get('id')}, "
+                f"severity: {_severity_label(finding.get('severity'))})"
+            )
+        else:
+            return f"Error updating finding: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_finding: {str(e)}"
+
+
+async def delete_vulnerability(vulnerability_id: str) -> str:
+    """Delete a vulnerability
+
+    Args:
+        vulnerability_id: Vulnerability UUID or name
+    """
+    try:
+        from ..resolvers import resolve_vulnerability_id
+
+        resolved_id = resolve_vulnerability_id(vulnerability_id)
+
+        res = make_delete_request(f"/vulnerabilities/{resolved_id}/")
+
+        if res.status_code == 204:
+            return f"Deleted vulnerability (ID: {resolved_id})"
+        else:
+            return f"Error deleting vulnerability: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in delete_vulnerability: {str(e)}"
+
+
+async def update_incident(
+    incident_id: str,
+    name: str = None,
+    description: str = None,
+    ref_id: str = None,
+    status: str = None,
+    severity: int = None,
+    detection: str = None,
+    reported_at: str = None,
+    occurred_at: str = None,
+    resolved_at: str = None,
+    resolution: str = None,
+    is_bcp_activated: bool = None,
+    link: str = None,
+    folder_id: str = None,
+    threats: list = None,
+    owners: list = None,
+    assets: list = None,
+    vulnerabilities: list = None,
+    qualifications: list = None,
+    entities: list = None,
+    applied_controls: list = None,
+    task_templates: list = None,
+    filtering_labels: list = None,
+) -> str:
+    """Partially update an incident (only provided fields are updated)
+
+    Relation lists replace the existing set; pass an empty list to clear a relation.
+
+    Args:
+        incident_id: Incident UUID or name
+        name: New name
+        description: Description
+        ref_id: Reference ID
+        status: new | ongoing | resolved | closed | dismissed
+        severity: 1 (critical) | 2 (major) | 3 (moderate) | 4 (minor) | 5 (low) | 6 (unknown)
+        detection: internally_detected | externally_detected
+        reported_at: Reported date/time (ISO 8601)
+        occurred_at: Occurrence date/time (ISO 8601, must not be after reported_at)
+        resolved_at: Resolution date/time (ISO 8601, must not be before occurred_at or reported_at)
+        resolution: Resolution notes
+        is_bcp_activated: Whether the business continuity plan was activated
+        link: External link (e.g. ticket URL)
+        folder_id: Folder ID/name
+        threats: List of threat IDs/names (resolved within the incident's folder, then Global; replaces existing)
+        owners: List of owners as actor UUIDs, emails or names (replaces existing)
+        assets: List of asset IDs/names (resolved within the incident's folder, then Global; replaces existing)
+        vulnerabilities: List of vulnerability IDs/names; replaces existing
+        qualifications: List of qualifications: letters C/I/A/T, names or UUIDs (replaces existing)
+        entities: List of third-party entity IDs/names (replaces existing)
+        applied_controls: List of applied control IDs/names (resolved within the incident's folder, then Global; replaces existing)
+        task_templates: List of tasks (task templates) to link, as IDs/names (resolved within the incident's folder, then Global; replaces existing)
+        filtering_labels: List of label UUIDs (replaces existing)
+    """
+    try:
+        resolved_id = resolve_incident_id(incident_id)
+
+        payload = {}
+        scope_folder = None
+        if folder_id is not None:
+            scope_folder = resolve_folder_id(folder_id)
+            payload["folder"] = scope_folder
+        elif threats or assets or applied_controls or task_templates:
+            incident_res = make_get_request(f"/incidents/{resolved_id}/")
+            if incident_res.status_code != 200:
+                return (
+                    f"Error updating incident: {incident_res.status_code} - "
+                    f"{incident_res.text}"
+                )
+            folder = incident_res.json().get("folder")
+            scope_folder = folder.get("id") if isinstance(folder, dict) else folder
+
+        scalars = {
+            "name": name,
+            "description": description,
+            "ref_id": ref_id,
+            "status": status,
+            "severity": severity,
+            "detection": detection,
+            "reported_at": reported_at,
+            "occurred_at": occurred_at,
+            "resolved_at": resolved_at,
+            "resolution": resolution,
+            "is_bcp_activated": is_bcp_activated,
+            "link": link,
+        }
+        payload.update({k: v for k, v in scalars.items() if v is not None})
+
+        if threats is not None:
+            payload["threats"] = [
+                resolve_in_folder_or_global(resolve_threat_id, t, scope_folder)
+                for t in threats
+            ]
+        if owners is not None:
+            payload["owners"] = resolve_actor_ids(owners)
+        if assets is not None:
+            payload["assets"] = [
+                resolve_in_folder_or_global(resolve_asset_id, a, scope_folder)
+                for a in assets
+            ]
+        if qualifications is not None:
+            payload["qualifications"] = resolve_qualification_ids(qualifications)
+        if entities is not None:
+            payload["entities"] = [resolve_entity_id(e) for e in entities]
+        if applied_controls is not None:
+            payload["applied_controls"] = [
+                resolve_in_folder_or_global(resolve_applied_control_id, c, scope_folder)
+                for c in applied_controls
+            ]
+        if task_templates is not None:
+            payload["task_templates"] = [
+                resolve_in_folder_or_global(resolve_task_template_id, t, scope_folder)
+                for t in task_templates
+            ]
+        if filtering_labels is not None:
+            payload["filtering_labels"] = filtering_labels
+        if vulnerabilities is not None:
+            payload["vulnerabilities"] = [
+                resolve_vulnerability_id(v) for v in vulnerabilities
+            ]
+
+        if not payload:
+            return "Error: No fields provided to update"
+
+        res = make_patch_request(f"/incidents/{resolved_id}/", payload)
+
+        if res.status_code == 200:
+            incident = res.json()
+            return (
+                f"Updated incident: {incident.get('name')} (ID: {incident.get('id')})"
+            )
+        else:
+            return f"Error updating incident: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_incident: {str(e)}"
+
+
+async def update_timeline_entry(
+    timeline_entry_id: str,
+    entry: str = None,
+    entry_type: str = None,
+    timestamp: str = None,
+    observation: str = None,
+    evidences: list = None,
+) -> str:
+    """Partially update an incident timeline entry (only provided fields are updated)
+
+    Only manual entries (detection, mitigation, observation) can be modified;
+    automatic severity/status change entries are read-only history.
+
+    Args:
+        timeline_entry_id: Timeline entry UUID (see list_objects("timeline_entries"))
+        entry: Short entry text, max 200 characters
+        entry_type: detection | mitigation | observation
+        timestamp: Date/time of the event (ISO 8601 with timezone, e.g. 2026-01-01T10:00:00Z; must not be in the future)
+        observation: Detailed observation notes
+        evidences: List of evidence UUIDs (replaces existing; empty list clears)
+    """
+    payload = {
+        k: v
+        for k, v in {
+            "entry": entry,
+            "entry_type": entry_type,
+            "timestamp": timestamp,
+            "observation": observation,
+            "evidences": evidences,
+        }.items()
+        if v is not None
+    }
+    if not _is_uuid(timeline_entry_id):
+        return "Error: timeline_entry_id must be a UUID"
+    if not payload:
+        return "Error: No fields provided to update"
+    if entry_type is not None and entry_type not in MANUAL_TIMELINE_ENTRY_TYPES:
+        return INVALID_TIMELINE_ENTRY_TYPE_ERROR
+    try:
+        endpoint = f"/timeline-entries/{timeline_entry_id}/"
+
+        current = make_get_request(endpoint)
+        if current.status_code != 200:
+            return (
+                f"Error updating timeline entry: {current.status_code} - {current.text}"
+            )
+        current_type = current.json().get("entry_type")
+        if current_type not in MANUAL_TIMELINE_ENTRY_TYPES:
+            return f"Error: cannot modify automatic timeline entry ({current_type})"
+
+        res = make_patch_request(endpoint, payload)
+
+        if res.status_code == 200:
+            updated = res.json()
+            return (
+                f"Updated timeline entry: {updated.get('entry')} "
+                f"(ID: {updated.get('id')})"
+            )
+        else:
+            return f"Error updating timeline entry: {res.status_code} - {res.text}"
+    except Exception as e:
+        return f"Error in update_timeline_entry: {str(e)}"

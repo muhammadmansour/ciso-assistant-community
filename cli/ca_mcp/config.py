@@ -22,6 +22,15 @@ VERIFY_CERTIFICATE = os.getenv("VERIFY_CERTIFICATE", "true").lower() in (
 )
 HTTP_TIMEOUT = 30  # seconds
 
+# Response bounding. A single unbounded list call can cost more context than the
+# entire tool surface, and unlike the tool list it recurs on every call.
+# MAX_RESPONSE_CHARS is the real protection; the row limits exist so the common
+# case never reaches it. Bounding applies to DISPLAY only: callers computing
+# aggregates or driving bulk writes pass max_items=None (see fetch_all_results).
+DEFAULT_PAGE_LIMIT = int(os.getenv("CA_MCP_PAGE_LIMIT", "100"))
+MAX_TOTAL_ITEMS = int(os.getenv("CA_MCP_MAX_ITEMS", "200"))
+MAX_RESPONSE_CHARS = int(os.getenv("CA_MCP_MAX_RESPONSE_CHARS", "20000"))
+
 # --- Remote (HTTP/OAuth) MCP server settings ---
 # These are only used when running the server via `ca_mcp_http.py`, which exposes
 # the MCP server over HTTP so it can be added as a "custom connector" in clients
