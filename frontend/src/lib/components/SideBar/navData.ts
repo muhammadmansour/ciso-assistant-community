@@ -226,6 +226,12 @@ export const navData = {
 					permissions: ['view_tasktemplate']
 				},
 				{
+					name: 'workflows',
+					fa_icon: 'fa-solid fa-diagram-project',
+					href: '/workflows',
+					permissions: ['view_workflow']
+				},
+				{
 					name: 'assets',
 					fa_icon: 'fa-solid fa-gem',
 					href: '/assets'
