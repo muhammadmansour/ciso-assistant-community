@@ -243,9 +243,30 @@ def _scoped_related(obj, name):
 
 def _evidence_controls(evidence):
     return [
-        {"id": str(c.id), "ref_id": c.ref_id, "name": c.name}
+        {
+            "id": str(c.id),
+            "ref_id": c.ref_id,
+            "name": c.name,
+            "owner_emails": _emails(c.owner),
+        }
         for c in evidence.applied_controls.all()
     ]
+
+
+def _evidence_control_owner_emails(evidence):
+    """Everyone owning a control this evidence backs, once each, in the shape
+    send_email's recipients splits on."""
+    return ", ".join(
+        sorted(
+            {
+                email
+                for control in evidence.applied_controls.all()
+                for actor in control.owner.all()
+                for email in actor.get_emails()
+                if email
+            }
+        )
+    )
 
 
 def _evidence_audits(evidence):
@@ -317,11 +338,13 @@ READABLE_MODELS: dict[str, ReadEntry] = {
             "control_names": lambda o: ", ".join(
                 c.name for c in o.applied_controls.all()
             ),
+            "control_owner_emails": _evidence_control_owner_emails,
             "audits": _evidence_audits,
         },
         prefetch_scoped={
             "controls": {"applied_controls": AppliedControl},
             "control_names": {"applied_controls": AppliedControl},
+            "control_owner_emails": {"applied_controls": AppliedControl},
             "audits": {
                 "applied_controls": AppliedControl,
                 "applied_controls__requirement_assessments": RequirementAssessment,
