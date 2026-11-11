@@ -4,6 +4,7 @@ import json
 
 import yaml
 from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 import django_filters as df
 from django.db import transaction
 from django.db.models import Count, Prefetch
@@ -219,7 +220,10 @@ class WorkflowViewSet(BaseModelViewSet):
 
         folder_id = request.data.get("folder")
         if folder_id:
-            folder = Folder.objects.filter(id=folder_id).first()
+            try:
+                folder = Folder.objects.filter(id=folder_id).first()
+            except (TypeError, ValueError, ValidationError):
+                folder = None
             if folder is None:
                 return Response(
                     {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST

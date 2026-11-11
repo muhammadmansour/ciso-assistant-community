@@ -147,9 +147,14 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 	const currentLang = event.locals.user?.preferences?.lang || DEFAULT_LANGUAGE;
 	if (request.url.startsWith(BASE_API_URL)) {
-		// Only set Content-Type to JSON if this is not a file upload
-		// File uploads are indicated by Content-Disposition header
-		const isFileUpload = request.headers.has('Content-Disposition');
+		// Only set Content-Type to JSON if this is not a file upload.
+		// Raw uploads set Content-Disposition; FormData uploads already carry
+		// multipart/form-data (with boundary) — overwriting that to
+		// application/json drops FILES and breaks workflow/folder imports.
+		const contentType = request.headers.get('Content-Type') || '';
+		const isFileUpload =
+			request.headers.has('Content-Disposition') ||
+			contentType.includes('multipart/form-data');
 		if (!isFileUpload) {
 			request.headers.set('Content-Type', 'application/json');
 		}

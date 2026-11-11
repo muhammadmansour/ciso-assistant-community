@@ -1363,7 +1363,9 @@ export const WorkflowSchema = z.object({
 	...NameDescriptionMixin,
 	folder: z.string(),
 	ref_id: z.string().optional(),
-	filtering_labels: z.array(z.string().uuid()).optional()
+	// Allow free-text so allowUserOptions can create labels; backend _process_labels
+	// turns non-UUID strings into FilteringLabel rows (same as threats/assets).
+	filtering_labels: z.string().optional().array().optional()
 });
 
 // Metrology

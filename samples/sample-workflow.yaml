@@ -1,0 +1,35 @@
+urn: urn:custom:risk:library:workflow-sample-hello
+locale: en
+ref_id: workflow-sample-hello
+name: Sample hello workflow
+description: Minimal sample workflow for testing the Import workflow dialog.
+version: 1
+objects:
+  workflows:
+  - urn: urn:custom:risk:library:workflow-sample-hello:workflow:sample-hello
+    schema_version: 1
+    name: Sample hello workflow
+    ref_id: sample-hello
+    description: Manual trigger → log a message → end. No secrets required.
+    graph:
+      variables: []
+      nodes:
+      - ref: start
+        type: trigger
+        label: Start
+        trigger_config:
+          type: manual
+      - ref: say_hello
+        type: action
+        label: Say hello
+        action_config:
+          type: log
+          message: Hello from imported sample workflow
+      - ref: done
+        type: end
+        label: Done
+      edges:
+      - source: start
+        target: say_hello
+      - source: say_hello
+        target: done

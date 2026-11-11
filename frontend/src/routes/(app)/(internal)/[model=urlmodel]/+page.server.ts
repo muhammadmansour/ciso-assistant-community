@@ -262,6 +262,12 @@ export const actions: Actions = {
 		}
 
 		const { file } = Object.fromEntries(formData) as { file: File };
+		if (!(file instanceof File) || file.size <= 0) {
+			setFlash({ type: 'error', message: m.workflowImportFailed() }, event);
+			setError(form, 'file', m.workflowImportFailed());
+			return fail(400, withFiles({ form }));
+		}
+
 		const body = new FormData();
 		body.append('file', file, file.name);
 		if (form.data.folder) body.append('folder', form.data.folder);
@@ -269,16 +275,22 @@ export const actions: Actions = {
 
 		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/import-yaml/`, {
 			method: 'POST',
+			// Marker so hooks.server does not rewrite this FormData request to
+			// application/json (which would strip the uploaded file).
+			headers: {
+				'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`
+			},
 			body
 		});
 		// A non-JSON error body (proxy HTML page) must not crash the action.
 		const res = await response.json().catch(() => ({}));
 
 		if (!response.ok) {
+			const errorMessage = res.error || res.detail;
 			setFlash(
 				{
 					type: 'error',
-					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
+					message: errorMessage ? safeTranslate(errorMessage) : m.workflowImportFailed()
 				},
 				event
 			);
