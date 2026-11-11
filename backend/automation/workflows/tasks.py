@@ -47,7 +47,12 @@ def retry_token_task(token_id):
 
 @db_task()
 def send_email_task(
-    token_id: str, dispatch_id: str, subject: str, body: str, recipients: list[str]
+    token_id: str,
+    dispatch_id: str,
+    subject: str,
+    body: str,
+    recipients: list[str],
+    html_body: str | None = None,
 ) -> None:
     """Deliver a send_email action's mail and hand the token back to the
     engine. Runs outside any engine transaction so SMTP I/O never blocks the
@@ -82,7 +87,13 @@ def send_email_task(
                     while pending:
                         email = pending.pop(0)
                         try:
-                            send_email_now(subject, body, email, connection=connection)
+                            send_email_now(
+                                subject,
+                                body,
+                                email,
+                                html_message=html_body,
+                                connection=connection,
+                            )
                             sent.append(email)
                         except Exception as e:
                             # Raw exception text stays out of the run log (it

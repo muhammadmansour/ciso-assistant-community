@@ -313,10 +313,15 @@ READABLE_MODELS: dict[str, ReadEntry] = {
         # Opt-in: walking controls to requirements to audits costs per row.
         optional_computed={
             "controls": _evidence_controls,
+            # Comma-separated, for a sentence or an email row.
+            "control_names": lambda o: ", ".join(
+                c.name for c in o.applied_controls.all()
+            ),
             "audits": _evidence_audits,
         },
         prefetch_scoped={
             "controls": {"applied_controls": AppliedControl},
+            "control_names": {"applied_controls": AppliedControl},
             "audits": {
                 "applied_controls": AppliedControl,
                 "applied_controls__requirement_assessments": RequirementAssessment,

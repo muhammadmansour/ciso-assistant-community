@@ -144,12 +144,19 @@ class DeferredTask:
 
 
 class DeferredSendEmailTask(DeferredTask):
-    def __init__(self, subject: str, body: str, recipients: list[str]):
+    def __init__(
+        self,
+        subject: str,
+        body: str,
+        recipients: list[str],
+        html_body: str | None = None,
+    ):
         """Deliver `subject`/`body` to each address in `recipients` over one
         SMTP session, then resume or fail the parked token."""
-        super().__init__(
-            send_email_task, subject=subject, body=body, recipients=recipients
-        )
+        kwargs = {"subject": subject, "body": body, "recipients": recipients}
+        if html_body:
+            kwargs["html_body"] = html_body
+        super().__init__(send_email_task, **kwargs)
 
 
 MISSING = object()
@@ -2272,9 +2279,36 @@ class SendEmailAction(BaseAction):
                 validate_email(parseaddr(email)[1])
             except ValidationError:
                 raise FatalActionError(f"send_email: invalid recipient '{email}'")
-        subject = render(config.get("subject", ""), _render_context(instance))
-        body = render(config.get("body", ""), _render_context(instance))
-        return DeferredSendEmailTask(subject=subject, body=body, recipients=recipients)
+        context = _render_context(instance)
+        subject = render(config.get("subject", ""), context)
+        body = render(config.get("body", ""), context)
+        html_body = None
+        layout = config.get("layout")
+        if isinstance(layout, dict) and layout:
+            from core.email_utils import render_workflow_html_email
+
+            def text(value):
+                rendered = render(value, context)
+                return "" if rendered is None else str(rendered)
+
+            html_body = render_workflow_html_email(
+                title=text(layout.get("title", "")),
+                sections=[text(s) for s in layout.get("sections") or []],
+                details=[
+                    {"label": text(r.get("label", "")), "value": text(r.get("value", ""))}
+                    for r in layout.get("details") or []
+                    if isinstance(r, dict)
+                ],
+                buttons=[
+                    {"label": text(b.get("label", "")), "url": text(b.get("url", ""))}
+                    for b in layout.get("buttons") or []
+                    if isinstance(b, dict)
+                ],
+                footer=text(layout.get("footer", "")),
+            )
+        return DeferredSendEmailTask(
+            subject=subject, body=body, recipients=recipients, html_body=html_body
+        )
 
 
 @register
@@ -3475,6 +3509,27 @@ def validate_send_email_config(node):
         except ValidationError:
             errors.append(
                 ("action_email_bad_recipient", f"'{recipient}' is not an email address")
+            )
+    layout = config.get("layout")
+    if layout in (None, {}):
+        return errors
+    if not isinstance(layout, dict):
+        return errors + [("action_email_bad_layout", "'layout' must be a mapping")]
+    if not isinstance(layout.get("sections", []), list):
+        errors.append(("action_email_bad_layout", "'layout.sections' must be a list"))
+    for key in ("details", "buttons"):
+        rows = layout.get(key, [])
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            errors.append(
+                ("action_email_bad_layout", f"'layout.{key}' must be a list of mappings")
+            )
+    for button in layout.get("buttons") or []:
+        url = str(button.get("url", "")).strip() if isinstance(button, dict) else ""
+        if url and not _is_templated(url) and not url.lower().startswith(
+            ("https://", "http://")
+        ):
+            errors.append(
+                ("action_email_bad_layout", f"button URL '{url}' must start with http(s)://")
             )
     return errors
 
