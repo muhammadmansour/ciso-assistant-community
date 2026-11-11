@@ -15,7 +15,9 @@
 	import { fetchHookSecret, publicHookUrl } from './hook-url';
 	import { postOps } from './ops';
 	import DataBrowser from './DataBrowser.svelte';
-	import { dig, renderTemplate } from './expressions';
+	import CelInput from '$lib/components/Cel/CelInput.svelte';
+	import type { Scope as CelScope } from '$lib/components/Cel/compute-assist';
+	import { dig, renderTemplate } from '$lib/components/Cel/expressions';
 	import { TRIGGER_ICONS } from './nodes/TriggerNode.svelte';
 	import {
 		newCondition,
@@ -23,8 +25,15 @@
 		groupsToTree,
 		FILTER_OPS,
 		type Condition
-	} from './filter-dnf';
+	} from '$lib/utils/filter-dnf';
 	import { VARIABLE_TYPES } from './builder-constants';
+	import {
+		READ_ROW_DEFAULTS,
+		aggregateRowsOf,
+		applyActionDefaults,
+		ensureAggregateRows,
+		type AggregateRow
+	} from './read-config';
 
 	interface Option {
 		id: string;
@@ -56,9 +65,25 @@
 		taskTemplates: Option[];
 		subprocessCandidates: Option[];
 		creatableModels?: any[];
-		readableModels?: { key: string; fields: string[] }[];
+		updatableModels?: any[];
+		readableModels?: {
+			key: string;
+			fields: string[];
+			kinds?: Record<string, string>;
+			annotations?: string[];
+			computed?: string[];
+			includable?: string[];
+			aggregates?: {
+				name: string;
+				engine: string;
+				needs_field: boolean;
+				accepts: string[];
+				params: string[];
+			}[];
+		}[];
 		fkOptions?: Record<string, Option[]>;
 		workflowId: string;
+		versionId?: string | null;
 		registrationsByRef?: Record<string, any>;
 		onRegistrationsChanged?: () => void;
 		referenceRunId?: string | null;
@@ -87,9 +112,11 @@
 		taskTemplates,
 		subprocessCandidates,
 		creatableModels = [],
+		updatableModels = [],
 		readableModels = [],
 		fkOptions = {},
 		workflowId,
+		versionId = null,
 		registrationsByRef = {},
 		onRegistrationsChanged,
 		referenceRunId = null,
@@ -127,6 +154,10 @@
 	let copiedExpression = $state(false);
 	function insertExpression(expression: string) {
 		const el = lastFocusedInput;
+		// A compute row is CEL: the same path, without the template braces.
+		if (el?.dataset.syntax === 'cel') {
+			expression = expression.replace(/^\{\{\s*(.*?)\s*\}\}$/, '$1');
+		}
 		if (el && document.contains(el)) {
 			const start = el.selectionStart ?? el.value.length;
 			const end = el.selectionEnd ?? start;
@@ -155,6 +186,11 @@
 	// buffering); the engine still executes it for graphs that carry it.
 	const ACTION_TYPES = [
 		'create_object',
+		'upsert_objects',
+		'update_object',
+		'attach_evidence',
+		'record_measurement',
+		'post_results',
 		'read_objects',
 		'http_request',
 		'send_email',
@@ -162,10 +198,24 @@
 		'provision_user',
 		'manage_group_membership',
 		'set_variables',
+		'date_offset',
+		'compute',
+		'ai_extract',
+		'ai_generate',
 		'log'
 	];
 
+	// Functions the compute step adds on top of CEL's own, shown as a hint.
+	const COMPUTE_FUNCTIONS =
+		'sum avg min max round floor ceil abs size has int double string timestamp duration';
+
 	const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+
+	// Written as prose or markdown, so a one-line input is the wrong box.
+	const LONG_TEXT_FIELDS = ['description', 'content', 'observation'];
+
+	// 'choice' emits an enum, which is what a branch step can route on.
+	const AI_FIELD_TYPES = ['choice', 'string', 'number', 'boolean'];
 
 	const BUILTIN_GROUPS = [
 		{ code: 'BI-UG-AUD', label: 'reader' },
@@ -182,16 +232,63 @@
 	const ACTION_CONFIG_DEFAULTS: Record<string, object> = {
 		log: { message: '' },
 		set_variables: { variables: {} },
+		date_offset: { base: '', days: 30, weeks: 0, output: '' },
+		compute: { expressions: [] },
 		create_object: { model: 'applied_control', fields: { name: '' }, upsert: false },
+		upsert_objects: { model: 'asset', items: '', fields: { name: '' }, on_item_error: 'continue' },
+		update_object: { model: 'applied_control', id: '', fields: {}, m2m: {} },
+		attach_evidence: {
+			evidence: '',
+			source: 'text',
+			filename: '',
+			text: '',
+			url: '',
+			allow_error_status: false,
+			allow_connection_error: false,
+			find_occurrence: false,
+			new_revision: false,
+			task_node: ''
+		},
+		record_measurement: {
+			metric_instance: '',
+			value: '',
+			timestamp: '',
+			observation: '',
+			evidence_revision: ''
+		},
+		post_results: {
+			posture_assessment: '',
+			asset: '',
+			results: '',
+			run_id: '',
+			tool: ''
+		},
 		read_objects: {
 			model: 'applied_control',
 			mode: 'list',
 			filters: {},
 			order_by: '-created_at',
-			limit: 25
+			limit: 25,
+			offset: '',
+			include: []
 		},
-		http_request: { method: 'GET', url: '', headers: {}, body: '', timeout: 15 },
+		http_request: {
+			method: 'GET',
+			url: '',
+			headers: {},
+			body: '',
+			timeout: 15,
+			allow_error_status: false,
+			allow_connection_error: false
+		},
 		send_email: { recipients: '', subject: '', body: '' },
+		ai_extract: {
+			prompt: '',
+			input: '',
+			schema: { type: 'object', properties: {}, required: [] },
+			max_attempts: 2
+		},
+		ai_generate: { prompt: '', input: '', max_words: 200 },
 		provision_folder: { name: '', parent: '', create_default_groups: true },
 		provision_user: {
 			email: '',
@@ -213,6 +310,66 @@
 		creatableModels.find((entry) => entry.key === actionConfig?.model)
 	);
 	const readableEntry = $derived(readableModels.find((entry) => entry.key === actionConfig?.model));
+	const updatableEntry = $derived(
+		updatableModels.find((entry) => entry.key === actionConfig?.model)
+	);
+
+	function resetUpdateFields() {
+		// Field and relation names are per-model.
+		actionConfig.fields = {};
+		actionConfig.m2m = {};
+		onChange();
+	}
+
+	// Added explicitly, never pre-seeded: a row with no ids fails publish.
+	const unusedRelations = $derived(
+		Object.keys(updatableEntry?.m2m_fields ?? {}).filter(
+			(name) => !(name in (actionConfig?.m2m ?? {}))
+		)
+	);
+
+	function addRelationRow() {
+		const name = unusedRelations[0];
+		if (!name) return;
+		actionConfig.m2m = { ...actionConfig.m2m, [name]: { op: 'add', values: '' } };
+		onChange();
+	}
+
+	function removeRelationRow(name: string) {
+		const { [name]: _dropped, ...rest } = actionConfig.m2m ?? {};
+		actionConfig.m2m = rest;
+		onChange();
+	}
+
+	function renameRelationRow(previous: string, next: string) {
+		if (previous === next) return;
+		const spec = actionConfig.m2m?.[previous] ?? { op: 'add', values: '' };
+		const { [previous]: _dropped, ...rest } = actionConfig.m2m ?? {};
+		actionConfig.m2m = { ...rest, [next]: spec };
+		onChange();
+	}
+
+	const upsertableModels = $derived(creatableModels.filter((entry) => entry.upsert !== false));
+
+	function togglePaginate(on: boolean) {
+		if (on)
+			actionConfig.paginate = {
+				items: '',
+				next: '',
+				cursor_param: '',
+				offset_param: '',
+				count_only: false,
+				max_pages: 10
+			};
+		else delete actionConfig.paginate;
+		onChange();
+	}
+
+	function toggleOauth(on: boolean) {
+		if (on) actionConfig.oauth = { token_url: '', client_id: '', client_secret: '', scope: '' };
+		else delete actionConfig.oauth;
+		onChange();
+	}
 
 	function resetCreateFields() {
 		actionConfig.fields = { name: actionConfig.fields?.name ?? '' };
@@ -220,24 +377,16 @@
 	}
 
 	function initActionConfig() {
-		const type = actionConfig.type;
-		const defaults: any = ACTION_CONFIG_DEFAULTS[type] ?? {};
-		for (const [key, value] of Object.entries(defaults)) {
-			// Clone: the nested literals are shared, and bindings mutate them in
-			// place, so two nodes of the same type would edit one object.
-			if (actionConfig[key] === undefined) actionConfig[key] = structuredClone(value);
-		}
+		applyActionDefaults(actionConfig, ACTION_CONFIG_DEFAULTS[actionConfig.type] ?? {});
 		onChange();
 	}
 
-	// Older nodes may carry a bare {type} config; make sure the shape the
-	// bindings expect exists before the template reads it.
+	// Older nodes may carry a bare {type} config — so do the ones the palette
+	// drops pre-typed; make sure the shape the bindings expect exists before
+	// the template reads it.
 	$effect(() => {
 		if (nodeDomain?.type === 'action' && actionConfig?.type) {
-			const defaults: any = ACTION_CONFIG_DEFAULTS[actionConfig.type] ?? {};
-			for (const [key, value] of Object.entries(defaults)) {
-				if (actionConfig[key] === undefined) actionConfig[key] = value;
-			}
+			applyActionDefaults(actionConfig, ACTION_CONFIG_DEFAULTS[actionConfig.type] ?? {});
 		}
 		if (nodeDomain?.type === 'trigger') {
 			nodeDomain.trigger_config ??= { type: 'manual' };
@@ -245,6 +394,7 @@
 		}
 		if (nodeDomain?.type === 'loop') {
 			nodeDomain.loop_config ??= { collection: '', on_item_error: 'continue' };
+			nodeDomain.loop_config.read ??= null;
 			nodeDomain.loop_config.collect ??= '';
 		}
 		if (['action', 'subprocess', 'loop'].includes(nodeDomain?.type) && !nodeDomain.output_mapping) {
@@ -256,11 +406,21 @@
 	const OUTPUT_EXAMPLES: Record<string, string> = {
 		http_request: 'body.summary',
 		create_object: 'created_object_id',
+		upsert_objects: 'created',
+		update_object: 'object_id',
+		create_audit: 'created_object_id',
+		attach_evidence: 'filename',
+		record_measurement: 'object_id',
+		post_results: 'created',
+		create_entity_assessment: 'created_object_id',
 		read_objects: 'results.0.name',
 		provision_folder: 'folder_id',
 		provision_user: 'user_id',
 		manage_group_membership: 'group_id',
 		send_email: 'subject',
+		ai_extract: 'category',
+		ai_generate: 'text',
+		date_offset: 'result',
 		log: 'message'
 	};
 	const outputExample = $derived(
@@ -468,11 +628,98 @@
 
 	function resetReadModel() {
 		// Field whitelists differ per model: stale filters/ordering would fail
-		// publish validation.
+		// publish validation. Includes are per-model too — the backend rejects
+		// a name the new model does not offer.
 		actionConfig.filters = {};
 		actionConfig.order_by = '-created_at';
+		actionConfig.include = [];
 		readFilterGroups = [];
 		readFilterRawMode = false;
+		onChange();
+	}
+
+	// The backend accepts a bare string as well as a list, so a config authored
+	// through the API or imported from a library can carry either. Spreading a
+	// string would store its characters one by one, and filtering one throws.
+	function readIncludeList(value: unknown): string[] {
+		if (Array.isArray(value)) return value as string[];
+		return typeof value === 'string' && value ? [value] : [];
+	}
+
+	function toggleReadInclude(name: string, checked: boolean) {
+		const current = readIncludeList(actionConfig.include);
+		actionConfig.include = checked ? [...current, name] : current.filter((entry) => entry !== name);
+		onChange();
+	}
+
+	function setReadMode(mode: string) {
+		actionConfig.mode = mode;
+		if (mode === 'aggregate') {
+			for (const key of Object.keys(READ_ROW_DEFAULTS)) delete actionConfig[key];
+			if (!Array.isArray(actionConfig.aggregates) || !actionConfig.aggregates.length)
+				actionConfig.aggregates = [{ fn: 'count' }];
+		} else {
+			delete actionConfig.aggregates;
+			for (const [key, value] of Object.entries(READ_ROW_DEFAULTS))
+				if (actionConfig[key] === undefined) actionConfig[key] = structuredClone(value);
+		}
+		onChange();
+	}
+
+	const aggregateFunctions = $derived(readableEntry?.aggregates ?? []);
+	function aggregateFn(name: string) {
+		return aggregateFunctions.find((fn) => fn.name === name);
+	}
+	// Columns and annotations a function may run on, by the kind each holds,
+	// then the computed values (always worker-side).
+	function aggregateFieldChoices(
+		fnName: string
+	): { value: string; label: string; worker: boolean }[] {
+		const fn = aggregateFn(fnName);
+		if (!fn || !fn.needs_field || !readableEntry) return [];
+		const kinds = readableEntry.kinds ?? {};
+		const columns = readableEntry.fields
+			.filter((field) => fn.accepts.includes(kinds[field] ?? ''))
+			.map((field) => ({ value: field, label: field, worker: false }));
+		if (fn.name === 'count_distinct') return columns;
+		// A computed value that shadows a column only reshapes its output; the
+		// column is what an aggregate runs on.
+		const computed = (readableEntry.computed ?? [])
+			.filter((name) => !readableEntry.fields.includes(name))
+			.map((name) => ({
+				value: name,
+				label: `${name} (${m.aggregateComputedValue()})`,
+				worker: true
+			}));
+		return [...columns, ...computed];
+	}
+	function aggregateGroupChoices(): string[] {
+		if (!readableEntry) return [];
+		const annotations = new Set(readableEntry.annotations ?? []);
+		return readableEntry.fields.filter((field) => !annotations.has(field));
+	}
+	function aggregateRunsInWorker(row: AggregateRow): boolean {
+		const fn = aggregateFn(row.fn);
+		if (!fn) return false;
+		if (fn.engine === 'python') return true;
+		return !!row.field && !readableEntry?.fields.includes(row.field);
+	}
+	function aggregateRows(): AggregateRow[] {
+		return aggregateRowsOf(actionConfig);
+	}
+	function setAggregateFn(row: AggregateRow, name: string) {
+		row.fn = name;
+		const fn = aggregateFn(name);
+		if (!fn?.needs_field) delete row.field;
+		else if (row.field && !aggregateFieldChoices(name).some((c) => c.value === row.field))
+			delete row.field;
+		if (!fn?.params.includes('p')) delete row.p;
+		else if (row.p === undefined) row.p = 90;
+		onChange();
+	}
+	function setAggregateKey(row: AggregateRow, key: 'field' | 'group_by' | 'as', value: string) {
+		if (value) row[key] = value;
+		else delete row[key];
 		onChange();
 	}
 
@@ -664,6 +911,110 @@
 		onChange();
 	}
 
+	// Compute rows are an ordered list, not a key -> expression map: a row may
+	// read the rows above it, and PostgreSQL's jsonb reorders object keys.
+	type ComputeRow = { key: string; expression: string };
+
+	function computeRows(): ComputeRow[] {
+		return Array.isArray(actionConfig.expressions) ? actionConfig.expressions : [];
+	}
+
+	// Declared variables not computed by a sibling row, plus the row's own key.
+	function computeKeyOptions(current: string) {
+		const used = new Set(computeRows().map((row) => row.key));
+		const keys = variables.map((v) => v.key).filter((k) => k === current || !used.has(k));
+		if (!keys.includes(current)) keys.unshift(current);
+		return keys;
+	}
+
+	function addComputeRow() {
+		const used = new Set(computeRows().map((row) => row.key));
+		const candidate = variables.find((v) => !used.has(v.key));
+		if (!candidate) return;
+		actionConfig.expressions = [...computeRows(), { key: candidate.key, expression: '' }];
+		onChange();
+	}
+
+	function renameComputeRow(index: number, newKey: string) {
+		const rows = computeRows();
+		if (!newKey || rows[index]?.key === newKey || rows.some((row) => row.key === newKey)) return;
+		actionConfig.expressions = rows.map((row, i) => (i === index ? { ...row, key: newKey } : row));
+		onChange();
+	}
+
+	function removeComputeRow(index: number) {
+		actionConfig.expressions = computeRows().filter((_, i) => i !== index);
+		onChange();
+	}
+
+	// What the autocomplete can see from this node.
+	const celScope = $derived<CelScope>({
+		variables,
+		referenceVariables,
+		referenceNodes,
+		upstreamNodes
+	});
+
+	// Live result of each compute row, evaluated server-side against the
+	// reference run (or the draft's defaults): the editor shows what the engine
+	// will compute, with the engine's own error messages.
+	type ComputePreview = { ok: true; value: unknown; type: string } | { ok: false; error: string };
+	let computePreviews = $state<Record<number, ComputePreview>>({});
+	let computePreviewTimer: ReturnType<typeof setTimeout> | null = null;
+	let computePreviewSeq = 0;
+	let computePreviewNodeId: string | null = null;
+
+	// One request for the whole step: the backend evaluates the rows in a
+	// single pass and answers one result per row (null for a blank row).
+	async function refreshComputePreviews() {
+		if (!versionId) return;
+		const rows = computeRows();
+		const seq = computePreviewSeq;
+		if (!rows.some((row) => row.expression.trim())) {
+			computePreviews = {};
+			return;
+		}
+		try {
+			const res = await postOps(workflowId, 'preview-expression', {
+				version: versionId,
+				rows,
+				reference_run: referenceRunId
+			});
+			// A later edit, node change or run change bumped the sequence while
+			// this was in flight: its rows no longer match ours, drop it.
+			if (seq !== computePreviewSeq) return;
+			if (!res.ok) {
+				// The shown results belong to rows we no longer have an answer for.
+				computePreviews = {};
+				return;
+			}
+			const body = await res.json();
+			if (seq !== computePreviewSeq) return;
+			const results: Record<number, ComputePreview> = {};
+			(body.results ?? []).forEach((result: ComputePreview | null, index: number) => {
+				if (result) results[index] = result;
+			});
+			computePreviews = results;
+		} catch {
+			// Network hiccup: keep the previous preview rather than flash an error.
+		}
+	}
+
+	$effect(() => {
+		if (actionConfig?.type !== 'compute') return;
+		// Tracked: the rows, the reference run and the selected node.
+		const signature = JSON.stringify(computeRows()) + referenceRunId;
+		if (nodeDomain?.id !== computePreviewNodeId) {
+			computePreviewNodeId = nodeDomain?.id ?? null;
+			computePreviews = {};
+		}
+		void signature;
+		// Invalidate anything in flight now, not when the debounce fires.
+		computePreviewSeq += 1;
+		if (computePreviewTimer) clearTimeout(computePreviewTimer);
+		computePreviewTimer = setTimeout(refreshComputePreviews, 300);
+	});
+
 	// HTTP headers are a plain dict in the config, but editing keys in place
 	// would recreate the inputs on every keystroke. Edit an entries array
 	// instead and write the whole dict back on every change.
@@ -701,6 +1052,77 @@
 	function removeHeaderRow(index: number) {
 		headerEntries = headerEntries.filter((_, i) => i !== index);
 		syncHeaders();
+	}
+
+	// ---------- ai_extract output fields ----------
+	// Authors name fields and pick types; we build the JSON Schema from that.
+	// Same round-trip shape as headerEntries above.
+	type AiField = { name: string; type: string; choices: string };
+	let aiFields = $state<AiField[]>([]);
+	let aiFieldsNodeId: string | null = null;
+	$effect(() => {
+		const nodeId =
+			nodeDomain?.type === 'action' && actionConfig?.type === 'ai_extract' ? selectedNode.id : null;
+		if (nodeId !== aiFieldsNodeId) {
+			aiFieldsNodeId = nodeId;
+			aiFields = nodeId ? schemaToFields(actionConfig.schema) : [];
+		}
+	});
+
+	function schemaToFields(schema: any): AiField[] {
+		return Object.entries(schema?.properties ?? {}).map(([name, spec]: [string, any]) => ({
+			name,
+			type: Array.isArray(spec?.enum) ? 'choice' : (spec?.type ?? 'string'),
+			choices: Array.isArray(spec?.enum) ? spec.enum.join(', ') : ''
+		}));
+	}
+
+	function syncAiFields() {
+		const properties: Record<string, any> = {};
+		for (const field of aiFields) {
+			const name = field.name.trim();
+			if (!name) continue;
+			if (field.type === 'choice') {
+				const choices = field.choices
+					.split(',')
+					.map((choice) => choice.trim())
+					.filter(Boolean);
+				// An empty enum would validate nothing.
+				properties[name] = choices.length ? { type: 'string', enum: choices } : { type: 'string' };
+			} else {
+				properties[name] = { type: field.type };
+			}
+		}
+		// All required: an absent key makes {{nodes.<ref>.<field>}} unresolvable.
+		actionConfig.schema = {
+			type: 'object',
+			properties,
+			required: Object.keys(properties)
+		};
+		onChange();
+	}
+
+	function aiTypeLabel(fieldType: string): string {
+		// Not m[`...`]: a dynamic index defeats Paraglide tree-shaking.
+		switch (fieldType) {
+			case 'choice':
+				return m.aiTypeChoice();
+			case 'number':
+				return m.aiTypeNumber();
+			case 'boolean':
+				return m.aiTypeBoolean();
+			default:
+				return m.aiTypeString();
+		}
+	}
+
+	function addAiField() {
+		aiFields = [...aiFields, { name: '', type: 'choice', choices: '' }];
+	}
+
+	function removeAiField(index: number) {
+		aiFields = aiFields.filter((_, i) => i !== index);
+		syncAiFields();
 	}
 
 	function optionLabel(option: Option): string {
@@ -916,7 +1338,7 @@
 	oninputcapture={trackInput}
 >
 	{#if selectedNode && nodeDomain}
-		<div class="p-3 space-y-3">
+		<div class="p-3 space-y-3 [&>label]:block">
 			<div class="flex items-center gap-2">
 				<span class="badge preset-tonal text-[10px] uppercase">
 					{safeTranslate(
@@ -1080,62 +1502,125 @@
 			{/if}
 
 			{#if nodeDomain.type === 'loop' && loopConfig}
-				<div>
-					{@render fieldLabel(m.forEachItemIn())}
-					{#if collectionChoices.length}
+				<label>
+					{@render fieldLabel(m.loopSource())}
+					<select
+						class="select w-full text-sm"
+						value={loopConfig.read ? 'read' : 'collection'}
+						onchange={(e) => {
+							if (e.currentTarget.value === 'read') {
+								loopConfig.collection = '';
+								loopConfig.read = { model: 'applied_control', order_by: '-created_at', limit: 25 };
+							} else {
+								loopConfig.read = null;
+							}
+							onChange();
+						}}
+						data-testid="loop-source"
+					>
+						<option value="collection">{m.loopOverResults()}</option>
+						<option value="read">{m.loopOverPages()}</option>
+					</select>
+				</label>
+				{#if loopConfig.read}
+					<label>
+						{@render fieldLabel(m.objectToRead())}
 						<select
 							class="select w-full text-sm"
-							value={collectionIsCustom ? '__custom__' : (loopConfig.collection ?? '')}
+							value={loopConfig.read.model}
 							onchange={(e) => {
-								const chosen = e.currentTarget.value;
-								if (chosen === '__custom__') {
-									collectionIsCustom = true;
-								} else {
-									collectionIsCustom = false;
-									loopConfig.collection = chosen;
-									onChange();
-								}
+								loopConfig.read.model = e.currentTarget.value;
+								// order_by is validated against the model's own fields.
+								loopConfig.read.order_by = '-created_at';
+								onChange();
 							}}
-							data-testid="loop-collection"
 						>
-							{#if !loopConfig.collection && !collectionIsCustom}
-								<option value="">—</option>
-							{/if}
-							{#each collectionChoices as choice (choice.expr)}
-								<option value={choice.expr}>
-									{choice.label}{choice.count === null ? '' : ` (${choice.count})`}
-								</option>
+							{#each readableModels as entry (entry.key)}
+								<option value={entry.key}>{safeTranslate(entry.key)}</option>
 							{/each}
-							<option value="__custom__">{m.customExpression()}</option>
 						</select>
-					{:else}
-						<select class="select w-full text-sm" disabled>
-							<option>{m.forEachNoCollections()}</option>
-						</select>
-					{/if}
-					{#if collectionIsCustom || (!collectionChoices.length && loopConfig.collection)}
-						<input
-							type="text"
-							class="input w-full text-sm font-mono mt-1"
-							placeholder={'{{nodes.list_items.results}}'}
-							bind:value={loopConfig.collection}
-							oninput={onChange}
-						/>
-					{/if}
-					{#if collectionPreview?.invalid}
-						<p class="text-[10px] text-warning-600 mt-1">
-							<i class="fa-solid fa-triangle-exclamation mr-1"></i>{m.forEachNotAList()}
-						</p>
-					{:else if collectionPreview}
-						<p class="text-[10px] text-success-600 mt-1">
-							<i class="fa-solid fa-rotate mr-1"></i>{m.forEachPreview({
-								count: collectionPreview.count
-							})}
-						</p>
-					{/if}
-				</div>
-
-				{#if loopConfig.collection}
+					</label>
+					<div class="flex gap-2">
+						<label class="flex-1">
+							{@render fieldLabel(m.orderBy())}
+							<input
+								type="text"
+								class="input w-full text-sm"
+								bind:value={loopConfig.read.order_by}
+								oninput={onChange}
+							/>
+						</label>
+						<label class="w-24 shrink-0">
+							{@render fieldLabel(m.pageSize())}
+							<input
+								type="number"
+								min="1"
+								class="input w-full text-sm"
+								bind:value={loopConfig.read.limit}
+								oninput={onChange}
+							/>
+						</label>
+					</div>
+					<p class="text-[10px] text-surface-500 leading-relaxed">
+						<i class="fa-solid fa-layer-group mr-1"></i>{m.loopOverPagesHint()}
+					</p>
+				{:else}
+					<div>
+						{@render fieldLabel(m.forEachItemIn())}
+						{#if collectionChoices.length}
+							<select
+								class="select w-full text-sm"
+								value={collectionIsCustom ? '__custom__' : (loopConfig.collection ?? '')}
+								onchange={(e) => {
+									const chosen = e.currentTarget.value;
+									if (chosen === '__custom__') {
+										collectionIsCustom = true;
+									} else {
+										collectionIsCustom = false;
+										loopConfig.collection = chosen;
+										onChange();
+									}
+								}}
+								data-testid="loop-collection"
+							>
+								{#if !loopConfig.collection && !collectionIsCustom}
+									<option value="">—</option>
+								{/if}
+								{#each collectionChoices as choice (choice.expr)}
+									<option value={choice.expr}>
+										{choice.label}{choice.count === null ? '' : ` (${choice.count})`}
+									</option>
+								{/each}
+								<option value="__custom__">{m.customExpression()}</option>
+							</select>
+						{:else}
+							<select class="select w-full text-sm" disabled>
+								<option>{m.forEachNoCollections()}</option>
+							</select>
+						{/if}
+						{#if collectionIsCustom || (!collectionChoices.length && loopConfig.collection)}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono mt-1"
+								placeholder={'{{nodes.list_items.results}}'}
+								bind:value={loopConfig.collection}
+								oninput={onChange}
+							/>
+						{/if}
+						{#if collectionPreview?.invalid}
+							<p class="text-[10px] text-warning-600 mt-1">
+								<i class="fa-solid fa-triangle-exclamation mr-1"></i>{m.forEachNotAList()}
+							</p>
+						{:else if collectionPreview}
+							<p class="text-[10px] text-success-600 mt-1">
+								<i class="fa-solid fa-rotate mr-1"></i>{m.forEachPreview({
+									count: collectionPreview.count
+								})}
+							</p>
+						{/if}
+					</div>
+				{/if}
+				{#if loopConfig.collection || loopConfig.read}
 					{#if itemChips.length}
 						<div>
 							<span class="text-[10px] font-semibold uppercase tracking-wide text-surface-500">
@@ -1235,7 +1720,10 @@
 							{/each}
 						</select>
 					</label>
-					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+					<label
+						class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer"
+						class:hidden={creatableEntry?.upsert === false}
+					>
 						<input
 							type="checkbox"
 							class="checkbox scale-75"
@@ -1248,15 +1736,30 @@
 						{/if}
 					</label>
 					{#each creatableEntry?.fields ?? [] as field (field)}
+						{@const narrowed = creatableEntry?.allowed_values?.[field]}
 						<label>
-							{@render fieldLabel(safeTranslate(field))}
-							{#if field === 'description'}
+							{@render fieldLabel(
+								safeTranslate(field) +
+									(creatableEntry?.required_fields?.includes(field) ? ' *' : '')
+							)}
+							{#if LONG_TEXT_FIELDS.includes(field)}
 								<textarea
 									class="input w-full text-sm"
-									rows="2"
+									rows={field === 'content' ? 6 : 2}
 									bind:value={actionConfig.fields[field]}
 									oninput={onChange}
 								></textarea>
+							{:else if narrowed?.length}
+								<select
+									class="select w-full text-sm"
+									bind:value={actionConfig.fields[field]}
+									onchange={onChange}
+								>
+									<option value={''}>—</option>
+									{#each narrowed as choice (choice)}
+										<option value={choice}>{safeTranslate(choice)}</option>
+									{/each}
+								</select>
 							{:else}
 								<input
 									type="text"
@@ -1265,6 +1768,58 @@
 									bind:value={actionConfig.fields[field]}
 									oninput={onChange}
 								/>
+							{/if}
+						</label>
+					{/each}
+					{#each Object.entries(creatableEntry?.params ?? {}) as [paramName, endpoint] (paramName)}
+						<label>
+							{@render fieldLabel(safeTranslate(paramName))}
+							{#if endpoint}
+								<select
+									class="select w-full text-sm"
+									bind:value={actionConfig.fields[paramName]}
+									onchange={onChange}
+								>
+									<option value={''}>—</option>
+									{#if fkOptions[endpoint as string]?.length}
+										<optgroup label={safeTranslate(endpoint as string)}>
+											{#each fkOptions[endpoint as string] as option (option.id)}
+												<option value={(option as any).urn ?? option.id}>
+													{optionLabel(option)}
+												</option>
+											{/each}
+										</optgroup>
+									{/if}
+									{#if variables.length}
+										<optgroup label={m.workflowVariables()}>
+											{#each variables as variable (variable.id)}
+												<option value={'{{' + variable.key + '}}'}>
+													{'{{' + variable.key + '}}'}
+												</option>
+											{/each}
+										</optgroup>
+									{/if}
+								</select>
+								{#if paramName === 'framework'}
+									<span class="text-[10px] text-surface-500">{m.frameworkUrnOrId()}</span>
+								{/if}
+							{:else if LONG_TEXT_FIELDS.includes(paramName)}
+								<textarea
+									class="input w-full text-sm"
+									rows="6"
+									bind:value={actionConfig.fields[paramName]}
+									oninput={onChange}
+								></textarea>
+							{:else}
+								<input
+									type="text"
+									class="input w-full text-sm"
+									bind:value={actionConfig.fields[paramName]}
+									oninput={onChange}
+								/>
+								{#if paramName === 'implementation_groups'}
+									<span class="text-[10px] text-surface-500">{m.implementationGroupsHint()}</span>
+								{/if}
 							{/if}
 						</label>
 					{/each}
@@ -1296,6 +1851,415 @@
 							</select>
 						</label>
 					{/each}
+				{:else if actionConfig.type === 'upsert_objects' && actionConfig.fields}
+					<label>
+						{@render fieldLabel(m.objectToCreate())}
+						<select
+							class="select w-full text-sm"
+							bind:value={actionConfig.model}
+							onchange={resetCreateFields}
+						>
+							{#each upsertableModels as entry (entry.key)}
+								<option value={entry.key}>{safeTranslate(entry.key)}</option>
+							{/each}
+						</select>
+						{#if creatableEntry?.match_on}
+							<span class="text-[10px] text-surface-500">(match on {creatableEntry.match_on})</span>
+						{/if}
+					</label>
+					<label>
+						{@render fieldLabel(m.upsertItems())}
+						<input
+							type="text"
+							class="input w-full text-sm font-mono"
+							placeholder={'{{nodes.list.items}}'}
+							bind:value={actionConfig.items}
+							oninput={onChange}
+						/>
+						<span class="text-[10px] text-surface-500">{m.upsertItemsHint()}</span>
+					</label>
+					{#each [...(creatableEntry?.fields ?? []), ...Object.keys(creatableEntry?.fk_fields ?? {})] as field (field)}
+						{@const narrowed = creatableEntry?.allowed_values?.[field]}
+						<label>
+							{@render fieldLabel(
+								safeTranslate(field) +
+									(field === 'name' || creatableEntry?.required_fields?.includes(field) ? ' *' : '')
+							)}
+							{#if narrowed?.length}
+								<select
+									class="select w-full text-sm"
+									bind:value={actionConfig.fields[field]}
+									onchange={onChange}
+								>
+									<option value={''}>—</option>
+									{#each narrowed as choice (choice)}
+										<option value={choice}>{safeTranslate(choice)}</option>
+									{/each}
+								</select>
+							{:else}
+								<input
+									type="text"
+									class="input w-full text-sm"
+									placeholder={field === 'name' ? '{{item.name}}' : ''}
+									bind:value={actionConfig.fields[field]}
+									oninput={onChange}
+								/>
+							{/if}
+						</label>
+					{/each}
+					<label>
+						{@render fieldLabel(m.onItemFailure())}
+						<select
+							class="select w-full text-sm"
+							bind:value={actionConfig.on_item_error}
+							onchange={onChange}
+						>
+							<option value="continue">{m.continueCollectErrors()}</option>
+							<option value="stop">{m.stopTheRun()}</option>
+						</select>
+					</label>
+				{:else if actionConfig.type === 'update_object'}
+					<label>
+						{@render fieldLabel(m.objectToUpdate())}
+						<select
+							class="select w-full text-sm"
+							bind:value={actionConfig.model}
+							onchange={resetUpdateFields}
+						>
+							{#each updatableModels as entry (entry.key)}
+								<option value={entry.key}>{safeTranslate(entry.key)}</option>
+							{/each}
+						</select>
+					</label>
+					<label>
+						{@render fieldLabel(m.targetObjectId())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{payload.object_id}}'}
+							bind:value={actionConfig.id}
+							oninput={onChange}
+						/>
+					</label>
+					{#each updatableEntry?.fields ?? [] as field (field)}
+						{@const allowed = updatableEntry?.allowed_values?.[field]}
+						<label>
+							{@render fieldLabel(safeTranslate(field))}
+							{#if allowed?.length}
+								<select
+									class="select w-full text-sm"
+									bind:value={actionConfig.fields[field]}
+									onchange={onChange}
+								>
+									<option value={''}>—</option>
+									{#each allowed as value (value)}
+										<option {value}>{safeTranslate(value)}</option>
+									{/each}
+								</select>
+								<span class="text-[10px] text-surface-500">{m.guardedFieldHint()}</span>
+							{:else if LONG_TEXT_FIELDS.includes(field)}
+								<textarea
+									class="input w-full text-sm"
+									rows={field === 'content' ? 6 : 2}
+									bind:value={actionConfig.fields[field]}
+									oninput={onChange}
+								></textarea>
+							{:else}
+								<input
+									type="text"
+									class="input w-full text-sm"
+									bind:value={actionConfig.fields[field]}
+									oninput={onChange}
+								/>
+							{/if}
+						</label>
+					{/each}
+					{#if Object.keys(updatableEntry?.m2m_fields ?? {}).length}
+						<div>
+							<div class="flex items-center justify-between mb-1">
+								{@render fieldLabel(m.relations())}
+								<button
+									type="button"
+									class="text-[10px] text-primary-500 hover:text-primary-600 cursor-pointer font-semibold disabled:opacity-50"
+									onclick={addRelationRow}
+									disabled={!unusedRelations.length}
+								>
+									<i class="fa-solid fa-plus mr-0.5"></i>{m.addRelation()}
+								</button>
+							</div>
+							{#each Object.keys(actionConfig.m2m ?? {}) as name (name)}
+								{@const endpoint = updatableEntry?.m2m_fields?.[name]}
+								<div class="flex items-center gap-1 mb-1">
+									<select
+										class="select text-xs w-28 shrink-0 px-1 py-0.5"
+										value={name}
+										onchange={(e) => renameRelationRow(name, e.currentTarget.value)}
+									>
+										{#each [name, ...unusedRelations] as option (option)}
+											<option value={option}>{safeTranslate(option)}</option>
+										{/each}
+									</select>
+									<select
+										class="select text-xs w-20 shrink-0 px-1 py-0.5"
+										bind:value={actionConfig.m2m[name].op}
+										onchange={onChange}
+									>
+										{#each updatableEntry?.operations ?? ['add', 'remove', 'set'] as operation (operation)}
+											<option value={operation}>{safeTranslate(operation)}</option>
+										{/each}
+									</select>
+									<input
+										type="text"
+										class="input text-xs flex-1 min-w-0 font-mono"
+										placeholder={m.relationValues()}
+										bind:value={actionConfig.m2m[name].values}
+										oninput={onChange}
+									/>
+									{#if fkOptions[endpoint as string]?.length}
+										<select
+											class="select text-xs w-16 shrink-0 px-1 py-0.5"
+											value={''}
+											onchange={(e) => {
+												const picked = e.currentTarget.value;
+												if (!picked) return;
+												const current = actionConfig.m2m[name].values;
+												actionConfig.m2m[name].values = current ? `${current},${picked}` : picked;
+												e.currentTarget.value = '';
+												onChange();
+											}}
+										>
+											<option value={''}>+</option>
+											{#each fkOptions[endpoint as string] as option (option.id)}
+												<option value={option.id}>{optionLabel(option)}</option>
+											{/each}
+										</select>
+									{/if}
+									<button
+										type="button"
+										aria-label="Remove link"
+										class="text-error-500 hover:text-error-600 cursor-pointer text-xs shrink-0"
+										onclick={() => removeRelationRow(name)}
+									>
+										<i class="fa-solid fa-xmark"></i>
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{:else if actionConfig.type === 'attach_evidence'}
+					<label>
+						{@render fieldLabel(m.evidence())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{nodes.make_evidence.created_object_id}}'}
+							bind:value={actionConfig.evidence}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.fileName())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'digest-{{today}}.csv'}
+							bind:value={actionConfig.filename}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.source())}
+						<select
+							class="select w-full text-sm"
+							bind:value={actionConfig.source}
+							onchange={onChange}
+						>
+							<option value="text">{m.text()}</option>
+							<option value="url">{m.url()}</option>
+						</select>
+						<span class="text-[10px] text-surface-500">{m.attachSourceHint()}</span>
+					</label>
+					{#if actionConfig.source === 'url'}
+						<label>
+							{@render fieldLabel(m.url())}
+							<input
+								type="text"
+								class="input w-full text-sm"
+								bind:value={actionConfig.url}
+								oninput={onChange}
+							/>
+						</label>
+						<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox scale-75"
+								bind:checked={actionConfig.allow_error_status}
+								onchange={onChange}
+							/>
+							{m.httpAllowErrorStatus()}
+						</label>
+						<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox scale-75"
+								bind:checked={actionConfig.allow_connection_error}
+								onchange={onChange}
+							/>
+							{m.httpAllowConnectionError()}
+						</label>
+						<span class="text-[10px] text-surface-500">{m.attachSourceMissHint()}</span>
+					{:else}
+						<label>
+							{@render fieldLabel(m.content())}
+							<textarea
+								class="input w-full text-sm"
+								rows="3"
+								bind:value={actionConfig.text}
+								oninput={onChange}
+							></textarea>
+						</label>
+					{/if}
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							checked={actionConfig.find_occurrence}
+							onchange={(e) => {
+								// Hiding the field is not clearing it, and a named
+								// occurrence wins.
+								actionConfig.find_occurrence = e.currentTarget.checked;
+								if (actionConfig.find_occurrence) actionConfig.task_node = '';
+								onChange();
+							}}
+						/>
+						{m.findOccurrence()}
+					</label>
+					<span class="text-[10px] text-surface-500">{m.findOccurrenceHint()}</span>
+					{#if !actionConfig.find_occurrence}
+						<label>
+							{@render fieldLabel(m.taskNode())}
+							<input
+								type="text"
+								class="input w-full text-sm"
+								placeholder={'{{nodes.find_the_occurrence.object.id}}'}
+								bind:value={actionConfig.task_node}
+								oninput={onChange}
+							/>
+							<span class="text-[10px] text-surface-500">{m.taskNodeAttachHint()}</span>
+						</label>
+					{/if}
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							bind:checked={actionConfig.new_revision}
+							onchange={onChange}
+						/>
+						{m.fileAsNewRevision()}
+					</label>
+					<span class="text-[10px] text-surface-500">{m.newRevisionHint()}</span>
+				{:else if actionConfig.type === 'record_measurement'}
+					<label>
+						{@render fieldLabel(m.metricInstance())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{metric_id}}'}
+							bind:value={actionConfig.metric_instance}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.value())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{nodes.fetch.body.coverage}}'}
+							bind:value={actionConfig.value}
+							oninput={onChange}
+						/>
+						<span class="text-[10px] text-surface-500">{m.measurementValueHint()}</span>
+					</label>
+					<label>
+						{@render fieldLabel(m.timestamp())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{now}}'}
+							bind:value={actionConfig.timestamp}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.observation())}
+						<textarea
+							class="input w-full text-sm"
+							rows="2"
+							bind:value={actionConfig.observation}
+							oninput={onChange}
+						></textarea>
+					</label>
+					<label>
+						{@render fieldLabel(m.evidenceRevision())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{nodes.attach.revision_id}}'}
+							bind:value={actionConfig.evidence_revision}
+							oninput={onChange}
+						/>
+					</label>
+				{:else if actionConfig.type === 'post_results'}
+					<label>
+						{@render fieldLabel(m.postureAssessment())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{assessment_id}}'}
+							bind:value={actionConfig.posture_assessment}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.asset())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{item.asset_id}}'}
+							bind:value={actionConfig.asset}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.results())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{nodes.fetch.body.checks}}'}
+							bind:value={actionConfig.results}
+							oninput={onChange}
+						/>
+						<span class="text-[10px] text-surface-500">{m.postResultsHint()}</span>
+					</label>
+					<label>
+						{@render fieldLabel(m.tool())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							bind:value={actionConfig.tool}
+							oninput={onChange}
+						/>
+					</label>
+					<label>
+						{@render fieldLabel(m.runId())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							bind:value={actionConfig.run_id}
+							oninput={onChange}
+						/>
+						<span class="text-[10px] text-surface-500">{m.postResultsRunIdHint()}</span>
+					</label>
 				{:else if actionConfig.type === 'read_objects'}
 					<label>
 						{@render fieldLabel(m.objectToRead())}
@@ -1313,13 +2277,125 @@
 						{@render fieldLabel(m.readMode())}
 						<select
 							class="select w-full text-sm"
-							bind:value={actionConfig.mode}
-							onchange={onChange}
+							value={actionConfig.mode ?? 'list'}
+							onchange={(e) => setReadMode(e.currentTarget.value)}
 						>
 							<option value="list">{m.readModeList()}</option>
 							<option value="first">{m.readModeFirst()}</option>
+							<option value="aggregate">{m.readModeAggregate()}</option>
 						</select>
 					</label>
+
+					{#if actionConfig.mode === 'aggregate'}
+						{@render fieldLabel(m.readAggregates())}
+						<p class="text-[10px] text-surface-500">{m.readAggregatesHelpText()}</p>
+						<div class="flex flex-col gap-2">
+							{#each aggregateRows() as row, rowIndex (rowIndex)}
+								<div
+									class="flex flex-col gap-1.5 rounded-base border border-surface-200-800 bg-surface-50-950 p-2"
+								>
+									<div class="flex items-center gap-1">
+										<select
+											class="select text-xs flex-1 min-w-0"
+											value={row.fn}
+											onchange={(e) => setAggregateFn(row, e.currentTarget.value)}
+										>
+											{#each aggregateFunctions as fn (fn.name)}
+												<option value={fn.name}>{safeTranslate(`aggregate_${fn.name}`)}</option>
+											{/each}
+										</select>
+										{#if aggregateFn(row.fn)?.needs_field}
+											<select
+												class="select text-xs flex-1 min-w-0"
+												value={row.field ?? ''}
+												onchange={(e) => setAggregateKey(row, 'field', e.currentTarget.value)}
+											>
+												<option value="">—</option>
+												{#each aggregateFieldChoices(row.fn) as choice (choice.value)}
+													<option value={choice.value}>{choice.label}</option>
+												{/each}
+											</select>
+										{/if}
+										<button
+											type="button"
+											title={m.delete()}
+											aria-label={m.delete()}
+											class="btn-icon preset-tonal w-5 h-5 text-[9px] shrink-0 hover:preset-filled-error-500"
+											onclick={() => {
+												aggregateRows().splice(rowIndex, 1);
+												onChange();
+											}}
+										>
+											<i class="fa-solid fa-xmark"></i>
+										</button>
+									</div>
+									<div class="flex items-center gap-1">
+										<select
+											class="select text-xs flex-1 min-w-0"
+											title={m.aggregateGroupBy()}
+											value={row.group_by ?? ''}
+											onchange={(e) => setAggregateKey(row, 'group_by', e.currentTarget.value)}
+										>
+											<option value="">{m.aggregateNoGroup()}</option>
+											{#each aggregateGroupChoices() as field (field)}
+												<option value={field}>{m.aggregateGroupBy()}: {field}</option>
+											{/each}
+										</select>
+										{#if aggregateFn(row.fn)?.params.includes('p')}
+											<input
+												type="number"
+												min="0"
+												max="100"
+												class="input text-xs w-16 shrink-0"
+												title={m.aggregatePercentile()}
+												bind:value={row.p}
+												oninput={onChange}
+											/>
+										{/if}
+										<input
+											type="text"
+											class="input text-xs w-28 shrink-0 font-mono"
+											placeholder={m.aggregateAlias()}
+											value={row.as ?? ''}
+											oninput={(e) => setAggregateKey(row, 'as', e.currentTarget.value)}
+										/>
+									</div>
+									{#if aggregateRunsInWorker(row)}
+										<span class="text-[10px] text-warning-600-400">{m.aggregateRunsInWorker()}</span
+										>
+									{/if}
+								</div>
+							{/each}
+							<button
+								type="button"
+								class="btn preset-tonal text-[10px] self-start"
+								onclick={() => {
+									ensureAggregateRows(actionConfig).push({ fn: 'count' });
+									onChange();
+								}}
+							>
+								<i class="fa-solid fa-plus mr-1"></i>{m.addAggregate()}
+							</button>
+						</div>
+					{/if}
+
+					{#if readableEntry?.includable?.length && actionConfig.mode !== 'aggregate'}
+						{@render fieldLabel(m.readInclude())}
+						<p class="text-[10px] text-surface-500">{m.readIncludeHelpText()}</p>
+						<div class="flex flex-col gap-1">
+							{#each readableEntry.includable as name (name)}
+								<label class="flex items-center gap-2 text-sm">
+									<input
+										type="checkbox"
+										class="checkbox"
+										checked={readIncludeList(actionConfig.include).includes(name)}
+										onchange={(e) => toggleReadInclude(name, e.currentTarget.checked)}
+									/>
+									<span>{safeTranslate(name)}</span>
+								</label>
+							{/each}
+						</div>
+					{/if}
 
 					{@render fieldLabel(m.readFilters())}
 					{#if readFilterRawMode}
@@ -1438,42 +2514,53 @@
 						</div>
 					{/if}
 
-					<div class="flex items-end gap-2">
-						<label class="flex-1 min-w-0">
-							{@render fieldLabel(m.orderBy())}
-							<select
-								class="select w-full text-sm"
-								value={readOrderField}
-								onchange={(e) => setReadOrder(e.currentTarget.value, readOrderDesc)}
-							>
-								{#each readableEntry?.fields ?? [] as field (field)}
-									<option value={field}>{field}</option>
-								{/each}
-							</select>
-						</label>
-						{#if actionConfig.mode === 'list'}
-							<label class="w-24 shrink-0">
-								{@render fieldLabel(m.resultLimit())}
-								<input
-									type="number"
-									min="1"
-									max="100"
-									class="input w-full text-sm"
-									bind:value={actionConfig.limit}
-									oninput={onChange}
-								/>
+					{#if actionConfig.mode !== 'aggregate'}
+						<div class="flex items-end gap-2">
+							<label class="flex-1 min-w-0">
+								{@render fieldLabel(m.orderBy())}
+								<select
+									class="select w-full text-sm"
+									value={readOrderField}
+									onchange={(e) => setReadOrder(e.currentTarget.value, readOrderDesc)}
+								>
+									{#each readableEntry?.fields ?? [] as field (field)}
+										<option value={field}>{field}</option>
+									{/each}
+								</select>
 							</label>
-						{/if}
-					</div>
-					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
-						<input
-							type="checkbox"
-							class="checkbox scale-75"
-							checked={readOrderDesc}
-							onchange={(e) => setReadOrder(readOrderField, e.currentTarget.checked)}
-						/>
-						{m.descending()}
-					</label>
+							{#if actionConfig.mode === 'list'}
+								<label class="w-24 shrink-0">
+									{@render fieldLabel(m.resultLimit())}
+									<input
+										type="number"
+										min="1"
+										class="input w-full text-sm"
+										bind:value={actionConfig.limit}
+										oninput={onChange}
+									/>
+								</label>
+								<label class="w-24 shrink-0">
+									{@render fieldLabel(m.startAt())}
+									<input
+										type="text"
+										class="input w-full text-sm"
+										placeholder="0"
+										bind:value={actionConfig.offset}
+										oninput={onChange}
+									/>
+								</label>
+							{/if}
+						</div>
+						<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox scale-75"
+								checked={readOrderDesc}
+								onchange={(e) => setReadOrder(readOrderField, e.currentTarget.checked)}
+							/>
+							{m.descending()}
+						</label>
+					{/if}
 				{:else if actionConfig.type === 'http_request'}
 					<label>
 						{@render fieldLabel(m.httpMethod())}
@@ -1554,8 +2641,273 @@
 							oninput={onChange}
 						/>
 					</label>
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							bind:checked={actionConfig.allow_error_status}
+							onchange={onChange}
+						/>
+						{m.httpAllowErrorStatus()}
+					</label>
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							bind:checked={actionConfig.allow_connection_error}
+							onchange={onChange}
+						/>
+						{m.httpAllowConnectionError()}
+					</label>
+					<span class="text-[10px] text-surface-500">{m.httpErrorHandlingHint()}</span>
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							checked={!!actionConfig.paginate}
+							onchange={(e) => togglePaginate(e.currentTarget.checked)}
+						/>
+						{m.httpPaginate()}
+					</label>
+					{#if actionConfig.paginate}
+						<label>
+							{@render fieldLabel(m.httpPaginateItems())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="value"
+								bind:value={actionConfig.paginate.items}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpPaginateNext())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="@odata.nextLink"
+								bind:value={actionConfig.paginate.next}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpPaginateCursorParam())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="cursor"
+								bind:value={actionConfig.paginate.cursor_param}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpPaginateOffsetParam())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="$skip"
+								bind:value={actionConfig.paginate.offset_param}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpPaginateKeep())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="id, name"
+								value={(actionConfig.paginate.keep ?? []).join(', ')}
+								oninput={(e) => {
+									const keys = e.currentTarget.value
+										.split(',')
+										.map((key) => key.trim())
+										.filter(Boolean);
+									if (keys.length) actionConfig.paginate.keep = keys;
+									else delete actionConfig.paginate.keep;
+									onChange();
+								}}
+							/>
+							<span class="text-[10px] text-surface-500">{m.httpPaginateKeepHint()}</span>
+						</label>
+						<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox scale-75"
+								bind:checked={actionConfig.paginate.count_only}
+								onchange={onChange}
+							/>
+							{m.httpPaginateCountOnly()}
+						</label>
+						<label>
+							{@render fieldLabel(m.httpPaginateMaxPages())}
+							<input
+								type="number"
+								class="input w-full text-sm"
+								min="1"
+								max="50"
+								bind:value={actionConfig.paginate.max_pages}
+								oninput={onChange}
+							/>
+						</label>
+						<span class="text-[10px] text-surface-500">{m.httpPaginateHint()}</span>
+					{/if}
+					<label class="flex items-center gap-1.5 text-xs text-surface-700-300 cursor-pointer">
+						<input
+							type="checkbox"
+							class="checkbox scale-75"
+							checked={!!actionConfig.oauth}
+							onchange={(e) => toggleOauth(e.currentTarget.checked)}
+						/>
+						{m.httpOauth()}
+					</label>
+					{#if actionConfig.oauth}
+						<label>
+							{@render fieldLabel(m.httpOauthTokenUrl())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="https://login.microsoftonline.com/tenant-id/oauth2/v2.0/token"
+								bind:value={actionConfig.oauth.token_url}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpOauthClientId())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								bind:value={actionConfig.oauth.client_id}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpOauthClientSecret())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder={'{{secrets.client_secret}}'}
+								bind:value={actionConfig.oauth.client_secret}
+								oninput={onChange}
+							/>
+						</label>
+						<label>
+							{@render fieldLabel(m.httpOauthScope())}
+							<input
+								type="text"
+								class="input w-full text-sm font-mono"
+								placeholder="https://graph.microsoft.com/.default"
+								bind:value={actionConfig.oauth.scope}
+								oninput={onChange}
+							/>
+						</label>
+					{/if}
 					<p class="text-[10px] text-surface-500 leading-relaxed">
 						<i class="fa-solid fa-key mr-1"></i>{m.secretsHint({ syntax: '{{secrets.name}}' })}
+					</p>
+				{:else if actionConfig.type === 'ai_extract' || actionConfig.type === 'ai_generate'}
+					<label>
+						{@render fieldLabel(m.aiInstruction())}
+						<textarea
+							class="input w-full text-sm"
+							rows="3"
+							placeholder={m.aiInstructionPlaceholder()}
+							bind:value={actionConfig.prompt}
+							oninput={onChange}
+						></textarea>
+					</label>
+					<label>
+						{@render fieldLabel(m.aiInput())}
+						<textarea
+							class="input w-full text-sm font-mono"
+							rows="2"
+							placeholder={'{{nodes.read_findings.results.0.description}}'}
+							bind:value={actionConfig.input}
+							oninput={onChange}
+						></textarea>
+					</label>
+					{#if actionConfig.type === 'ai_extract'}
+						<div>
+							<div class="flex items-center justify-between mb-1">
+								{@render fieldLabel(m.aiOutputFields())}
+								<button
+									type="button"
+									class="text-[10px] text-primary-500 hover:text-primary-600 cursor-pointer font-semibold"
+									onclick={addAiField}
+								>
+									<i class="fa-solid fa-plus mr-0.5"></i>{m.aiAddField()}
+								</button>
+							</div>
+							{#each aiFields as field, index (index)}
+								<div class="flex items-center gap-1 mb-1">
+									<input
+										type="text"
+										class="input text-xs w-24 min-w-0 font-mono shrink-0"
+										placeholder={m.aiFieldName()}
+										bind:value={field.name}
+										oninput={syncAiFields}
+									/>
+									<select
+										class="select text-xs w-20 min-w-0 shrink-0"
+										bind:value={field.type}
+										onchange={syncAiFields}
+									>
+										{#each AI_FIELD_TYPES as fieldType}
+											<option value={fieldType}>{aiTypeLabel(fieldType)}</option>
+										{/each}
+									</select>
+									{#if field.type === 'choice'}
+										<input
+											type="text"
+											class="input text-xs flex-1 min-w-0 font-mono"
+											placeholder={m.aiChoicesPlaceholder()}
+											bind:value={field.choices}
+											oninput={syncAiFields}
+										/>
+									{:else}
+										<span class="flex-1"></span>
+									{/if}
+									<button
+										type="button"
+										aria-label={m.aiRemoveField()}
+										class="text-error-500 hover:text-error-600 cursor-pointer text-xs shrink-0"
+										onclick={() => removeAiField(index)}
+									>
+										<i class="fa-solid fa-xmark"></i>
+									</button>
+								</div>
+							{/each}
+							{#if aiFields.length === 0}
+								<p class="text-[10px] text-surface-500 leading-relaxed">
+									{m.aiNoFieldsHint()}
+								</p>
+							{/if}
+						</div>
+						<label>
+							{@render fieldLabel(m.aiMaxAttempts())}
+							<input
+								type="number"
+								class="input w-full text-sm"
+								min="1"
+								max="5"
+								bind:value={actionConfig.max_attempts}
+								oninput={onChange}
+							/>
+						</label>
+					{:else}
+						<label>
+							{@render fieldLabel(m.aiMaxWords())}
+							<input
+								type="number"
+								class="input w-full text-sm"
+								min="1"
+								max="2000"
+								bind:value={actionConfig.max_words}
+								oninput={onChange}
+							/>
+						</label>
+					{/if}
+					<p class="text-[10px] text-surface-500 leading-relaxed">
+						<i class="fa-solid fa-circle-info mr-1"></i>{m.aiFencingHint()}
 					</p>
 				{:else if actionConfig.type === 'send_email'}
 					<label>
@@ -1794,15 +3146,162 @@
 							</div>
 						{/each}
 					</div>
+				{:else if actionConfig.type === 'date_offset'}
+					<label>
+						{@render fieldLabel(m.dateOffsetBase())}
+						<input
+							type="text"
+							class="input w-full text-sm"
+							placeholder={'{{today}}'}
+							bind:value={actionConfig.base}
+							oninput={onChange}
+						/>
+					</label>
+					<div class="flex gap-2">
+						<label class="flex-1">
+							{@render fieldLabel(m.days())}
+							<input
+								type="number"
+								class="input w-full text-sm"
+								bind:value={actionConfig.days}
+								oninput={onChange}
+							/>
+						</label>
+						<label class="flex-1">
+							{@render fieldLabel(m.weeks())}
+							<input
+								type="number"
+								class="input w-full text-sm"
+								bind:value={actionConfig.weeks}
+								oninput={onChange}
+							/>
+						</label>
+					</div>
+					<label>
+						{@render fieldLabel(m.dateOffsetStoreIn())}
+						<select
+							class="select w-full text-sm"
+							bind:value={actionConfig.output}
+							onchange={onChange}
+						>
+							<option value={''}>—</option>
+							{#each variables as variable (variable.id)}
+								<option value={variable.key}>{variable.key}</option>
+							{/each}
+						</select>
+					</label>
+					<p class="text-[10px] text-surface-500 leading-relaxed">
+						<i class="fa-solid fa-calendar-day mr-1"></i>{m.dateOffsetHint()}
+					</p>
+				{:else if actionConfig.type === 'compute' && Array.isArray(actionConfig.expressions)}
+					<!-- Each row is a card: variable on top, the expression full width below,
+					     the live result as the card's last line. The card boundary is what
+					     makes the three read as one unit in a narrow panel; without it the
+					     gaps inside a row and between rows look alike. -->
+					<div>
+						<div class="flex items-center justify-between gap-1.5 mb-2">
+							{@render fieldLabel(m.computeExpressions())}
+							<div class="flex items-center gap-1.5">
+								<button
+									type="button"
+									class="btn-icon preset-tonal w-6 h-6 text-xs shrink-0 hover:preset-filled-primary-500"
+									onclick={addComputeRow}
+									disabled={!variables.length}
+									aria-label={m.computeAddRow()}
+									title={m.computeAddRow()}
+								>
+									<i class="fa-solid fa-plus"></i>
+								</button>
+							</div>
+						</div>
+						{#if !actionConfig.expressions.length}
+							<p
+								class="text-[10px] text-surface-500 leading-relaxed rounded border border-dashed border-surface-200-800 px-2 py-1.5"
+							>
+								{m.computeEmpty()}
+							</p>
+						{/if}
+						<div class="space-y-2">
+							{#each actionConfig.expressions as row, index (index)}
+								<div
+									class="rounded border border-surface-200-800 bg-surface-100-900/40 p-1.5 space-y-1"
+									data-testid="compute-row"
+								>
+									<div class="flex items-center gap-1">
+										<select
+											class="select text-xs font-mono flex-1 min-w-0 h-6 py-0 pl-1.5 pr-6"
+											value={row.key}
+											onchange={(e) => renameComputeRow(index, e.currentTarget.value)}
+											data-testid="compute-key"
+										>
+											{#each computeKeyOptions(row.key) as option (option)}
+												<option value={option}>{option}</option>
+											{/each}
+										</select>
+										<button
+											type="button"
+											aria-label="Remove"
+											class="btn-icon preset-tonal w-6 h-6 text-[10px] shrink-0 hover:preset-filled-error-500"
+											onclick={() => removeComputeRow(index)}
+										>
+											<i class="fa-solid fa-xmark"></i>
+										</button>
+									</div>
+									<CelInput
+										bind:value={row.expression}
+										scope={celScope}
+										placeholder="likelihood * impact"
+										oninput={onChange}
+										testid="compute-expression"
+									/>
+									{#if computePreviews[index]}
+										{@const preview = computePreviews[index]}
+										<p
+											class="text-[10px] font-mono flex items-baseline gap-1.5 px-0.5 break-all"
+											data-testid="compute-preview"
+										>
+											{#if preview.ok}
+												<span class="text-surface-500 shrink-0">=</span>
+												<span class="text-success-600 dark:text-success-400"
+													>{JSON.stringify(preview.value)}</span
+												>
+												<span
+													class="ml-auto shrink-0 text-[9px] uppercase tracking-wide text-surface-400-600"
+													>{preview.type}</span
+												>
+											{:else}
+												<i class="fa-solid fa-triangle-exclamation text-error-500 shrink-0"></i>
+												<span class="text-error-500">{preview.error}</span>
+											{/if}
+										</p>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					</div>
+					<div class="space-y-1">
+						<p class="text-[10px] text-surface-500 leading-relaxed">
+							<i class="fa-solid fa-calculator mr-1"></i>{m.computeHint()}
+						</p>
+						<p class="text-[10px] text-surface-400-600 leading-relaxed font-mono break-words">
+							{COMPUTE_FUNCTIONS}
+						</p>
+					</div>
 				{/if}
-				<p class="text-[10px] text-surface-500 leading-relaxed">
-					<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>{m.templatingHint({
-						syntax: '{{variable}}'
-					})}
-				</p>
+				{#if actionConfig.type !== 'compute'}
+					<p class="text-[10px] text-surface-500 leading-relaxed">
+						<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>{m.templatingHint({
+							syntax: '{{variable}}'
+						})}
+					</p>
+				{/if}
 			{/if}
 
-			{#if ['action', 'subprocess', 'loop'].includes(nodeDomain.type)}
+			<!-- set_variables and compute already write variables: offering "save
+			     results to variables" on them invites putting the value in the wrong
+			     place. Rows an older draft or an import already carries stay visible
+			     so they can be removed (publish rejects them). -->
+			{#if ['action', 'subprocess', 'loop'].includes(nodeDomain.type) && (!['set_variables', 'compute'].includes(actionConfig?.type) || Object.keys(nodeDomain.output_mapping ?? {}).length > 0)}
 				<div>
 					<div class="flex items-center justify-between mb-1">
 						{@render fieldLabel(m.outputMapping())}
@@ -1810,7 +3309,8 @@
 							type="button"
 							class="text-[10px] text-primary-500 hover:text-primary-600 cursor-pointer font-semibold disabled:opacity-50"
 							onclick={addOutputMapping}
-							disabled={!variables.length}
+							disabled={!variables.length ||
+								['set_variables', 'compute'].includes(actionConfig?.type)}
 						>
 							<i class="fa-solid fa-plus mr-0.5"></i>{m.addMapping()}
 						</button>
@@ -2224,7 +3724,7 @@
 			</div>
 		</div>
 	{:else if selectedEdge && edgeDomain}
-		<div class="p-3 space-y-3">
+		<div class="p-3 space-y-3 [&>label]:block">
 			<span class="badge preset-tonal text-[10px] uppercase">
 				<i class="fa-solid fa-arrow-right-long mr-1"></i>{m.edgeLabel()}
 			</span>

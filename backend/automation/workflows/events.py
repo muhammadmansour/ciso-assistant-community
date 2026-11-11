@@ -17,22 +17,47 @@ d dispatch events at depth d, which start instances at depth d+1, capped at
 MAX_TRIGGER_DEPTH.
 """
 
+from datetime import timedelta
+
+from django.db import transaction
 from django.utils import timezone
 
 import structlog
 
 from iam.models import Folder
 
+from core.reads import subtree_folder_ids
+from core.reads import validate_filter_tree as _validate_filter_tree
 from .models import Condition, WorkflowInstance, WorkflowNode, WorkflowTrigger
 
 logger = structlog.get_logger(__name__)
 
 MAX_TRIGGER_DEPTH = 5
 
+# How long one user action's events keep collapsing into its first run.
+COALESCE_WINDOW = timedelta(minutes=5)
+
 CUD_ACTIONS = ["created", "updated", "deleted"]
 
+# Events a model emits itself, beyond create/update/delete. A CUD event cannot say
+# "this request was submitted": answering a question saves the row too, so a trigger
+# would fire on every keystroke's worth of progress and have to filter by status.
+# A named key makes the trigger say what it means, which is what a starter workflow
+# has to teach.
+CUSTOM_EVENTS = [
+    {
+        "key": "quickformresponse.submitted",
+        "model": "quickformresponse",
+        "action": "submitted",
+    },
+    {
+        "key": "quickformresponse.closed",
+        "model": "quickformresponse",
+        "action": "closed",
+    },
+]
+
 VALID_FILTER_OPS = {choice[0] for choice in Condition.Operator.choices}
-MAX_FILTER_DEPTH = 5
 
 
 def _log_entry_verb(action):
@@ -74,6 +99,7 @@ def event_key_catalog():
                     "action": action,
                 }
             )
+    keys.extend(CUSTOM_EVENTS)
     return keys
 
 
@@ -129,15 +155,26 @@ def dispatch_internal_event(event_key, payload, folder_id, origin_depth=0):
             # No run identity, no automatic execution.
             _bookkeep(trigger, WorkflowTrigger.Result.SKIPPED_NO_IDENTITY)
             continue
+        # One run per (trigger, user action, object): a save that writes
+        # several LogEntries for one object is one run, while a bulk edit still
+        # gets a run per object. Windowed, not unique-constrained: the cid can
+        # come from an inbound x-correlation-id header, and a client reusing
+        # one must not silence a trigger for good.
+        cid = (payload or {}).get("cid") or ""
         try:
-            instance = create_instance(
-                version,
-                trigger=WorkflowInstance.Trigger.INTERNAL_EVENT,
-                payload=payload,
-                entry_node=entry,
-                trigger_registration=trigger,
-                trigger_depth=origin_depth + 1,
-            )
+            with transaction.atomic():
+                if cid and _already_running(trigger, cid, payload):
+                    _bookkeep(trigger, WorkflowTrigger.Result.SKIPPED_COALESCED)
+                    continue
+                instance = create_instance(
+                    version,
+                    trigger=WorkflowInstance.Trigger.INTERNAL_EVENT,
+                    payload=payload,
+                    entry_node=entry,
+                    trigger_registration=trigger,
+                    trigger_depth=origin_depth + 1,
+                    trigger_cid=cid,
+                )
         except EngineError:
             _bookkeep(trigger, WorkflowTrigger.Result.ERROR)
             continue
@@ -145,6 +182,17 @@ def dispatch_internal_event(event_key, payload, folder_id, origin_depth=0):
         _bookkeep(trigger, WorkflowTrigger.Result.TRIGGERED, fired=True)
         started.append(instance)
     return started
+
+
+def _already_running(trigger, cid, payload):
+    """Locks the trigger row first: two dispatch workers must not both read
+    "nothing started yet" for the same user action."""
+    WorkflowTrigger.objects.select_for_update().filter(pk=trigger.pk).first()
+    return trigger.instances.filter(
+        trigger_cid=cid,
+        payload__object_id=(payload or {}).get("object_id"),
+        created_at__gte=timezone.now() - COALESCE_WINDOW,
+    ).exists()
 
 
 def _bookkeep(trigger, result, fired=False):
@@ -158,49 +206,16 @@ def _bookkeep(trigger, result, fired=False):
 
 def _workflow_scope(workflow):
     # String ids: additional_data serializes folder_id as str.
-    from .actions import _read_scope_folder_ids
-
-    return {str(fid) for fid in _read_scope_folder_ids(workflow.folder)}
+    return {str(fid) for fid in subtree_folder_ids(workflow.folder)}
 
 
 # ---------- filter tree validation ----------
 
 
 def validate_filter_tree(tree):
-    """Shape-check a boolean filter tree. Raises ValueError on bad shape."""
-    if tree in (None, {}):
-        return
-    _validate_group(tree, depth=0)
-
-
-def _validate_group(group, depth):
-    if depth > MAX_FILTER_DEPTH:
-        raise ValueError("filter tree too deep")
-    if not isinstance(group, dict):
-        raise ValueError("group must be a mapping")
-    if group.get("operator", "and") not in ("and", "or", "not"):
-        raise ValueError("invalid operator")
-    conditions = group.get("conditions", [])
-    children = group.get("children", [])
-    if not isinstance(conditions, list) or not isinstance(children, list):
-        raise ValueError("conditions and children must be lists")
-    for condition in conditions:
-        if (
-            not isinstance(condition, dict)
-            or not isinstance(condition.get("field"), str)
-            or not condition.get("field")
-            or condition.get("op", "eq") not in VALID_FILTER_OPS
-            or not isinstance(condition.get("changed", False), bool)
-        ):
-            raise ValueError("invalid condition")
-    for child in children:
-        _validate_group(child, depth + 1)
-
-
-def walk_conditions(group):
-    yield from group.get("conditions", [])
-    for child in group.get("children", []):
-        yield from walk_conditions(child)
+    """Shape-check an event filter tree: the shared read grammar, with the
+    condition operators this app's Condition model declares."""
+    _validate_filter_tree(tree, ops=VALID_FILTER_OPS)
 
 
 # ---------- filter tree evaluation ----------
@@ -240,13 +255,13 @@ def _evaluate_condition(condition, payload, state_cache):
         # and its new value must satisfy the condition.
         if field not in changes:
             return False
-        return _compare(condition, changes[field][1])
+        return _compare(condition, _new_value(changes[field]))
 
     # State semantics: evaluate against the live object; deleted objects fall
     # back to the diff's old values.
     if payload.get("operation") == "deleted":
         if field in changes:
-            return _compare(condition, changes[field][0])
+            return _compare(condition, _old_value(changes[field]))
         return False
     value = _current_value(field, payload, state_cache)
     if value is _MISSING:
@@ -255,6 +270,17 @@ def _evaluate_condition(condition, payload, state_cache):
 
 
 _MISSING = object()
+
+
+def _new_value(diff):
+    """A diff's new value; a many-to-many change reads as its operation, `add` or `delete`."""
+    if isinstance(diff, dict):
+        return diff.get("operation")
+    return diff[1]
+
+
+def _old_value(diff):
+    return None if isinstance(diff, dict) else diff[0]
 
 
 def _current_value(field, payload, state_cache):
@@ -412,7 +438,8 @@ def payload_from_log_entry(log_entry):
         "object_id": str(log_entry.object_pk),
         "object_repr": log_entry.object_repr,
         "changes": changes,
-        "new_values": {field: diff[1] for field, diff in changes.items()},
+        "new_values": {field: _new_value(diff) for field, diff in changes.items()},
+        "cid": log_entry.cid or "",
         "folder_id": _object_folder_id(log_entry),
         "actor_email": getattr(log_entry.actor, "email", None)
         or additional.get("user_email"),

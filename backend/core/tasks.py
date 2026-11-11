@@ -471,6 +471,23 @@ def send_notification_email_expired_eta(owner_email, controls):
         )
 
 
+def send_email_now(
+    subject: str,
+    message: str,
+    recipient: str,
+    html_message: str | None = None,
+    connection=None,
+) -> None:
+    """Synchronous send through core.mailer; failures propagate to the caller.
+    Pass `connection` (from core.mailer.open_connection) to batch several
+    sends over one session; the caller owns its lifecycle."""
+    from core import mailer
+
+    mailer.send(
+        subject, message, recipient, html_body=html_message, connection=connection
+    )
+
+
 @task()
 def send_notification_email(subject, message, owner_email, html_message=None):
     try:

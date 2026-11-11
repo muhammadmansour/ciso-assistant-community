@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { getFlash } from 'sveltekit-flash-message';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
@@ -32,6 +32,7 @@
 	import TriggersPanel from './TriggersPanel.svelte';
 	import VersionsPanel from './VersionsPanel.svelte';
 	import WorkflowDataPanel from './WorkflowDataPanel.svelte';
+	import { parseVariableValue } from './variable-values';
 	import StepNode from './nodes/StepNode.svelte';
 	import ConditionNode from './nodes/ConditionNode.svelte';
 	import TerminalNode from './nodes/TerminalNode.svelte';
@@ -53,6 +54,7 @@
 		taskTemplates: any[];
 		subprocessCandidates: any[];
 		creatableModels?: any[];
+		updatableModels?: any[];
 		readableModels?: any[];
 		workflowIsActive?: boolean;
 		workflowTimeoutSeconds?: number;
@@ -75,6 +77,7 @@
 		taskTemplates,
 		subprocessCandidates,
 		creatableModels = [],
+		updatableModels = [],
 		readableModels = [],
 		workflowIsActive = true,
 		workflowTimeoutSeconds = 0,
@@ -124,6 +127,7 @@
 					taskTemplates.find((t) => t.id === domain.task_template)?.name ??
 					null
 				);
+
 			case 'action': {
 				const config = domain.action_config ?? {};
 				switch (config.type) {
@@ -141,6 +145,10 @@
 						return config.email || config.type;
 					case 'manage_group_membership':
 						return `${config.operation ?? 'add'} ${config.builtin_group ?? ''}`.trim();
+					case 'ai_extract': {
+						const fields = Object.keys(config.schema?.properties ?? {});
+						return fields.length ? `ai_extract · ${fields.join(', ')}` : config.type;
+					}
 					default:
 						return config.type ?? null;
 				}
@@ -151,6 +159,7 @@
 					subprocessCandidates.find((w) => w.id === domain.subprocess_workflow)?.name ??
 					null
 				);
+
 			case 'event':
 				return domain.event_key || null;
 			case 'loop': {
@@ -212,6 +221,11 @@
 	function isConditionNodeId(nodeId: string): boolean {
 		return (nodes.find((n) => n.id === nodeId)?.data?.domain as any)?.type === 'condition';
 	}
+
+	// Declared before wiredBranchIds. Server rendering evaluates $derived
+	// immediately, and that derived reads edges — a later let leaves edges
+	// in the temporal dead zone and the detail page 500s on reload.
+	let edges = $state<Edge[]>([]);
 
 	// The set of branch ids that currently have a wire (an edge whose
 	// source_branch references them). Drives the node's wired/unwired ports.
@@ -302,11 +316,9 @@
 	}
 
 	let variables = $state<any[]>(graph.variables ?? []);
-	// Edges are declared (empty) before nodes so visualData's branch lookup can
-	// read them during the initial node mapping, and filled right after so
-	// toFlowEdge can resolve source node types. The refreshVisuals() below then
-	// backfills condition branch rows once both exist.
-	let edges = $state<Edge[]>([]);
+	// Nodes are mapped while edges is still empty so visualData's branch lookup
+	// can read it, then edges are filled. refreshVisuals() below backfills
+	// condition branch rows once both exist.
 	let nodes = $state<Node[]>((graph.nodes ?? []).map(toFlowNode));
 	edges = (graph.edges ?? []).map(toFlowEdge);
 
@@ -499,6 +511,15 @@
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 	let validationErrors = $state<any[]>([]);
 	let publishing = $state(false);
+	// A default the author is still typing and that does not parse is not in
+	// `variables` yet: publishing would validate the previous value instead.
+	let variableDefaultDrafts = $state<Record<string, string>>({});
+	const invalidDefaultKey = $derived(
+		variables.find((v) => {
+			const draft = variableDefaultDrafts[v.id];
+			return draft !== undefined && !parseVariableValue(v.type, draft).ok;
+		})?.key
+	);
 
 	function markDirty() {
 		if (readonly) return;
@@ -526,15 +547,27 @@
 	let referenceRun = $state<any | null>(null);
 	let referencePinned = $state(false);
 	let referenceFetchInFlight = false;
+	let referenceRequest = 0;
 
 	function pickReference(runs: any[]) {
 		return (
-			runs.find(
-				(run: any) => run.status === 'completed' && Object.keys(run.node_outputs ?? {}).length
-			) ??
-			runs.find((run: any) => Object.keys(run.node_outputs ?? {}).length) ??
+			runs.find((run: any) => run.status === 'completed' && run.has_outputs) ??
+			runs.find((run: any) => run.has_outputs) ??
 			null
 		);
+	}
+
+	async function loadRun(run: any) {
+		const request = ++referenceRequest;
+		const res = await fetch(opsUrl('get-instance'), {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ instance: run.id })
+		});
+		const loaded = res.ok ? await res.json() : null;
+		if (!loaded || request !== referenceRequest) return false;
+		referenceRun = loaded;
+		return true;
 	}
 
 	async function ensureReferenceRun() {
@@ -548,7 +581,8 @@
 			});
 			if (!res.ok) return;
 			const data = await res.json();
-			referenceRun = pickReference(data.results ?? data);
+			const candidate = pickReference(data.results ?? data);
+			if (candidate && !referencePinned) await loadRun(candidate);
 		} finally {
 			// Deliberately no "already attempted" latch: while no run has data
 			// yet, every node selection retries, and the runs-panel poll below
@@ -557,25 +591,32 @@
 		}
 	}
 
-	function pinReference(run: any) {
-		referencePinned = true;
-		referenceRun = run;
+	async function pinReference(run: any) {
+		if (await loadRun(run)) referencePinned = true;
 	}
 
 	// Runs-panel polling feeds this: without an explicit pin, the reference
 	// follows the latest run with data, so the browser populates live.
-	function handleRunsRefreshed(runs: any[]) {
-		if (referencePinned) return;
+	async function handleRunsRefreshed(runs: any[]) {
+		if (referencePinned || referenceFetchInFlight) return;
 		const candidate = pickReference(runs);
-		if (candidate && candidate.id !== referenceRun?.id) {
-			referenceRun = candidate;
+		if (
+			candidate &&
+			(candidate.id !== referenceRun?.id || candidate.status !== referenceRun?.status)
+		) {
+			referenceFetchInFlight = true;
+			try {
+				await loadRun(candidate);
+			} finally {
+				referenceFetchInFlight = false;
+			}
 		}
 	}
 
 	// Node selected → the data browser needs it; data panel open → it shows
 	// per-variable reference values.
 	$effect(() => {
-		if ((selectedNodeId || dataOpen) && !readonly) ensureReferenceRun();
+		if ((selectedNodeId || openPane === 'data') && !readonly) ensureReferenceRun();
 	});
 
 	// Upstream nodes only: data available TO the selected node.
@@ -1129,13 +1170,16 @@
 		if (lastSnapshot) lastSnapshot = remapDoc(lastSnapshot);
 	}
 
-	let runsOpen = $state(false);
 	let runsPanel = $state<RunsPanel | null>(null);
-	let triggersOpen = $state(false);
+
+	type BottomPane = 'triggers' | 'runs' | 'data' | 'versions';
+	// One at a time: independent toggles stacked, and enough of them buried the
+	// canvas with no way back except hunting down each button that opened one.
 	// Props are per-mount constants (the page remounts the canvas via {#key}),
 	// so capturing their initial values is correct.
 	// svelte-ignore state_referenced_locally
-	let versionsOpen = $state(versionPinned);
+	let openPane = $state<BottomPane | null>(versionPinned ? 'versions' : null);
+	const togglePane = (pane: BottomPane) => (openPane = openPane === pane ? null : pane);
 
 	// Master switch: gates automatic execution; manual runs keep
 	// working, so the builder stays fully usable while paused.
@@ -1226,7 +1270,6 @@
 			versionsError = String(error);
 		}
 	}
-	let dataOpen = $state(false);
 	let running = $state(false);
 	let runPickerOpen = $state(false);
 	// Run-with-variables: raw form values + touched tracking so
@@ -1262,7 +1305,7 @@
 				})
 			});
 			if (res.ok) {
-				runsOpen = true;
+				openPane = 'runs';
 				await runsPanel?.refresh();
 				return true;
 			}
@@ -1286,7 +1329,9 @@
 		const manual = triggerNodes.find(
 			(n) => (n.data.domain as any)?.trigger_config?.type === 'manual'
 		);
+
 		if (manual) return ((manual.data.domain as any).ref as string) ?? null;
+
 		if (triggerNodes.length <= 1) {
 			return ((triggerNodes[0]?.data.domain as any)?.ref as string) ?? null;
 		}
@@ -1353,7 +1398,12 @@
 
 	// ---------- graph edits ----------
 
-	function newNodeDomain(type: string, position?: { x: number; y: number }, triggerType?: string) {
+	function newNodeDomain(
+		type: string,
+		position?: { x: number; y: number },
+		triggerType?: string,
+		actionType?: string
+	) {
 		let trigger_config: Record<string, unknown> = {};
 		if (type === 'trigger') {
 			trigger_config = { type: triggerType ?? 'manual' };
@@ -1369,7 +1419,8 @@
 			label: '',
 			task_template: null,
 			subprocess_workflow: null,
-			action_config: type === 'action' ? { type: 'log' } : {},
+			// Discriminator only; the inspector fills the shape on selection.
+			action_config: type === 'action' ? { type: actionType ?? 'log' } : {},
 			loop_config: type === 'loop' ? { collection: '', on_item_error: 'continue' } : {},
 			trigger_config,
 			input_mapping: {},
@@ -1403,7 +1454,12 @@
 		setTimeout(() => flowInstance?.fitView({ duration: 200, padding: 0.2, maxZoom: 1 }), 100);
 	}
 
-	function addNode(type: string, triggerType?: string, position?: { x: number; y: number }) {
+	function addNode(
+		type: string,
+		triggerType?: string,
+		actionType?: string,
+		position?: { x: number; y: number }
+	) {
 		// At most one manual trigger per graph (its entry would be ambiguous).
 		if (
 			type === 'trigger' &&
@@ -1416,7 +1472,7 @@
 			return;
 		}
 		const fallback = { x: 200 + Math.random() * 80, y: 160 + Math.random() * 80 };
-		const domain = newNodeDomain(type, position ?? fallback, triggerType);
+		const domain = newNodeDomain(type, position ?? fallback, triggerType, actionType);
 		const flowNode = toFlowNode(domain, 0);
 		flowNode.position = position ?? fallback;
 		nodes = [...nodes, flowNode];
@@ -1435,7 +1491,7 @@
 	function handleDrop(event: DragEvent) {
 		const raw = event.dataTransfer?.getData('application/ciso-workflow-node');
 		if (!raw) return;
-		let payload: { type?: string; triggerType?: string };
+		let payload: { type?: string; triggerType?: string; actionType?: string };
 		try {
 			payload = JSON.parse(raw);
 		} catch {
@@ -1447,7 +1503,7 @@
 			x: event.clientX,
 			y: event.clientY
 		});
-		addNode(payload.type, payload.triggerType, position);
+		addNode(payload.type, payload.triggerType, payload.actionType, position);
 	}
 
 	function isValidConnection(connection: Connection | Edge): boolean {
@@ -1567,6 +1623,7 @@
 			.filter((b: any) => !b.is_default)
 			.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
 			.forEach((b: any, index: number) => (b.order = index));
+
 		// A wired branch drops its edge; the default keeps its guaranteed slot.
 		edges = edges.filter((e) => (e.data?.domain as any)?.source_branch !== branchId);
 		refreshVisuals();
@@ -1599,6 +1656,13 @@
 		variables = [...variables, { id, key, type, default_value: null }];
 		markDirty();
 		return id;
+	}
+
+	// The value every run starts with; null clears it. Validated by type in
+	// the panel before it gets here, and again at publish.
+	function updateVariableDefault(id: string, value: unknown) {
+		variables = variables.map((v) => (v.id === id ? { ...v, default_value: value } : v));
+		markDirty();
 	}
 
 	function removeVariable(id: string) {
@@ -1931,8 +1995,11 @@
 				<button
 					type="button"
 					class="btn preset-filled-primary-500 text-sm"
-					disabled={publishing || saveState === 'saving'}
+					disabled={publishing || saveState === 'saving' || invalidDefaultKey !== undefined}
 					onclick={publish}
+					title={invalidDefaultKey !== undefined
+						? m.variableValueInvalid({ key: invalidDefaultKey })
+						: undefined}
 					data-testid="publish-workflow"
 				>
 					{#if publishing}
@@ -2021,8 +2088,8 @@
 							<button
 								type="button"
 								class="btn preset-tonal text-sm"
-								class:preset-filled-secondary-500={triggersOpen}
-								onclick={() => (triggersOpen = !triggersOpen)}
+								class:preset-filled-secondary-500={openPane === 'triggers'}
+								onclick={() => togglePane('triggers')}
 								data-testid="toggle-triggers"
 							>
 								<i class="fa-solid fa-bolt mr-1"></i>
@@ -2031,8 +2098,8 @@
 							<button
 								type="button"
 								class="btn preset-tonal text-sm"
-								class:preset-filled-secondary-500={runsOpen}
-								onclick={() => (runsOpen = !runsOpen)}
+								class:preset-filled-secondary-500={openPane === 'runs'}
+								onclick={() => togglePane('runs')}
 								data-testid="toggle-runs"
 							>
 								<i class="fa-solid fa-list-check mr-1"></i>
@@ -2041,8 +2108,8 @@
 							<button
 								type="button"
 								class="btn preset-tonal text-sm"
-								class:preset-filled-secondary-500={dataOpen}
-								onclick={() => (dataOpen = !dataOpen)}
+								class:preset-filled-secondary-500={openPane === 'data'}
+								onclick={() => togglePane('data')}
 								data-testid="toggle-data"
 							>
 								<i class="fa-solid fa-cube mr-1"></i>
@@ -2051,8 +2118,8 @@
 							<button
 								type="button"
 								class="btn preset-tonal text-sm"
-								class:preset-filled-secondary-500={versionsOpen}
-								onclick={() => (versionsOpen = !versionsOpen)}
+								class:preset-filled-secondary-500={openPane === 'versions'}
+								onclick={() => togglePane('versions')}
 								data-testid="toggle-versions"
 							>
 								<i class="fa-solid fa-code-commit mr-1"></i>
@@ -2196,10 +2263,9 @@
 												<button
 													type="button"
 													class="btn preset-tonal text-xs"
-													onclick={() => (runVarsOpen = false)}
+													onclick={() => (runVarsOpen = false)}>{m.cancel()}</button
 												>
-													{m.cancel()}
-												</button>
+
 												<button
 													type="button"
 													class="btn preset-filled-primary-500 text-xs"
@@ -2306,59 +2372,78 @@
 				</SvelteFlow>
 			</div>
 
-			{#if triggersOpen}
-				<TriggersPanel {registrations} {workflowId} onRefresh={refreshRegistrations} />
-			{/if}
-
-			{#if versionsOpen}
-				{#if versionsError}
-					<div
-						class="text-xs text-error-500 px-4 py-1 border-t border-surface-200-800"
-						data-testid="versions-error"
+			{#if openPane}
+				<!-- pt-6 reserves a strip for the collapse control: the panes are
+				     full-width and their own top-right controls would sit under it.
+				     Carries the panes' own surface so the strip reads as part of them. -->
+				<div class="relative border-t border-surface-200-800 bg-surface-100-900 pt-6">
+					<button
+						type="button"
+						class="btn-icon btn-icon-sm absolute right-2 top-1 z-10 text-surface-600-400 hover:text-surface-700-300"
+						onclick={() => (openPane = null)}
+						data-testid="collapse-pane"
+						aria-label={m.collapse()}
+						title={m.collapse()}
 					>
-						{versionsError}
-					</div>
-				{/if}
-				<VersionsPanel
-					{versions}
-					{activeVersionId}
-					onSelect={selectVersion}
-					onRestore={restoreVersion}
-				/>
-			{/if}
+						<i class="fa-solid fa-minus"></i>
+					</button>
+					{#if openPane === 'triggers'}
+						<TriggersPanel {registrations} {workflowId} onRefresh={refreshRegistrations} />
+					{/if}
 
-			{#if dataOpen}
-				<aside
-					class="h-60 shrink-0 border-t border-surface-200-800 bg-surface-100-900 overflow-y-auto"
-					data-testid="data-panel"
-				>
-					<div class="p-3 max-w-3xl">
-						<WorkflowDataPanel
-							{variables}
-							{secrets}
-							{referenceVariables}
-							{readonly}
-							columns
-							onAddVariable={addVariable}
-							onRemoveVariable={removeVariable}
-							onAddSecret={addSecret}
-							onRemoveSecret={removeSecret}
+					{#if openPane === 'versions'}
+						{#if versionsError}
+							<div
+								class="text-xs text-error-500 px-4 py-1 border-t border-surface-200-800"
+								data-testid="versions-error"
+							>
+								{versionsError}
+							</div>
+						{/if}
+						<VersionsPanel
+							{versions}
+							{activeVersionId}
+							onSelect={selectVersion}
+							onRestore={restoreVersion}
 						/>
-					</div>
-				</aside>
-			{/if}
+					{/if}
 
-			{#if runsOpen}
-				<RunsPanel
-					bind:this={runsPanel}
-					{workflowId}
-					onShowRun={showRun}
-					onReplayRun={replayRun}
-					onPinReference={pinReference}
-					onRunsRefreshed={handleRunsRefreshed}
-					referenceRunId={referenceRun?.id ?? null}
-					filterVersionId={versionPinned ? activeVersionId : null}
-				/>
+					{#if openPane === 'data'}
+						<aside
+							class="h-60 shrink-0 bg-surface-100-900 overflow-y-auto"
+							data-testid="data-panel"
+						>
+							<div class="p-3 max-w-3xl">
+								<WorkflowDataPanel
+									{variables}
+									{secrets}
+									{referenceVariables}
+									{readonly}
+									columns
+									onAddVariable={addVariable}
+									onRemoveVariable={removeVariable}
+									onUpdateVariableDefault={updateVariableDefault}
+									bind:defaultDrafts={variableDefaultDrafts}
+									onAddSecret={addSecret}
+									onRemoveSecret={removeSecret}
+								/>
+							</div>
+						</aside>
+					{/if}
+
+					{#if openPane === 'runs'}
+						<RunsPanel
+							bind:this={runsPanel}
+							{workflowId}
+							onShowRun={showRun}
+							onReplayRun={replayRun}
+							onPinReference={pinReference}
+							onRunsRefreshed={handleRunsRefreshed}
+							referenceRunId={referenceRun?.id ?? null}
+							filterVersionId={versionPinned ? activeVersionId : null}
+						/>
+					{/if}
+				</div>
 			{/if}
 		</div>
 
@@ -2381,9 +2466,11 @@
 				{taskTemplates}
 				{subprocessCandidates}
 				{creatableModels}
+				{updatableModels}
 				{readableModels}
 				{fkOptions}
 				{workflowId}
+				versionId={activeVersionId}
 				{registrationsByRef}
 				onRegistrationsChanged={refreshRegistrations}
 				referenceRunId={referenceRun?.id ?? null}

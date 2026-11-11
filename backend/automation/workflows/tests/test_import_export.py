@@ -283,8 +283,8 @@ class TestImport:
         hook = imported.triggers.get(node_ref="hook")
         nightly = imported.triggers.get(node_ref="nightly")
         incident = imported.triggers.get(node_ref="on_incident")
-        # Webhook and event arrive live; the webhook secret is fresh.
-        # Cron stays disarmed so publish never starts a schedule.
+        # Webhook and internal events arrive live; cron stays disarmed.
+        # The webhook secret is rotated on import.
         assert hook.enabled is True
         assert hook.secret != rich_workflow.triggers.get(node_ref="hook").secret
         assert hook.hmac_secret == ""
@@ -369,6 +369,14 @@ class TestImport:
             export_workflow(rich_workflow), root, secrets={"hris_token": "x"}
         )
         assert not any("Missing secrets" in w for w in warnings)
+
+    def test_a_round_trip_warns_about_nothing(self, rich_workflow, root):
+        """`requires` round-trips, so calling it ignored would tell an author
+        to delete their secrets manifest."""
+        document = export_workflow(rich_workflow)
+        assert document["requires"] == {"secrets": ["hris_token"]}
+        _, warnings = import_workflow(document, root, secrets={"hris_token": "x"})
+        assert not [w for w in warnings if "unknown key" in w], warnings
 
     def test_publish_blocks_on_missing_secret(self, rich_workflow, root):
         from automation.workflows.models import WorkflowSecret

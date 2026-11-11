@@ -5197,7 +5197,9 @@ class Assessment(NameDescriptionMixin, ETADueDateMixin, FolderMixin):
         abstract = True
 
     def save(self, *args, **kwargs) -> None:
-        if not self.folder or self.folder == Folder.get_root_folder():
+        if self.perimeter and (
+            not self.folder or self.folder == Folder.get_root_folder()
+        ):
             self.folder = self.perimeter.folder
         return super().save(*args, **kwargs)
 
@@ -7501,6 +7503,7 @@ class FindingsAssessment(Assessment):
         PENTEST = "pentest", "Pentest"
         AUDIT = "audit", "Audit"
         SELF_IDENTIFIED = "self_identified", "Self-identified"
+        POSTURE = "posture", "Posture follow-up"
 
     # Names are often AI-generated (e.g. "convert gap to finding"), so allow long text.
     name = models.CharField(max_length=1000, verbose_name=_("Name"), unique=False)
@@ -7641,6 +7644,22 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
 
     findings_assessment = models.ForeignKey(
         FindingsAssessment, on_delete=models.CASCADE, related_name="findings"
+    )
+    asset = models.ForeignKey(
+        Asset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="findings",
+        verbose_name=_("Asset"),
+    )
+    requirement_node = models.ForeignKey(
+        RequirementNode,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="findings",
+        verbose_name=_("Requirement"),
     )
     vulnerabilities = models.ManyToManyField(
         Vulnerability,

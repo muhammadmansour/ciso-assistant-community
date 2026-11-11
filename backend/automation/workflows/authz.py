@@ -2,14 +2,11 @@
 
 This module is the ONLY place in the workflows app allowed to touch iam
 authorization primitives, so the engine's authz surface stays auditable in
-one file. PR #4364 rewrites the iam kernel (removes
-get_accessible_object_ids); when it lands, migrate this file first, then
-grep workflows/ for the remaining RoleAssignment call sites in views.py.
+one file.
 
 Deliberately unoptimized for now (user decision — correctness first):
 - no codename->Permission caching (one Permission query per check),
-- no per-run memoization (loops re-check identical (codename, folder) pairs),
-- viewable_ids materializes id lists; becomes a queryset filter post-#4364.
+- no per-run memoization (loops re-check identical (codename, folder) pairs).
 """
 
 from django.contrib.auth.models import Permission
@@ -32,13 +29,27 @@ def can(user, codename, folder) -> bool:
     return RoleAssignment.is_access_allowed(user=user, perm=permission, folder=folder)
 
 
+def _accessible_ids(user, model):
+    """Muhkam's iam answers view/change/delete in one call, from the root."""
+    return RoleAssignment.get_accessible_object_ids(
+        Folder.get_root_folder(), user, model
+    )
+
+
 def viewable_ids(user, model) -> set:
     """Ids of ``model`` rows ``user`` may view — the same primitive the API
     list views use (BaseModelViewSet.get_queryset), so engine reads see
     exactly what the API would show the identity."""
     if user is None or not user.is_active:
         return set()
-    (view_ids, _, _) = RoleAssignment.get_accessible_object_ids(
-        Folder.get_root_folder(), user, model
-    )
+    view_ids, _, _ = _accessible_ids(user, model)
     return set(view_ids)
+
+
+def changeable_ids(user, model) -> set:
+    """Ids of ``model`` rows ``user`` may change: the write counterpart of
+    ``viewable_ids``."""
+    if user is None or not user.is_active:
+        return set()
+    _, change_ids, _ = _accessible_ids(user, model)
+    return set(change_ids)

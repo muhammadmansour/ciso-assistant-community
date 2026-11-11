@@ -4,10 +4,12 @@ import json
 
 import yaml
 from django.contrib.auth.models import Permission
-from django.core.exceptions import ValidationError
 import django_filters as df
+import uuid
+
+import structlog
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import BooleanField, Count, ExpressionWrapper, Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.crypto import constant_time_compare
@@ -24,6 +26,7 @@ from rest_framework.views import APIView
 from core.views import BaseModelViewSet, GenericFilterSet
 from iam.models import Folder, RoleAssignment
 
+from . import authz
 from .actions import authorization_folder, required_permissions
 from .engine import (
     EngineError,
@@ -59,6 +62,9 @@ from .serializers import (
 from .validation import DISABLED_ACTION_TYPES, DISABLED_NODE_TYPES, validate_graph
 
 LONG_CACHE_TTL = 60
+
+
+logger = structlog.get_logger(__name__)
 
 
 class _NoAliasSafeLoader(yaml.SafeLoader):
@@ -102,7 +108,12 @@ class WorkflowFilterSet(GenericFilterSet):
         fields = ["folder", "filtering_labels", "is_active"]
 
 
-class WorkflowViewSet(BaseModelViewSet):
+class WorkflowsFeatureGate:
+    """Muhkam ships workflows without the upstream `workflows` feature flag, so
+    the API stays reachable whatever that flag says."""
+
+
+class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     model = Workflow
     serializers_module = "automation.workflows.serializers"
     filterset_class = WorkflowFilterSet
@@ -132,21 +143,17 @@ class WorkflowViewSet(BaseModelViewSet):
             )
         )
 
-    def perform_destroy(self, instance):
-        with transaction.atomic():
-            # Conditions PROTECT their variables; clear the trees before the
-            # cascade so the workflow delete cannot trip ProtectedError.
-            ConditionGroup.objects.filter(
-                branch__node__version__workflow=instance
-            ).delete()
-            instance.delete()
+    def cascade_preclear(self, instance):
+        # Conditions PROTECT their variables and both hang off the version,
+        # so the trees go first or the delete trips ProtectedError.
+        return [ConditionGroup.objects.filter(branch__node__version__workflow=instance)]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get creatable models", url_path="creatable-models")
     def creatable_models(self, request):
         """The create_object registry, so the builder's forms stay in sync
         with what the backend actually accepts."""
-        from .actions import CREATABLE_MODELS
+        from .actions import CREATABLE_MODELS, _match_fields
 
         return Response(
             [
@@ -155,9 +162,25 @@ class WorkflowViewSet(BaseModelViewSet):
                     "fields": entry["fields"],
                     "fk_fields": {
                         fk_name: endpoint
-                        for fk_name, (_model, endpoint) in entry["fk_fields"].items()
+                        for fk_name, (_model, endpoint) in (
+                            entry.get("fk_fields") or {}
+                        ).items()
                     },
-                    "match_on": entry.get("match_on", "name"),
+                    "params": {
+                        name: (target[1] if target else None)
+                        for name, target in (entry.get("params") or {}).items()
+                    },
+                    "required_params": entry.get("required_params") or [],
+                    "required_fields": entry.get("required_fields") or [],
+                    # Narrowed choices, so the builder offers what the action
+                    # accepts rather than everything the column allows.
+                    "allowed_values": {
+                        field: sorted(entry["allowed_values"][field])
+                        for field in entry.get("allowed_values") or {}
+                    },
+                    # A built model is assembled, not matched.
+                    "upsert": not entry.get("constructor"),
+                    "match_on": list(_match_fields(entry)),
                 }
                 for key, entry in CREATABLE_MODELS.items()
             ]
@@ -168,17 +191,33 @@ class WorkflowViewSet(BaseModelViewSet):
     def readable_models(self, request):
         """The read_objects registry: field lists double as the
         filter/order whitelist the builder offers."""
-        from .actions import BASE_READ_FIELDS, READABLE_MODELS
+        from core.reads.registry import registry_payload
+
+        return Response(registry_payload())
+
+    @method_decorator(cache_page(60 * LONG_CACHE_TTL))
+    @action(detail=False, name="Get updatable models", url_path="updatable-models")
+    def updatable_models(self, request):
+        """The update_object registry. `allowed_values` travels with it so the
+        builder offers the same fenced values the backend enforces."""
+        from .actions import M2M_OPERATIONS, UPDATABLE_MODELS
 
         return Response(
             [
                 {
                     "key": key,
-                    "fields": BASE_READ_FIELDS + entry["fields"],
-                    # Output-only aggregates; not filterable/orderable.
-                    "computed": sorted((entry.get("computed") or {}).keys()),
+                    "fields": entry.fields,
+                    "allowed_values": {
+                        field: sorted(values)
+                        for field, values in entry.allowed_values.items()
+                    },
+                    "m2m_fields": {
+                        name: endpoint
+                        for name, (_model, endpoint) in entry.m2m_fields.items()
+                    },
+                    "operations": list(M2M_OPERATIONS),
                 }
-                for key, entry in READABLE_MODELS.items()
+                for key, entry in UPDATABLE_MODELS.items()
             ]
         )
 
@@ -220,10 +259,7 @@ class WorkflowViewSet(BaseModelViewSet):
 
         folder_id = request.data.get("folder")
         if folder_id:
-            try:
-                folder = Folder.objects.filter(id=folder_id).first()
-            except (TypeError, ValueError, ValidationError):
-                folder = None
+            folder = Folder.objects.filter(id=folder_id).first()
             if folder is None:
                 return Response(
                     {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST
@@ -292,7 +328,7 @@ def _clone_into_draft_response(version):
     )
 
 
-class WorkflowVersionViewSet(BaseModelViewSet):
+class WorkflowVersionViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     model = WorkflowVersion
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["workflow", "status", "folder"]
@@ -303,6 +339,8 @@ class WorkflowVersionViewSet(BaseModelViewSet):
     permission_overrides = {
         "discard": "delete_workflowversion",
         "publish": "change_workflowversion",
+        # Read-only evaluation for the editor: seeing the version is enough.
+        "preview_expression": "view_workflowversion",
     }
 
     # Versions are lifecycle-managed: the first version is created with its
@@ -397,6 +435,52 @@ class WorkflowVersionViewSet(BaseModelViewSet):
         version.publish(request.user)
         return Response(serialize_graph(version))
 
+    @action(detail=True, methods=["post"], url_path="preview-expression")
+    def preview_expression(self, request, pk=None):
+        """Evaluate the compute rows of one step for the editor, against a
+        reference run of this workflow or the draft's defaults. Evaluation
+        failures come back as 200 results with ok: false: they are the
+        answer, not a fault. Malformed requests get a 400 with a stable code."""
+        from .preview import PreviewRequestError, preview_compute_rows
+
+        version = self.get_object()
+        data = request.data if isinstance(request.data, dict) else {}
+        instance = None
+        run_id = data.get("reference_run")
+        if run_id:
+            try:
+                run_uuid = uuid.UUID(str(run_id))
+            except ValueError:
+                run_uuid = None
+            # Same workflow, and a run this user may view. Instances keep
+            # their folder when a workflow moves, so seeing the version does
+            # not imply seeing every run; without this, a run id and the
+            # expression `nodes` would return every step output.
+            if run_uuid is not None:
+                instance = WorkflowInstance.objects.filter(
+                    id=run_uuid,
+                    workflow=version.workflow,
+                    id__in=authz.viewable_ids(
+                        request.user, WorkflowInstance
+                    ),
+                ).first()
+            if instance is None:
+                return Response(
+                    {"error": "referenceRunNotFound"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        try:
+            results = preview_compute_rows(version, data.get("rows"), instance=instance)
+        except PreviewRequestError as e:
+            logger.warning(
+                "compute_preview_bad_request",
+                code=e.code,
+                version_id=str(version.id),
+                user_id=str(request.user.id),
+            )
+            return Response({"error": e.code}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"results": results})
+
     @action(detail=True, methods=["get"], url_path="required-permissions")
     def required_permissions(self, request, pk=None):
         """Deputization report: the permissions this version's
@@ -445,7 +529,7 @@ class WorkflowVersionViewSet(BaseModelViewSet):
         return _clone_into_draft_response(version)
 
 
-class WorkflowTriggerViewSet(BaseModelViewSet):
+class WorkflowTriggerViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     """Registration rows are publish-managed (workflows.triggers): the API
     surface is read + PATCH of the runtime state, never create/delete."""
 
@@ -506,7 +590,7 @@ class WorkflowTriggerViewSet(BaseModelViewSet):
         return Response(event_key_catalog())
 
 
-class WorkflowSecretViewSet(BaseModelViewSet):
+class WorkflowSecretViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     model = WorkflowSecret
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["workflow", "folder"]
@@ -514,7 +598,7 @@ class WorkflowSecretViewSet(BaseModelViewSet):
     ordering = ["name"]
 
 
-class WorkflowTokenViewSet(BaseModelViewSet):
+class WorkflowTokenViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     """Operator recovery for stuck runs. Tokens are engine-managed,
     so the only writes are the retry/skip/abort actions, gated by
     change_workflowtoken (domain manager / administrator)."""
@@ -624,7 +708,7 @@ def _deputization_errors(user, version):
     return errors
 
 
-class WorkflowInstanceViewSet(BaseModelViewSet):
+class WorkflowInstanceViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     model = WorkflowInstance
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["workflow", "version", "status", "trigger", "folder"]
@@ -642,11 +726,18 @@ class WorkflowInstanceViewSet(BaseModelViewSet):
         active_tokens = WorkflowToken.objects.filter(
             status__in=ACTIVE_TOKEN_STATUSES
         ).select_related("current_node")
-        return queryset.select_related(
+        queryset = queryset.select_related(
             "version__run_as", "initiated_by", "workflow", "folder"
         ).prefetch_related(
             Prefetch("tokens", queryset=active_tokens, to_attr="active_tokens")
         )
+        if self.action == "list":
+            queryset = queryset.defer("node_outputs", "variables").annotate(
+                has_outputs=ExpressionWrapper(
+                    ~Q(node_outputs={}), output_field=BooleanField()
+                )
+            )
+        return queryset
 
     def create(self, request, *args, **kwargs):
         """Launching a run: POST {version: uuid, entry_node_ref?: str}.
@@ -654,8 +745,8 @@ class WorkflowInstanceViewSet(BaseModelViewSet):
         trigger node, or the sole trigger node)."""
         # Scope the lookup to versions the user can view, so out-of-scope
         # UUIDs 404 like everywhere else instead of confirming existence.
-        (viewable_ids, _, _) = RoleAssignment.get_accessible_object_ids(
-            Folder.get_root_folder(), request.user, WorkflowVersion
+        viewable_ids = authz.viewable_ids(
+            request.user, WorkflowVersion
         )
         version = get_object_or_404(
             WorkflowVersion.objects.filter(id__in=viewable_ids),

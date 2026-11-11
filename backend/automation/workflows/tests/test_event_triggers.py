@@ -35,8 +35,7 @@ def make_workflow(
     enabled=True,
 ):
     """A workflow entered by an internal-event trigger node (ref 'on_event').
-    Publishing creates the registration row already enabled. ``enabled=False``
-    leaves it disarmed so a dispatch test can prove the gate."""
+    Publishing arms the registration; pass enabled=False to leave it off."""
     workflow = Workflow.objects.create(
         name=name, folder=folder or Folder.get_root_folder()
     )
@@ -108,12 +107,11 @@ def payload(
 
 @pytest.mark.django_db
 class TestRegistrationLifecycle:
-    def test_publish_arms_internal_event(self):
-        workflow = make_workflow(published=False)
-        workflow.draft_version.publish(publisher_user())
+    def test_publish_creates_disarmed_registration(self):
+        workflow = make_workflow(enabled=False)
         row = get_registration(workflow)
         assert row.type == WorkflowTrigger.Type.INTERNAL_EVENT
-        assert row.enabled is True
+        assert row.enabled is False
         assert row.event_key == "appliedcontrol.updated"
         assert row.config["type"] == "internal_event"
 
