@@ -49,6 +49,9 @@
 	if (!$lastAccordionItem.includes('risk')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'risk'];
 	}
+	if (!$lastAccordionItem.includes('automation')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'automation'];
+	}
 	if (!$lastAccordionItem.includes('metrology')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'metrology'];
 	}
