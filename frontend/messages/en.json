@@ -122,6 +122,7 @@
 	"context": "Context",
 	"governance": "Governance",
 	"risk": "Risk",
+	"automation": "Automation",
 	"compliance": "Compliance",
 	"metrology": "Metrology",
 	"metrologyDescription": "Track metrics, KPIs, and visualize them on customizable dashboards",
