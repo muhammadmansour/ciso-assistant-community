@@ -4,10 +4,11 @@ Trigger nodes carry the definition in the immutable graph; WorkflowTrigger
 rows carry the operational state. Publishing a version syncs the rows from
 the version's trigger nodes, keyed by node ref: existing rows keep their
 enabled flag, webhook secret and bookkeeping ("sticky enable"); new schedule
-and internal-event rows arrive disabled so publishing never starts a cron or
-an event storm by surprise; webhook rows arrive enabled (they are pull —
-someone must call the URL). A ref rename or subtype change is a delete +
-create: state resets and webhook URLs rotate.
+rows arrive disabled so publishing never starts a cron by surprise. New
+webhook and internal-event rows arrive enabled: a published event trigger
+runs when the event happens, and a webhook is pull (someone must call the
+URL). A ref rename or subtype change is a delete + create: state resets and
+webhook URLs rotate.
 """
 
 from django.utils import timezone
@@ -39,12 +40,12 @@ def sync_trigger_registrations(version):
                 workflow=workflow,
                 node_ref=ref,
                 type=trigger_type,
-                enabled=trigger_type == WorkflowTrigger.Type.WEBHOOK,
+                enabled=trigger_type != WorkflowTrigger.Type.SCHEDULE,
             )
         elif row.type != trigger_type:
             # Same ref, different subtype: a different trigger altogether.
             row.type = trigger_type
-            row.enabled = trigger_type == WorkflowTrigger.Type.WEBHOOK
+            row.enabled = trigger_type != WorkflowTrigger.Type.SCHEDULE
             row.secret = generate_webhook_secret()
             row.hmac_secret = ""
             row.next_run_at = None

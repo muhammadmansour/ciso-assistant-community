@@ -283,12 +283,13 @@ class TestImport:
         hook = imported.triggers.get(node_ref="hook")
         nightly = imported.triggers.get(node_ref="nightly")
         incident = imported.triggers.get(node_ref="on_incident")
-        # Webhook arrives live with a FRESH secret; cron/event arrive disarmed.
+        # Webhook and event arrive live; the webhook secret is fresh.
+        # Cron stays disarmed so publish never starts a schedule.
         assert hook.enabled is True
         assert hook.secret != rich_workflow.triggers.get(node_ref="hook").secret
         assert hook.hmac_secret == ""
         assert nightly.enabled is False and nightly.next_run_at is None
-        assert incident.enabled is False
+        assert incident.enabled is True
         assert incident.event_key == "incident.created"
 
     def test_condition_variables_remapped(self, rich_workflow, root):
