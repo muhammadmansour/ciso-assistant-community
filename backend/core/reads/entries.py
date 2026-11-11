@@ -228,6 +228,50 @@ def _quality_check_with_text(obj):
     }
 
 
+def _emails(actors):
+    """Comma-separated, the shape send_email's recipients splits on."""
+    return ", ".join(sorted({e for a in actors.all() for e in a.get_emails() if e}))
+
+
+def _scoped_related(obj, name):
+    """A required relation the scoped prefetch cut reads as None, not DoesNotExist."""
+    try:
+        return getattr(obj, name)
+    except ObjectDoesNotExist:
+        return None
+
+
+def _evidence_controls(evidence):
+    return [
+        {"id": str(c.id), "ref_id": c.ref_id, "name": c.name}
+        for c in evidence.applied_controls.all()
+    ]
+
+
+def _evidence_audits(evidence):
+    """The audits this evidence supports: attached to one of their
+    requirements directly, or to a control one of them uses. Every hop comes
+    through the scoped prefetch, so an audit the run may not see is absent."""
+    requirement_assessments = list(evidence.requirement_assessments.all())
+    for control in evidence.applied_controls.all():
+        requirement_assessments += control.requirement_assessments.all()
+    audits = {}
+    for ra in requirement_assessments:
+        audit = _scoped_related(ra, "compliance_assessment")
+        if audit is not None:
+            audits[audit.id] = audit
+    return [
+        {
+            "id": str(audit.id),
+            "name": audit.name,
+            "status": audit.status,
+            "reviewers": [str(a.id) for a in audit.reviewers.all()],
+            "reviewer_emails": _emails(audit.reviewers),
+        }
+        for audit in sorted(audits.values(), key=lambda a: a.name)
+    ]
+
+
 def _requirements_breakdown(assessment):
     """Total assessable requirement assessments and their count per result —
     stable shape: every result key present, zeroes included."""
@@ -251,13 +295,36 @@ READABLE_MODELS: dict[str, ReadEntry] = {
             "priority",
             "link",
         ],
-        computed={"priority": lambda o: o.get_priority_display()},
+        computed={
+            "priority": lambda o: o.get_priority_display(),
+            "owner_emails": lambda o: _emails(o.owner),
+        },
+        prefetch_related=["owner"],
         annotations={"evidences_count": related_count(Evidence, "applied_controls")},
     ),
     "evidence": ReadEntry(
         model=Evidence,
         fields=["description", "status"],
-        computed={"status": lambda o: o.get_status_display()},
+        computed={
+            "status": lambda o: o.get_status_display(),
+            "owner_emails": lambda o: _emails(o.owner),
+        },
+        prefetch_related=["owner"],
+        # Opt-in: walking controls to requirements to audits costs per row.
+        optional_computed={
+            "controls": _evidence_controls,
+            "audits": _evidence_audits,
+        },
+        prefetch_scoped={
+            "controls": {"applied_controls": AppliedControl},
+            "audits": {
+                "applied_controls": AppliedControl,
+                "applied_controls__requirement_assessments": RequirementAssessment,
+                "applied_controls__requirement_assessments__compliance_assessment": ComplianceAssessment,
+                "requirement_assessments": RequirementAssessment,
+                "requirement_assessments__compliance_assessment": ComplianceAssessment,
+            },
+        },
     ),
     "incident": ReadEntry(
         model=Incident,
@@ -342,16 +409,18 @@ READABLE_MODELS: dict[str, ReadEntry] = {
         # queryable columns). Each callable may run its own queries per row,
         # which the list cap bounds.
         computed={
-            "computed_outcome": lambda ca: ca.computed_outcome,
             # The audit's own progress rule: per-audit modes (status-driven,
             # result-visible, questions, implementation groups) make it a
             # Python value, so an aggregate over it runs in the worker.
-            "progress": lambda ca: ca.progress,
+            "progress": lambda ca: ca.get_progress(),
             "scores": lambda ca: ca.get_global_score(),
             "requirements": _requirements_breakdown,
             # Actor ids, the shape task_template's assignees take.
             "reviewers": lambda ca: [str(a.id) for a in ca.reviewers.all()],
+            # Comma-separated, the shape send_email's recipients splits on.
+            "reviewer_emails": lambda ca: _emails(ca.reviewers),
             "authors": lambda ca: [str(a.id) for a in ca.authors.all()],
+            "author_emails": lambda ca: _emails(ca.authors),
         },
         prefetch_related=["reviewers", "authors"],
         # Opt-in: one call walks every requirement of the audit with its
