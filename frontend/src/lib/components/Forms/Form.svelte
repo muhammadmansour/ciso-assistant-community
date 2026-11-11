@@ -26,6 +26,7 @@
 		onSubmit?: any;
 		taintedMessage?: string | null;
 		onUpdated?: any;
+		onResult?: any;
 		validationMethod?: 'auto' | 'oninput' | 'onblur' | 'onsubmit' | 'submit-only';
 		useFocusTrap?: boolean;
 		debug?: boolean; // set to true to enable SuperDebug component
@@ -44,6 +45,7 @@
 		onSubmit = (submit_data: any) => {},
 		taintedMessage = m.taintedFormMessage(),
 		onUpdated = (_: any) => {},
+		onResult = undefined,
 		validationMethod = 'auto',
 		useFocusTrap = true,
 		debug = false,
@@ -54,6 +56,7 @@
 			resetForm: resetForm,
 			validators: validators,
 			onUpdated: ({ form }) => handleFormUpdated({ form, closeModal: true }),
+			...(onResult ? { onResult } : {}),
 			onSubmit: onSubmit,
 			taintedMessage: taintedMessage,
 			validationMethod

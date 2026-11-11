@@ -380,6 +380,26 @@ def forward_log_entry(sender, instance, created, **kwargs):
     )
 
 
+def _object_folder_id(log_entry):
+    """The object's domain. Audit enrichment stores a folder *path*, not an id,
+    so reading additional_data['folder_id'] always missed and the event was
+    treated as root-scoped — domain workflows then skipped it."""
+    additional = log_entry.additional_data or {}
+    if additional.get("folder_id"):
+        return str(additional["folder_id"])
+    model = (
+        log_entry.content_type.model_class() if log_entry.content_type_id else None
+    )
+    if model is None:
+        return None
+    try:
+        obj = model.objects.filter(pk=log_entry.object_pk).first()
+    except (ValueError, TypeError):
+        return None
+    folder_id = getattr(obj, "folder_id", None) if obj is not None else None
+    return str(folder_id) if folder_id else None
+
+
 def payload_from_log_entry(log_entry):
     changes = log_entry.changes_dict or {}
     additional = log_entry.additional_data or {}
@@ -393,7 +413,8 @@ def payload_from_log_entry(log_entry):
         "object_repr": log_entry.object_repr,
         "changes": changes,
         "new_values": {field: diff[1] for field, diff in changes.items()},
-        "folder_id": additional.get("folder_id"),
-        "actor_email": getattr(log_entry.actor, "email", None),
+        "folder_id": _object_folder_id(log_entry),
+        "actor_email": getattr(log_entry.actor, "email", None)
+        or additional.get("user_email"),
         "timestamp": log_entry.timestamp.isoformat() if log_entry.timestamp else None,
     }

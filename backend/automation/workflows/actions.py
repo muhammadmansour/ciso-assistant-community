@@ -534,7 +534,8 @@ class SendEmailAction(BaseAction):
     action_type = "send_email"
 
     def execute(self, config, instance):
-        from core.tasks import send_notification_email
+        from django.conf import settings
+        from django.core.mail import send_mail
 
         recipients = [
             email.strip()
@@ -545,10 +546,20 @@ class SendEmailAction(BaseAction):
         ]
         if not recipients:
             raise ActionError("send_email: no recipients configured")
+        if not settings.EMAIL_HOST and not getattr(settings, "EMAIL_HOST_RESCUE", None):
+            raise ActionError("send_email: no email server is configured")
         subject = render(config.get("subject", ""), _render_context(instance))
         body = render(config.get("body", ""), _render_context(instance))
-        for email in recipients:
-            send_notification_email(subject, body, email)
+        try:
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=recipients,
+                fail_silently=False,
+            )
+        except Exception as e:
+            raise ActionError(f"send_email: {e}")
         return {"recipients": recipients, "subject": subject}
 
 

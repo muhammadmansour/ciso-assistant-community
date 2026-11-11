@@ -1,0 +1,43 @@
+urn: urn:custom:risk:library:workflow-applied-control-created-email
+locale: en
+ref_id: workflow-applied-control-created-email
+name: Email on applied control created
+description: Sends an email when an applied control is created.
+version: 1
+objects:
+  workflows:
+  - urn: urn:custom:risk:library:workflow-applied-control-created-email:workflow:applied-control-created-email
+    schema_version: 1
+    name: Email on applied control created
+    ref_id: applied-control-created-email
+    description: Internal event appliedcontrol.created → send email → end.
+    graph:
+      variables: []
+      nodes:
+      - ref: on_create
+        type: trigger
+        label: Applied control created
+        trigger_config:
+          type: internal_event
+          event_key: appliedcontrol.created
+      - ref: notify
+        type: action
+        label: Send email
+        action_config:
+          type: send_email
+          recipients: mansourmuhammad37@gmail.com
+          subject: "Applied control created: {{payload.object_repr}}"
+          body: |
+            A new applied control was created.
+
+            Name: {{payload.object_repr}}
+            Id: {{payload.object_id}}
+            Created by: {{payload.actor_email}}
+      - ref: done
+        type: end
+        label: Done
+      edges:
+      - source: on_create
+        target: notify
+      - source: notify
+        target: done
