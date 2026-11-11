@@ -246,6 +246,17 @@ export const COMPLIANCE_ASSESSMENT_STATUS_FILTER: ListViewFilterConfig = {
 		multiple: true
 	}
 };
+export const POSTURE_ASSESSMENT_STATUS_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		optionsEndpoint: 'posture-assessments/status',
+		optionsLabelField: 'label',
+		optionsValueField: 'value',
+		label: 'status',
+		browserCache: 'force-cache',
+		multiple: true
+	}
+};
 export const ENTITY_ASSESSMENT_CONCLUSION_FILTER: ListViewFilterConfig = {
 	component: AutocompleteSelect,
 	props: {
@@ -2115,6 +2126,16 @@ export const listViewFields = {
 			folder: DOMAIN_FILTER,
 			perimeter: PERIMETER_FILTER,
 			category: FINDINGS_ASSESSMENTS_CATEGORY_FILTER
+		}
+	},
+	'posture-assessments': {
+		head: ['ref_id', 'name', 'framework', 'assets', 'status', 'folder', 'perimeter'],
+		body: ['ref_id', 'name', 'framework', 'assets', 'status', 'folder', 'perimeter'],
+		filters: {
+			folder: DOMAIN_FILTER,
+			perimeter: PERIMETER_FILTER,
+			framework: FRAMEWORK_FILTER,
+			status: POSTURE_ASSESSMENT_STATUS_FILTER
 		}
 	},
 	findings: {

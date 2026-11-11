@@ -88,6 +88,18 @@ export function stringify(value: string | number | boolean | null = null) {
 		.replace(/[\u0300-\u036f]/g, '');
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+	'&': '&amp;',
+	'<': '&lt;',
+	'>': '&gt;',
+	'"': '&quot;',
+	"'": '&#39;'
+};
+
+export function escapeHtml(value: unknown): string {
+	return String(value ?? '').replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+}
+
 export function isDark(hexcolor: string): boolean {
 	const r = parseInt(hexcolor.slice(1, 3), 16);
 	const g = parseInt(hexcolor.slice(3, 5), 16);

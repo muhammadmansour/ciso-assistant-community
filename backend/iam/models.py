@@ -919,6 +919,17 @@ class RoleAssignment(NameDescriptionMixin, FolderMixin):
         ]
 
     @staticmethod
+    def get_viewable_object_ids(
+        user: AbstractBaseUser | AnonymousUser,
+        model: Any,
+        folder: Folder | None = None,
+    ) -> "list[Any]":
+        """IDs of `model` objects the user can view, optionally under `folder`."""
+        return RoleAssignment.get_accessible_object_ids(
+            folder or Folder.get_root_folder(), user, model
+        )[0]
+
+    @staticmethod
     def get_accessible_object_ids(
         folder: Folder, user: AbstractBaseUser | AnonymousUser, object_type: Any
     ) -> Tuple["list[Any]", "list[Any]", "list[Any]"]:

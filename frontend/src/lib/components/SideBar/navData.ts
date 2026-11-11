@@ -15,6 +15,12 @@ export const navData = {
 					href: '/compliance-assessments'
 				},
 				{
+					name: 'postureAssessments',
+					fa_icon: 'fa-solid fa-list-check',
+					href: '/posture-assessments',
+					permissions: ['view_postureassessment']
+				},
+				{
 					name: 'evidences',
 					fa_icon: 'fa-solid fa-receipt',
 					href: '/evidences'

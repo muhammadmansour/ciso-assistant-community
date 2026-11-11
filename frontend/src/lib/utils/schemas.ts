@@ -1139,6 +1139,21 @@ export const FindingsAssessmentSchema = z.object({
 	is_locked: z.boolean().optional().default(false)
 });
 
+export const PostureAssessmentSchema = z.object({
+	...NameDescriptionMixin,
+	ref_id: z.string().optional(),
+	folder: z.string(),
+	perimeter: z.string().optional().nullable(),
+	status: z.string().optional().nullable(),
+	framework: z.string(),
+	selected_implementation_groups: z.array(z.string().optional()).optional(),
+	history_depth: z.number().int().min(1).optional().default(10),
+	authors: z.array(z.string().optional()).optional(),
+	observation: z.string().optional().nullable(),
+	follow_up_assessment: z.string().optional().nullable(),
+	create_follow_up_assessment: z.boolean().optional().default(true)
+});
+
 export const IncidentSchema = z.object({
 	...NameDescriptionMixin,
 	folder: z.string(),
@@ -1497,6 +1512,7 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	'security-exceptions': SecurityExceptionSchema,
 	findings: FindingSchema,
 	'findings-assessments': FindingsAssessmentSchema,
+	'posture-assessments': PostureAssessmentSchema,
 	incidents: IncidentSchema,
 	'timeline-entries': TimelineEntrySchema,
 	'task-templates': TaskTemplateSchema,

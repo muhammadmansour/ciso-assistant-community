@@ -84,3 +84,7 @@ export function goto(
 	crumbs[breadcrumbAction]([crumb]);
 	return _goto(url, opts);
 }
+
+export async function gotoOrLoad(url: string | URL, opts?: Parameters<typeof _goto>[1]) {
+	return _goto(url, opts);
+}

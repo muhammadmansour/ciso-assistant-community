@@ -83,7 +83,7 @@
 		data-testid="sidebar-home"
 	>
 		<i class="fa-solid fa-house w-4 text-center text-[13px] opacity-80"></i>
-		<span class="text-[13px] tracking-wide">Home</span>
+		<span class="text-[13px] tracking-wide">{safeTranslate('home')}</span>
 	</Anchor>
 
 	<Accordion

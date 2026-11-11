@@ -143,12 +143,9 @@ class TestLinearExecution:
         assert Incident.objects.filter(name="Suspicious login").exists()
 
     def test_fk_chaining_entity_then_assessment(self):
-        from core.models import Perimeter
         from tprm.models import Entity, EntityAssessment
 
-        workflow, version = make_workflow()
-        # The fork's Assessment.save derives the folder from the perimeter.
-        perimeter = Perimeter.objects.create(name="Vendors", folder=workflow.folder)
+        _, version = make_workflow()
         start = node(
             "trigger",
             trigger_config={"type": "manual"},
@@ -171,7 +168,6 @@ class TestLinearExecution:
                 "fields": {
                     "name": "Assessment — {{vendor_name}}",
                     "entity": "{{entity_id}}",
-                    "perimeter": str(perimeter.id),
                 },
             },
         )
