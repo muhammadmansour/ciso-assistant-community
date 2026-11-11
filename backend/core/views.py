@@ -1062,13 +1062,25 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         self._process_request_data(request)
         return super().partial_update(request, *args, **kwargs)
 
-    def destroy(self, request: Request, *args, **kwargs) -> Response:
-        self._process_request_data(request)
-        instance = self.get_object()
+    def cascade_preclear(self, instance):
+        """Querysets to delete before `instance` cascades, for trees Django
+        refuses to collect: a PROTECT reference between two children of one
+        parent is a ProtectedError even though deleting the parent removes
+        both. Workflows use this for condition trees that PROTECT variables."""
+        return []
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            for queryset in self.cascade_preclear(instance):
+                queryset.delete()
+            instance.delete()
         try:
             dispatch_webhook_event(instance, "deleted")
         except Exception:
             logger.error("Webhook dispatch failed on delete", exc_info=True)
+
+    def destroy(self, request: Request, *args, **kwargs) -> Response:
+        self._process_request_data(request)
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["get"], url_path="cascade-info")
