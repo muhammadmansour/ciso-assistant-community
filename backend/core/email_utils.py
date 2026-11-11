@@ -214,6 +214,116 @@ def render_assignment_html_email(
     )
 
 
+_RTL_RE = re.compile(r"[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
+
+
+def _text_dir(text: str) -> str:
+    return "rtl" if _RTL_RE.search(text or "") else "ltr"
+
+
+def _rich_text(text: str) -> str:
+    """Escaped text with bare URLs linked and newlines kept."""
+    safe = _URL_RE.sub(
+        r'<a href="\1" style="color:#2563eb;word-break:break-all;">\1</a>',
+        escape(text),
+    )
+    return safe.replace("\n", "<br>")
+
+
+def render_workflow_html_email(
+    *,
+    title: str = "",
+    sections: list | None = None,
+    details: list | None = None,
+    buttons: list | None = None,
+    footer: str = "",
+    logo_url: Optional[str] = None,
+) -> str:
+    """Muhkam-branded layout for a workflow's send_email: logo header, title,
+    paragraphs, a label/value table and call-to-action buttons.
+
+    Every value is escaped. Each paragraph, row and button picks its own
+    direction, so one bilingual email reads Arabic right-to-left and English
+    left-to-right. Button URLs other than http(s) are dropped: a rendered
+    template must not smuggle a javascript: link into the button."""
+    if logo_url is None:
+        logo_url = get_logo_url()
+
+    blocks = []
+    if title.strip():
+        blocks.append(
+            f'<h1 dir="{_text_dir(title)}" style="margin:0 0 18px;font-size:20px;'
+            f'line-height:1.5;color:#111827;text-align:center;">{escape(title.strip())}</h1>'
+        )
+    for text in sections or []:
+        text = str(text).strip()
+        if not text:
+            continue
+        direction = _text_dir(text)
+        align = "right" if direction == "rtl" else "left"
+        blocks.append(
+            f'<p dir="{direction}" style="margin:0 0 14px;text-align:{align};">'
+            f"{_rich_text(text)}</p>"
+        )
+
+    rows = []
+    for row in details or []:
+        label = str(row.get("label", "")).strip()
+        value = str(row.get("value", "") or "").strip()
+        if not value:
+            continue
+        direction = _text_dir(label + value)
+        align = "right" if direction == "rtl" else "left"
+        cell = f"padding:10px 14px;vertical-align:top;text-align:{align};border-bottom:1px solid #eef0f3;"
+        rows.append(
+            f'<tr dir="{direction}">'
+            f'<td style="{cell}width:38%;color:#374151;font-size:13px;font-weight:bold;">{escape(label)}</td>'
+            f'<td style="{cell}color:#111827;font-size:14px;">{_rich_text(value)}</td></tr>'
+        )
+    if rows:
+        blocks.append(
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:8px 0 22px;border:1px solid #e5e7eb;border-radius:8px;'
+            f'border-collapse:separate;overflow:hidden;background:#fafafa;">{"".join(rows)}</table>'
+        )
+
+    links = []
+    for button in buttons or []:
+        url = str(button.get("url", "")).strip()
+        label = str(button.get("label", "")).strip() or url
+        if not url.lower().startswith(("https://", "http://")):
+            continue
+        primary = not links
+        links.append(
+            f'<a href="{escape(url, quote=True)}" dir="{_text_dir(label)}" '
+            'style="display:inline-block;margin:0 6px 10px;padding:12px 22px;'
+            f'background:{"#2563eb" if primary else "#ffffff"};'
+            f'color:{"#ffffff" if primary else "#2563eb"};border:1px solid #2563eb;'
+            'font-size:14px;font-weight:bold;text-decoration:none;border-radius:6px;">'
+            f"{escape(label)}</a>"
+        )
+    if links:
+        blocks.append(
+            f'<div style="margin:8px 0 4px;text-align:center;">{"".join(links)}</div>'
+        )
+
+    footer_html = _rich_text(footer.strip()) if footer.strip() else "Muhkam"
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+        '<body style="margin:0;padding:0;background:#f4f5f7;font-family:Tahoma,Arial,Helvetica,sans-serif;">'
+        '<div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;'
+        'border-radius:10px;overflow:hidden;">'
+        '<div style="padding:20px 24px;text-align:center;border-bottom:3px solid #2563eb;">'
+        f'<img src="{escape(logo_url, quote=True)}" alt="Muhkam" height="48" style="height:48px;border:0;">'
+        "</div>"
+        f'<div style="padding:28px 24px;color:#111827;font-size:14px;line-height:1.7;">{"".join(blocks)}</div>'
+        '<div style="padding:14px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;'
+        f'color:#6b7280;font-size:12px;text-align:center;">{footer_html}</div>'
+        "</div></body></html>"
+    )
+
+
 def render_html_email(body: str, logo_url: Optional[str] = None) -> str:
     """Wrap a plain-text email body in a simple, client-friendly HTML layout
     with the Muhkam logo as a header.
