@@ -277,7 +277,8 @@ class TestComputedReadFields:
             "documentation_score",
             "maturity_score",
         }
-        assert "computed_outcome" in row
+        assert "progress" in row
+        assert "reviewer_emails" in row
 
     def test_computed_fields_are_not_filterable(self):
         from automation.workflows.actions import validate_read_config
