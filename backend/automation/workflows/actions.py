@@ -478,6 +478,9 @@ CREATABLE_MODELS = {
             "security_exceptions": None,
             "applied_controls": None,
             "task_templates": None,
+            # When set (e.g. gallery kit with its own send_email), skip the
+            # built-in approver notification so the run does not double-mail.
+            "skip_notification": None,
         },
         "param_endpoints": {
             "approver": "users",
@@ -910,7 +913,13 @@ def _construct_validation_flow(kwargs, params, instance):
             event_notes=kwargs.get("request_notes") or None,
             folder=flow.folder,
         )
-    _notify_approver(flow)
+    skip_notify = str(params.get("skip_notification") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if not skip_notify:
+        _notify_approver(flow)
     return flow
 
 
