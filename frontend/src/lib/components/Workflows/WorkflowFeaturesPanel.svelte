@@ -30,6 +30,26 @@
 	let confirming = $state(false);
 	let discarded = $state(false);
 
+	const EXAMPLE_PROMPT_KEYS = [
+		'workflowExamplePromptEvidenceReviewers',
+		'workflowExamplePromptEvidenceOwners',
+		'workflowExamplePromptAssessmentReview',
+		'workflowExamplePromptIncident'
+	] as const;
+
+	const CAPABILITY_CAN_KEYS = [
+		'workflowCapabilityCanEmail',
+		'workflowCapabilityCanTriggers',
+		'workflowCapabilityCanRead',
+		'workflowCapabilityCanBranch'
+	] as const;
+
+	const CAPABILITY_NOT_KEYS = [
+		'workflowCapabilityNotCreate',
+		'workflowCapabilityNotHttp',
+		'workflowCapabilityNotExternal'
+	] as const;
+
 	$effect(() => {
 		if (form?.prompt) promptText = form.prompt;
 		if (form?.promptResult) discarded = false;
@@ -47,6 +67,19 @@
 
 	function discardPreview() {
 		discarded = true;
+	}
+
+	function useExamplePrompt(key: string) {
+		promptText = safeTranslate(key);
+		discarded = true;
+	}
+
+	function promptErrorMessage(code: string | undefined) {
+		if (!code) return '';
+		if (code === 'geminiInvalidWorkflow') {
+			return safeTranslate('geminiInvalidWorkflowHelp');
+		}
+		return safeTranslate(code);
 	}
 </script>
 
@@ -72,6 +105,34 @@
 			</div>
 		</div>
 
+		<div
+			class="mb-4 rounded-lg border border-[#d6e4f5] bg-white/80 p-4 space-y-3"
+			data-testid="workflow-capabilities"
+		>
+			<p class="text-sm font-medium text-gray-900">{safeTranslate('workflowCapabilitiesTitle')}</p>
+			<p class="text-sm text-surface-600">{safeTranslate('workflowCapabilitiesHelp')}</p>
+			<div class="flex flex-wrap gap-2">
+				{#each CAPABILITY_CAN_KEYS as key}
+					<span
+						class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100"
+					>
+						<i class="fa-solid fa-check text-[10px]"></i>
+						{safeTranslate(key)}
+					</span>
+				{/each}
+			</div>
+			<div class="flex flex-wrap gap-2">
+				{#each CAPABILITY_NOT_KEYS as key}
+					<span
+						class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-surface-100 text-surface-600 border border-surface-200"
+					>
+						<i class="fa-solid fa-xmark text-[10px]"></i>
+						{safeTranslate(key)}
+					</span>
+				{/each}
+			</div>
+		</div>
+
 		<form
 			method="POST"
 			action="?/promptTemplate"
@@ -94,8 +155,30 @@
 				bind:value={promptText}
 				required
 			></textarea>
+
+			<div class="space-y-2">
+				<p class="text-xs font-medium text-surface-500 uppercase tracking-wide">
+					{safeTranslate('workflowExamplePrompts')}
+				</p>
+				<div class="flex flex-wrap gap-2">
+					{#each EXAMPLE_PROMPT_KEYS as key}
+						<button
+							type="button"
+							class="text-left text-xs px-3 py-1.5 rounded-lg border border-[#c5daf0] bg-white text-[#004d85] hover:bg-[#eef5fb] transition-colors max-w-full"
+							onclick={() => useExamplePrompt(key)}
+							disabled={generating || confirming}
+							data-testid="workflow-example-prompt"
+						>
+							{safeTranslate(key)}
+						</button>
+					{/each}
+				</div>
+			</div>
+
 			{#if form?.promptError}
-				<p class="text-sm text-error-600">{safeTranslate(form.promptError)}</p>
+				<p class="text-sm text-error-600 bg-error-50 border border-error-200 rounded-lg px-3 py-2">
+					{promptErrorMessage(form.promptError)}
+				</p>
 			{/if}
 			{#if !aiAvailable}
 				<p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -202,8 +285,13 @@
 				</div>
 			</div>
 		{:else if promptResult && !promptResult.matched}
-			<div class="mt-4 rounded-lg border border-surface-200 bg-white p-4 text-sm">
-				<p class="text-surface-700">{promptResult.message || safeTranslate('geminiInvalidWorkflow')}</p>
+			<div
+				class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 space-y-1"
+			>
+				<p class="font-medium">{safeTranslate('geminiCouldNotGenerate')}</p>
+				<p>
+					{promptResult.message || safeTranslate('geminiInvalidWorkflowHelp')}
+				</p>
 			</div>
 		{/if}
 	</section>
@@ -212,9 +300,16 @@
 	<section data-testid="workflow-gallery-section">
 		<div class="flex items-end justify-between gap-3 mb-4 flex-wrap">
 			<div>
-				<h3 class="font-semibold text-lg text-gray-900">
-					{safeTranslate('workflowGallery')}
-				</h3>
+				<div class="flex items-center gap-2 flex-wrap">
+					<h3 class="font-semibold text-lg text-gray-900">
+						{safeTranslate('workflowGallery')}
+					</h3>
+					<span
+						class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100"
+					>
+						{safeTranslate('workflowGalleryGuaranteed')}
+					</span>
+				</div>
 				<p class="text-sm text-surface-600 mt-1">
 					{safeTranslate('workflowGalleryHelp')}
 				</p>
