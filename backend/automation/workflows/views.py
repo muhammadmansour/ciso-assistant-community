@@ -360,61 +360,112 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="prompt-to-template")
     def prompt_to_template(self, request):
-        """Map a natural-language request to a bundled workflow template."""
-        from .prompt_to_template import prompt_to_template as resolve_prompt
+        """Generate a workflow from a prompt (LLM) or match a catalog kit.
 
+        Generate preview: ``{prompt, use_llm: true}`` → summary + document.
+        Confirm install: ``{install: true, document: {...}}`` → draft workflow.
+        Legacy: ``{prompt, install, use_llm}`` without document regenerates then installs.
+        """
+        from .prompt_to_template import prompt_to_template as resolve_prompt
+        from .prompt_to_workflow import (
+            assert_ai_document_allowed,
+            build_summary,
+            normalize_ai_document,
+        )
+
+        install = bool(request.data.get("install"))
+        require_llm = bool(request.data.get("use_llm") or request.data.get("require_llm"))
+        raw_document = request.data.get("document")
         prompt = (request.data.get("prompt") or "").strip()
+
+        # Confirm path: client already holds a generated document.
+        if install and raw_document is not None:
+            if not isinstance(raw_document, dict):
+                return Response(
+                    {"error": "geminiInvalidWorkflow"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                document = normalize_ai_document(raw_document)
+                assert_ai_document_allowed(document)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return self._install_workflow_document(
+                request,
+                document,
+                extra={
+                    "matched": True,
+                    "source": "llm",
+                    "generated": True,
+                    "prompt": prompt,
+                    "name": document.get("name"),
+                    "description": document.get("description"),
+                    "summary": build_summary(document),
+                },
+            )
+
         if not prompt:
             return Response(
                 {"error": "promptRequired"}, status=status.HTTP_400_BAD_REQUEST
             )
-        install = bool(request.data.get("install"))
-        require_llm = bool(request.data.get("use_llm") or request.data.get("require_llm"))
         try:
             result = resolve_prompt(prompt, require_llm=require_llm)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if install and result.get("matched"):
-            folder_id = request.data.get("folder")
-            if folder_id:
-                folder = Folder.objects.filter(id=folder_id).first()
-                if folder is None:
+        if install and result.get("matched") and result.get("document"):
+            document = result["document"]
+            if result.get("generated"):
+                try:
+                    assert_ai_document_allowed(document)
+                except ValueError as e:
                     return Response(
-                        {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST
+                        {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
                     )
-            else:
-                folder = Folder.get_root_folder()
-            if not RoleAssignment.is_access_allowed(
-                user=request.user,
-                perm=Permission.objects.get(codename="add_workflow"),
-                folder=folder,
-            ):
+            return self._install_workflow_document(request, document, extra=result)
+
+        # Preview: always include document for generated workflows so Confirm can install.
+        if result.get("generated") or request.data.get("include_document"):
+            return Response(result)
+        result = {k: v for k, v in result.items() if k != "document"}
+        return Response(result)
+
+    def _install_workflow_document(self, request, document, *, extra=None):
+        folder_id = request.data.get("folder")
+        if folder_id:
+            folder = Folder.objects.filter(id=folder_id).first()
+            if folder is None:
                 return Response(
-                    {"error": "permissionDenied"}, status=status.HTTP_403_FORBIDDEN
+                    {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST
                 )
-            try:
-                with transaction.atomic():
-                    workflows, warnings = import_workflow_library(
-                        result["document"], folder, user=request.user, secrets={}
-                    )
-            except WorkflowImportError as e:
-                return Response(
-                    {"error": e.message}, status=status.HTTP_400_BAD_REQUEST
+        else:
+            folder = Folder.get_root_folder()
+        if not RoleAssignment.is_access_allowed(
+            user=request.user,
+            perm=Permission.objects.get(codename="add_workflow"),
+            folder=folder,
+        ):
+            return Response(
+                {"error": "permissionDenied"}, status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            with transaction.atomic():
+                workflows, warnings = import_workflow_library(
+                    document, folder, user=request.user, secrets={}
                 )
-            result = {
-                **{k: v for k, v in result.items() if k != "document"},
+        except WorkflowImportError as e:
+            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        base = {k: v for k, v in (extra or {}).items() if k != "document"}
+        return Response(
+            {
+                **base,
                 "installed": True,
                 "id": str(workflows[0].id),
                 "name": workflows[0].name,
                 "warnings": warnings,
-            }
-            return Response(result, status=status.HTTP_201_CREATED)
-
-        # Drop the full YAML document from the preview payload unless asked.
-        if not request.data.get("include_document"):
-            result = {k: v for k, v in result.items() if k != "document"}
-        return Response(result)
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 def _draft_exists_response(draft):

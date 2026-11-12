@@ -1,9 +1,9 @@
-"""Turn a natural-language request into a workflow template suggestion.
+"""Turn a natural-language request into a workflow suggestion or generated graph.
 
-Prefer a catalog match (reliable, already validated YAML). When Gemini is
-configured, ask it to pick the best template id and optionally rewrite the
-name/description. Never invent a free-form graph here: generated graphs
-still need publish validation, and a wrong one is worse than a good kit.
+When require_llm is True (Features Create-from-prompt), Gemini invents a new
+workflow document under the v1 allowlist (see prompt_to_workflow).
+
+When require_llm is False, fall back to matching a bundled catalog kit.
 """
 
 from __future__ import annotations
@@ -34,18 +34,16 @@ PROMPT_SCHEMA = {
 def prompt_to_template(prompt: str, *, require_llm: bool = False) -> dict:
     prompt = (prompt or "").strip()
     if not prompt:
-        raise ValueError("prompt is required")
+        raise ValueError("promptRequired")
+
+    if require_llm:
+        from .prompt_to_workflow import generate_workflow_from_prompt
+
+        return generate_workflow_from_prompt(prompt)
 
     matches = match_templates(prompt)
     catalog = list_templates()
     llm_pick = _ask_llm(prompt, catalog) if catalog else None
-
-    if require_llm and llm_pick is None:
-        from .ai_provider import ai_available
-
-        if not ai_available():
-            raise ValueError("geminiNotConfigured")
-        raise ValueError("geminiRequestFailed")
 
     chosen_id = None
     name = ""
@@ -59,19 +57,6 @@ def prompt_to_template(prompt: str, *, require_llm: bool = False) -> dict:
         description = llm_pick.get("description") or ""
         rationale = llm_pick.get("rationale") or ""
         source = "llm"
-    elif require_llm:
-        # Gemini answered but picked nothing usable.
-        return {
-            "matched": False,
-            "source": "llm",
-            "prompt": prompt,
-            "suggestions": matches,
-            "templates": catalog,
-            "message": (
-                "Gemini could not map that request to a bundled workflow. "
-                "Try a clearer prompt, or install a kit from the gallery."
-            ),
-        }
     elif matches:
         chosen_id = matches[0]["id"]
         name = matches[0]["name"]
@@ -94,7 +79,6 @@ def prompt_to_template(prompt: str, *, require_llm: bool = False) -> dict:
 
     template = get_template(chosen_id)
     document = load_template_document(chosen_id)
-    # Let the LLM rename the library entry when it suggested one.
     if name:
         document["name"] = name
         workflows = (document.get("objects") or {}).get("workflows") or []
