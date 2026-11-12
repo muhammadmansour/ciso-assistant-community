@@ -300,6 +300,120 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=False, methods=["get"], url_path="templates")
+    def templates(self, request):
+        """Bundled workflow kits for the Automation gallery."""
+        from .catalog import list_templates
+
+        return Response({"results": list_templates()})
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path=r"templates/(?P<template_id>[-\w]+)/install",
+    )
+    def install_template(self, request, template_id=None):
+        from .catalog import get_template, load_template_document
+
+        if get_template(template_id) is None:
+            return Response(
+                {"error": "unknownTemplate"}, status=status.HTTP_404_NOT_FOUND
+            )
+        folder_id = request.data.get("folder")
+        if folder_id:
+            folder = Folder.objects.filter(id=folder_id).first()
+            if folder is None:
+                return Response(
+                    {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            folder = Folder.get_root_folder()
+        if not RoleAssignment.is_access_allowed(
+            user=request.user,
+            perm=Permission.objects.get(codename="add_workflow"),
+            folder=folder,
+        ):
+            return Response(
+                {"error": "permissionDenied"}, status=status.HTTP_403_FORBIDDEN
+            )
+        try:
+            data = load_template_document(template_id)
+            with transaction.atomic():
+                workflows, warnings = import_workflow_library(
+                    data, folder, user=request.user, secrets={}
+                )
+        except WorkflowImportError as e:
+            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except (FileNotFoundError, ValueError) as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {
+                "id": str(workflows[0].id),
+                "name": workflows[0].name,
+                "count": len(workflows),
+                "warnings": warnings,
+                "template_id": template_id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["post"], url_path="prompt-to-template")
+    def prompt_to_template(self, request):
+        """Map a natural-language request to a bundled workflow template."""
+        from .prompt_to_template import prompt_to_template as resolve_prompt
+
+        prompt = (request.data.get("prompt") or "").strip()
+        if not prompt:
+            return Response(
+                {"error": "promptRequired"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        install = bool(request.data.get("install"))
+        try:
+            result = resolve_prompt(prompt)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if install and result.get("matched"):
+            folder_id = request.data.get("folder")
+            if folder_id:
+                folder = Folder.objects.filter(id=folder_id).first()
+                if folder is None:
+                    return Response(
+                        {"error": "invalidFolder"}, status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                folder = Folder.get_root_folder()
+            if not RoleAssignment.is_access_allowed(
+                user=request.user,
+                perm=Permission.objects.get(codename="add_workflow"),
+                folder=folder,
+            ):
+                return Response(
+                    {"error": "permissionDenied"}, status=status.HTTP_403_FORBIDDEN
+                )
+            try:
+                with transaction.atomic():
+                    workflows, warnings = import_workflow_library(
+                        result["document"], folder, user=request.user, secrets={}
+                    )
+            except WorkflowImportError as e:
+                return Response(
+                    {"error": e.message}, status=status.HTTP_400_BAD_REQUEST
+                )
+            result = {
+                **{k: v for k, v in result.items() if k != "document"},
+                "installed": True,
+                "id": str(workflows[0].id),
+                "name": workflows[0].name,
+                "warnings": warnings,
+            }
+            return Response(result, status=status.HTTP_201_CREATED)
+
+        # Drop the full YAML document from the preview payload unless asked.
+        if not request.data.get("include_document"):
+            result = {k: v for k, v in result.items() if k != "document"}
+        return Response(result)
+
 
 def _draft_exists_response(draft):
     return Response(

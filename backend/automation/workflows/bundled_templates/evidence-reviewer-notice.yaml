@@ -1,0 +1,155 @@
+urn: urn:custom:risk:library:workflow-evidence-reviewer-notice
+locale: en
+ref_id: workflow-evidence-reviewer-notice
+name: Evidence uploaded - notify audit reviewers | إشعار المراجعين بدليل جديد
+version: 1
+objects:
+  workflows:
+  - schema_version: 1
+    name: Evidence uploaded - notify audit reviewers | إشعار المراجعين بدليل جديد
+    ref_id: evidence-reviewer-notice
+    description: When evidence is uploaded, find the controls it backs and the
+      audits those controls serve, then email each audit's reviewers a link.
+    graph:
+      variables:
+      - key: evidence_id
+        type: string
+        default_value: ''
+      - key: app_url
+        type: string
+        default_value: ''
+      - key: reviewer_emails
+        type: string
+        default_value: ''
+      nodes:
+      - ref: on_upload
+        type: trigger
+        label: Evidence file uploaded | تم رفع ملف دليل
+        trigger_config:
+          type: internal_event
+          event_key: evidencerevision.created
+      - ref: run_now
+        type: trigger
+        label: Run for one evidence | تشغيل لدليل محدد
+        trigger_config:
+          type: manual
+        input_mapping:
+          evidence_id: evidence_id
+      - ref: take_payload
+        type: action
+        label: The uploaded evidence | الدليل المرفوع
+        action_config:
+          type: set_variables
+          variables:
+            evidence_id: '{{payload.new_values.evidence}}'
+      - ref: read_evidence
+        type: action
+        label: Read the evidence | قراءة الدليل
+        action_config:
+          type: read_objects
+          model: evidence
+          mode: first
+          include:
+          - controls
+          - control_names
+          - audits
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: id
+              value: '{{evidence_id}}'
+      - ref: each_audit
+        type: loop
+        label: Each audit it supports | لكل تقييم مرتبط
+        loop_config:
+          collection: '{{nodes.read_evidence.object.audits}}'
+      - ref: take_reviewers
+        type: action
+        label: This audit's reviewers | مراجعو هذا التقييم
+        action_config:
+          type: set_variables
+          variables:
+            reviewer_emails: '{{item.reviewer_emails}}'
+      - ref: has_reviewer
+        type: condition
+        label: Has a reviewer? | هل يوجد مراجع؟
+        branches:
+        - name: none
+          condition_groups:
+          - operator: and
+            conditions:
+            - variable: reviewer_emails
+              op: eq
+              value: ''
+        - name: notify
+          is_default: true
+      - ref: mail_reviewers
+        type: action
+        label: Email the reviewers | إبلاغ المراجعين
+        action_config:
+          type: send_email
+          recipients: '{{reviewer_emails}}'
+          subject: 'دليل جديد بانتظار مراجعتك | New evidence awaiting your review — {{item.name}}'
+          body: 'New evidence "{{nodes.read_evidence.object.name}}" was uploaded for
+            the assessment "{{item.name}}". Review it: {{app_url}}/compliance-assessments/{{item.id}}'
+          layout:
+            title: 'دليل جديد بانتظار مراجعتك | New evidence awaiting your review'
+            sections:
+            - 'مرحباً، تم رفع دليل جديد مرتبط بضوابط مستخدمة في تقييم أنت مراجع له. يرجى الاطلاع
+              عليه وتحديث نتيجة المراجعة.'
+            - 'Hello, a new piece of evidence was uploaded for a control used in an
+              assessment you review. Please look at it and update your review.'
+            details:
+            - label: 'التقييم | Assessment'
+              value: '{{item.name}}'
+            - label: 'الدليل | Evidence'
+              value: '{{nodes.read_evidence.object.name}}'
+            - label: 'الضوابط | Controls'
+              value: '{{nodes.read_evidence.object.control_names}}'
+            - label: 'تاريخ الرفع | Uploaded on'
+              value: '{{today}}'
+            - label: 'رفع بواسطة | Uploaded by'
+              value: '{{payload.actor_email}}'
+            buttons:
+            - label: 'فتح التقييم | Open assessment'
+              url: '{{app_url}}/compliance-assessments/{{item.id}}'
+            - label: 'عرض الدليل | View evidence'
+              url: '{{app_url}}/evidences/{{evidence_id}}'
+            footer: 'رسالة آلية من منصة محكم | Automated message from Muhkam'
+      - ref: note_skip
+        type: action
+        label: No reviewer, skipped | لا يوجد مراجع
+        action_config:
+          type: log
+          message: 'No reviewer on {{item.name}}; no email sent.'
+      - ref: done
+        type: end
+      edges:
+      - source: on_upload
+        target: take_payload
+      - source: run_now
+        target: read_evidence
+      - source: take_payload
+        target: read_evidence
+      - source: read_evidence
+        target: each_audit
+      - source: each_audit
+        target: take_reviewers
+        source_port: each
+      - source: take_reviewers
+        target: has_reviewer
+      - source: has_reviewer
+        target: note_skip
+        source_branch: none
+      - source: has_reviewer
+        target: mail_reviewers
+        source_branch: notify
+      - source: mail_reviewers
+        target: each_audit
+      - source: note_skip
+        target: each_audit
+      - source: each_audit
+        target: done
+        source_port: done
+    urn: urn:custom:risk:library:workflow-evidence-reviewer-notice:workflow:evidence-reviewer-notice

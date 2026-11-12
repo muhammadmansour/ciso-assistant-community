@@ -1,0 +1,187 @@
+urn: urn:custom:risk:library:workflow-evidence-control-owner-notice
+locale: en
+ref_id: workflow-evidence-control-owner-notice
+name: Evidence changed - notify control owners | إشعار مالكي الضوابط بتحديث الدليل
+version: 1
+objects:
+  workflows:
+  - schema_version: 1
+    name: Evidence changed - notify control owners | إشعار مالكي الضوابط بتحديث الدليل
+    ref_id: evidence-control-owner-notice
+    description: When a new file is uploaded to an evidence, or its details are
+      edited, the owners of every control that hosts the evidence get one email
+      with what changed and a link to it.
+    graph:
+      variables:
+      - key: evidence_id
+        type: string
+        default_value: ''
+      - key: change_type
+        type: string
+        default_value: 'تشغيل تجريبي | Test run'
+      - key: owner_emails
+        type: string
+        default_value: ''
+      - key: app_url
+        type: string
+        default_value: ''
+      nodes:
+      - ref: on_revision
+        type: trigger
+        label: New file uploaded | رفع ملف جديد
+        trigger_config:
+          type: internal_event
+          event_key: evidencerevision.created
+      - ref: on_update
+        type: trigger
+        label: Evidence edited | تعديل الدليل
+        trigger_config:
+          type: internal_event
+          event_key: evidence.updated
+          filters:
+            operator: or
+            conditions:
+            - op: neq
+              field: name
+              value: __unchanged__
+              changed: true
+            - op: neq
+              field: description
+              value: __unchanged__
+              changed: true
+            - op: neq
+              field: status
+              value: __unchanged__
+              changed: true
+            - op: neq
+              field: expiry_date
+              value: __unchanged__
+              changed: true
+      - ref: run_now
+        type: trigger
+        label: Run for one evidence | تشغيل لدليل محدد
+        trigger_config:
+          type: manual
+        input_mapping:
+          evidence_id: evidence_id
+      - ref: take_revision
+        type: action
+        label: The uploaded file | الملف المرفوع
+        action_config:
+          type: set_variables
+          variables:
+            evidence_id: '{{payload.new_values.evidence}}'
+            change_type: 'تم رفع ملف جديد | New file uploaded'
+      - ref: take_update
+        type: action
+        label: The edited evidence | الدليل المعدّل
+        action_config:
+          type: set_variables
+          variables:
+            evidence_id: '{{payload.object_id}}'
+            change_type: 'تم تعديل بيانات الدليل | Evidence details edited'
+      - ref: read_evidence
+        type: action
+        label: Read the evidence and its controls | قراءة الدليل وضوابطه
+        action_config:
+          type: read_objects
+          model: evidence
+          mode: first
+          include:
+          - controls
+          - control_names
+          - control_owner_emails
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: id
+              value: '{{evidence_id}}'
+      - ref: take_owners
+        type: action
+        label: The control owners | مالكو الضوابط
+        action_config:
+          type: set_variables
+          variables:
+            owner_emails: '{{nodes.read_evidence.object.control_owner_emails}}'
+      - ref: has_owner
+        type: condition
+        label: Any control owner? | هل يوجد مالك للضابط؟
+        branches:
+        - name: none
+          condition_groups:
+          - operator: and
+            conditions:
+            - variable: owner_emails
+              op: eq
+              value: ''
+        - name: notify
+          is_default: true
+      - ref: mail_owners
+        type: action
+        label: Email the control owners | إبلاغ مالكي الضوابط
+        action_config:
+          type: send_email
+          recipients: '{{owner_emails}}'
+          subject: 'تحديث على دليل ضوابطك | Evidence update on your controls — {{nodes.read_evidence.object.name}}'
+          body: 'The evidence "{{nodes.read_evidence.object.name}}" backing your controls
+            ({{nodes.read_evidence.object.control_names}}) changed: {{change_type}}.
+            View it: {{app_url}}/evidences/{{evidence_id}}'
+          layout:
+            title: 'تحديث على دليل ضوابطك | Evidence update on your controls'
+            sections:
+            - 'مرحباً، طرأ تحديث على دليل مرتبط بضوابط أنت مالك لها. يرجى الاطلاع عليه والتأكد
+              من أنه ما زال يدعم الضوابط بشكل صحيح.'
+            - 'Hello, an evidence backing controls you own was updated. Please review
+              it and make sure it still supports your controls.'
+            details:
+            - label: 'الدليل | Evidence'
+              value: '{{nodes.read_evidence.object.name}}'
+            - label: 'نوع التحديث | Change'
+              value: '{{change_type}}'
+            - label: 'الحالة | Status'
+              value: '{{nodes.read_evidence.object.status}}'
+            - label: 'الضوابط | Controls'
+              value: '{{nodes.read_evidence.object.control_names}}'
+            - label: 'بواسطة | Changed by'
+              value: '{{payload.actor_email}}'
+            - label: 'التاريخ | Date'
+              value: '{{today}}'
+            buttons:
+            - label: 'عرض الدليل | View evidence'
+              url: '{{app_url}}/evidences/{{evidence_id}}'
+            footer: 'رسالة آلية من منصة محكم | Automated message from Muhkam'
+      - ref: note_no_owner
+        type: action
+        label: No owner, skipped | لا يوجد مالك
+        action_config:
+          type: log
+          message: 'No control owner for evidence {{evidence_id}}; no email sent.'
+      - ref: done
+        type: end
+      edges:
+      - source: on_revision
+        target: take_revision
+      - source: on_update
+        target: take_update
+      - source: run_now
+        target: read_evidence
+      - source: take_revision
+        target: read_evidence
+      - source: take_update
+        target: read_evidence
+      - source: read_evidence
+        target: take_owners
+      - source: take_owners
+        target: has_owner
+      - source: has_owner
+        target: note_no_owner
+        source_branch: none
+      - source: has_owner
+        target: mail_owners
+        source_branch: notify
+      - source: mail_owners
+        target: done
+      - source: note_no_owner
+        target: done
+    urn: urn:custom:risk:library:workflow-evidence-control-owner-notice:workflow:evidence-control-owner-notice

@@ -1,0 +1,147 @@
+urn: urn:custom:risk:library:workflow-assessment-review-notice
+locale: en
+ref_id: workflow-assessment-review-notice
+name: Assessment review notice | إشعار مراجعة التقييم
+version: 2
+objects:
+  workflows:
+  - schema_version: 1
+    name: Assessment review notice | إشعار مراجعة التقييم
+    ref_id: assessment-review-notice
+    description: When an assessment moves to In review, the GRC mailbox is told who
+      is reviewing it and by when. If no reviewer is set, the mailbox is asked to
+      assign one. Results and scores are read, never changed.
+    graph:
+      variables:
+      - key: assessment_id
+        type: string
+        default_value: ''
+      - key: grc_mailbox
+        type: string
+        default_value: grc@example.com
+      - key: has_reviewers
+        type: boolean
+        default_value: false
+      - key: review_due
+        type: date
+        default_value: ''
+      nodes:
+      - ref: run_now
+        type: trigger
+        label: Run for one assessment | تشغيل لتقييم محدد
+        trigger_config:
+          type: manual
+      - ref: on_review
+        type: trigger
+        label: Assessment moved to review | التقييم انتقل للمراجعة
+        trigger_config:
+          type: internal_event
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: status
+              value: in_review
+              changed: true
+          event_key: complianceassessment.updated
+      - ref: take_payload
+        type: action
+        label: The assessment that changed | التقييم الذي تغيّر
+        action_config:
+          type: set_variables
+          variables:
+            assessment_id: '{{payload.object_id}}'
+      - ref: read_for_review
+        type: action
+        label: Read the assessment | قراءة التقييم
+        action_config:
+          mode: first
+          type: read_objects
+          model: compliance_assessment
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: id
+              value: '{{assessment_id}}'
+      - ref: route_reviewer
+        type: condition
+        label: Is a reviewer set? | هل عُيّن مراجع؟
+        branches:
+        - name: reviewers
+          condition_groups:
+          - operator: and
+            conditions:
+            - variable: has_reviewers
+              op: eq
+              value: 'true'
+        - name: fallback
+          is_default: true
+      - ref: mail_review
+        type: action
+        label: Tell the GRC mailbox | إبلاغ بريد الحوكمة
+        action_config:
+          body: 'انتقل التقييم «{{nodes.read_for_review.object.name}}» إلى مرحلة المراجعة
+            بتاريخ {{today}}. المراجعون المعيّنون في المنصة مطالبون بمراجعة الإجابات
+            والأدلة وإبداء الملاحظات قبل {{review_due}}. نسبة الإنجاز الحالية: {{nodes.read_for_review.object.progress}}٪.
+            قرار القبول يبقى للمراجع.
+
+
+            The assessment "{{nodes.read_for_review.object.name}}" moved to In review
+            on {{today}}. Its assigned reviewers should review the answers and evidence
+            before {{review_due}}. Current progress: {{nodes.read_for_review.object.progress}}%.
+            The decision stays with the reviewer.'
+          type: send_email
+          subject: 'مراجعة مطلوبة: {{nodes.read_for_review.object.name}} — قبل {{review_due}}
+            | Review requested before {{review_due}}'
+          recipients: '{{grc_mailbox}}'
+      - ref: mail_no_reviewer
+        type: action
+        label: Ask for a reviewer | طلب تعيين مراجع
+        action_config:
+          body: 'انتقل التقييم «{{nodes.read_for_review.object.name}}» إلى مرحلة المراجعة
+            بتاريخ {{today}} دون مراجع مسجّل. يرجى تعيين مراجع للتقييم، أو مراجعته
+            مباشرة قبل {{review_due}}.
+
+
+            The assessment "{{nodes.read_for_review.object.name}}" moved to In review
+            on {{today}} with no reviewer set. Please assign a reviewer, or review
+            it before {{review_due}}.'
+          type: send_email
+          subject: 'تقييم بلا مراجع: {{nodes.read_for_review.object.name}} | Assessment
+            in review with no reviewer'
+          recipients: '{{grc_mailbox}}'
+      - ref: note_review
+        type: action
+        label: Log the review notice | تسجيل إشعار المراجعة
+        action_config:
+          type: log
+          message: review · {{nodes.read_for_review.object.name}} · due {{review_due}}
+            · reviewers {{has_reviewers}}
+      - ref: review_done
+        type: end
+      edges:
+      - source: run_now
+        target: read_for_review
+      - source: on_review
+        target: take_payload
+      - source: take_payload
+        target: read_for_review
+      - source: route_reviewer
+        target: mail_review
+        source_branch: reviewers
+      - source: route_reviewer
+        target: mail_no_reviewer
+        source_branch: fallback
+      - source: mail_review
+        target: note_review
+      - source: mail_no_reviewer
+        target: note_review
+      - source: note_review
+        target: review_done
+      - source: read_for_review
+        target: route_reviewer
+    urn: urn:custom:risk:library:workflow-assessment-review-notice:workflow:assessment-review-notice
+description: When an assessment moves to In review, the GRC mailbox is told who is
+  reviewing it and by when. If no reviewer is set, the mailbox is asked to assign
+  one. Results and scores are read, never changed.
