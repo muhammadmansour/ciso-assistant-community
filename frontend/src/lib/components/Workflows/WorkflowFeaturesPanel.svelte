@@ -26,18 +26,28 @@
 	}: Props = $props();
 
 	let promptText = $state('');
-	let creating = $state(false);
+	let generating = $state(false);
+	let confirming = $state(false);
+	let discarded = $state(false);
 
 	$effect(() => {
 		if (form?.prompt) promptText = form.prompt;
+		if (form?.promptResult) discarded = false;
 	});
 
-	const promptResult = $derived(form?.promptResult);
+	const promptResult = $derived(discarded ? undefined : form?.promptResult);
+	const previewReady = $derived(
+		Boolean(promptResult?.matched && promptResult?.document && !promptResult?.installed)
+	);
 	const canAdd = $derived(
 		Boolean(
 			page.data?.user?.permissions && Object.hasOwn(page.data.user.permissions, 'add_workflow')
 		)
 	);
+
+	function discardPreview() {
+		discarded = true;
+	}
 </script>
 
 <div class="flex flex-col gap-8 {compact ? 'p-5' : ''}">
@@ -66,15 +76,15 @@
 			method="POST"
 			action="?/promptTemplate"
 			use:enhance={() => {
-				creating = true;
+				generating = true;
+				discarded = false;
 				return async ({ update }) => {
 					await update();
-					creating = false;
+					generating = false;
 				};
 			}}
 			class="flex flex-col gap-3"
 		>
-			<input type="hidden" name="install" value="1" />
 			<input type="hidden" name="use_llm" value="1" />
 			<textarea
 				name="prompt"
@@ -97,15 +107,15 @@
 				<button
 					type="submit"
 					class="btn bg-[#005FA3] text-white hover:bg-[#004d85] text-sm px-5"
-					disabled={!promptText.trim() || !canAdd || creating || !aiAvailable}
-					data-testid="create-from-prompt-button"
+					disabled={!promptText.trim() || !canAdd || generating || confirming || !aiAvailable}
+					data-testid="generate-from-prompt-button"
 				>
-					{#if creating}
+					{#if generating}
 						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-						{safeTranslate('creatingWorkflow')}
+						{safeTranslate('generatingWorkflow')}
 					{:else}
 						<i class="fa-solid fa-sparkles mr-2"></i>
-						{safeTranslate('createWorkflowWithAi')}
+						{safeTranslate('generateWorkflowWithAi')}
 					{/if}
 				</button>
 				<span class="text-xs text-surface-500">
@@ -114,22 +124,91 @@
 			</div>
 		</form>
 
-		{#if promptResult && !promptResult.installed}
-			<div class="mt-4 rounded-lg border border-surface-200 bg-white p-4 text-sm space-y-2">
-				{#if promptResult.matched}
-					<p class="font-medium text-surface-800">{promptResult.name}</p>
-					<p class="text-surface-600">{promptResult.description}</p>
-					{#if promptResult.rationale}
-						<p class="text-surface-500 italic">{promptResult.rationale}</p>
-					{/if}
-				{:else}
-					<p class="text-surface-700">{promptResult.message}</p>
+		{#if previewReady}
+			<div
+				class="mt-5 rounded-xl border border-[#b7d4ef] bg-white p-5 space-y-4"
+				data-testid="generated-workflow-preview"
+			>
+				<div class="flex items-start justify-between gap-3 flex-wrap">
+					<div>
+						<p class="text-xs uppercase tracking-wide text-[#005FA3] font-medium mb-1">
+							{safeTranslate('generatedWorkflowPreview')}
+						</p>
+						<h4 class="font-semibold text-base text-gray-900">{promptResult.name}</h4>
+						{#if promptResult.description}
+							<p class="text-sm text-surface-600 mt-1">{promptResult.description}</p>
+						{/if}
+					</div>
+				</div>
+
+				{#if promptResult.summary?.length}
+					<ol class="space-y-2 border-t border-surface-100 pt-3">
+						{#each promptResult.summary as step, i (step.ref || i)}
+							<li class="flex items-start gap-3 text-sm">
+								<span
+									class="shrink-0 w-6 h-6 rounded-full bg-[#eef5fb] text-[#005FA3] text-xs flex items-center justify-center font-medium"
+									>{i + 1}</span
+								>
+								<div class="min-w-0">
+									<p class="font-medium text-surface-800">{step.label || step.ref}</p>
+									<p class="text-xs text-surface-500">{step.detail || step.type}</p>
+								</div>
+							</li>
+						{/each}
+					</ol>
 				{/if}
+
+				<div class="flex flex-wrap items-center gap-3 pt-1">
+					<form
+						method="POST"
+						action="?/confirmGeneratedWorkflow"
+						use:enhance={() => {
+							confirming = true;
+							return async ({ update }) => {
+								await update();
+								confirming = false;
+							};
+						}}
+					>
+						<input type="hidden" name="prompt" value={promptText} />
+						<input
+							type="hidden"
+							name="document"
+							value={JSON.stringify(promptResult.document)}
+						/>
+						<button
+							type="submit"
+							class="btn bg-[#005FA3] text-white hover:bg-[#004d85] text-sm px-5"
+							disabled={!canAdd || confirming || generating}
+							data-testid="confirm-generated-workflow-button"
+						>
+							{#if confirming}
+								<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+								{safeTranslate('creatingWorkflow')}
+							{:else}
+								<i class="fa-solid fa-check mr-2"></i>
+								{safeTranslate('confirmCreateWorkflow')}
+							{/if}
+						</button>
+					</form>
+					<button
+						type="button"
+						class="btn variant-ghost-surface text-sm"
+						onclick={discardPreview}
+						disabled={confirming}
+					>
+						{safeTranslate('discardGeneratedWorkflow')}
+					</button>
+				</div>
+			</div>
+		{:else if promptResult && !promptResult.matched}
+			<div class="mt-4 rounded-lg border border-surface-200 bg-white p-4 text-sm">
+				<p class="text-surface-700">{promptResult.message || safeTranslate('geminiInvalidWorkflow')}</p>
 			</div>
 		{/if}
 	</section>
 
-	<!-- Section 2: Gallery of created / bundled workflows -->
+	<!-- Section 2: Gallery of bundled workflow kits -->
 	<section data-testid="workflow-gallery-section">
 		<div class="flex items-end justify-between gap-3 mb-4 flex-wrap">
 			<div>

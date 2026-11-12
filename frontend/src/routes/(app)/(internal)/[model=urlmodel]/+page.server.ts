@@ -361,7 +361,6 @@ export const actions: Actions = {
 		}
 		const formData = await event.request.formData();
 		const prompt = String(formData.get('prompt') || '').trim();
-		const install = formData.get('install') === '1';
 		const useLlm = formData.get('use_llm') === '1';
 		if (!prompt) {
 			return fail(400, { promptError: 'promptRequired', prompt });
@@ -369,7 +368,7 @@ export const actions: Actions = {
 		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt, install, use_llm: useLlm })
+			body: JSON.stringify({ prompt, use_llm: useLlm })
 		});
 		const res = await response.json().catch(() => ({}));
 		if (!response.ok) {
@@ -382,16 +381,51 @@ export const actions: Actions = {
 			);
 			return fail(response.status, { promptError: res.error, prompt });
 		}
-		if (install && res.id) {
+		return { promptResult: res, prompt };
+	},
+	confirmGeneratedWorkflow: async (event) => {
+		if (event.params.model !== 'workflows') {
+			return fail(400, { error: 'invalidModel' });
+		}
+		const formData = await event.request.formData();
+		const prompt = String(formData.get('prompt') || '').trim();
+		const rawDocument = String(formData.get('document') || '');
+		let document: Record<string, unknown> | null = null;
+		try {
+			document = JSON.parse(rawDocument);
+		} catch {
+			document = null;
+		}
+		if (!document || typeof document !== 'object') {
+			return fail(400, { promptError: 'geminiInvalidWorkflow', prompt });
+		}
+		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ install: true, document, prompt })
+		});
+		const res = await response.json().catch(() => ({}));
+		if (!response.ok) {
 			setFlash(
 				{
-					type: 'success',
-					message: m.workflowImported({ name: res.name || prompt })
+					type: 'error',
+					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
 				},
 				event
 			);
-			redirect(302, `/workflows/${res.id}`);
+			return fail(response.status, {
+				promptError: res.error,
+				prompt,
+				promptResult: { matched: true, document, name: res.name, description: res.description }
+			});
 		}
-		return { promptResult: res, prompt };
+		setFlash(
+			{
+				type: 'success',
+				message: m.workflowImported({ name: res.name || prompt })
+			},
+			event
+		);
+		redirect(302, `/workflows/${res.id}`);
 	}
 };
