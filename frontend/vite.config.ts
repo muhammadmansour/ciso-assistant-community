@@ -32,6 +32,11 @@ export default defineConfig({
 			'grc.wathbah.dev'
 		],
 		hmr: false,
+		// Paraglide/Lix rewrites project.inlang/.lix during compile; watching it
+		// causes a recompile loop and half-written JS ("Unterminated block comment").
+		watch: {
+			ignored: ['**/project.inlang/.lix/**']
+		},
 		headers: {
 			'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
 			'Pragma': 'no-cache',

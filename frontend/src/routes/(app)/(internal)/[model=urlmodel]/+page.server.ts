@@ -67,6 +67,12 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 			const payload = await templatesResponse.json().catch(() => ({ results: [] }));
 			workflowTemplates = payload.results ?? [];
 			workflowAiAvailable = Boolean(payload.ai_available);
+		} else {
+			console.error(
+				'Failed to load workflow templates:',
+				templatesResponse.status,
+				templatesResponse.statusText
+			);
 		}
 	}
 
