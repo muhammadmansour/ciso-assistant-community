@@ -4,14 +4,15 @@
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import ImportWorkflowModal from '$lib/components/Modals/ImportWorkflowModal.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
+	import WorkflowFeaturesPanel from '$lib/components/Workflows/WorkflowFeaturesPanel.svelte';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { driverInstance } from '$lib/utils/stores';
 	import { m } from '$paraglide/messages';
 	import type { ActionData, PageData } from './$types';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
-	import { Popover } from '@skeletonlabs/skeleton-svelte';
+	import { Popover, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -33,6 +34,23 @@
 	let URLModel = $derived(data.URLModel);
 	let exportPopupOpen = $state(false);
 	let isFetchingMuraji = $state(false);
+	let workflowsTab = $state(
+		page.url.searchParams.get('tab') === 'features' ? 'features' : 'workflows'
+	);
+
+	function onWorkflowsTabChange(value: string) {
+		workflowsTab = value;
+		const url = new URL(page.url);
+		if (value === 'features') url.searchParams.set('tab', 'features');
+		else url.searchParams.delete('tab');
+		goto(`${url.pathname}${url.search}`, { replaceState: true, noScroll: true, keepFocus: true });
+	}
+
+	$effect(() => {
+		if (URLModel === 'workflows' && (form?.promptResult || form?.promptError)) {
+			workflowsTab = 'features';
+		}
+	});
 
 	const modalStore: ModalStore = getModalStore();
 
@@ -165,6 +183,7 @@
 </script>
 
 {#if data?.table}
+	{#snippet modelListCard()}
 	<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
 		<!-- Card Header: Model title + description + action button -->
 		<div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -400,4 +419,40 @@
 			</ModelTable>
 		{/key}
 	</div>
+	{/snippet}
+
+	{#if URLModel === 'workflows'}
+		<div class="space-y-0">
+			<Tabs
+				value={workflowsTab}
+				onValueChange={(e) => onWorkflowsTabChange(e.value)}
+				listClasses="bg-white border border-gray-100 border-b-0 rounded-t-xl px-4 flex flex-wrap"
+			>
+				{#snippet list()}
+					<Tabs.Control value="workflows">
+						<i class="fa-solid fa-diagram-project mr-2"></i>{safeTranslate('workflows')}
+					</Tabs.Control>
+					<Tabs.Control value="features">
+						<i class="fa-solid fa-boxes-stacked mr-2"></i>{safeTranslate('features')}
+					</Tabs.Control>
+				{/snippet}
+				{#snippet content()}
+					<Tabs.Panel value="workflows">
+						{@render modelListCard()}
+					</Tabs.Panel>
+					<Tabs.Panel value="features">
+						<div class="bg-white rounded-b-xl shadow-sm border border-gray-100 border-t-0">
+							<WorkflowFeaturesPanel
+								templates={data.workflowTemplates ?? []}
+								{form}
+								compact
+							/>
+						</div>
+					</Tabs.Panel>
+				{/snippet}
+			</Tabs>
+		</div>
+	{:else}
+		{@render modelListCard()}
+	{/if}
 {/if}

@@ -170,6 +170,7 @@
 	"impactAnalysis": "تحليل الأثر",
 	"tasks": "المهام",
 	"workflows": "سير العمل",
+	"features": "الميزات",
 	"workflowTemplates": "قوالب سير العمل",
 	"workflowTemplatesHelp": "تصفّح حزم الأتمتة الجاهزة، أو صف ما تحتاجه وثبّت القالب المناسب.",
 	"promptToTemplate": "من وصف إلى قالب",

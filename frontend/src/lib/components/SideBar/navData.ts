@@ -298,12 +298,6 @@ export const navData = {
 					fa_icon: 'fa-solid fa-diagram-project',
 					href: '/workflows',
 					permissions: ['view_workflow']
-				},
-				{
-					name: 'workflowTemplates',
-					fa_icon: 'fa-solid fa-boxes-stacked',
-					href: '/workflow-templates',
-					permissions: ['view_workflow']
 				}
 			]
 		},

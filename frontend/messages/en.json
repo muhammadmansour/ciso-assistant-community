@@ -181,6 +181,7 @@
 	"resubmit": "Resubmit",
 	"onlyRequesterCanModify": "Only the requester can perform actions on this validation",
 	"workflows": "Workflows",
+	"features": "Features",
 	"workflowTemplates": "Workflow templates",
 	"workflowTemplatesHelp": "Browse ready-made automation kits, or describe what you need and install a matching template.",
 	"promptToTemplate": "Prompt to template",

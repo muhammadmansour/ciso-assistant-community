@@ -56,13 +56,19 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		model['folderImportModel'] = { urlModel: 'folders-import' };
 	}
 
+	let workflowTemplates: any[] = [];
 	if (model.urlModel === 'workflows') {
 		model['workflowImportForm'] = await superValidate(zod(WorkflowImportSchema), {
 			errors: false
 		});
+		const templatesResponse = await fetch(`${BASE_API_URL}/workflows/workflows/templates/`);
+		if (templatesResponse.ok) {
+			const payload = await templatesResponse.json().catch(() => ({ results: [] }));
+			workflowTemplates = payload.results ?? [];
+		}
 	}
 
-	return { createForm, deleteForm, model, URLModel };
+	return { createForm, deleteForm, model, URLModel, workflowTemplates };
 };
 
 export const actions: Actions = {
@@ -309,5 +315,80 @@ export const actions: Actions = {
 			event
 		);
 		redirect(302, `/workflows/${res.id}`);
+	},
+	installTemplate: async (event) => {
+		if (event.params.model !== 'workflows') {
+			return fail(400, { error: 'invalidModel' });
+		}
+		const formData = await event.request.formData();
+		const templateId = String(formData.get('template_id') || '');
+		if (!templateId) {
+			return fail(400, { error: 'missingTemplate' });
+		}
+		const response = await event.fetch(
+			`${BASE_API_URL}/workflows/workflows/templates/${encodeURIComponent(templateId)}/install/`,
+			{
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({})
+			}
+		);
+		const res = await response.json().catch(() => ({}));
+		if (!response.ok) {
+			setFlash(
+				{
+					type: 'error',
+					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
+				},
+				event
+			);
+			return fail(response.status, { error: res.error });
+		}
+		setFlash(
+			{
+				type: 'success',
+				message: m.workflowImported({ name: res.name || templateId })
+			},
+			event
+		);
+		redirect(302, `/workflows/${res.id}`);
+	},
+	promptTemplate: async (event) => {
+		if (event.params.model !== 'workflows') {
+			return fail(400, { error: 'invalidModel' });
+		}
+		const formData = await event.request.formData();
+		const prompt = String(formData.get('prompt') || '').trim();
+		const install = formData.get('install') === '1';
+		if (!prompt) {
+			return fail(400, { promptError: 'promptRequired', prompt });
+		}
+		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ prompt, install })
+		});
+		const res = await response.json().catch(() => ({}));
+		if (!response.ok) {
+			setFlash(
+				{
+					type: 'error',
+					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
+				},
+				event
+			);
+			return fail(response.status, { promptError: res.error, prompt });
+		}
+		if (install && res.id) {
+			setFlash(
+				{
+					type: 'success',
+					message: m.workflowImported({ name: res.name || prompt })
+				},
+				event
+			);
+			redirect(302, `/workflows/${res.id}`);
+		}
+		return { promptResult: res, prompt };
 	}
 };
