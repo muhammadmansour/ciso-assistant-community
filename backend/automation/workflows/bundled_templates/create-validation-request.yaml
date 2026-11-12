@@ -1,0 +1,79 @@
+urn: urn:custom:risk:library:workflow-create-validation-request
+locale: en
+ref_id: workflow-create-validation-request
+name: Create validation request | إنشاء طلب تحقق
+version: 1
+description: >
+  Manually create a validation request for an approver, optionally linking
+  applied controls, evidence, tasks, and policies. The approver is notified
+  when the request is submitted.
+objects:
+  workflows:
+  - schema_version: 1
+    name: Create validation request | إنشاء طلب تحقق
+    ref_id: create-validation-request
+    description: >
+      Manually create a validation request for an approver, optionally linking
+      applied controls, evidence, tasks, and policies.
+    graph:
+      variables:
+      - key: approver
+        type: string
+        default_value: ''
+      - key: request_notes
+        type: string
+        default_value: 'Please review and validate the linked items.'
+      - key: validation_deadline
+        type: string
+        default_value: ''
+      - key: applied_controls
+        type: string
+        default_value: ''
+      - key: evidences
+        type: string
+        default_value: ''
+      - key: task_templates
+        type: string
+        default_value: ''
+      - key: policies
+        type: string
+        default_value: ''
+      - key: app_url
+        type: string
+        default_value: ''
+      nodes:
+      - ref: run_now
+        type: trigger
+        label: Run | تشغيل
+        trigger_config:
+          type: manual
+        input_mapping:
+          approver: approver
+          request_notes: request_notes
+          validation_deadline: validation_deadline
+          applied_controls: applied_controls
+          evidences: evidences
+          task_templates: task_templates
+          policies: policies
+      - ref: create_validation
+        type: action
+        label: Create validation | إنشاء التحقق
+        action_config:
+          type: create_object
+          model: validation_flow
+          fields:
+            approver: '{{approver}}'
+            request_notes: '{{request_notes}}'
+            validation_deadline: '{{validation_deadline}}'
+            applied_controls: '{{applied_controls}}'
+            evidences: '{{evidences}}'
+            task_templates: '{{task_templates}}'
+            policies: '{{policies}}'
+      - ref: done
+        type: end
+      edges:
+      - source: run_now
+        target: create_validation
+      - source: create_validation
+        target: done
+    urn: urn:custom:risk:library:workflow-create-validation-request:workflow:create-validation-request

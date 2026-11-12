@@ -511,7 +511,9 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'findings_assessments', urlModel: 'findings-assessments' },
 			{ field: 'evidences', urlModel: 'evidences' },
 			{ field: 'security_exceptions', urlModel: 'security-exceptions' },
-			{ field: 'policies', urlModel: 'policies' }
+			{ field: 'policies', urlModel: 'policies' },
+			{ field: 'applied_controls', urlModel: 'applied-controls' },
+			{ field: 'task_templates', urlModel: 'task-templates' }
 		],
 		selectFields: [{ field: 'status' }],
 		filters: [

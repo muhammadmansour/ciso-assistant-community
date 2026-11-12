@@ -251,7 +251,9 @@ export const ValidationFlowSchema = z.object({
 	findings_assessments: z.array(z.string()).optional(),
 	evidences: z.array(z.string()).optional(),
 	security_exceptions: z.array(z.string()).optional(),
-	policies: z.array(z.string()).optional()
+	policies: z.array(z.string()).optional(),
+	applied_controls: z.array(z.string()).optional(),
+	task_templates: z.array(z.string()).optional()
 });
 
 export const ReferenceControlSchema = z.object({

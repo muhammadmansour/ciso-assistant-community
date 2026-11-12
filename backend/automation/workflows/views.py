@@ -167,7 +167,10 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
                         ).items()
                     },
                     "params": {
-                        name: (target[1] if target else None)
+                        name: (
+                            (entry.get("param_endpoints") or {}).get(name)
+                            or (target[1] if target else None)
+                        )
                         for name, target in (entry.get("params") or {}).items()
                     },
                     "required_params": entry.get("required_params") or [],

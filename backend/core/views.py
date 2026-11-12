@@ -6189,6 +6189,8 @@ class ValidationFlowFilterSet(GenericFilterSet):
             "evidences",
             "security_exceptions",
             "policies",
+            "applied_controls",
+            "task_templates",
         ]
 
 
@@ -6222,6 +6224,8 @@ class ValidationFlowViewSet(BaseModelViewSet):
             "evidences": "Evidences",
             "security_exceptions": "Security Exceptions",
             "policies": "Policies",
+            "applied_controls": "Applied Controls",
+            "task_templates": "Tasks",
         }
         return Response(model_types)
 

@@ -54,6 +54,11 @@ export const load: PageServerLoad = async ({ fetch, params, url }) => {
 	const fkEndpoints = [
 		...new Set([
 			...creatableModels.flatMap((entry: any) => Object.values(entry.fk_fields ?? {})),
+			...creatableModels.flatMap((entry: any) =>
+				Object.values(entry.params ?? {}).filter(
+					(endpoint): endpoint is string => typeof endpoint === 'string' && endpoint.length > 0
+				)
+			),
 			'folders',
 			'actors',
 			'filtering-labels',
