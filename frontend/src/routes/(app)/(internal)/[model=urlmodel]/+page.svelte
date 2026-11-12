@@ -444,6 +444,7 @@
 						<div class="bg-white rounded-b-xl shadow-sm border border-gray-100 border-t-0">
 							<WorkflowFeaturesPanel
 								templates={data.workflowTemplates ?? []}
+								aiAvailable={data.workflowAiAvailable ?? false}
 								{form}
 								compact
 							/>

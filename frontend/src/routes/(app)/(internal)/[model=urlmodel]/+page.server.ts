@@ -57,6 +57,7 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 	}
 
 	let workflowTemplates: any[] = [];
+	let workflowAiAvailable = false;
 	if (model.urlModel === 'workflows') {
 		model['workflowImportForm'] = await superValidate(zod(WorkflowImportSchema), {
 			errors: false
@@ -65,10 +66,11 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
 		if (templatesResponse.ok) {
 			const payload = await templatesResponse.json().catch(() => ({ results: [] }));
 			workflowTemplates = payload.results ?? [];
+			workflowAiAvailable = Boolean(payload.ai_available);
 		}
 	}
 
-	return { createForm, deleteForm, model, URLModel, workflowTemplates };
+	return { createForm, deleteForm, model, URLModel, workflowTemplates, workflowAiAvailable };
 };
 
 export const actions: Actions = {
@@ -360,13 +362,14 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const prompt = String(formData.get('prompt') || '').trim();
 		const install = formData.get('install') === '1';
+		const useLlm = formData.get('use_llm') === '1';
 		if (!prompt) {
 			return fail(400, { promptError: 'promptRequired', prompt });
 		}
 		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt, install })
+			body: JSON.stringify({ prompt, install, use_llm: useLlm })
 		});
 		const res = await response.json().catch(() => ({}));
 		if (!response.ok) {
