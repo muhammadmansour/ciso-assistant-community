@@ -200,6 +200,36 @@ CATALOG: tuple[WorkflowTemplate, ...] = (
         file_name="asset-created-notice.yaml",
         keywords=("asset", "created", "owners", "notify", "أصل"),
     ),
+    WorkflowTemplate(
+        id="create-validation-request",
+        name="Create validation request",
+        description=(
+            "Manually create a validation request for an approver, optionally "
+            "linking applied controls, evidence, tasks, and policies. The "
+            "approver is notified when the request is submitted."
+        ),
+        category="validations",
+        tags=("validation", "approver", "controls", "evidence", "tasks", "policies"),
+        file_name="create-validation-request.yaml",
+        keywords=(
+            "validation",
+            "validate",
+            "approver",
+            "approval",
+            "request",
+            "control",
+            "evidence",
+            "task",
+            "policy",
+            "تحقق",
+            "موافقة",
+            "مراجع",
+            "ضابط",
+            "دليل",
+            "مهمة",
+            "سياسة",
+        ),
+    ),
 )
 
 

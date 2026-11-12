@@ -3585,6 +3585,8 @@ class ValidationFlowReadSerializer(BaseModelSerializer):
     evidences = FieldsRelatedField(many=True)
     security_exceptions = FieldsRelatedField(many=True)
     policies = FieldsRelatedField(many=True)
+    applied_controls = FieldsRelatedField(many=True)
+    task_templates = FieldsRelatedField(many=True)
     filtering_labels = FieldsRelatedField(many=True)
     requester = FieldsRelatedField(["id", "email", "first_name", "last_name"])
     approver = FieldsRelatedField(["id", "email", "first_name", "last_name"])

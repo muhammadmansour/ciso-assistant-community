@@ -100,7 +100,9 @@
 		findings_assessments: m.findingsAssessments(),
 		evidences: m.evidences(),
 		security_exceptions: m.securityExceptions(),
-		policies: m.policies()
+		policies: m.policies(),
+		applied_controls: m.appliedControls(),
+		task_templates: m.taskTemplates()
 	};
 
 	// Get URL model names for links
@@ -114,7 +116,9 @@
 		findings_assessments: 'findings-assessments',
 		evidences: 'evidences',
 		security_exceptions: 'security-exceptions',
-		policies: 'policies'
+		policies: 'policies',
+		applied_controls: 'applied-controls',
+		task_templates: 'task-templates'
 	};
 
 	// Get status color

@@ -8163,6 +8163,16 @@ class ValidationFlow(AbstractBaseModel, FolderMixin, FilteringLabelMixin):
         Policy,
         blank=True,
     )
+    applied_controls = models.ManyToManyField(
+        AppliedControl,
+        blank=True,
+        related_name="validation_flows",
+    )
+    task_templates = models.ManyToManyField(
+        TaskTemplate,
+        blank=True,
+        related_name="validation_flows",
+    )
     request_notes = models.TextField(null=True, blank=True)
     requester = models.ForeignKey(
         User,
@@ -8247,6 +8257,8 @@ class ValidationFlow(AbstractBaseModel, FolderMixin, FilteringLabelMixin):
             "evidences",
             "security_exceptions",
             "policies",
+            "applied_controls",
+            "task_templates",
         ]
         for field in model_fields:
             if getattr(self, field).exists():

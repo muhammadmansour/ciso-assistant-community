@@ -19,6 +19,7 @@ from core.models import (
     Evidence,
     Framework,
     Perimeter,
+    Policy,
     TaskNode,
     TaskTemplate,
     ValidationFlow,
@@ -225,6 +226,40 @@ class TestCreatingAValidationFlow:
         )
         assert instance.status == WorkflowInstance.Status.FAILED
         assert not ValidationFlow.objects.filter(folder=domain).exists()
+
+    def test_it_links_controls_evidence_tasks_and_policies(self, domain):
+        """Builder pickers for follow-up objects must land on the new flow."""
+        approver = User.objects.create(email=f"boss-{uuid.uuid4()}@test.example")
+        control = AppliedControl.objects.create(name="AC", folder=domain)
+        evidence = Evidence.objects.create(name="EV", folder=domain)
+        task = TaskTemplate.objects.create(
+            name="T", folder=domain, is_recurrent=False, task_date=date.today()
+        )
+        policy = Policy.objects.create(name="POL", folder=domain)
+        instance = start_instance(
+            action_flow(
+                domain,
+                {
+                    "type": "create_object",
+                    "model": "validation_flow",
+                    "fields": {
+                        "approver": str(approver.id),
+                        "request_notes": "Please validate these linked items.",
+                        "applied_controls": str(control.id),
+                        "evidences": str(evidence.id),
+                        "task_templates": str(task.id),
+                        "policies": str(policy.id),
+                    },
+                },
+            )
+        )
+        assert instance.status == WorkflowInstance.Status.COMPLETED, instance.variables
+
+        flow = ValidationFlow.objects.get(folder=domain)
+        assert list(flow.applied_controls.all()) == [control]
+        assert list(flow.evidences.all()) == [evidence]
+        assert list(flow.task_templates.all()) == [task]
+        assert list(flow.policies.all()) == [policy]
 
 
 @pytest.mark.django_db

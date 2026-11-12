@@ -196,5 +196,45 @@
 			multiple
 			disabled={initialData.findings_assessments}
 		/>
+		<AutocompleteSelect
+			{form}
+			optionsEndpoint="applied-controls"
+			field="applied_controls"
+			cacheLock={cacheLocks['applied_controls']}
+			bind:cachedValue={formDataCache['applied_controls']}
+			label={m.appliedControls()}
+			multiple
+			disabled={initialData.applied_controls}
+		/>
+		<AutocompleteSelect
+			{form}
+			optionsEndpoint="evidences"
+			field="evidences"
+			cacheLock={cacheLocks['evidences']}
+			bind:cachedValue={formDataCache['evidences']}
+			label={m.evidences()}
+			multiple
+			disabled={initialData.evidences}
+		/>
+		<AutocompleteSelect
+			{form}
+			optionsEndpoint="task-templates"
+			field="task_templates"
+			cacheLock={cacheLocks['task_templates']}
+			bind:cachedValue={formDataCache['task_templates']}
+			label={m.taskTemplates()}
+			multiple
+			disabled={initialData.task_templates}
+		/>
+		<AutocompleteSelect
+			{form}
+			optionsEndpoint="policies"
+			field="policies"
+			cacheLock={cacheLocks['policies']}
+			bind:cachedValue={formDataCache['policies']}
+			label={m.policies()}
+			multiple
+			disabled={initialData.policies}
+		/>
 	</Dropdown>
 {/if}

@@ -465,14 +465,30 @@ CREATABLE_MODELS = {
         # No name or description on the model; `ref_id` is generated on save.
         "fields": ["request_notes"],
         "fk_fields": {},
+        # Params stay unresolved (None) so _rows_for / _link_targets can take
+        # one or many ids. Endpoints below drive the builder pickers only.
         "params": {
             "approver": None,
             "validation_deadline": None,
             "compliance_assessments": None,
+            "risk_assessments": None,
             "evidences": None,
             "policies": None,
             "findings_assessments": None,
             "security_exceptions": None,
+            "applied_controls": None,
+            "task_templates": None,
+        },
+        "param_endpoints": {
+            "approver": "users",
+            "compliance_assessments": "compliance-assessments",
+            "risk_assessments": "risk-assessments",
+            "evidences": "evidences",
+            "policies": "policies",
+            "findings_assessments": "findings-assessments",
+            "security_exceptions": "security-exceptions",
+            "applied_controls": "applied-controls",
+            "task_templates": "task-templates",
         },
         "constructor": "_construct_validation_flow",
     },
@@ -863,10 +879,13 @@ def _construct_validation_flow(kwargs, params, instance):
 
     relations = {
         "compliance_assessments": ComplianceAssessment,
+        "risk_assessments": RiskAssessment,
         "evidences": Evidence,
         "policies": Policy,
         "findings_assessments": FindingsAssessment,
         "security_exceptions": SecurityException,
+        "applied_controls": AppliedControl,
+        "task_templates": TaskTemplate,
     }
     deadline = (
         _as_date(params["validation_deadline"], "validation_deadline")
