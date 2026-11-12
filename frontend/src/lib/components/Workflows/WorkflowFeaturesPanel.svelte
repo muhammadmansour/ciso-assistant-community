@@ -26,7 +26,9 @@
 	}: Props = $props();
 
 	let promptText = $state('');
-	let generating = $state(false);
+	let suggesting = $state(false);
+	let installing = $state(false);
+	let modalOpen = $state(false);
 
 	const EXAMPLE_PROMPT_KEYS = [
 		'workflowExamplePromptEvidenceReviewers',
@@ -35,20 +37,14 @@
 		'workflowExamplePromptIncident'
 	] as const;
 
-	const CAPABILITY_CAN_KEYS = [
-		'workflowCapabilityCanEmail',
-		'workflowCapabilityCanTriggers',
-		'workflowCapabilityCanRead',
-		'workflowCapabilityCanWrite',
-		'workflowCapabilityCanHttp',
-		'workflowCapabilityCanAi',
-		'workflowCapabilityCanBranch'
-	] as const;
-
 	$effect(() => {
 		if (form?.prompt) promptText = form.prompt;
+		if (form?.openSuggestModal && form?.promptResult?.matched) {
+			modalOpen = true;
+		}
 	});
 
+	const suggestion = $derived(form?.promptResult);
 	const canAdd = $derived(
 		Boolean(
 			page.data?.user?.permissions && Object.hasOwn(page.data.user.permissions, 'add_workflow')
@@ -59,21 +55,13 @@
 		promptText = safeTranslate(key);
 	}
 
-	function promptErrorMessage(code: string | undefined) {
-		if (!code) return '';
-		if (code === 'geminiInvalidWorkflow') {
-			return safeTranslate('geminiInvalidWorkflowHelp');
-		}
-		return safeTranslate(code);
+	function closeModal() {
+		modalOpen = false;
 	}
-
-	const promptErrorDetails = $derived(
-		Array.isArray(form?.promptErrorDetails) ? form.promptErrorDetails : []
-	);
 </script>
 
 <div class="flex flex-col gap-8 {compact ? 'p-5' : ''}">
-	<!-- Section 1: Create from prompt (Gemini) -->
+	<!-- Section 1: Suggest kit from prompt (Muhkam AI) -->
 	<section
 		class="rounded-xl border border-[#d6e4f5] bg-gradient-to-br from-[#f5f9fc] to-white p-6 shadow-sm"
 		data-testid="create-from-prompt-section"
@@ -94,39 +82,19 @@
 			</div>
 		</div>
 
-		<div
-			class="mb-4 rounded-lg border border-[#d6e4f5] bg-white/80 p-4 space-y-3"
-			data-testid="workflow-capabilities"
-		>
-			<p class="text-sm font-medium text-gray-900">{safeTranslate('workflowCapabilitiesTitle')}</p>
-			<p class="text-sm text-surface-600">{safeTranslate('workflowCapabilitiesHelp')}</p>
-			<div class="flex flex-wrap gap-2">
-				{#each CAPABILITY_CAN_KEYS as key}
-					<span
-						class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100"
-					>
-						<i class="fa-solid fa-check text-[10px]"></i>
-						{safeTranslate(key)}
-					</span>
-				{/each}
-			</div>
-			<p class="text-xs text-surface-500">{safeTranslate('workflowCapabilitiesBuilderNote')}</p>
-		</div>
-
 		<form
 			method="POST"
 			action="?/promptTemplate"
 			use:enhance={() => {
-				generating = true;
+				suggesting = true;
 				return async ({ update }) => {
 					await update();
-					generating = false;
+					suggesting = false;
 				};
 			}}
 			class="flex flex-col gap-3"
 		>
 			<input type="hidden" name="use_llm" value="1" />
-			<input type="hidden" name="install" value="1" />
 			<textarea
 				name="prompt"
 				rows="4"
@@ -146,7 +114,7 @@
 							type="button"
 							class="text-left text-xs px-3 py-1.5 rounded-lg border border-[#c5daf0] bg-white text-[#004d85] hover:bg-[#eef5fb] transition-colors max-w-full"
 							onclick={() => useExamplePrompt(key)}
-							disabled={generating}
+							disabled={suggesting}
 							data-testid="workflow-example-prompt"
 						>
 							{safeTranslate(key)}
@@ -156,18 +124,14 @@
 			</div>
 
 			{#if form?.promptError}
-				<div
-					class="text-sm text-error-700 bg-error-50 border border-error-200 rounded-lg px-3 py-2 space-y-1"
-				>
-					<p>{promptErrorMessage(form.promptError)}</p>
-					{#if promptErrorDetails.length}
-						<ul class="list-disc ps-5 text-xs text-error-600">
-							{#each promptErrorDetails.slice(0, 3) as detail}
-								<li>{detail}</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
+				<p class="text-sm text-error-700 bg-error-50 border border-error-200 rounded-lg px-3 py-2">
+					{safeTranslate(form.promptError)}
+				</p>
+			{/if}
+			{#if suggestion && !suggestion.matched}
+				<p class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+					{suggestion.message || safeTranslate('noGalleryKitMatched')}
+				</p>
 			{/if}
 			{#if !aiAvailable}
 				<p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -179,15 +143,15 @@
 				<button
 					type="submit"
 					class="btn bg-[#005FA3] text-white hover:bg-[#004d85] text-sm px-5"
-					disabled={!promptText.trim() || !canAdd || generating || !aiAvailable}
-					data-testid="generate-from-prompt-button"
+					disabled={!promptText.trim() || !canAdd || suggesting || !aiAvailable}
+					data-testid="suggest-workflow-button"
 				>
-					{#if generating}
+					{#if suggesting}
 						<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-						{safeTranslate('generatingWorkflow')}
+						{safeTranslate('suggestingWorkflow')}
 					{:else}
 						<i class="fa-solid fa-sparkles mr-2"></i>
-						{safeTranslate('generateWorkflowWithAi')}
+						{safeTranslate('suggestWorkflow')}
 					{/if}
 				</button>
 				<span class="text-xs text-surface-500">
@@ -273,3 +237,93 @@
 		{/if}
 	</section>
 </div>
+
+{#if modalOpen && suggestion?.matched}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+		role="dialog"
+		aria-modal="true"
+		data-testid="suggested-workflow-modal"
+		onclick={(e) => {
+			if (e.target === e.currentTarget && !installing) closeModal();
+		}}
+	>
+		<div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+			<div class="flex items-start justify-between gap-3">
+				<div>
+					<p class="text-xs uppercase tracking-wide text-[#005FA3] font-medium mb-1">
+						{safeTranslate('suggestedWorkflowKit')}
+					</p>
+					<h4 class="font-semibold text-lg text-gray-900">{suggestion.name}</h4>
+				</div>
+				<button
+					type="button"
+					class="btn-icon variant-ghost-surface"
+					onclick={closeModal}
+					aria-label={safeTranslate('close')}
+				>
+					<i class="fa-solid fa-xmark"></i>
+				</button>
+			</div>
+			{#if suggestion.category}
+				<span
+					class="inline-block text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-surface-100 text-surface-600"
+					>{suggestion.category}</span
+				>
+			{/if}
+			{#if suggestion.description}
+				<p class="text-sm text-surface-600">{suggestion.description}</p>
+			{/if}
+			{#if suggestion.rationale}
+				<p class="text-sm text-surface-500 italic">{suggestion.rationale}</p>
+			{/if}
+			{#if suggestion.tags?.length}
+				<div class="flex flex-wrap gap-1">
+					{#each suggestion.tags as tag}
+						<span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{tag}</span>
+					{/each}
+				</div>
+			{/if}
+			<div class="flex flex-wrap gap-3 pt-2">
+				<form
+					method="POST"
+					action="?/installSuggestedTemplate"
+					use:enhance={() => {
+						installing = true;
+						return async ({ update }) => {
+							await update();
+							installing = false;
+						};
+					}}
+					class="grow"
+				>
+					<input type="hidden" name="template_id" value={suggestion.template_id} />
+					<input type="hidden" name="prompt" value={promptText} />
+					<button
+						type="submit"
+						class="btn w-full bg-[#005FA3] text-white hover:bg-[#004d85] text-sm"
+						disabled={!canAdd || installing}
+						data-testid="install-suggested-workflow-button"
+					>
+						{#if installing}
+							<i class="fa-solid fa-spinner fa-spin mr-2"></i>
+							{safeTranslate('installingWorkflow')}
+						{:else}
+							<i class="fa-solid fa-plus mr-2"></i>
+							{safeTranslate('installTemplate')}
+						{/if}
+					</button>
+				</form>
+				<button
+					type="button"
+					class="btn variant-ghost-surface text-sm"
+					onclick={closeModal}
+					disabled={installing}
+				>
+					{safeTranslate('cancel')}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

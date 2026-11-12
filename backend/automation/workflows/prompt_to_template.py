@@ -1,9 +1,8 @@
-"""Turn a natural-language request into a workflow suggestion or generated graph.
+"""Map a natural-language request to the best bundled gallery workflow kit.
 
-When require_llm is True (Features Create-from-prompt), Gemini invents a new
-workflow document under the v1 allowlist (see prompt_to_workflow).
-
-When require_llm is False, fall back to matching a bundled catalog kit.
+Muhkam AI (when available / required) picks a catalog id. Keyword matching is
+the fallback when the LLM is not required. Never invents a free-form graph
+here — install always loads the bundled YAML for the chosen kit.
 """
 
 from __future__ import annotations
@@ -36,65 +35,74 @@ def prompt_to_template(prompt: str, *, require_llm: bool = False) -> dict:
     if not prompt:
         raise ValueError("promptRequired")
 
-    if require_llm:
-        from .prompt_to_workflow import generate_workflow_from_prompt
-
-        return generate_workflow_from_prompt(prompt)
-
     matches = match_templates(prompt)
     catalog = list_templates()
-    llm_pick = _ask_llm(prompt, catalog) if catalog else None
 
-    chosen_id = None
-    name = ""
-    description = ""
-    rationale = ""
-    source = "catalog"
+    if require_llm:
+        from .ai_provider import ai_available
 
-    if llm_pick and llm_pick.get("template_id") and get_template(llm_pick["template_id"]):
+        if not ai_available():
+            raise ValueError("geminiNotConfigured")
+        llm_pick = _ask_llm(prompt, catalog) if catalog else None
+        if llm_pick is None:
+            raise ValueError("geminiRequestFailed")
+        if not llm_pick.get("template_id") or not get_template(llm_pick["template_id"]):
+            return {
+                "matched": False,
+                "source": "llm",
+                "prompt": prompt,
+                "suggestions": matches,
+                "templates": catalog,
+                "message": (
+                    "No gallery kit matched that request. Browse the kits below "
+                    "or refine the prompt."
+                ),
+            }
         chosen_id = llm_pick["template_id"]
         name = llm_pick.get("name") or ""
         description = llm_pick.get("description") or ""
         rationale = llm_pick.get("rationale") or ""
         source = "llm"
-    elif matches:
-        chosen_id = matches[0]["id"]
-        name = matches[0]["name"]
-        description = matches[0]["description"]
-        rationale = "Best keyword match in the workflow template gallery."
-        source = "catalog"
     else:
-        return {
-            "matched": False,
-            "source": "none",
-            "prompt": prompt,
-            "suggestions": matches,
-            "templates": catalog,
-            "message": (
-                "No bundled template matched. Browse the gallery or refine the "
-                "prompt (e.g. evidence upload → reviewers, control owners, "
-                "assessment in review)."
-            ),
-        }
+        llm_pick = _ask_llm(prompt, catalog) if catalog else None
+        if llm_pick and llm_pick.get("template_id") and get_template(llm_pick["template_id"]):
+            chosen_id = llm_pick["template_id"]
+            name = llm_pick.get("name") or ""
+            description = llm_pick.get("description") or ""
+            rationale = llm_pick.get("rationale") or ""
+            source = "llm"
+        elif matches:
+            chosen_id = matches[0]["id"]
+            name = matches[0]["name"]
+            description = matches[0]["description"]
+            rationale = "Best keyword match in the workflow template gallery."
+            source = "catalog"
+        else:
+            return {
+                "matched": False,
+                "source": "none",
+                "prompt": prompt,
+                "suggestions": matches,
+                "templates": catalog,
+                "message": (
+                    "No bundled template matched. Browse the gallery or refine the "
+                    "prompt."
+                ),
+            }
 
     template = get_template(chosen_id)
     document = load_template_document(chosen_id)
-    if name:
-        document["name"] = name
-        workflows = (document.get("objects") or {}).get("workflows") or []
-        if workflows:
-            workflows[0]["name"] = name
-            if description:
-                workflows[0]["description"] = description
-                document["description"] = description
+    # Optional rename for display; install still uses the kit document.
+    display_name = name or template.name
+    display_description = description or template.description
 
     return {
         "matched": True,
         "source": source,
         "prompt": prompt,
         "template_id": chosen_id,
-        "name": name or template.name,
-        "description": description or template.description,
+        "name": display_name,
+        "description": display_description,
         "rationale": rationale,
         "category": template.category,
         "tags": list(template.tags),
@@ -120,10 +128,11 @@ def _ask_llm(prompt: str, catalog: list[dict]) -> dict | None:
         f"- id={t['id']}: {t['name']} — {t['description']}" for t in catalog
     )
     system = (
-        "You map a GRC automation request to ONE bundled workflow template. "
-        "Reply with JSON only. template_id must be an id from the catalog, "
-        "or an empty string if nothing fits. You may improve name and "
-        "description for the tenant; do not invent new graph nodes."
+        "You map a GRC automation request to ONE bundled workflow template from "
+        "the gallery catalog. Reply with JSON only. template_id must be an id "
+        "from the catalog, or an empty string if nothing fits. You may improve "
+        "name and description for the tenant; do not invent new graph nodes or "
+        "new templates."
     )
     user = f"Catalog:\n{catalog_lines}\n\nUser request:\n{prompt}"
     try:

@@ -1,0 +1,94 @@
+urn: urn:custom:risk:library:workflow-applied-control-updated-owners
+locale: en
+ref_id: workflow-applied-control-updated-owners
+name: Control updated → notify control owners | تحديث ضابط → إبلاغ المالكين
+version: 1
+description: When an applied control is updated, email its owners with the control name and a link.
+objects:
+  workflows:
+  - schema_version: 1
+    name: Control updated → notify control owners | تحديث ضابط → إبلاغ المالكين
+    ref_id: applied-control-updated-owners
+    description: When an applied control is updated, email its owners with the control name and a link.
+    graph:
+      variables:
+      - key: object_id
+        type: string
+        default_value: ''
+      - key: app_url
+        type: string
+        default_value: ''
+      - key: notify_mailbox
+        type: string
+        default_value: ''
+      nodes:
+      - ref: on_create
+        type: trigger
+        label: Event | حدث
+        trigger_config:
+          type: internal_event
+          event_key: appliedcontrol.updated
+      - ref: run_now
+        type: trigger
+        label: Run for one record | تشغيل لسجل محدد
+        trigger_config:
+          type: manual
+        input_mapping:
+          object_id: object_id
+      - ref: take_payload
+        type: action
+        label: Capture id | التقاط المعرّف
+        action_config:
+          type: set_variables
+          variables:
+            object_id: '{{payload.object_id}}'
+      - ref: read_object
+        type: action
+        label: Read record | قراءة السجل
+        action_config:
+          type: read_objects
+          model: applied_control
+          mode: first
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: id
+              value: '{{object_id}}'
+      - ref: mail
+        type: action
+        label: Send email | إرسال بريد
+        action_config:
+          type: send_email
+          recipients: '{{nodes.read_object.object.owner_emails}}'
+          subject: 'Control updated — {{nodes.read_object.object.name}}'
+          body: 'Control | الضابط: {{nodes.read_object.object.name}} · Status | الحالة: {{nodes.read_object.object.status}} · {{app_url}}/applied-controls/{{object_id}}'
+          layout:
+            title: 'Control updated'
+            sections:
+            - 'Automated notice from Muhkam | رسالة آلية من منصة محكم'
+            details:
+            - label: 'Control | الضابط'
+              value: '{{nodes.read_object.object.name}}'
+            - label: 'Status | الحالة'
+              value: '{{nodes.read_object.object.status}}'
+            - label: 'Link | الرابط'
+              value: '{{app_url}}/applied-controls/{{object_id}}'
+            buttons:
+            - label: 'Open | فتح'
+              url: '{{app_url}}/applied-controls/{{object_id}}'
+            footer: 'Automated message from Muhkam | رسالة آلية من منصة محكم'
+      - ref: done
+        type: end
+      edges:
+      - source: on_create
+        target: take_payload
+      - source: take_payload
+        target: read_object
+      - source: run_now
+        target: read_object
+      - source: read_object
+        target: mail
+      - source: mail
+        target: done
+    urn: urn:custom:risk:library:workflow-applied-control-updated-owners:workflow:applied-control-updated-owners

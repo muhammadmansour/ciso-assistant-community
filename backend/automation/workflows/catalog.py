@@ -101,6 +101,105 @@ CATALOG: tuple[WorkflowTemplate, ...] = (
             "تقييم",
         ),
     ),
+    WorkflowTemplate(
+        id="assessment-created-notice",
+        name="Assessment created → notify GRC mailbox",
+        description=(
+            "When a compliance assessment is created, email the GRC mailbox "
+            "with the name and a link."
+        ),
+        category="compliance",
+        tags=("email", "assessment", "created"),
+        file_name="assessment-created-notice.yaml",
+        keywords=("assessment", "created", "grc", "notify", "تقييم", "إنشاء"),
+    ),
+    WorkflowTemplate(
+        id="incident-created-notice",
+        name="Incident created → notify security mailbox",
+        description=(
+            "When an incident is created, email the security mailbox with name, "
+            "severity, and a link."
+        ),
+        category="incidents",
+        tags=("email", "incident", "security"),
+        file_name="incident-created-notice.yaml",
+        keywords=("incident", "security", "severity", "notify", "حادث", "أمن"),
+    ),
+    WorkflowTemplate(
+        id="vulnerability-created-notice",
+        name="Vulnerability created → notify security mailbox",
+        description=(
+            "When a vulnerability is created, email security with name, "
+            "severity, status, and a link."
+        ),
+        category="vulnerabilities",
+        tags=("email", "vulnerability", "security"),
+        file_name="vulnerability-created-notice.yaml",
+        keywords=("vulnerability", "security", "severity", "notify", "ثغرة"),
+    ),
+    WorkflowTemplate(
+        id="finding-created-notice",
+        name="Finding created → notify GRC mailbox",
+        description=(
+            "When a finding is created, email the GRC mailbox with name, "
+            "severity, priority, and a link."
+        ),
+        category="findings",
+        tags=("email", "finding", "grc"),
+        file_name="finding-created-notice.yaml",
+        keywords=("finding", "grc", "severity", "priority", "notify", "نتيجة"),
+    ),
+    WorkflowTemplate(
+        id="applied-control-updated-owners",
+        name="Control updated → notify control owners",
+        description=(
+            "When an applied control is updated, email its owners with the "
+            "control name and a link."
+        ),
+        category="controls",
+        tags=("email", "owners", "controls"),
+        file_name="applied-control-updated-owners.yaml",
+        keywords=(
+            "control",
+            "owner",
+            "applied",
+            "update",
+            "notify",
+            "ضابط",
+            "مالك",
+        ),
+    ),
+    WorkflowTemplate(
+        id="security-exception-created-notice",
+        name="Security exception created → notify GRC mailbox",
+        description=(
+            "When a security exception is created, email GRC with name, "
+            "severity, expiration, and a link."
+        ),
+        category="exceptions",
+        tags=("email", "exception", "grc"),
+        file_name="security-exception-created-notice.yaml",
+        keywords=(
+            "exception",
+            "security",
+            "grc",
+            "expiration",
+            "notify",
+            "استثناء",
+        ),
+    ),
+    WorkflowTemplate(
+        id="asset-created-notice",
+        name="Asset created → notify asset owners mailbox",
+        description=(
+            "When an asset is created, email the asset owners mailbox with the "
+            "name, type, and a link."
+        ),
+        category="assets",
+        tags=("email", "asset", "owners"),
+        file_name="asset-created-notice.yaml",
+        keywords=("asset", "created", "owners", "notify", "أصل"),
+    ),
 )
 
 
@@ -125,7 +224,7 @@ def get_template(template_id: str) -> WorkflowTemplate | None:
     return None
 
 
-@lru_cache(maxsize=16)
+@lru_cache(maxsize=32)
 def load_template_document(template_id: str) -> dict:
     template = get_template(template_id)
     if template is None:
