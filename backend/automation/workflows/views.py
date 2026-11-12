@@ -303,9 +303,10 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     @action(detail=False, methods=["get"], url_path="templates")
     def templates(self, request):
         """Bundled workflow kits for the Automation gallery."""
+        from .ai_provider import ai_available
         from .catalog import list_templates
 
-        return Response({"results": list_templates()})
+        return Response({"results": list_templates(), "ai_available": ai_available()})
 
     @action(
         detail=False,
@@ -368,8 +369,9 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
                 {"error": "promptRequired"}, status=status.HTTP_400_BAD_REQUEST
             )
         install = bool(request.data.get("install"))
+        require_llm = bool(request.data.get("use_llm") or request.data.get("require_llm"))
         try:
-            result = resolve_prompt(prompt)
+            result = resolve_prompt(prompt, require_llm=require_llm)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
