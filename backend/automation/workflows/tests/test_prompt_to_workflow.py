@@ -1,14 +1,18 @@
-"""Allowlist and import smoke tests for AI-generated workflow documents."""
+"""Soft-catalog and repair tests for AI-generated workflow documents."""
 
 import pytest
 
 from iam.models import Folder
+from automation.workflows.ai_action_catalog import authorable_action_types
 from automation.workflows.import_export import import_workflow_library
 from automation.workflows.prompt_to_workflow import (
     build_summary,
+    draft_blocking_errors,
     normalize_ai_document,
-    validate_ai_document,
+    repair_ai_document,
+    sanitize_ai_document,
 )
+from automation.workflows.validation import DISABLED_ACTION_TYPES
 
 
 def _minimal_workflow_obj(**overrides):
@@ -109,14 +113,24 @@ def _library(workflow_obj=None):
     }
 
 
-def test_validate_accepts_minimal_allowlisted_document():
-    errors = validate_ai_document(_library())
-    assert errors == []
+def test_catalog_includes_broad_actions_excludes_emit_event():
+    types = set(authorable_action_types())
+    assert "send_email" in types
+    assert "http_request" in types
+    assert "create_object" in types
+    assert "ai_generate" in types
+    assert "emit_event" not in types
+    assert "emit_event" in DISABLED_ACTION_TYPES
 
 
-def test_validate_rejects_http_request_action():
+def test_draft_blocking_accepts_minimal_document():
+    assert draft_blocking_errors(_library()) == []
+
+
+def test_http_request_action_is_kept_in_sanitize():
     wf = _minimal_workflow_obj()
-    wf["graph"]["nodes"].append(
+    wf["graph"]["nodes"].insert(
+        -1,
         {
             "ref": "call_api",
             "type": "action",
@@ -126,41 +140,38 @@ def test_validate_rejects_http_request_action():
                 "url": "https://example.com",
                 "method": "POST",
             },
-        }
+        },
     )
-    wf["graph"]["edges"].append({"source": "mail", "target": "call_api"})
-    wf["graph"]["edges"].append({"source": "call_api", "target": "done"})
-    # Remove mail->done to avoid dangling, keep end reachable via http node
     wf["graph"]["edges"] = [
         e for e in wf["graph"]["edges"] if not (e["source"] == "mail" and e["target"] == "done")
     ]
-    errors = validate_ai_document(_library(wf))
-    assert any("http_request" in e for e in errors)
+    wf["graph"]["edges"].extend(
+        [
+            {"source": "mail", "target": "call_api"},
+            {"source": "call_api", "target": "done"},
+        ]
+    )
+    doc, warnings = sanitize_ai_document(_library(wf))
+    refs = [n["ref"] for n in doc["objects"]["workflows"][0]["graph"]["nodes"]]
+    assert "call_api" in refs
+    assert not any("http_request" in w for w in warnings)
 
 
-def test_validate_rejects_create_object_action():
+def test_emit_event_action_is_stripped_with_warning():
     wf = _minimal_workflow_obj()
     for node in wf["graph"]["nodes"]:
         if node["ref"] == "mail":
             node["action_config"] = {
-                "type": "create_object",
-                "model": "incident",
-                "values": {"name": "x"},
+                "type": "emit_event",
+                "event_key": "incident.created",
             }
-    errors = validate_ai_document(_library(wf))
-    assert any("create_object" in e for e in errors)
+    doc, warnings = sanitize_ai_document(_library(wf))
+    refs = [n["ref"] for n in doc["objects"]["workflows"][0]["graph"]["nodes"]]
+    assert "mail" not in refs
+    assert any("emit_event" in w or "unsupported action" in w for w in warnings)
 
 
-def test_validate_rejects_disallowed_event_key():
-    wf = _minimal_workflow_obj()
-    for node in wf["graph"]["nodes"]:
-        if node["ref"] == "on_upload":
-            node["trigger_config"]["event_key"] = "workflowinstance.created"
-    errors = validate_ai_document(_library(wf))
-    assert any("event_key" in e for e in errors)
-
-
-def test_normalize_wraps_bare_workflow_and_stamps_app_url(settings):
+def test_normalize_stamps_app_url(settings):
     from automation.workflows.prompt_to_workflow import _wrap_library
 
     settings.CISO_ASSISTANT_URL = "https://gov-grc.example"
@@ -172,7 +183,6 @@ def test_normalize_wraps_bare_workflow_and_stamps_app_url(settings):
     variables = doc["objects"]["workflows"][0]["graph"]["variables"]
     app = next(v for v in variables if v["key"] == "app_url")
     assert app["default_value"] == "https://gov-grc.example"
-    assert doc["objects"]["workflows"][0]["ref_id"]
 
 
 def test_build_summary_lists_steps():
@@ -180,14 +190,14 @@ def test_build_summary_lists_steps():
     refs = [s["ref"] for s in summary]
     assert "on_upload" in refs
     assert "mail" in refs
-    assert any(s["detail"].startswith("internal_event") for s in summary)
 
 
 @pytest.mark.django_db
 def test_allowlisted_document_imports(db):
     folder = Folder.get_root_folder()
     document = normalize_ai_document(_library())
-    assert validate_ai_document(document) == []
+    document, _warnings = sanitize_ai_document(document)
+    assert draft_blocking_errors(document) == []
     workflows, warnings = import_workflow_library(document, folder, secrets={})
     assert len(workflows) == 1
     assert workflows[0].name == "AI evidence notice"
@@ -195,11 +205,71 @@ def test_allowlisted_document_imports(db):
     assert isinstance(warnings, list)
 
 
-def test_validate_rejects_missing_end():
-    wf = _minimal_workflow_obj()
-    wf["graph"]["nodes"] = [n for n in wf["graph"]["nodes"] if n["type"] != "end"]
-    wf["graph"]["edges"] = [
-        e for e in wf["graph"]["edges"] if e["target"] != "done" and e["source"] != "done"
-    ]
-    errors = validate_ai_document(_library(wf))
-    assert any("end node" in e for e in errors)
+def test_repair_fixes_messy_incident_style_graph():
+    messy = {
+        "name": "Notify security",
+        "description": "email on incident",
+        "ref_id": "ai-incident",
+        "graph": {
+            "variables": [{"key": "incident_id", "type": "string", "default_value": ""}],
+            "nodes": [
+                {
+                    "ref": "on-incident",
+                    "type": "trigger",
+                    "trigger_config": {
+                        "type": "event",
+                        "event_key": "Incident.created",
+                    },
+                },
+                {
+                    "ref": "take_payload",
+                    "type": "action",
+                    "action_config": {
+                        "type": "set_variable",
+                        "variables": [
+                            {"key": "incident_id", "value": "{{payload.object_id}}"}
+                        ],
+                    },
+                },
+                {
+                    "ref": "read",
+                    "type": "action",
+                    "action_config": {
+                        "type": "fetch",
+                        "model": "incidents",
+                        "filters": {
+                            "operator": "and",
+                            "conditions": [
+                                {
+                                    "op": "eq",
+                                    "field": "id",
+                                    "value": "{{incident_id}}",
+                                }
+                            ],
+                        },
+                    },
+                },
+                {
+                    "ref": "mail",
+                    "type": "email",
+                    "recipients": ["security@example.com"],
+                    "action_config": {"subject": "New incident", "body": "hi"},
+                },
+            ],
+            "edges": [
+                {"source": "on-incident", "target": "take_payload"},
+                {"source": "take_payload", "target": "read"},
+                {"source": "read", "target": "mail"},
+            ],
+        },
+    }
+    doc = normalize_ai_document(_library(messy))
+    doc = repair_ai_document(doc)
+    doc, warnings = sanitize_ai_document(doc)
+    assert draft_blocking_errors(doc) == []
+    nodes = doc["objects"]["workflows"][0]["graph"]["nodes"]
+    by_ref = {n["ref"]: n for n in nodes}
+    assert by_ref["on_incident"]["trigger_config"]["event_key"] == "incident.created"
+    assert by_ref["mail"]["action_config"]["type"] == "send_email"
+    assert by_ref["mail"]["action_config"]["recipients"] == "security@example.com"
+    assert any(n["type"] == "end" for n in nodes)
