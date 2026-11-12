@@ -204,12 +204,12 @@ CATALOG: tuple[WorkflowTemplate, ...] = (
         id="create-validation-request",
         name="Create validation request",
         description=(
-            "Manually create a validation request for an approver, optionally "
-            "linking applied controls, evidence, tasks, and policies. The "
-            "approver is notified when the request is submitted."
+            "Manually create a validation request for an approver email, "
+            "optionally linking applied controls, evidence, tasks, and "
+            "policies, then send the approver a branded email with a link."
         ),
         category="validations",
-        tags=("validation", "approver", "controls", "evidence", "tasks", "policies"),
+        tags=("validation", "email", "approver", "controls", "evidence", "tasks", "policies"),
         file_name="create-validation-request.yaml",
         keywords=(
             "validation",
@@ -217,6 +217,9 @@ CATALOG: tuple[WorkflowTemplate, ...] = (
             "approver",
             "approval",
             "request",
+            "email",
+            "notify",
+            "mail",
             "control",
             "evidence",
             "task",
@@ -224,6 +227,7 @@ CATALOG: tuple[WorkflowTemplate, ...] = (
             "تحقق",
             "موافقة",
             "مراجع",
+            "بريد",
             "ضابط",
             "دليل",
             "مهمة",
