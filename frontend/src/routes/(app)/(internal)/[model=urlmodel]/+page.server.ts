@@ -362,70 +362,50 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const prompt = String(formData.get('prompt') || '').trim();
 		const useLlm = formData.get('use_llm') === '1';
+		const install = formData.get('install') !== '0';
 		if (!prompt) {
 			return fail(400, { promptError: 'promptRequired', prompt });
 		}
 		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt, use_llm: useLlm })
+			body: JSON.stringify({ prompt, use_llm: useLlm, install })
 		});
 		const res = await response.json().catch(() => ({}));
 		if (!response.ok) {
+			const errorCode = res.error || 'geminiInvalidWorkflow';
+			const help =
+				errorCode === 'geminiInvalidWorkflow'
+					? safeTranslate('geminiInvalidWorkflowHelp')
+					: safeTranslate(errorCode);
+			const detail = Array.isArray(res.details) && res.details.length ? ` ${res.details[0]}` : '';
 			setFlash(
 				{
 					type: 'error',
-					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
-				},
-				event
-			);
-			return fail(response.status, { promptError: res.error, prompt });
-		}
-		return { promptResult: res, prompt };
-	},
-	confirmGeneratedWorkflow: async (event) => {
-		if (event.params.model !== 'workflows') {
-			return fail(400, { error: 'invalidModel' });
-		}
-		const formData = await event.request.formData();
-		const prompt = String(formData.get('prompt') || '').trim();
-		const rawDocument = String(formData.get('document') || '');
-		let document: Record<string, unknown> | null = null;
-		try {
-			document = JSON.parse(rawDocument);
-		} catch {
-			document = null;
-		}
-		if (!document || typeof document !== 'object') {
-			return fail(400, { promptError: 'geminiInvalidWorkflow', prompt });
-		}
-		const response = await event.fetch(`${BASE_API_URL}/workflows/workflows/prompt-to-template/`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ install: true, document, prompt })
-		});
-		const res = await response.json().catch(() => ({}));
-		if (!response.ok) {
-			setFlash(
-				{
-					type: 'error',
-					message: res.error ? safeTranslate(res.error) : m.workflowImportFailed()
+					message: `${help}${detail}`
 				},
 				event
 			);
 			return fail(response.status, {
-				promptError: res.error,
-				prompt,
-				promptResult: { matched: true, document, name: res.name, description: res.description }
+				promptError: errorCode,
+				promptErrorDetails: res.details || [],
+				prompt
 			});
 		}
-		setFlash(
-			{
-				type: 'success',
-				message: m.workflowImported({ name: res.name || prompt })
-			},
-			event
-		);
-		redirect(302, `/workflows/${res.id}`);
+		if (install && res.id) {
+			const warnings: string[] = Array.isArray(res.warnings) ? res.warnings : [];
+			setFlash(
+				{
+					type: warnings.length ? 'warning' : 'success',
+					message: warnings.length
+						? `${m.workflowImportedWithWarnings({ name: res.name || prompt })}\n${warnings.join('\n')}`
+						: m.workflowDraftOpenedInBuilder({ name: res.name || prompt }),
+					timeout: warnings.length ? 20000 : 5000
+				},
+				event
+			);
+			redirect(302, `/workflows/${res.id}`);
+		}
+		return { promptResult: res, prompt };
 	}
 };

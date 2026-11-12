@@ -368,17 +368,29 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
         """
         from .prompt_to_template import prompt_to_template as resolve_prompt
         from .prompt_to_workflow import (
-            assert_ai_document_allowed,
+            PromptWorkflowError,
             build_summary,
-            normalize_ai_document,
+            prepare_ai_document,
         )
 
-        install = bool(request.data.get("install"))
         require_llm = bool(request.data.get("use_llm") or request.data.get("require_llm"))
+        # Features path defaults to generate+install (Taskade-style draft).
+        if "install" in request.data:
+            install = bool(request.data.get("install"))
+        else:
+            install = require_llm
         raw_document = request.data.get("document")
         prompt = (request.data.get("prompt") or "").strip()
 
-        # Confirm path: client already holds a generated document.
+        def _prompt_error(exc):
+            if isinstance(exc, PromptWorkflowError):
+                body = {"error": exc.code}
+                if exc.details:
+                    body["details"] = exc.details
+                return Response(body, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Confirm / re-install path: client already holds a generated document.
         if install and raw_document is not None:
             if not isinstance(raw_document, dict):
                 return Response(
@@ -386,10 +398,9 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             try:
-                document = normalize_ai_document(raw_document)
-                assert_ai_document_allowed(document)
-            except ValueError as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                document, warnings = prepare_ai_document(raw_document)
+            except (PromptWorkflowError, ValueError) as e:
+                return _prompt_error(e)
             return self._install_workflow_document(
                 request,
                 document,
@@ -401,6 +412,7 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
                     "name": document.get("name"),
                     "description": document.get("description"),
                     "summary": build_summary(document),
+                    "warnings": warnings,
                 },
             )
 
@@ -410,21 +422,21 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
             )
         try:
             result = resolve_prompt(prompt, require_llm=require_llm)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except (PromptWorkflowError, ValueError) as e:
+            return _prompt_error(e)
 
         if install and result.get("matched") and result.get("document"):
             document = result["document"]
+            warnings = list(result.get("warnings") or [])
             if result.get("generated"):
                 try:
-                    assert_ai_document_allowed(document)
-                except ValueError as e:
-                    return Response(
-                        {"error": str(e)}, status=status.HTTP_400_BAD_REQUEST
-                    )
+                    document, more = prepare_ai_document(document)
+                    warnings = list(dict.fromkeys([*warnings, *more]))
+                    result = {**result, "document": document, "warnings": warnings}
+                except (PromptWorkflowError, ValueError) as e:
+                    return _prompt_error(e)
             return self._install_workflow_document(request, document, extra=result)
 
-        # Preview: always include document for generated workflows so Confirm can install.
         if result.get("generated") or request.data.get("include_document"):
             return Response(result)
         result = {k: v for k, v in result.items() if k != "document"}
@@ -456,13 +468,14 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
         except WorkflowImportError as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
         base = {k: v for k, v in (extra or {}).items() if k != "document"}
+        merged_warnings = list(dict.fromkeys([*(base.get("warnings") or []), *warnings]))
         return Response(
             {
                 **base,
                 "installed": True,
                 "id": str(workflows[0].id),
                 "name": workflows[0].name,
-                "warnings": warnings,
+                "warnings": merged_warnings,
             },
             status=status.HTTP_201_CREATED,
         )
