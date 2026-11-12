@@ -1,0 +1,96 @@
+urn: urn:custom:risk:library:workflow-incident-created-notice
+locale: en
+ref_id: workflow-incident-created-notice
+name: Incident created → notify security mailbox | إنشاء حادث → إبلاغ بريد الأمن
+version: 1
+description: When an incident is created, email the security mailbox with name, severity, and a link.
+objects:
+  workflows:
+  - schema_version: 1
+    name: Incident created → notify security mailbox | إنشاء حادث → إبلاغ بريد الأمن
+    ref_id: incident-created-notice
+    description: When an incident is created, email the security mailbox with name, severity, and a link.
+    graph:
+      variables:
+      - key: object_id
+        type: string
+        default_value: ''
+      - key: app_url
+        type: string
+        default_value: ''
+      - key: notify_mailbox
+        type: string
+        default_value: 'security@example.com'
+      nodes:
+      - ref: on_create
+        type: trigger
+        label: Event | حدث
+        trigger_config:
+          type: internal_event
+          event_key: incident.created
+      - ref: run_now
+        type: trigger
+        label: Run for one record | تشغيل لسجل محدد
+        trigger_config:
+          type: manual
+        input_mapping:
+          object_id: object_id
+      - ref: take_payload
+        type: action
+        label: Capture id | التقاط المعرّف
+        action_config:
+          type: set_variables
+          variables:
+            object_id: '{{payload.object_id}}'
+      - ref: read_object
+        type: action
+        label: Read record | قراءة السجل
+        action_config:
+          type: read_objects
+          model: incident
+          mode: first
+          filters:
+            operator: and
+            conditions:
+            - op: eq
+              field: id
+              value: '{{object_id}}'
+      - ref: mail
+        type: action
+        label: Send email | إرسال بريد
+        action_config:
+          type: send_email
+          recipients: '{{notify_mailbox}}'
+          subject: 'New incident — {{nodes.read_object.object.name}}'
+          body: 'Name | الاسم: {{nodes.read_object.object.name}} · Severity | الخطورة: {{nodes.read_object.object.severity}} · Status | الحالة: {{nodes.read_object.object.status}} · {{app_url}}/incidents/{{object_id}}'
+          layout:
+            title: 'New incident'
+            sections:
+            - 'Automated notice from Muhkam | رسالة آلية من منصة محكم'
+            details:
+            - label: 'Name | الاسم'
+              value: '{{nodes.read_object.object.name}}'
+            - label: 'Severity | الخطورة'
+              value: '{{nodes.read_object.object.severity}}'
+            - label: 'Status | الحالة'
+              value: '{{nodes.read_object.object.status}}'
+            - label: 'Link | الرابط'
+              value: '{{app_url}}/incidents/{{object_id}}'
+            buttons:
+            - label: 'Open | فتح'
+              url: '{{app_url}}/incidents/{{object_id}}'
+            footer: 'Automated message from Muhkam | رسالة آلية من منصة محكم'
+      - ref: done
+        type: end
+      edges:
+      - source: on_create
+        target: take_payload
+      - source: take_payload
+        target: read_object
+      - source: run_now
+        target: read_object
+      - source: read_object
+        target: mail
+      - source: mail
+        target: done
+    urn: urn:custom:risk:library:workflow-incident-created-notice:workflow:incident-created-notice

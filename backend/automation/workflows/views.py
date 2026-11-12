@@ -360,59 +360,39 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="prompt-to-template")
     def prompt_to_template(self, request):
-        """Generate a workflow from a prompt (LLM) or match a catalog kit.
+        """Suggest the best gallery kit for a prompt (Muhkam AI when use_llm).
 
-        Generate preview: ``{prompt, use_llm: true}`` → summary + document.
-        Confirm install: ``{install: true, document: {...}}`` → draft workflow.
-        Legacy: ``{prompt, install, use_llm}`` without document regenerates then installs.
+        Match preview: ``{prompt, use_llm: true}`` → matched kit metadata.
+        Install: ``{install: true, template_id}`` or use ``templates/<id>/install/``.
         """
+        from .catalog import get_template, load_template_document
         from .prompt_to_template import prompt_to_template as resolve_prompt
-        from .prompt_to_workflow import (
-            PromptWorkflowError,
-            build_summary,
-            prepare_ai_document,
-        )
 
         require_llm = bool(request.data.get("use_llm") or request.data.get("require_llm"))
-        # Features path defaults to generate+install (Taskade-style draft).
-        if "install" in request.data:
-            install = bool(request.data.get("install"))
-        else:
-            install = require_llm
-        raw_document = request.data.get("document")
+        install = bool(request.data.get("install"))
+        template_id = (request.data.get("template_id") or "").strip()
         prompt = (request.data.get("prompt") or "").strip()
 
-        def _prompt_error(exc):
-            if isinstance(exc, PromptWorkflowError):
-                body = {"error": exc.code}
-                if exc.details:
-                    body["details"] = exc.details
-                return Response(body, status=status.HTTP_400_BAD_REQUEST)
-            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Confirm / re-install path: client already holds a generated document.
-        if install and raw_document is not None:
-            if not isinstance(raw_document, dict):
+        # Install a known gallery kit (from the suggest modal).
+        if install and template_id:
+            if get_template(template_id) is None:
                 return Response(
-                    {"error": "geminiInvalidWorkflow"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"error": "unknownTemplate"}, status=status.HTTP_404_NOT_FOUND
                 )
             try:
-                document, warnings = prepare_ai_document(raw_document)
-            except (PromptWorkflowError, ValueError) as e:
-                return _prompt_error(e)
+                document = load_template_document(template_id)
+            except (FileNotFoundError, ValueError) as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             return self._install_workflow_document(
                 request,
                 document,
                 extra={
                     "matched": True,
-                    "source": "llm",
-                    "generated": True,
+                    "source": "catalog",
+                    "template_id": template_id,
                     "prompt": prompt,
                     "name": document.get("name"),
                     "description": document.get("description"),
-                    "summary": build_summary(document),
-                    "warnings": warnings,
                 },
             )
 
@@ -422,23 +402,13 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
             )
         try:
             result = resolve_prompt(prompt, require_llm=require_llm)
-        except (PromptWorkflowError, ValueError) as e:
-            return _prompt_error(e)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         if install and result.get("matched") and result.get("document"):
-            document = result["document"]
-            warnings = list(result.get("warnings") or [])
-            if result.get("generated"):
-                try:
-                    document, more = prepare_ai_document(document)
-                    warnings = list(dict.fromkeys([*warnings, *more]))
-                    result = {**result, "document": document, "warnings": warnings}
-                except (PromptWorkflowError, ValueError) as e:
-                    return _prompt_error(e)
-            return self._install_workflow_document(request, document, extra=result)
+            return self._install_workflow_document(request, result["document"], extra=result)
 
-        if result.get("generated") or request.data.get("include_document"):
-            return Response(result)
+        # Suggest path: never auto-create; drop full document from the payload.
         result = {k: v for k, v in result.items() if k != "document"}
         return Response(result)
 
