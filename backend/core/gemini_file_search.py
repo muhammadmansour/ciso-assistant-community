@@ -28,9 +28,19 @@ def _iso_or_none(value):
     return str(value)
 
 
-# Gemini API configuration
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_FILE_SEARCH_STORE_NAME = os.getenv('GEMINI_FILE_SEARCH_STORE_NAME', '')
+def _env_str(name: str, default: str = "") -> str:
+    """Read an env var at call time (after Django load_dotenv), trimmed."""
+    return (os.getenv(name) or default).strip()
+
+
+def get_gemini_api_key() -> str:
+    """Live GEMINI_API_KEY — do not rely on a frozen import-time snapshot."""
+    return _env_str("GEMINI_API_KEY")
+
+
+# Gemini API configuration (kept for callers that import the names; prefer getters).
+GEMINI_API_KEY = get_gemini_api_key()
+GEMINI_FILE_SEARCH_STORE_NAME = _env_str("GEMINI_FILE_SEARCH_STORE_NAME")
 GEMINI_ENABLED = bool(GEMINI_API_KEY)  # Only API key is required for files.upload()
 
 # HTTP timeout for the Gemini SDK in milliseconds. The SDK's default (~90s)
@@ -995,14 +1005,15 @@ def get_gemini_client() -> Optional[GeminiFileSearchClient]:
 
 def get_genai_raw_client():
     """Return ``google.genai.Client`` when ``GEMINI_API_KEY`` is set, else ``None``."""
-    if not GEMINI_API_KEY:
+    api_key = get_gemini_api_key()
+    if not api_key:
         return None
     try:
         from google import genai
         from google.genai.types import HttpOptions
 
         return genai.Client(
-            api_key=GEMINI_API_KEY,
+            api_key=api_key,
             http_options=HttpOptions(timeout=GEMINI_HTTP_TIMEOUT_MS),
         )
     except Exception as exc:

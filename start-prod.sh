@@ -59,9 +59,6 @@ export DB_PORT=5432
 # export MS_GRAPH_CLIENT_SECRET=your-client-secret
 export DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-info@wathbahs.com}
 
-# Gemini
-export GEMINI_API_KEY=${GEMINI_API_KEY:-}
-
 # Gunicorn: must exceed synchronous AI analysis outbound HTTP waits (views use timeout=300s).
 export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}  # 2 * num_cores + 1
 export GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-360}
@@ -72,6 +69,23 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# Gemini — prefer an already-exported key; otherwise load from backend/.env
+# (do not export an empty placeholder — that masks a missing key).
+if [ -z "${GEMINI_API_KEY:-}" ] && [ -f "$BACKEND_DIR/.env" ]; then
+    GEMINI_API_KEY="$(
+        grep -E '^[[:space:]]*GEMINI_API_KEY=' "$BACKEND_DIR/.env" \
+            | tail -1 \
+            | cut -d= -f2- \
+            | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//'
+    )"
+fi
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+    export GEMINI_API_KEY
+    echo -e "${GREEN}GEMINI_API_KEY loaded for Muhkam AI${NC}"
+else
+    echo -e "${YELLOW}Warning: GEMINI_API_KEY is not set (shell or $BACKEND_DIR/.env) — Muhkam AI suggest will be disabled${NC}"
+fi
 
 # Create log directory
 mkdir -p "$LOG_DIR"
