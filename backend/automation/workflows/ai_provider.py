@@ -119,6 +119,6 @@ def get_llm_strict() -> GeminiLLM:
 
 
 def ai_available() -> bool:
-    from core.gemini_file_search import GEMINI_API_KEY
+    from core.gemini_file_search import get_gemini_api_key
 
-    return bool(GEMINI_API_KEY)
+    return bool(get_gemini_api_key())
