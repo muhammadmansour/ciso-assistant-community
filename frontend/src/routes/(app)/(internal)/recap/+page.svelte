@@ -276,7 +276,7 @@
 	}
 </script>
 
-<div class="brand-dashboard font-cairo space-y-6 p-5 md:p-6" dir="ltr">
+<div class="brand-dashboard font-cairo space-y-6 p-5 md:p-6">
 
 	<!-- ══════════════════ Legislative Updates — unified list ══════════════════ -->
 	<div class="dashboard-card">

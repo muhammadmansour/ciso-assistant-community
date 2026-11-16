@@ -109,7 +109,7 @@
 
 		<!-- Type Selector -->
 		<div class="py-2">
-			<label class="block text-sm font-medium text-gray-900 mb-2"> Type * </label>
+			<label class="block text-sm font-medium text-gray-900 mb-2"> {m.typeRequired()} </label>
 			<div class="flex gap-2">
 				<button
 					type="button"
@@ -146,18 +146,18 @@
 
 		<!-- Instructions -->
 		<div class="py-2">
-			<h5 class="font-semibold mb-2 text-sm">Instructions:</h5>
+			<h5 class="font-semibold mb-2 text-sm">{m.instructionsLabel()}</h5>
 			{#if selectedType === 'assets'}
 				<ol class="list-decimal list-inside space-y-1 text-sm">
-					<li>Select the target folder</li>
-					<li>Enter asset names (one per line)</li>
-					<li>Use SP: prefix for Support assets (default)</li>
-					<li>Use PR: prefix for Primary assets</li>
-					<li>Indent with 2 spaces (tab works too) to create parent-child relationships</li>
-					<li>Click Create</li>
+					<li>{m.selectTargetFolder()}</li>
+					<li>{m.enterAssetNames()}</li>
+					<li>{m.useSpPrefix()}</li>
+					<li>{m.usePrPrefix()}</li>
+					<li>{m.indentParentChild()}</li>
+					<li>{m.clickCreate()}</li>
 				</ol>
 				<div class="mt-3 p-3 bg-gray-50 rounded text-xs">
-					<p class="font-semibold mb-1">Example:</p>
+					<p class="font-semibold mb-1">{m.exampleLabel()}</p>
 					<pre class="font-mono">PR:Customer Database
   SP:User Data
     SP:Login Data
@@ -165,26 +165,26 @@ Web Application</pre>
 				</div>
 			{:else if selectedType === 'entities'}
 				<ol class="list-decimal list-inside space-y-1 text-sm">
-					<li>Select the target folder</li>
-					<li>Enter entity names (one per line)</li>
-					<li>Optionally prefix with ref_id (REF-001:Entity Name)</li>
-					<li>Click Create</li>
+					<li>{m.selectTargetFolder()}</li>
+					<li>{m.enterEntityNames()}</li>
+					<li>{m.optionalRefIdPrefix()}</li>
+					<li>{m.clickCreate()}</li>
 				</ol>
 				<div class="mt-3 p-3 bg-gray-50 rounded text-xs">
-					<p class="font-semibold mb-1">Example:</p>
+					<p class="font-semibold mb-1">{m.exampleLabel()}</p>
 					<pre class="font-mono">Vendor A
 REF-002:Vendor B
 Subsidiary C</pre>
 				</div>
 			{:else if selectedType === 'feared-events'}
 				<ol class="list-decimal list-inside space-y-1 text-sm">
-					<li>Select the EBIOS RM study</li>
-					<li>Enter feared event names (one per line)</li>
-					<li>Optionally prefix with ref_id (REF-001:Event Name)</li>
-					<li>Click Create</li>
+					<li>{m.selectEbiosStudy()}</li>
+					<li>{m.enterFearedEventNames()}</li>
+					<li>{m.optionalRefIdEvent()}</li>
+					<li>{m.clickCreate()}</li>
 				</ol>
 				<div class="mt-3 p-3 bg-gray-50 rounded text-xs">
-					<p class="font-semibold mb-1">Example:</p>
+					<p class="font-semibold mb-1">{m.exampleLabel()}</p>
 					<pre class="font-mono">Data breach
 REF-002:System outage
 Loss of customer trust</pre>
@@ -209,7 +209,7 @@ Loss of customer trust</pre>
 						class="mt-1.5 w-full rounded-lg border-gray-300 text-gray-700 sm:text-sm"
 						required
 					>
-						<option value="">Select a folder</option>
+						<option value="">{m.selectAFolder()}</option>
 						{#each data.folders as folder}
 							<option value={folder.id}>{folder.str || folder.name}</option>
 						{/each}
@@ -227,7 +227,7 @@ Loss of customer trust</pre>
 						class="mt-1.5 w-full rounded-lg border-gray-300 text-gray-700 sm:text-sm"
 						required
 					>
-						<option value="">Select a study</option>
+						<option value="">{m.selectAStudy()}</option>
 						{#each data.studies as study}
 							<option value={study.id}>{study.name}</option>
 						{/each}
@@ -261,13 +261,13 @@ Loss of customer trust</pre>
 					<i class="fa-solid fa-plus mr-2"></i>
 					Create {typeLabels[selectedType].plural}
 				</button>
-				<button type="button" onclick={handleCancel} class="btn"> Cancel </button>
+				<button type="button" onclick={handleCancel} class="btn"> {m.cancel()} </button>
 			</div>
 		</form>
 	</div>
 
 	<div class="col-span-2 p-4">
-		<h4 class="font-semibold mb-2">Results</h4>
+		<h4 class="font-semibold mb-2">{m.results()}</h4>
 		{#if formSubmitted}
 			{#if form?.success}
 				{@const formType = form.type || selectedType}
@@ -356,7 +356,7 @@ Loss of customer trust</pre>
 				</div>
 			{/if}
 		{:else}
-			<p class="text-sm text-gray-500">Results will appear here after submission</p>
+			<p class="text-sm text-gray-500">{m.resultsAppearAfterSubmit()}</p>
 		{/if}
 	</div>
 </div>

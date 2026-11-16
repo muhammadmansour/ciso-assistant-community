@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Gantt from 'frappe-gantt';
+	import { m } from '$paraglide/messages';
 
 	interface Props {
 		tasks: any;
@@ -27,13 +28,13 @@
 				set_details(`
           <p class="text-black text-sm">${task.name}</p>
           <p>${task.description}</p>
-					<p><span class="text-black">Start:</span> ${task.start}</p>
-					<p><span class="text-black">End:</span> ${task.end}</p>
-					<p>Progress: ${task.progress || 0}%</p>
+					<p><span class="text-black">${m.ganttStart()}:</span> ${task.start}</p>
+					<p><span class="text-black">${m.ganttEnd()}:</span> ${task.end}</p>
+					<p>${m.progress()}: ${task.progress || 0}%</p>
 				`);
 
 				add_action(
-					`<a href="/applied-controls/${task.id}" target="_blank" style="color:blue;">🔗 View Details</a>`
+					`<a href="/applied-controls/${task.id}" target="_blank" style="color:blue;">${m.viewDetailsLink()}</a>`
 				);
 			}
 		});

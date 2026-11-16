@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	let { data } = $props();
 	const license = data.license;
 </script>
@@ -7,32 +8,32 @@
 	<table class="border-separate border-spacing-y-4">
 		<tbody
 			><tr class="py-6">
-				<td class="text-lg font-bold px-6"> Deployment mode </td>
+				<td class="text-lg font-bold px-6">{m.deploymentMode()}</td>
 				<td>{license.deployment_mode}</td>
 			</tr>
 
 			<tr>
-				<td class="text-lg font-bold px-6"> License type </td>
+				<td class="text-lg font-bold px-6">{m.licenseType()}</td>
 				<td> {license.type} </td>
 			</tr>
 
 			<tr>
-				<td class="text-lg font-bold px-6"> Used seats </td>
-				<td> {license.users_number} out of {license.users_number_limit} </td>
+				<td class="text-lg font-bold px-6">{m.usedSeats()}</td>
+				<td>{license.users_number} / {license.users_number_limit}</td>
 			</tr>
 
 			<tr>
-				<td class="text-lg font-bold px-6"> Seats limit </td>
-				<td> Disabled </td>
+				<td class="text-lg font-bold px-6">{m.seatsLimit()}</td>
+				<td>{m.licenseDisabled()}</td>
 			</tr>
 
 			<tr>
-				<td class="text-lg font-bold px-6"> Support </td>
+				<td class="text-lg font-bold px-6">{m.licenseSupport()}</td>
 				<td> {license.support} </td>
 			</tr>
 
 			<tr class="">
-				<td class="text-lg font-bold px-6"> Expiration date </td>
+				<td class="text-lg font-bold px-6">{m.expirationDate()}</td>
 				<td> {license.expiration_date} </td>
 			</tr>
 		</tbody>

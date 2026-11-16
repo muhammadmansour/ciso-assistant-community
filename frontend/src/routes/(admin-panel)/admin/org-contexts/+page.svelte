@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { invalidateAll } from '$app/navigation';
 
 	interface Props {
@@ -246,7 +247,7 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold text-gray-900">Organization Contexts</h1>
+			<h1 class="text-2xl font-bold text-gray-900">{m.organizationContexts()}</h1>
 			<p class="text-sm text-gray-500 mt-0.5">
 				Manage client and entity profiles for AI-contextualized control suggestions
 			</p>
@@ -265,21 +266,21 @@
 		<div class="bg-white rounded-xl border border-gray-200 p-5">
 			<div class="flex items-center gap-2 mb-3">
 				<i class="fa-solid fa-building text-[#0077CC] text-sm"></i>
-				<span class="text-sm text-gray-500">Total Contexts</span>
+				<span class="text-sm text-gray-500">{m.totalContexts()}</span>
 			</div>
 			<div class="text-3xl font-bold text-gray-900">{totalContexts}</div>
 		</div>
 		<div class="bg-white rounded-xl border border-gray-200 p-5">
 			<div class="flex items-center gap-2 mb-3">
 				<i class="fa-solid fa-file-lines text-[#0077CC] text-sm"></i>
-				<span class="text-sm text-gray-500">Total Obligations</span>
+				<span class="text-sm text-gray-500">{m.totalObligations()}</span>
 			</div>
 			<div class="text-3xl font-bold text-gray-900">{totalDocs}</div>
 		</div>
 		<div class="bg-white rounded-xl border border-gray-200 p-5">
 			<div class="flex items-center gap-2 mb-3">
 				<i class="fa-regular fa-circle-check text-[#0077CC] text-sm"></i>
-				<span class="text-sm text-gray-500">Full Regulatory Coverage</span>
+				<span class="text-sm text-gray-500">{m.fullRegulatoryCoverage()}</span>
 			</div>
 			<div class="text-3xl font-bold text-gray-900">{fullCoverage}</div>
 		</div>
@@ -293,7 +294,7 @@
 		<input
 			type="text"
 			bind:value={searchQuery}
-			placeholder="Search by name, sector..."
+			placeholder={m.searchByNameSector()}
 			class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC]"
 		/>
 	</div>
@@ -413,7 +414,7 @@
 						<div class="grid grid-cols-2 gap-8">
 							<!-- Left: Details -->
 							<div class="space-y-4">
-								<h4 class="text-sm font-semibold text-gray-900">Details</h4>
+								<h4 class="text-sm font-semibold text-gray-900">{m.details()}</h4>
 
 								{#if ctx.geographic_scope}
 									<div class="flex items-start gap-2.5">
@@ -434,7 +435,7 @@
 
 								{#if ctx.notes}
 									<div class="mt-3">
-										<h4 class="text-sm font-semibold text-gray-900 mb-1.5">Notes</h4>
+										<h4 class="text-sm font-semibold text-gray-900 mb-1.5">{m.notesHeading()}</h4>
 										<p class="text-sm text-gray-600 leading-relaxed">{ctx.notes}</p>
 									</div>
 								{/if}
@@ -468,7 +469,7 @@
 								{:else}
 									<div class="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-200">
 										<i class="fa-regular fa-folder-open text-2xl text-gray-300 mb-2"></i>
-										<p class="text-xs text-gray-400">No documents uploaded yet</p>
+										<p class="text-xs text-gray-400">{m.noDocumentsUploadedYet()}</p>
 									</div>
 								{/if}
 							</div>
@@ -481,7 +482,7 @@
 		{#if filteredContexts.length === 0}
 			<div class="text-center py-12 bg-white rounded-xl border border-gray-200">
 				<i class="fa-solid fa-building text-4xl text-gray-300 mb-3"></i>
-				<p class="text-gray-500 text-sm">No contexts found</p>
+				<p class="text-gray-500 text-sm">{m.noContextsFound()}</p>
 				{#if contexts.length === 0}
 					<p class="text-gray-400 text-xs mt-1">
 						Click "New Context" to create your first organization profile
@@ -510,7 +511,7 @@
 			<!-- Header -->
 			<div class="flex items-start justify-between px-7 pt-6 pb-4 border-b border-gray-100">
 				<div>
-					<h2 class="text-xl font-bold text-gray-900">New Organization Context</h2>
+					<h2 class="text-xl font-bold text-gray-900">{m.newOrganizationContext()}</h2>
 					<p class="text-sm text-gray-400 mt-0.5">
 						Create a profile for AI-contextualized suggestions
 					</p>
@@ -529,19 +530,19 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<label class="block text-sm font-semibold text-gray-700 mb-1.5"
-							>Organization Name (EN)</label
+							>{m.organizationNameEn()}</label
 						>
 						<input
 							type="text"
 							bind:value={formData.name}
-							placeholder="e.g. National Investment Bank"
+							placeholder={m.exampleOrganization()}
 							required
 							class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC]"
 						/>
 					</div>
 					<div>
 						<label class="block text-sm font-semibold text-gray-700 mb-1.5"
-							>Organization Name (AR)</label
+							>{m.organizationNameAr()}</label
 						>
 						<input
 							type="text"
@@ -556,24 +557,24 @@
 				<!-- Sector / Size / Geographic Scope -->
 				<div class="grid grid-cols-3 gap-4">
 					<div>
-						<label class="block text-sm font-semibold text-gray-700 mb-1.5">Sector</label>
+						<label class="block text-sm font-semibold text-gray-700 mb-1.5">{m.sector()}</label>
 						<select
 							bind:value={formData.sector}
 							class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_0.75rem]"
 						>
-							<option value="">Select...</option>
+							<option value="">{m.selectPlaceholder()}</option>
 							{#each sectorOptions as opt}
 								<option value={opt.value}>{opt.label}</option>
 							{/each}
 						</select>
 					</div>
 					<div>
-						<label class="block text-sm font-semibold text-gray-700 mb-1.5">Size</label>
+						<label class="block text-sm font-semibold text-gray-700 mb-1.5">{m.size()}</label>
 						<select
 							bind:value={formData.size}
 							class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_0.75rem]"
 						>
-							<option value="">Select...</option>
+							<option value="">{m.selectPlaceholder()}</option>
 							{#each sizeOptions as opt}
 								<option value={opt.value}>{opt.label}</option>
 							{/each}
@@ -581,13 +582,13 @@
 					</div>
 					<div>
 						<label class="block text-sm font-semibold text-gray-700 mb-1.5"
-							>Geographic Scope</label
+							>{m.geographicScope()}</label
 						>
 						<select
 							bind:value={formData.geographic_scope}
 							class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_0.75rem]"
 						>
-							<option value="">Select...</option>
+							<option value="">{m.selectPlaceholder()}</option>
 							{#each geoScopeOptions as opt}
 								<option value={opt.value}>{opt.label}</option>
 							{/each}
@@ -597,12 +598,12 @@
 
 				<!-- Maturity Level -->
 				<div>
-					<label class="block text-sm font-semibold text-gray-700 mb-1.5">Maturity Level</label>
+					<label class="block text-sm font-semibold text-gray-700 mb-1.5">{m.maturityLevel()}</label>
 					<select
 						bind:value={formData.maturity_level}
 						class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_0.75rem]"
 					>
-						<option value="">Select...</option>
+						<option value="">{m.selectPlaceholder()}</option>
 						{#each maturityOptions as opt}
 							<option value={opt.value}>{opt.label}</option>
 						{/each}
@@ -612,7 +613,7 @@
 				<!-- Regulatory Obligations -->
 				<div>
 					<label class="block text-sm font-semibold text-gray-700 mb-2.5"
-						>Regulatory Obligations</label
+						>{m.regulatoryObligations()}</label
 					>
 					<div class="grid grid-cols-2 gap-x-6 gap-y-2.5">
 						{#each regulatoryOptions as obligation}
@@ -633,18 +634,18 @@
 
 				<!-- Notes -->
 				<div>
-					<label class="block text-sm font-semibold text-gray-700 mb-1.5">Notes</label>
+					<label class="block text-sm font-semibold text-gray-700 mb-1.5">{m.notesHeading()}</label>
 					<textarea
 						bind:value={formData.notes}
 						rows="3"
-						placeholder="Additional context for AI suggestions..."
+						placeholder={m.additionalContextForAi()}
 						class="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0077CC]/20 focus:border-[#0077CC] resize-none"
 					></textarea>
 				</div>
 
 				<!-- Documents -->
 				<div>
-					<label class="block text-sm font-semibold text-gray-700 mb-1.5">Documents</label>
+					<label class="block text-sm font-semibold text-gray-700 mb-1.5">{m.documents()}</label>
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
 						class="border-2 border-dashed rounded-xl py-8 text-center transition-colors cursor-pointer {dragOver
@@ -668,7 +669,7 @@
 							onchange={handleFileSelect}
 						/>
 						<i class="fa-regular fa-file-lines text-3xl text-gray-300 mb-2"></i>
-						<p class="text-sm text-gray-500 font-medium">Drop files or click to upload</p>
+						<p class="text-sm text-gray-500 font-medium">{m.dropFilesOrClick()}</p>
 						<p class="text-xs text-gray-400 mt-0.5">
 							Policies, org charts, prior audit reports, architecture diagrams
 						</p>

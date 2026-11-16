@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	// Mock data for admin dashboard - will be replaced with real API data
 	const stats = [
 		{ label: 'Audit Sessions', value: 3, icon: 'fa-regular fa-comment-dots', color: 'text-[#0077CC]', bg: 'bg-blue-50' },
@@ -41,8 +42,8 @@
 <div class="space-y-6">
 	<!-- Header -->
 	<div>
-		<h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-		<p class="text-sm text-gray-500 mt-0.5">Overview of your AI admin configuration and activity</p>
+		<h1 class="text-2xl font-bold text-gray-900">{m.dashboard()}</h1>
+		<p class="text-sm text-gray-500 mt-0.5">{m.adminOverviewHint()}</p>
 	</div>
 
 	<!-- Stat Cards -->
@@ -66,7 +67,7 @@
 				<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
 					<div class="flex items-center gap-2">
 						<i class="fa-regular fa-clock text-gray-400 text-sm"></i>
-						<h2 class="font-semibold text-gray-900">Recent Sessions</h2>
+						<h2 class="font-semibold text-gray-900">{m.recentSessions()}</h2>
 					</div>
 					<a href="/admin" class="text-sm text-[#0077CC] hover:text-[#005fa3] font-medium flex items-center gap-1">
 						View All <i class="fa-solid fa-arrow-right text-xs"></i>
@@ -82,15 +83,15 @@
 							<div class="flex items-center gap-4">
 								<div class="text-center">
 									<div class="text-sm font-semibold text-gray-900">{session.req}</div>
-									<div class="text-[10px] text-gray-400">Req</div>
+									<div class="text-[10px] text-gray-400">{m.reqShort()}</div>
 								</div>
 								<div class="text-center">
 									<div class="text-sm font-semibold text-[#0077CC]">{session.files}</div>
-									<div class="text-[10px] text-gray-400">Files</div>
+									<div class="text-[10px] text-gray-400">{m.files()}</div>
 								</div>
 								<div class="text-center">
 									<div class="text-sm font-semibold text-gray-900">{session.msgs}</div>
-									<div class="text-[10px] text-gray-400">Msgs</div>
+									<div class="text-[10px] text-gray-400">{m.msgsShort()}</div>
 								</div>
 								<i class="fa-solid fa-chevron-right text-[10px] text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 							</div>
@@ -114,7 +115,7 @@
 			<!-- Quick Actions -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="px-5 py-4 border-b border-gray-100">
-					<h2 class="font-semibold text-gray-900">Quick Actions</h2>
+					<h2 class="font-semibold text-gray-900">{m.quickActions()}</h2>
 				</div>
 				<div class="divide-y divide-gray-100">
 					{#each quickActions as action}
@@ -137,7 +138,7 @@
 			<!-- Studio Sessions -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-					<h2 class="font-semibold text-gray-900">Studio Sessions</h2>
+					<h2 class="font-semibold text-gray-900">{m.studioSessions()}</h2>
 					<a href="/admin/controls-studio" class="text-sm text-[#0077CC] hover:text-[#005fa3] font-medium flex items-center gap-1">
 						Open Studio <i class="fa-solid fa-arrow-right text-xs"></i>
 					</a>
@@ -164,7 +165,7 @@
 			<!-- Frameworks -->
 			<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 				<div class="px-5 py-4 border-b border-gray-100">
-					<h2 class="font-semibold text-gray-900">Frameworks</h2>
+					<h2 class="font-semibold text-gray-900">{m.frameworks()}</h2>
 				</div>
 				<div class="divide-y divide-gray-100">
 					{#each frameworks as fw}

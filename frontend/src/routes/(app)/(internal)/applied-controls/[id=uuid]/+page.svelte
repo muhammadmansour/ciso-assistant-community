@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
 	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
@@ -184,10 +185,10 @@
 				<span>Retrying ({retryAttempt}/{retryMaxAttempts})…</span>
 			{:else if isAnalyzing}
 				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-				<span>Analyzing...</span>
+				<span>{m.analyzing()}</span>
 			{:else}
 				<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-				<span>Start AI Analysis</span>
+				<span>{m.startAiAnalysis()}</span>
 			{/if}
 		</button>
 	{/snippet}
@@ -200,7 +201,7 @@
 			<div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
 				<div class="flex items-center gap-2 mb-2">
 					<i class="fa-solid fa-circle-exclamation text-red-600"></i>
-					<h3 class="font-semibold text-red-800">Latest Analysis Failed</h3>
+					<h3 class="font-semibold text-red-800">{m.latestAnalysisFailed()}</h3>
 				</div>
 				<p class="text-red-600 text-sm">{aiAnalysisError}</p>
 			</div>
@@ -222,11 +223,11 @@
 				<table class="w-full text-sm">
 					<thead class="bg-gray-50 border-b border-gray-200">
 						<tr>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-							<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Files</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Requirements</th>
-							<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+<th class="text-left px-4 py-3 font-semibold text-gray-600">{m.date()}</th>
+								<th class="text-left px-4 py-3 font-semibold text-gray-600">{m.status()}</th>
+								<th class="text-center px-4 py-3 font-semibold text-gray-600">{m.files()}</th>
+								<th class="text-center px-4 py-3 font-semibold text-gray-600">{m.requirements()}</th>
+								<th class="text-center px-4 py-3 font-semibold text-gray-600">{m.actions()}</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
@@ -304,7 +305,7 @@
 				<div class="inline-block p-6 rounded-full bg-[#005FA3]/10 mb-4">
 					<i class="fa-solid fa-brain text-4xl text-[#005FA3]"></i>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
+				<h3 class="text-xl font-semibold text-gray-800 mb-2">{m.noAiAnalysesYet()}</h3>
 				<p class="text-gray-600 mb-6">
 					Click the "Start AI Analysis" button above to analyze all associated evidence files.
 				</p>

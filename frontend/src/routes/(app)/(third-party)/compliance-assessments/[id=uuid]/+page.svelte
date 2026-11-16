@@ -1076,7 +1076,7 @@
 							</svg>
 							<div class="absolute inset-0 flex flex-col items-center justify-center">
 								<div class="text-2xl font-bold text-gray-900">{progressPercent}%</div>
-								<div class="text-[10px] text-gray-500 uppercase tracking-wide">completed</div>
+								<div class="text-[10px] text-gray-500 uppercase tracking-wide">{m.completed()}</div>
 							</div>
 						</div>
 					</div>

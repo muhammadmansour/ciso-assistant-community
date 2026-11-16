@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 
 	interface TreatmentControl {
@@ -431,8 +432,8 @@
 							100}%, #e5e7eb 100%)"
 					/>
 					<div class="flex justify-between text-xs text-gray-500 mt-1">
-						<span>Current State</span>
-						<span>All Treatments</span>
+						<span>{m.currentState()}</span>
+						<span>{m.allTreatments()}</span>
 					</div>
 				</div>
 			</div>
@@ -443,7 +444,7 @@
 			<div class="p-8 text-center">
 				<div class="flex flex-col items-center space-y-3">
 					<i class="fa-solid fa-chart-bar text-3xl text-gray-400"></i>
-					<h4 class="text-lg font-medium text-gray-600">No Data Available</h4>
+					<h4 class="text-lg font-medium text-gray-600">{m.noDataAvailable()}</h4>
 					<p class="text-gray-500 max-w-md">
 						No scenarios with ALE data found. Please ensure scenarios have simulation data and
 						treatment plans with ETA dates.
@@ -455,12 +456,12 @@
 			<div class="p-8 text-center bg-yellow-50 border border-yellow-200">
 				<div class="flex flex-col items-center space-y-3">
 					<i class="fa-solid fa-exclamation-triangle text-3xl text-yellow-600"></i>
-					<h4 class="text-lg font-medium text-yellow-700">Chart Data Processing Issue</h4>
+					<h4 class="text-lg font-medium text-yellow-700">{m.chartDataProcessingIssue()}</h4>
 					<div class="text-left text-sm text-yellow-700 bg-yellow-100 p-4 rounded max-w-2xl">
-						<p><strong>Scenarios received:</strong> {scenarios?.length || 0}</p>
-						<p><strong>Timeline data processed:</strong> {timelineData?.length || 0}</p>
+						<p><strong>{m.scenariosReceived()}</strong> {scenarios?.length || 0}</p>
+						<p><strong>{m.timelineDataProcessed()}</strong> {timelineData?.length || 0}</p>
 						<details class="mt-2">
-							<summary class="cursor-pointer font-medium">View scenario data</summary>
+							<summary class="cursor-pointer font-medium">{m.viewScenarioData()}</summary>
 							<pre class="mt-2 text-xs overflow-auto">{JSON.stringify(scenarios, null, 2)}</pre>
 						</details>
 					</div>

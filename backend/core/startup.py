@@ -90,6 +90,12 @@ READER_PERMISSIONS_LIST = [
     # pmbok
     "view_genericcollection",
     "view_accreditation",
+    "view_project",
+    "view_responsibilityrole",
+    "view_responsibilitymatrix",
+    "view_responsibilitymatrixactivity",
+    "view_responsibilitymatrixactor",
+    "view_responsibilityassignment",
     # metrology
     "view_metricdefinition",
     "view_metricinstance",
@@ -189,6 +195,12 @@ APPROVER_PERMISSIONS_LIST = [
     # pmbok
     "view_genericcollection",
     "view_accreditation",
+    "view_project",
+    "view_responsibilityrole",
+    "view_responsibilitymatrix",
+    "view_responsibilitymatrixactivity",
+    "view_responsibilitymatrixactor",
+    "view_responsibilityassignment",
     # integrations
     "view_syncmapping",
     # workflows
@@ -451,6 +463,24 @@ ANALYST_PERMISSIONS_LIST = [
     "add_accreditation",
     "change_accreditation",
     "delete_accreditation",
+    "view_project",
+    "add_project",
+    "change_project",
+    "delete_project",
+    "view_responsibilityrole",
+    "view_responsibilitymatrix",
+    "add_responsibilitymatrix",
+    "change_responsibilitymatrix",
+    "delete_responsibilitymatrix",
+    "view_responsibilitymatrixactivity",
+    "add_responsibilitymatrixactivity",
+    "change_responsibilitymatrixactivity",
+    "delete_responsibilitymatrixactivity",
+    "view_responsibilitymatrixactor",
+    "add_responsibilitymatrixactor",
+    "change_responsibilitymatrixactor",
+    "delete_responsibilitymatrixactor",
+    "view_responsibilityassignment",
     # metrology
     "view_metricdefinition",
     "view_metricinstance",
@@ -762,6 +792,24 @@ DOMAIN_MANAGER_PERMISSIONS_LIST = [
     "add_accreditation",
     "change_accreditation",
     "delete_accreditation",
+    "view_project",
+    "add_project",
+    "change_project",
+    "delete_project",
+    "view_responsibilityrole",
+    "view_responsibilitymatrix",
+    "add_responsibilitymatrix",
+    "change_responsibilitymatrix",
+    "delete_responsibilitymatrix",
+    "view_responsibilitymatrixactivity",
+    "add_responsibilitymatrixactivity",
+    "change_responsibilitymatrixactivity",
+    "delete_responsibilitymatrixactivity",
+    "view_responsibilitymatrixactor",
+    "add_responsibilitymatrixactor",
+    "change_responsibilitymatrixactor",
+    "delete_responsibilitymatrixactor",
+    "view_responsibilityassignment",
     # metrology
     "view_metricdefinition",
     "add_metricdefinition",
@@ -1144,6 +1192,24 @@ ADMINISTRATOR_PERMISSIONS_LIST = [
     "add_accreditation",
     "change_accreditation",
     "delete_accreditation",
+    "view_project",
+    "add_project",
+    "change_project",
+    "delete_project",
+    "view_responsibilityrole",
+    "view_responsibilitymatrix",
+    "add_responsibilitymatrix",
+    "change_responsibilitymatrix",
+    "delete_responsibilitymatrix",
+    "view_responsibilitymatrixactivity",
+    "add_responsibilitymatrixactivity",
+    "change_responsibilitymatrixactivity",
+    "delete_responsibilitymatrixactivity",
+    "view_responsibilitymatrixactor",
+    "add_responsibilitymatrixactor",
+    "change_responsibilitymatrixactor",
+    "delete_responsibilitymatrixactor",
+    "view_responsibilityassignment",
     # metrology
     "view_metricdefinition",
     "add_metricdefinition",
@@ -1396,6 +1462,19 @@ def startup(sender: AppConfig, **kwargs):
         Terminology.create_default_accreditations_category()
     except Exception as e:
         logger.error("Error creating default accreditation category", exc_info=True)
+
+    try:
+        Terminology.create_default_project_statuses()
+        Terminology.create_default_project_health()
+    except Exception:
+        logger.error("Error creating default project terminology", exc_info=True)
+
+    try:
+        from pmbok.models import ResponsibilityRole
+
+        ResponsibilityRole.create_default_roles()
+    except Exception:
+        logger.error("Error creating default responsibility roles", exc_info=True)
 
     # Create default Processing natures
     try:

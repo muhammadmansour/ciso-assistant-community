@@ -1,6 +1,17 @@
 import { m } from '$paraglide/messages';
 import { toCamelCase } from '$lib/utils/locales';
 
+/** Locales that require right-to-left layout */
+export const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur']);
+
+export function isRtlLocale(locale: string | null | undefined): boolean {
+	return !!locale && RTL_LOCALES.has(locale);
+}
+
+export function getTextDirection(locale: string | null | undefined): 'rtl' | 'ltr' {
+	return isRtlLocale(locale) ? 'rtl' : 'ltr';
+}
+
 /**
  * Unafe translate function that doesn't return anything if the key if the translation is not found.
  * @param key The key to translate.

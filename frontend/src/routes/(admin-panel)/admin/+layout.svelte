@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { m } from '$paraglide/messages';
 
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -10,27 +11,30 @@
 	const sidebarItems = [
 		{
 			category: 'AI MANAGEMENT',
+			label: m.aiManagement(),
 			icon: 'fa-solid fa-brain',
 			items: [
-				{ label: 'Audit Sessions', href: '/admin', icon: 'fa-regular fa-comment-dots' },
-				{ label: 'Audit Studio', href: '/admin/audit-studio', icon: 'fa-solid fa-terminal' }
+				{ label: m.auditSessions(), href: '/admin', icon: 'fa-regular fa-comment-dots' },
+				{ label: m.auditStudio(), href: '/admin/audit-studio', icon: 'fa-solid fa-terminal' }
 			]
 		},
 		{
 			category: 'AI TOOLS',
+			label: m.aiTools(),
 			icon: 'fa-solid fa-gear',
 			items: [
-				{ label: 'Controls Studio', href: '/admin/controls-studio', icon: 'fa-solid fa-shield-halved' },
-				{ label: 'Merge Optimizer', href: '/admin/merge-optimizer', icon: 'fa-solid fa-code-merge' },
-				{ label: 'Org Contexts', href: '/admin/org-contexts', icon: 'fa-solid fa-building' }
+				{ label: m.controlsStudio(), href: '/admin/controls-studio', icon: 'fa-solid fa-shield-halved' },
+				{ label: m.mergeOptimizer(), href: '/admin/merge-optimizer', icon: 'fa-solid fa-code-merge' },
+				{ label: m.orgContexts(), href: '/admin/org-contexts', icon: 'fa-solid fa-building' }
 			]
 		},
 		{
 			category: 'CONFIGURATION',
+			label: m.configurationSection(),
 			icon: 'fa-solid fa-sliders',
 			items: [
-				{ label: 'Prompts', href: '/admin/prompts', icon: 'fa-solid fa-wand-magic-sparkles' },
-				{ label: 'File Collections', href: '/admin/file-collections', icon: 'fa-solid fa-folder-open' }
+				{ label: m.prompts(), href: '/admin/prompts', icon: 'fa-solid fa-wand-magic-sparkles' },
+				{ label: m.fileCollections(), href: '/admin/file-collections', icon: 'fa-solid fa-folder-open' }
 			]
 		}
 	];
@@ -60,7 +64,7 @@
 				alt="Muhkam"
 				class="h-8 w-auto max-w-[160px]"
 			/>
-			<div class="text-[#316FD3] text-[10px] font-semibold uppercase tracking-widest mt-1">Admin</div>
+			<div class="text-[#316FD3] text-[10px] font-semibold uppercase tracking-widest mt-1">{m.admin()}</div>
 		</div>
 
 		<!-- Dashboard Link -->
@@ -72,7 +76,7 @@
 					: 'text-white/60 hover:bg-white/5 hover:text-white'}"
 			>
 				<i class="fa-solid fa-table-columns text-xs w-4 text-center"></i>
-				Dashboard
+				{m.dashboard()}
 			</a>
 		</div>
 
@@ -86,7 +90,7 @@
 					>
 						<div class="flex items-center gap-2">
 							<i class="{group.icon} text-[9px]"></i>
-							{group.category}
+							{group.label}
 						</div>
 						<i class="fa-solid fa-chevron-down text-[8px] transition-transform {sidebarOpen[group.category] ? '' : '-rotate-90'}"></i>
 					</button>

@@ -208,7 +208,7 @@
 					<div class="space-y-6">
 						<!-- Quick Actions -->
 						<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-							<h2 class="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+							<h2 class="text-xl font-bold text-gray-900 mb-4">{m.quickActions()}</h2>
 							<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 								<!-- View Assessments -->
 								<Anchor
@@ -220,8 +220,8 @@
 										<i class="fa-solid fa-file-lines text-[#0A1628] text-lg"></i>
 									</div>
 									<div class="flex-1 min-w-0">
-										<p class="font-semibold text-gray-900 text-sm">View Assessments</p>
-										<p class="text-xs text-gray-500">Browse all compliance assessments</p>
+										<p class="font-semibold text-gray-900 text-sm">{m.viewAssessments()}</p>
+										<p class="text-xs text-gray-500">{m.browseAllComplianceAssessments()}</p>
 									</div>
 									<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 								</Anchor>
@@ -236,8 +236,8 @@
 										<i class="fa-solid fa-cloud-arrow-up text-[#0A1628] text-lg"></i>
 									</div>
 									<div class="flex-1 min-w-0">
-										<p class="font-semibold text-gray-900 text-sm">Manage Evidence</p>
-										<p class="text-xs text-gray-500">View uploaded documents</p>
+										<p class="font-semibold text-gray-900 text-sm">{m.manageEvidence()}</p>
+										<p class="text-xs text-gray-500">{m.viewUploadedDocuments()}</p>
 									</div>
 									<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 								</Anchor>
@@ -252,8 +252,8 @@
 										<i class="fa-solid fa-shield-halved text-[#0A1628] text-lg"></i>
 									</div>
 									<div class="flex-1 min-w-0">
-										<p class="font-semibold text-gray-900 text-sm">Controls</p>
-										<p class="text-xs text-gray-500">See all controls</p>
+										<p class="font-semibold text-gray-900 text-sm">{m.controls()}</p>
+										<p class="text-xs text-gray-500">{m.seeAllControls()}</p>
 									</div>
 									<i class="fa-solid fa-arrow-right text-gray-300 group-hover:text-gray-500 transition-colors"></i>
 								</Anchor>
@@ -264,7 +264,7 @@
 						<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 							<div class="mb-4">
 								<h2 class="text-xl font-bold text-gray-900">{m.myAssignments()}</h2>
-								<p class="text-sm text-gray-500">Complete these tasks by uploading the required evidence</p>
+								<p class="text-sm text-gray-500">{m.completeTasksByEvidence()}</p>
 							</div>
 
 							<ModelTable

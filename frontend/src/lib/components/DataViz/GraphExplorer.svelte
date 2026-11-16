@@ -410,7 +410,7 @@
 
 <div class="flex flex-col h-screen bg-white shadow-sm">
 	<div class="relative p-2">
-		<label for="graph-search" class="sr-only">Search</label>
+		<label for="graph-search" class="sr-only">{m.search()}</label>
 		<input
 			id="graph-search"
 			type="text"

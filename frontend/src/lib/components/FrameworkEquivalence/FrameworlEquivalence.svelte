@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	let { coverages } = $props();
 	coverages = coverages.response;
 </script>
@@ -7,10 +8,10 @@
 	<thead class="table-head">
 		<tr>
 			<td class="cursor-pointer select-none uppercase bg-white text-gray-700 hover:text-black">
-				URN
+				{m.urn()}
 			</td>
-			<td> Partial coverage </td>
-			<td> Full coverage </td>
+			<td>{m.partialCoverage()}</td>
+			<td>{m.fullCoverage()}</td>
 		</tr>
 	</thead>
 	<tbody class="w-full border-b border-b-surface-100-900 bg-white">

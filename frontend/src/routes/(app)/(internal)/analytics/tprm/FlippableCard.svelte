@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	// State to track if the card is flipped
 	let isFlipped = $state(false);
 
@@ -109,7 +110,7 @@
 			<div class="flex flex-col gap-3">
 				<!-- Solution name -->
 				<div class="mb-3">
-					<span class="block text-sm text-gray-500">Solution(s)</span>
+					<span class="block text-sm text-gray-500">{m.solutionsParen()}</span>
 					<div class="font-semibold text-gray-800" data-testid="solutions">
 						{entity_assessment.solutions}
 					</div>
@@ -117,7 +118,7 @@
 
 				<!-- Framework/Baseline -->
 				<div class="mb-3">
-					<span class="block text-sm text-gray-500">Baseline</span>
+					<span class="block text-sm text-gray-500">{m.baseline()}</span>
 					<div
 						class="inline-block bg-gray-100 px-2 py-1 rounded-sm text-sm font-mono overflow-hidden"
 					>
@@ -126,7 +127,7 @@
 						</div>
 					</div>
 				</div>
-				<span class="block text-sm text-gray-500 mb-2">Compliance review progress</span>
+				<span class="block text-sm text-gray-500 mb-2">{m.complianceReviewProgress()}</span>
 				<!-- Progress circle - SVG can't be fully replaced with Tailwind -->
 				<div
 					class="flex flex-col items-center"
@@ -176,11 +177,11 @@
 				<!-- Dates -->
 				<div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
 					<div>
-						<span class="block text-gray-500" data-testid="last_update">Last update</span>
+						<span class="block text-gray-500" data-testid="last_update">{m.lastUpdate()}</span>
 						{entity_assessment.last_update}
 					</div>
 					<div>
-						<span class="block text-gray-500" data-testid="due_date">Due date</span>
+						<span class="block text-gray-500" data-testid="due_date">{m.dueDate()}</span>
 						{entity_assessment.due_date}
 					</div>
 				</div>
@@ -230,7 +231,7 @@
 						<!-- Progress bar -->
 						<div class="mt-3 mb-6" title="Any answer of associated questions unless not set">
 							<div class="flex justify-between items-center mb-1">
-								<span class="text-sm text-gray-500">Questions completion</span>
+								<span class="text-sm text-gray-500">{m.questionsCompletion()}</span>
 								<span class="text-sm font-medium" data-testid="completion"
 									>{entity_assessment.completion}%</span
 								>
@@ -250,7 +251,7 @@
 								<p class="font-semibold mb-1" data-testid="reviewers">
 									{entity_assessment.reviewers}
 								</p>
-								<p class="text-gray-600">Reviewer(s)</p>
+								<p class="text-gray-600">{m.reviewersParen()}</p>
 							</div>
 						</div>
 					</div>
@@ -258,7 +259,7 @@
 			</div>
 
 			<div class="mt-2">
-				<span class="block text-sm text-gray-500 mb-2">Observation</span>
+				<span class="block text-sm text-gray-500 mb-2">{m.observation()}</span>
 				<p class="text-gray-600 leading-relaxed text-xs" data-testid="observation">
 					{entity_assessment.observation}
 				</p>

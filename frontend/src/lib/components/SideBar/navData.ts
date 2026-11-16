@@ -360,6 +360,35 @@ export const navData = {
 				}
 			]
 		},
+		{
+			name: 'projectManagement',
+			items: [
+				{
+					name: 'genericCollections',
+					fa_icon: 'fa-solid fa-box-archive',
+					href: '/generic-collections',
+					permissions: ['view_genericcollection']
+				},
+				{
+					name: 'accreditations',
+					fa_icon: 'fa-solid fa-award',
+					href: '/accreditations',
+					permissions: ['view_accreditation']
+				},
+				{
+					name: 'projects',
+					fa_icon: 'fa-solid fa-diagram-project',
+					href: '/projects',
+					permissions: ['view_project']
+				},
+				{
+					name: 'responsibilityMatrices',
+					fa_icon: 'fa-solid fa-people-arrows',
+					href: '/responsibility-matrices',
+					permissions: ['view_responsibilitymatrix']
+				}
+			]
+		},
 		// {
 		// 	name: 'privacy',
 		// 	items: [

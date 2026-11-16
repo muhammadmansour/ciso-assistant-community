@@ -125,7 +125,7 @@
 						<i class="fa-solid fa-brain text-[#005FA3] text-lg"></i>
 					</div>
 					<div>
-						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
+						<h2 class="text-lg font-bold text-gray-800">{m.aiAnalysisReport()}</h2>
 						{#if subtitle}
 							<p class="text-sm text-gray-500">{subtitle}</p>
 						{/if}
@@ -153,23 +153,23 @@
 				{#if selectedAnalysis.result}
 					<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 						<div class="bg-gray-50 rounded-lg p-4 text-center">
-							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Score</p>
+							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.score()}</p>
 							<p class="text-2xl font-bold {getScoreColor(selectedAnalysis.score as number | null)}">
 								{selectedAnalysis.score ?? '—'}
 							</p>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-4 text-center">
-							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Compliance</p>
+							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.compliance()}</p>
 							<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {getStatusColor(String(selectedAnalysis.compliance_status || ''))}">
 								{selectedAnalysis.compliance_status || '—'}
 							</span>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-4 text-center">
-							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Files</p>
+							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.files()}</p>
 							<p class="text-2xl font-bold text-gray-800">{selectedAnalysis.gemini_files_count ?? '—'}</p>
 						</div>
 						<div class="bg-gray-50 rounded-lg p-4 text-center">
-							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Requirements</p>
+							<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.requirements()}</p>
 							<p class="text-2xl font-bold text-gray-800">{selectedAnalysis.requirements_count ?? '—'}</p>
 						</div>
 					</div>
@@ -196,7 +196,7 @@
 										<p class="text-gray-700 whitespace-pre-wrap">{sectionValue}</p>
 									{:else if sectionKey.toLowerCase() === 'questionevaluation' && Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
-											<p class="text-gray-400 italic">No questions evaluated</p>
+											<p class="text-gray-400 italic">{m.noQuestionsEvaluated()}</p>
 										{:else}
 											<div class="space-y-4">
 												{#each sectionValue as item, idx}
@@ -238,7 +238,7 @@
 																{/if}
 																{#if qSource}
 																	<div class="flex items-start gap-2">
-																		<span class="font-medium text-gray-500 shrink-0">Source File:</span>
+																		<span class="font-medium text-gray-500 shrink-0">{m.sourceFile()}</span>
 																		<span class="text-gray-800">{qSource}</span>
 																	</div>
 																{/if}
@@ -256,7 +256,7 @@
 										{/if}
 									{:else if sectionKey.toLowerCase() === 'typicalevidencecheck' && Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
-											<p class="text-gray-400 italic">No evidence items checked</p>
+											<p class="text-gray-400 italic">{m.noEvidenceItemsChecked()}</p>
 										{:else}
 											<div class="space-y-3">
 												{#each sectionValue as item, idx}
@@ -304,7 +304,7 @@
 									{:else if sectionKey.toLowerCase().includes('gap') && (Array.isArray(sectionValue) || (typeof sectionValue === 'object' && sectionValue !== null && Array.isArray((sectionValue as Record<string, unknown>).gaps)))}
 										{@const gapItems = Array.isArray(sectionValue) ? sectionValue : ((sectionValue as Record<string, unknown>).gaps as unknown[] || [])}
 										{#if gapItems.length === 0}
-											<p class="text-gray-400 italic">No gaps identified</p>
+											<p class="text-gray-400 italic">{m.noGapsIdentified()}</p>
 										{:else}
 											<div class="space-y-3">
 												{#each gapItems as item, idx}
@@ -329,7 +329,7 @@
 															{/if}
 															{#if gCurrentState}
 																<div>
-																	<span class="font-medium text-gray-500">Current State:</span>
+																	<span class="font-medium text-gray-500">{m.currentStateLabel()}</span>
 																	<p class="text-gray-800 mt-0.5">{gCurrentState}</p>
 																</div>
 															{/if}
@@ -364,7 +364,7 @@
 										{/if}
 									{:else if Array.isArray(sectionValue)}
 										{#if sectionValue.length === 0}
-											<p class="text-gray-400 italic">No items</p>
+											<p class="text-gray-400 italic">{m.noItems()}</p>
 										{:else}
 											<ul class="space-y-2">
 												{#each sectionValue as item}
@@ -414,7 +414,7 @@
 					{/if}
 				{:else}
 					<div class="text-center py-12">
-						<p class="text-gray-500">No analysis data available.</p>
+						<p class="text-gray-500">{m.noAnalysisDataAvailable()}</p>
 					</div>
 				{/if}
 			</div>

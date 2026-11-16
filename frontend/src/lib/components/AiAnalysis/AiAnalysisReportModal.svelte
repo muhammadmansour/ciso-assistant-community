@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { m } from '$paraglide/messages';
 
 	interface Props {
 		open: boolean;
@@ -14,7 +15,7 @@
 
 	let {
 		open,
-		title = 'AI Analysis Report',
+		title = m.aiAnalysisReport(),
 		subtitle = '',
 		expanded = false,
 		onClose,
@@ -85,7 +86,7 @@
 				</div>
 			{:else}
 				<div class="flex justify-end px-6 py-4 border-t border-gray-200 bg-gray-50 shrink-0">
-					<button type="button" class="btn preset-filled-surface-200-800" onclick={onClose}>Close</button>
+					<button type="button" class="btn preset-filled-surface-200-800" onclick={onClose}>{m.close()}</button>
 				</div>
 			{/if}
 		</div>

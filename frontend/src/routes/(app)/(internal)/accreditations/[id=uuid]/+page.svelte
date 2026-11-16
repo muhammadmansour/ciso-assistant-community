@@ -125,19 +125,19 @@
 				{#if accreditation.description}
 					<MarkdownRenderer content={accreditation.description} />
 				{:else}
-					<p class="text-gray-400 italic">No description provided</p>
+					<p class="text-gray-400 italic">{m.noDescriptionProvided()}</p>
 				{/if}
 			</div>
 		</div>
 
 		<!-- Observation -->
 		<div>
-			<h3 class="text-sm font-semibold text-gray-700 mb-2">Observation</h3>
+			<h3 class="text-sm font-semibold text-gray-700 mb-2">{m.observation()}</h3>
 			<div class="prose prose-sm max-w-none text-gray-900">
 				{#if accreditation.observation}
 					<MarkdownRenderer content={accreditation.observation} />
 				{:else}
-					<p class="text-gray-400 italic">No observation provided</p>
+					<p class="text-gray-400 italic">{m.noObservationProvided()}</p>
 				{/if}
 			</div>
 		</div>
@@ -175,7 +175,7 @@
 			</div>
 
 			{#if !collectionSections.some((s) => collection[s.key]?.length > 0)}
-				<p class="text-gray-400 italic text-sm">No associated objects in this collection</p>
+				<p class="text-gray-400 italic text-sm">{m.noAssociatedObjectsInCollection()}</p>
 			{/if}
 		</div>
 	{/if}

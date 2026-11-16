@@ -127,7 +127,7 @@
 		<div class="">
 			<a
 				class="btn preset-filled-primary-500"
-				href="/frameworks/{data.framework.id}/excel-template/">Download Excel template</a
+				href="/frameworks/{data.framework.id}/excel-template/">{m.downloadExcelTemplate()}</a
 			>
 		</div>
 	</div>

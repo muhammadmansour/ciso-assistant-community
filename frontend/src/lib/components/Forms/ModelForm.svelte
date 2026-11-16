@@ -72,6 +72,8 @@
 	import EvidenceRevisionForm from './ModelForm/EvidenceRevisionForm.svelte';
 	import GenericCollectionForm from './ModelForm/GenericCollectionForm.svelte';
 	import AccreditationForm from './ModelForm/AccreditationForm.svelte';
+	import ProjectForm from './ModelForm/ProjectForm.svelte';
+	import ResponsibilityMatrixForm from './ModelForm/ResponsibilityMatrixForm.svelte';
 	import MetricDefinitionForm from './ModelForm/MetricDefinitionForm.svelte';
 	import WorkflowForm from './ModelForm/WorkflowForm.svelte';
 	import MetricInstanceForm from './ModelForm/MetricInstanceForm.svelte';
@@ -818,6 +820,10 @@
 			/>
 		{:else if URLModel === 'accreditations'}
 			<AccreditationForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
+		{:else if URLModel === 'projects'}
+			<ProjectForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
+		{:else if URLModel === 'responsibility-matrices'}
+			<ResponsibilityMatrixForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
 		{:else if URLModel === 'workflows'}
 			<WorkflowForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} {context} />
 		{:else if URLModel === 'metric-definitions'}

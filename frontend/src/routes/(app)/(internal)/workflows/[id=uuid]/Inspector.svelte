@@ -1322,7 +1322,7 @@
 						bind:value={branch.condition_groups[0].operator}
 						onchange={onChange}
 					>
-						<option value="and">AND</option>
+						<option value="and">{m.logicalAnd()}</option>
 						<option value="or">OR</option>
 					</select>
 				{/if}

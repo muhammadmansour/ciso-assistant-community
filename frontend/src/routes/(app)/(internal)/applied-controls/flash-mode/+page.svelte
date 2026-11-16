@@ -213,7 +213,7 @@
 							class="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-10 min-w-64"
 						>
 							<div class="flex flex-col space-y-3">
-								<div class="text-sm font-medium">Jump to item:</div>
+								<div class="text-sm font-medium">{m.jumpToItem()}</div>
 								<div class="flex space-x-2">
 									<input
 										id="jumpInput"
@@ -221,7 +221,7 @@
 										type="number"
 										min="1"
 										max={appliedControls.length}
-										placeholder="Item number"
+										placeholder={m.itemNumber()}
 										class="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
 										onkeydown={(e) => {
 											if (e.key === 'Enter') {

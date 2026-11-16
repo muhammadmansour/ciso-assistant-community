@@ -1343,6 +1343,8 @@ class Terminology(NameDescriptionMixin, FolderMixin, PublishInRootFolderMixin):
         QUALIFICATIONS = "qualifications", "qualifications"
         ACCREDITATION_STATUS = "accreditation.status", "accreditationStatus"
         ACCREDITATION_CATEGORY = "accreditation.category", "accreditationCategory"
+        PROJECT_STATUS = "project.status", "projectStatus"
+        PROJECT_HEALTH = "project.health", "projectHealth"
         ENTITY_RELATIONSHIP = "entity.relationship", "entityRelationship"
         METRIC_UNIT = "metric_definition.unit", "metricUnit"
 
@@ -1586,6 +1588,23 @@ class Terminology(NameDescriptionMixin, FolderMixin, PublishInRootFolderMixin):
         },
     ]
 
+    DEFAULT_PROJECT_STATUSES = [
+        {"name": "draft", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "مسودة"}}},
+        {"name": "initiated", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "بدأ"}}},
+        {"name": "planning", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "التخطيط"}}},
+        {"name": "in_progress", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "قيد التنفيذ"}}},
+        {"name": "on_hold", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "معلّق"}}},
+        {"name": "closing", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "الإغلاق"}}},
+        {"name": "closed", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "مغلق"}}},
+        {"name": "cancelled", "builtin": True, "field_path": FieldPath.PROJECT_STATUS, "is_visible": True, "translations": {"ar": {"name": "ملغى"}}},
+    ]
+
+    DEFAULT_PROJECT_HEALTH = [
+        {"name": "green", "builtin": True, "field_path": FieldPath.PROJECT_HEALTH, "is_visible": True, "translations": {"ar": {"name": "أخضر"}}},
+        {"name": "amber", "builtin": True, "field_path": FieldPath.PROJECT_HEALTH, "is_visible": True, "translations": {"ar": {"name": "كهرماني"}}},
+        {"name": "red", "builtin": True, "field_path": FieldPath.PROJECT_HEALTH, "is_visible": True, "translations": {"ar": {"name": "أحمر"}}},
+    ]
+
     DEFAULT_ENTITY_RELATIONSHIPS = [
         {
             "name": "regulatory_authority",
@@ -1745,6 +1764,24 @@ class Terminology(NameDescriptionMixin, FolderMixin, PublishInRootFolderMixin):
     @classmethod
     def create_default_accreditations_category(cls):
         for item in cls.DEFAULT_ACCREDITATION_CATEGORY:
+            Terminology.objects.update_or_create(
+                name=item["name"],
+                field_path=item["field_path"],
+                defaults=item,
+            )
+
+    @classmethod
+    def create_default_project_statuses(cls):
+        for item in cls.DEFAULT_PROJECT_STATUSES:
+            Terminology.objects.update_or_create(
+                name=item["name"],
+                field_path=item["field_path"],
+                defaults=item,
+            )
+
+    @classmethod
+    def create_default_project_health(cls):
+        for item in cls.DEFAULT_PROJECT_HEALTH:
             Terminology.objects.update_or_create(
                 name=item["name"],
                 field_path=item["field_path"],

@@ -129,6 +129,8 @@ export const URL_MODEL = [
 	// pmbok
 	'generic-collections',
 	'accreditations',
+	'projects',
+	'responsibility-matrices',
 	// workflows
 	'workflows',
 	'workflow-versions',

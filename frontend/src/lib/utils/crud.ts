@@ -2274,6 +2274,89 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'filtering_labels' }
 		]
 	},
+	projects: {
+		name: 'project',
+		localName: 'project',
+		localNamePlural: 'projects',
+		verboseName: 'Project',
+		verboseNamePlural: 'Projects',
+		endpointUrl: 'pmbok/projects',
+		foreignKeyFields: [
+			{ field: 'folder', urlModel: 'folders' },
+			{ field: 'owner', urlModel: 'actors' },
+			{ field: 'sponsor', urlModel: 'actors' },
+			{ field: 'parent_project', urlModel: 'projects' },
+			{ field: 'linked_collection', urlModel: 'generic-collections' },
+			{
+				field: 'status',
+				urlModel: 'terminologies',
+				urlParams: 'field_path=project.status&is_visible=true'
+			},
+			{
+				field: 'health',
+				urlModel: 'terminologies',
+				urlParams: 'field_path=project.health&is_visible=true'
+			},
+			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
+		],
+		selectFields: [
+			{ field: 'kind', endpointUrl: 'pmbok/projects' },
+			{ field: 'priority', endpointUrl: 'pmbok/projects', valueType: 'number' },
+			{ field: 'currency', endpointUrl: 'pmbok/projects' }
+		],
+		filters: [
+			{ field: 'folder' },
+			{ field: 'kind' },
+			{ field: 'status' },
+			{ field: 'health' },
+			{ field: 'owner' },
+			{ field: 'filtering_labels' }
+		]
+	},
+	'responsibility-matrices': {
+		name: 'responsibilitymatrix',
+		localName: 'responsibilityMatrix',
+		localNamePlural: 'responsibilityMatrices',
+		verboseName: 'Responsibility matrix',
+		verboseNamePlural: 'Responsibility matrices',
+		endpointUrl: 'pmbok/responsibility-matrices',
+		foreignKeyFields: [
+			{ field: 'folder', urlModel: 'folders' },
+			{ field: 'projects', urlModel: 'projects' },
+			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
+		],
+		selectFields: [{ field: 'preset', endpointUrl: 'pmbok/responsibility-matrices' }],
+		filters: [{ field: 'folder' }, { field: 'preset' }, { field: 'filtering_labels' }]
+	},
+	'responsibility-matrix-activities': {
+		name: 'responsibilitymatrixactivity',
+		localName: 'activity',
+		localNamePlural: 'activities',
+		verboseName: 'Activity',
+		verboseNamePlural: 'Activities',
+		endpointUrl: 'pmbok/responsibility-matrix-activities',
+		foreignKeyFields: [
+			{ field: 'matrix', urlModel: 'responsibility-matrices' },
+			{ field: 'assets', urlModel: 'assets' },
+			{ field: 'applied_controls', urlModel: 'applied-controls' },
+			{ field: 'task_templates', urlModel: 'task-templates' },
+			{ field: 'compliance_assessments', urlModel: 'compliance-assessments' },
+			{ field: 'risk_assessments', urlModel: 'risk-assessments' },
+			{ field: 'findings_assessments', urlModel: 'findings-assessments' }
+		]
+	},
+	'responsibility-matrix-actors': {
+		name: 'responsibilitymatrixactor',
+		localName: 'actor',
+		localNamePlural: 'actors',
+		verboseName: 'Matrix actor',
+		verboseNamePlural: 'Matrix actors',
+		endpointUrl: 'pmbok/responsibility-matrix-actors',
+		foreignKeyFields: [
+			{ field: 'matrix', urlModel: 'responsibility-matrices' },
+			{ field: 'actor', urlModel: 'actors' }
+		]
+	},
 	workflows: {
 		name: 'workflow',
 		localName: 'workflow',

@@ -136,7 +136,7 @@
 					<h3 class="text-lg font-semibold mb-2">{m.summary()}</h3>
 					<div class="grid grid-cols-2 gap-2">
 						<div class="rounded-lg bg-primary-100 p-3 text-center">
-							<p class="text-xs font-medium text-primary-800">Total</p>
+							<p class="text-xs font-medium text-primary-800">{m.total()}</p>
 							<p class="text-xl font-bold text-primary-900" data-testid="summary-total">
 								{data.findings_metrics.raw_metrics.total_count || 'N/A'}
 							</p>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
+	import { m } from '$paraglide/messages';
 	import Greetings from './Greetings.svelte';
 	import FormCard from './FormCard.svelte';
 
@@ -48,7 +49,7 @@
 
 			<!-- Security note -->
 			<p class="text-center text-xs text-gray-400 mt-6">
-				Protected by enterprise-grade security
+				{m.protectedByEnterpriseSecurity()}
 			</p>
 
 			<div class="mt-8 flex justify-center">

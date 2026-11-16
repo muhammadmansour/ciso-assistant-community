@@ -151,7 +151,7 @@
 												plural: item.risk_assessment.quality_check.count > 1 ? 'ies' : 'y'
 											})}
 											<a class="simple-link hover:underline visited:text-indigo-600" href="/x-rays"
-												>x-rays</a
+												>{m.xRays()}</a>
 											></span
 										>.
 									{/if}

@@ -202,7 +202,7 @@ class FeatureFlagsSerializer(serializers.ModelSerializer):
     )
     bia = serializers.BooleanField(source="value.bia", required=False, default=True)
     project_management = serializers.BooleanField(
-        source="value.project_management", required=False, default=False
+        source="value.project_management", required=False, default=True
     )
     contracts = serializers.BooleanField(
         source="value.contracts", required=False, default=False

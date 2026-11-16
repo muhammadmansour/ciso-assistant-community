@@ -1,5 +1,5 @@
 import { BASE_API_URL, DEFAULT_LANGUAGE } from '$lib/utils/constants';
-import { safeTranslate } from '$lib/utils/i18n';
+import { getTextDirection, safeTranslate } from '$lib/utils/i18n';
 import type { User } from '$lib/utils/types';
 import { redirect, type Handle, type HandleFetch, type RequestEvent } from '@sveltejs/kit';
 import { setFlash } from 'sveltekit-flash-message/server';
@@ -72,12 +72,61 @@ async function validateUserSession(event: RequestEvent): Promise<User | null> {
 	return res.json();
 }
 
+const APP_LOCALES = new Set(['en', 'ar']);
+
+async function savedUserLocale(event: RequestEvent): Promise<string | undefined> {
+	const token = event.cookies.get('token');
+	if (!token) return undefined;
+	try {
+		const res = await fetch(`${BASE_API_URL}/iam/current-user/`, {
+			headers: {
+				'content-type': 'application/json',
+				Authorization: `Token ${token}`
+			}
+		});
+		if (!res.ok) return undefined;
+		const user = await res.json();
+		const lang = user?.preferences?.lang;
+		return typeof lang === 'string' && APP_LOCALES.has(lang) ? lang : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function withLocaleCookie(request: Request, locale: string): Request {
+	const headers = new Headers(request.headers);
+	const parts = (headers.get('cookie') ?? '')
+		.split(';')
+		.map((part) => part.trim())
+		.filter((part) => part && !part.startsWith('LOCALE='));
+	parts.push(`LOCALE=${locale}`);
+	headers.set('cookie', parts.join('; '));
+	return new Request(request, { headers });
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
 	// Inbound webhook passthrough: unauthenticated by design (the URL secret is
 	// the credential), so locale middleware and session validation don't apply.
 	if (event.url.pathname.startsWith('/api/workflows/hooks/')) {
 		return resolve(event);
 	}
+
+	// Paraglide renders from the LOCALE cookie before the user is loaded, so a
+	// saved Arabic preference was ignored and the page stayed English.
+	const acceptsHtml = event.request.headers.get('accept')?.includes('text/html');
+	if (acceptsHtml) {
+		const savedLocale = await savedUserLocale(event);
+		if (savedLocale && event.cookies.get('LOCALE') !== savedLocale) {
+			event.cookies.set('LOCALE', savedLocale, {
+				path: '/',
+				httpOnly: false,
+				sameSite: 'lax',
+				secure: event.url.protocol === 'https:'
+			});
+			event.request = withLocaleCookie(event.request, savedLocale);
+		}
+	}
+
 	return handleApp({ event, resolve });
 };
 
@@ -89,9 +138,7 @@ const handleApp: Handle = async ({ event, resolve }) =>
 
 		await ensureCsrfToken(event);
 
-		// RTL languages
-		const rtlLanguages = ['ar', 'he', 'fa', 'ur'];
-		const dir = rtlLanguages.includes(locale) ? 'rtl' : 'ltr';
+		const dir = getTextDirection(locale);
 
 		if (event.locals.user)
 			return await resolve(event, {

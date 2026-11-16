@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
@@ -8,4 +9,4 @@
 	});
 </script>
 
-<p class="text-sm text-surface-500 p-4">Redirecting to Workflows → Features…</p>
+<p class="text-sm text-surface-500 p-4">{m.redirectingToWorkflowFeatures()}</p>

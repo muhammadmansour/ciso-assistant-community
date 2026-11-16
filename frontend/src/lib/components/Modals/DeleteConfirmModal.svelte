@@ -88,7 +88,7 @@
 		<article>{$modalStore[0].body ?? '(body missing)'}</article>
 
 		{#if loading}
-			<div class="text-sm text-gray-500">Loading...</div>
+			<div class="text-sm text-gray-500">{m.loadingEllipsis()}</div>
 		{:else if errorMsg}
 			<div class="p-4 bg-red-50 text-red-900 text-sm">
 				{errorMsg}

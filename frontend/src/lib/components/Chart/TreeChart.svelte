@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 
 	interface treeType {
@@ -98,7 +99,7 @@
 {#if tree.length === 0}
 	<div class="flex flex-col justify-center items-center h-full">
 		<span class="text-center text-gray-600"
-			>Not enough data yet. Refresh when more content is available.</span
+			>{m.notEnoughDataYet()}</span
 		>
 	</div>
 {:else}

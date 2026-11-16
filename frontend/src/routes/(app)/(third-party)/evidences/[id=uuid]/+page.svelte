@@ -570,7 +570,7 @@
 						<!-- Header with Run Analysis button -->
 						<div class="flex flex-row justify-between items-center">
 							<div>
-								<h4 class="h4 font-semibold">Entity Extraction</h4>
+								<h4 class="h4 font-semibold">{m.entityExtraction()}</h4>
 								<p class="text-sm text-gray-600">
 									Extract entities, relationships, and key findings from the document
 								</p>
@@ -599,7 +599,7 @@
 											meterStroke="stroke-white"
 											trackStroke="stroke-primary-300"
 										/>
-										<span class="ml-2">Extracting...</span>
+										<span class="ml-2">{m.extracting()}</span>
 									{:else if analysisResult}
 										<i class="fa-solid fa-rotate mr-2"></i>
 										Re-run Extraction
@@ -617,7 +617,7 @@
 								<div class="flex items-start gap-3">
 									<i class="fa-solid fa-exclamation-circle text-red-500 mt-0.5"></i>
 									<div>
-										<p class="font-semibold text-red-800">Analysis Failed</p>
+										<p class="font-semibold text-red-800">{m.analysisFailed()}</p>
 										<p class="text-sm text-red-600">{analysisError}</p>
 									</div>
 								</div>
@@ -633,8 +633,8 @@
 									meterStroke="stroke-primary-500"
 									trackStroke="stroke-gray-200"
 								/>
-								<p class="text-gray-600">Analyzing document with AI...</p>
-								<p class="text-sm text-gray-400">This may take a moment for large files</p>
+								<p class="text-gray-600">{m.analyzingDocumentWithAi()}</p>
+								<p class="text-sm text-gray-400">{m.largeFilesMayTakeTime()}</p>
 							</div>
 						{/if}
 
@@ -677,19 +677,19 @@
 											<p class="text-3xl font-bold text-primary-600">
 												{analysisResult.summary.totalEntities}
 											</p>
-											<p class="text-sm text-gray-600">Total Entities</p>
+											<p class="text-sm text-gray-600">{m.totalEntities()}</p>
 										</div>
 										<div class="p-4 bg-gray-50 border rounded-lg text-center">
 											<p class="text-3xl font-bold text-primary-600">
 												{Object.keys(analysisResult.summary.byType || {}).length}
 											</p>
-											<p class="text-sm text-gray-600">Entity Types</p>
+											<p class="text-sm text-gray-600">{m.entityTypes()}</p>
 										</div>
 										<div class="p-4 bg-gray-50 border rounded-lg text-center">
 											<p class="text-3xl font-bold text-primary-600">
 												{analysisResult.relationships?.length || 0}
 											</p>
-											<p class="text-sm text-gray-600">Relationships</p>
+											<p class="text-sm text-gray-600">{m.relationships()}</p>
 										</div>
 									</div>
 
@@ -726,11 +726,11 @@
 											<table class="w-full text-sm">
 												<thead>
 													<tr class="border-b bg-gray-50">
-														<th class="text-left p-2">Entity</th>
-														<th class="text-left p-2">Type</th>
-														<th class="text-left p-2">Category</th>
-														<th class="text-left p-2">Confidence</th>
-														<th class="text-left p-2">Context</th>
+<th class="text-left p-2">{m.entity()}</th>
+									<th class="text-left p-2">{m.type()}</th>
+									<th class="text-left p-2">{m.category()}</th>
+									<th class="text-left p-2">{m.confidence()}</th>
+									<th class="text-left p-2">{m.context()}</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -808,7 +808,7 @@
 								class="flex flex-col items-center justify-center py-16 space-y-4 text-gray-500"
 							>
 								<i class="fa-solid fa-tags text-6xl text-gray-300"></i>
-								<p class="text-lg">No extraction results yet</p>
+								<p class="text-lg">{m.noExtractionResultsYet()}</p>
 								<p class="text-sm">
 									Click "Run Extraction" to extract entities and insights from this document
 								</p>
@@ -825,7 +825,7 @@
 					<div class="p-6 space-y-6">
 						<div class="flex flex-row justify-between items-center">
 							<div>
-								<h4 class="h4 font-semibold">AI Compliance Analysis</h4>
+								<h4 class="h4 font-semibold">{m.aiComplianceAnalysis()}</h4>
 								<p class="text-sm text-gray-600">
 									Analyze evidence against audit questions and typical evidence requirements
 								</p>
@@ -896,7 +896,7 @@
 								<div class="flex items-start gap-3">
 									<i class="fa-solid fa-exclamation-circle text-red-500 mt-0.5"></i>
 									<div>
-										<p class="font-semibold text-red-800">Analysis Failed</p>
+										<p class="font-semibold text-red-800">{m.analysisFailed()}</p>
 										<p class="text-sm text-red-600">{auditError}</p>
 									</div>
 								</div>
@@ -918,10 +918,10 @@
 								<table class="w-full text-sm">
 									<thead class="bg-gray-50 border-b border-gray-200">
 										<tr>
-											<th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
-											<th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-											<th class="text-center px-4 py-3 font-semibold text-gray-600">Score</th>
-											<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+<th class="text-left px-4 py-3 font-semibold text-gray-600">{m.date()}</th>
+								<th class="text-left px-4 py-3 font-semibold text-gray-600">{m.status()}</th>
+								<th class="text-center px-4 py-3 font-semibold text-gray-600">{m.score()}</th>
+								<th class="text-center px-4 py-3 font-semibold text-gray-600">{m.actions()}</th>
 										</tr>
 									</thead>
 									<tbody class="divide-y divide-gray-100">
@@ -985,7 +985,7 @@
 								<div class="inline-block p-6 rounded-full bg-[#0A1628]/10 mb-4">
 									<i class="fa-solid fa-brain text-4xl text-[#0A1628]"></i>
 								</div>
-								<h3 class="text-xl font-semibold text-gray-800 mb-2">No AI Analyses Yet</h3>
+								<h3 class="text-xl font-semibold text-gray-800 mb-2">{m.noAiAnalysesYet()}</h3>
 								<p class="text-gray-600 mb-2">
 									Click "Start AI Analysis" to analyze this evidence file.
 								</p>

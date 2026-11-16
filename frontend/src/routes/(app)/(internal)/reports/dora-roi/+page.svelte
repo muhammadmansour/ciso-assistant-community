@@ -61,8 +61,8 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold text-gray-900">DORA Register of Information</h1>
-			<p class="mt-2 text-gray-600">Validation check before generating the report</p>
+			<h1 class="text-3xl font-bold text-gray-900">{m.doraRegisterOfInformation()}</h1>
+			<p class="mt-2 text-gray-600">{m.validationCheckBeforeReport()}</p>
 		</div>
 		<a href="/reports" class="text-blue-600 hover:text-blue-800 flex items-center gap-2">
 			<i class="fa-solid fa-arrow-left"></i>
@@ -72,31 +72,31 @@
 
 	<!-- Summary Card -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-		<h2 class="text-xl font-semibold text-gray-900 mb-4">Validation Summary</h2>
+		<h2 class="text-xl font-semibold text-gray-900 mb-4">{m.validationSummary()}</h2>
 		<div class="grid grid-cols-3 gap-4">
 			<div class="text-center p-4 rounded-lg bg-red-50 border border-red-200">
 				<div class="text-3xl font-bold text-red-600">{lintResults.summary.errors}</div>
-				<div class="text-sm text-red-600 mt-1">Errors</div>
+				<div class="text-sm text-red-600 mt-1">{m.errors()}</div>
 			</div>
 			<div class="text-center p-4 rounded-lg bg-yellow-50 border border-yellow-200">
 				<div class="text-3xl font-bold text-yellow-600">{lintResults.summary.warnings}</div>
-				<div class="text-sm text-yellow-600 mt-1">Warnings</div>
+				<div class="text-sm text-yellow-600 mt-1">{m.warnings()}</div>
 			</div>
 			<div class="text-center p-4 rounded-lg bg-green-50 border border-green-200">
 				<div class="text-3xl font-bold text-green-600">{lintResults.summary.ok}</div>
-				<div class="text-sm text-green-600 mt-1">Passed</div>
+				<div class="text-sm text-green-600 mt-1">{m.passed()}</div>
 			</div>
 		</div>
 	</div>
 
 	<!-- Validation Results -->
 	<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-		<h2 class="text-xl font-semibold text-gray-900 mb-4">Validation Details</h2>
+		<h2 class="text-xl font-semibold text-gray-900 mb-4">{m.validationDetails()}</h2>
 
 		<div class="space-y-3">
 			{#if errors.length > 0}
 				<div class="space-y-2">
-					<h3 class="text-sm font-semibold text-red-600 uppercase tracking-wide">Errors</h3>
+					<h3 class="text-sm font-semibold text-red-600 uppercase tracking-wide">{m.errors()}</h3>
 					{#each errors as result}
 						{@const editUrl = getEditUrl(result)}
 						<div
@@ -128,7 +128,7 @@
 
 			{#if warnings.length > 0}
 				<div class="space-y-2">
-					<h3 class="text-sm font-semibold text-yellow-600 uppercase tracking-wide">Warnings</h3>
+					<h3 class="text-sm font-semibold text-yellow-600 uppercase tracking-wide">{m.warnings()}</h3>
 					{#each warnings as result}
 						{@const editUrl = getEditUrl(result)}
 						<div
@@ -203,7 +203,7 @@
 						All validation checks passed. You can now generate the DORA ROI report.
 					</p>
 				{:else}
-					<p class="text-sm text-red-600">Please fix all errors before generating the report.</p>
+					<p class="text-sm text-red-600">{m.fixErrorsBeforeReport()}</p>
 				{/if}
 			</div>
 			<button

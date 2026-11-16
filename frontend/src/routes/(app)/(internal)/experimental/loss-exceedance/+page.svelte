@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import LossExceedanceCurve from '$lib/components/Chart/LossExceedanceCurve.svelte';
 	import { pageTitle } from '$lib/utils/stores';
 
@@ -43,7 +44,7 @@
 
 <div class="space-y-8 p-6">
 	<div class="text-center">
-		<h1 class="text-3xl font-bold text-gray-900 mb-2">Loss Exceedance Curve Analysis</h1>
+		<h1 class="text-3xl font-bold text-gray-900 mb-2">{m.lossExceedanceAnalysis()}</h1>
 		<p class="text-gray-600 max-w-3xl mx-auto">
 			Loss Exceedance Curves show the probability that losses will exceed a given amount. These
 			curves are essential for risk quantification and help organizations understand their potential
@@ -59,7 +60,7 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 			<!-- Full featured chart -->
 			<div class="space-y-2">
-				<h3 class="font-medium text-center">Full Rendering (Log X, Linear Y, Grids On)</h3>
+				<h3 class="font-medium text-center">{m.fullRenderingChart()}</h3>
 				<LossExceedanceCurve
 					data={sampleData}
 					name="full-chart"
@@ -76,7 +77,7 @@
 
 			<!-- Light chart -->
 			<div class="space-y-2">
-				<h3 class="font-medium text-center">Light Rendering (No Grids, No Tooltip, No Labels)</h3>
+				<h3 class="font-medium text-center">{m.lightRenderingChart()}</h3>
 				<LossExceedanceCurve
 					data={sampleData}
 					name="light-chart"
@@ -98,7 +99,7 @@
 		<div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
 			<!-- Linear X scale -->
 			<div class="space-y-2">
-				<h3 class="font-medium text-center">Linear X-Axis Scale</h3>
+				<h3 class="font-medium text-center">{m.linearXAxis()}</h3>
 				<LossExceedanceCurve
 					data={sampleData}
 					name="linear-x-chart"
