@@ -64,6 +64,9 @@ django-stubs = "5.0.2"
 coverage = "7.5.4"
 pre-commit = "3.7.1"
 
+[tool.poetry.scripts]
+grant-pm-permissions = "core.scripts.grant_pm_permissions:main"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
