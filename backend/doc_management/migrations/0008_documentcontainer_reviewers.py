@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0200_complianceassessment_filtering_labels_and_more"),
+        ("core", "0153_project_and_responsibility_matrix"),
         ("doc_management", "0007_documentcontainer_assets"),
     ]
 

@@ -72,10 +72,10 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ("core", "0172_view_compliance_assessment_full_permission"),
+        ("core", "0154_objectclassification_and_doc_prereqs"),
         ("doc_management", "0002_sync_is_published"),
-        ("iam", "0023_alter_folder_content_type"),
-        ("privacy", "0018_alter_datatransfer_transfer_mechanism"),
+        ("iam", "0017_alter_folder_is_published"),
+        ("privacy", "0015_remove_databreach_new_assigned_to_and_more"),
     ]
 
     operations = [

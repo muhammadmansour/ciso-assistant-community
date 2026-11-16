@@ -204,6 +204,12 @@ class FeatureFlagsSerializer(serializers.ModelSerializer):
     project_management = serializers.BooleanField(
         source="value.project_management", required=False, default=True
     )
+    document_management = serializers.BooleanField(
+        source="value.document_management", required=False, default=True
+    )
+    policy_documents = serializers.BooleanField(
+        source="value.policy_documents", required=False, default=True
+    )
     contracts = serializers.BooleanField(
         source="value.contracts", required=False, default=False
     )
@@ -243,6 +249,8 @@ class FeatureFlagsSerializer(serializers.ModelSerializer):
             "terminologies",
             "bia",
             "project_management",
+            "document_management",
+            "policy_documents",
             "contracts",
             "reports",
             "validation_flows",

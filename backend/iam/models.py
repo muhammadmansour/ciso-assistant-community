@@ -60,6 +60,7 @@ ALLOWED_PERMISSION_APPS = (
     "resilience",
     "crq",
     "pmbok",
+    "doc_management",
     "iam",
 )
 
@@ -919,6 +920,28 @@ class RoleAssignment(NameDescriptionMixin, FolderMixin):
         ]
 
     @staticmethod
+    def get_allowed_folder_ids(
+        user: AbstractBaseUser | AnonymousUser,
+        permission: "tuple[str, type[models.Model]] | Permission",
+    ) -> set[uuid.UUID]:
+        """IDs of the folders where `user` holds `permission`, given as a `Permission`
+        or a (`perm_prefix`, `model`) pair such as `("view", AppliedControl)`."""
+        if isinstance(permission, tuple):
+            prefix, model = permission
+            permission = Permission.objects.get(
+                codename=f"{prefix}_{model._meta.model_name}"
+            )
+        folder_ids: set[uuid.UUID] = set()
+        for ra in RoleAssignment.get_role_assignments(user):
+            if not ra.role.permissions.filter(id=permission.id).exists():
+                continue
+            for f in ra.perimeter_folders.all():
+                folder_ids.add(f.id)
+                if ra.is_recursive:
+                    folder_ids.update(sub.id for sub in f.get_sub_folders())
+        return folder_ids
+
+    @staticmethod
     def get_viewable_object_ids(
         user: AbstractBaseUser | AnonymousUser,
         model: Any,
@@ -954,6 +977,9 @@ class RoleAssignment(NameDescriptionMixin, FolderMixin):
                 ]
             )
         }
+        required = (f"view_{class_name}", f"change_{class_name}", f"delete_{class_name}", "view_folder")
+        if not all(key in permissions_map for key in required):
+            return [], [], []
         permission_view = permissions_map[f"view_{class_name}"]
         permission_change = permissions_map[f"change_{class_name}"]
         permission_delete = permissions_map[f"delete_{class_name}"]

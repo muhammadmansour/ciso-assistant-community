@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { superForm, defaults } from 'sveltekit-superforms';
-	import { zod4 as zod } from 'sveltekit-superforms/adapters';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import { z } from 'zod';
-	import { m } from '#paraglide/messages.js';
+	import { m } from '$paraglide/messages';
 	import { goto } from '$app/navigation';
-	import { LOCALE_MAP } from '#lib/utils/locales.js';
-	import { DOCUMENT_TYPES } from '#lib/utils/documentTypes.js';
-	import TextField from '#lib/components/Forms/TextField.svelte';
-	import Select from '#lib/components/Forms/Select.svelte';
-	import FolderTreeSelect from '#lib/components/Forms/FolderTreeSelect.svelte';
-	import AutocompleteSelect from '#lib/components/Forms/AutocompleteSelect.svelte';
-	import Dropdown from '#lib/components/Dropdown/Dropdown.svelte';
+	import { LOCALE_MAP } from '$lib/utils/locales.js';
+	import { DOCUMENT_TYPES } from '$lib/utils/documentTypes.js';
+	import TextField from '$lib/components/Forms/TextField.svelte';
+	import Select from '$lib/components/Forms/Select.svelte';
+	import AutocompleteSelect from '$lib/components/Forms/AutocompleteSelect.svelte';
+	import Dropdown from '$lib/components/Dropdown/Dropdown.svelte';
 
 	interface Props {
 		// Function/context — optional; the standalone flow leaves these unset. A
@@ -140,7 +139,13 @@
 		/>
 	{/if}
 
-	<FolderTreeSelect form={_form} field="folder" label={m.domain()} />
+	<AutocompleteSelect
+		form={_form}
+		optionsEndpoint="folders?content_type=DO&content_type=GL"
+		pathField="path"
+		field="folder"
+		label={m.domain()}
+	/>
 
 	<AutocompleteSelect
 		form={_form}

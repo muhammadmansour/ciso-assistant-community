@@ -175,6 +175,36 @@ class BaseModelSerializer(serializers.ModelSerializer):
         model: models.Model
 
 
+class CollectionMembershipMixin(serializers.Serializer):
+    """Stub until GenericCollection uses CollectionItem (upstream parity)."""
+
+    genericcollection = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True, required=False
+    )
+
+    def validate(self, data):
+        data = super().validate(data)
+        data.pop("genericcollection", None)
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop("genericcollection", None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("genericcollection", None)
+        return super().update(instance, validated_data)
+
+
+class AssignmentNotificationMixin:
+    """No-op until object-assignment notification tasks are ported."""
+
+    assignment_notifications: dict[str, str] = {}
+
+    def save(self, **kwargs):
+        return super().save(**kwargs)
+
+
 class ReferentialSerializer(BaseModelSerializer):
     name = serializers.CharField(source="get_name_translated")
     description = serializers.CharField(
@@ -3698,3 +3728,39 @@ class OrganizationContextWriteSerializer(BaseModelSerializer):
     class Meta:
         model = OrganizationContext
         fields = "__all__"
+
+
+class ClassificationLevelReadSerializer(BaseModelSerializer):
+    object_classification = FieldsRelatedField()
+    label = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ClassificationLevel
+        exclude = ["folder"]
+
+
+class ClassificationLevelWriteSerializer(BaseModelSerializer):
+    BUILTIN_EDITABLE_FIELDS = {"is_visible"}
+    builtin = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ClassificationLevel
+        exclude = ["folder"]
+
+
+class ObjectClassificationReadSerializer(BaseModelSerializer):
+    folder = FieldsRelatedField()
+    levels = ClassificationLevelReadSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ObjectClassification
+        fields = "__all__"
+
+
+class ObjectClassificationWriteSerializer(BaseModelSerializer):
+    BUILTIN_EDITABLE_FIELDS = {"is_visible"}
+    builtin = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ObjectClassification
+        exclude = ["folder"]

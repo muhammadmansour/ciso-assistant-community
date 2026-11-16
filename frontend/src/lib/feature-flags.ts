@@ -26,3 +26,15 @@ export function loadFeatureFlags() {
 	};
 	return ff;
 }
+
+/** API feature-flags object from hooks (`locals.featureflags`). */
+export function isFeatureFlagOn(
+	flags: Record<string, unknown> | undefined,
+	key: string,
+	defaultOn = true
+): boolean {
+	const value = flags?.[key];
+	if (value === false) return false;
+	if (value === true) return true;
+	return defaultOn;
+}

@@ -73,3 +73,21 @@ def validate_file_name(value):
         return value
     else:
         raise ValidationError("An error occured with file extension")
+
+
+def validate_html_template_file_name(value):
+    """Allow `.html` for WeasyPrint layout templates (not user attachments)."""
+    parts = value.name.split(".")
+    extension = parts[-1].lower()
+    if extension != "html":
+        raise ValidationError("An error occured with file extension")
+    if len(value.name) > int(settings.ATTACHMENT_MAX_NAME_LENGTH):
+        raise ValidationError(
+            f"File name is too long (maximum {settings.ATTACHMENT_MAX_NAME_LENGTH} characters)"
+        )
+    name_without_ext = ".".join(parts[:-1]) if len(parts) > 1 else parts[0]
+    sanitized_name = slugify(get_valid_filename(name_without_ext), allow_unicode=True)
+    if not sanitized_name:
+        sanitized_name = f"file-{uuid.uuid4().hex[:8]}"
+    value.name = f"{sanitized_name}.{extension}"
+    return value

@@ -95,7 +95,7 @@ def import_templates_from_zip(zip_file, folder) -> dict:
             stem = path.stem
             try:
                 raw = zf.read(info).decode("utf-8")
-            except UnicodeDecodeError, KeyError:
+            except (UnicodeDecodeError, KeyError):
                 errors.append(f"{info.filename}: not valid UTF-8")
                 continue
 

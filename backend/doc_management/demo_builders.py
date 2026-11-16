@@ -1481,13 +1481,15 @@ class DocumentsBuilder(DemoBuilder):
             return
         if links["policies"]:
             container.policies.set(Policy.objects.filter(folder=ctx.domain))
-        if links["controls"]:
+        controls = ctx.refs.get("controls") or []
+        if links["controls"] and controls:
             container.applied_controls.set(
-                [c for c in ctx.refs["controls"] if c.ref_id in links["controls"]]
+                [c for c in controls if getattr(c, "ref_id", None) in links["controls"]]
             )
-        if links["assets"]:
+        assets = ctx.refs.get("assets") or []
+        if links["assets"] and assets:
             container.assets.set(
-                [a for a in ctx.refs["assets"] if a.name in links["assets"]]
+                [a for a in assets if a.name in links["assets"]]
             )
         for index, (locale, (sections, revisions)) in enumerate(locales.items()):
             document = ManagedDocument.objects.create(

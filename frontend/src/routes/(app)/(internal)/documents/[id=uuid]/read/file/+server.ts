@@ -1,10 +1,11 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 // Proxy the IAM-scoped uploaded-file endpoint so the browser gets it with auth.
 export const GET: RequestHandler = async ({ fetch, url, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) {
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) {
 		error(403, 'Document management feature is disabled');
 	}
 	const rev = url.searchParams.get('rev');

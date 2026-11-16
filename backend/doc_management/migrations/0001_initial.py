@@ -12,8 +12,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("core", "0149_alter_evidencerevision_attachment"),
-        ("iam", "0021_fix_auditee_iam_groups"),
+        ("core", "0154_objectclassification_and_doc_prereqs"),
+        ("iam", "0017_alter_folder_is_published"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -1,4 +1,4 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 import type { RequestHandler } from './$types';
 
 // Create a level under this scheme.

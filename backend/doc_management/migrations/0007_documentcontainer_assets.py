@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0188_quickformpublication_quickformresponse_and_more"),
+        ("core", "0154_objectclassification_and_doc_prereqs"),
         ("doc_management", "0006_remove_documentattachment_is_published_and_more"),
     ]
 

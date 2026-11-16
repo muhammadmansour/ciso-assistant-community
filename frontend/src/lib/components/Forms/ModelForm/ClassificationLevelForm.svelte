@@ -7,8 +7,8 @@
 	import AutocompleteSelect from '../AutocompleteSelect.svelte';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import { formFieldProxy } from 'sveltekit-superforms';
-	import type { ModelInfo, CacheLock } from '#lib/utils/types.js';
-	import { m } from '#paraglide/messages.js';
+	import type { ModelInfo, CacheLock } from '$lib/utils/types.js';
+	import { m } from '$paraglide/messages';
 
 	interface Props {
 		form: SuperValidated<any>;

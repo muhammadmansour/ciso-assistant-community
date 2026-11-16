@@ -1,4 +1,4 @@
-import { m } from '#paraglide/messages.js';
+import { m } from '$paraglide/messages';
 
 // Single source of truth for document-type presentation (label + icon), shared
 // by the catalog, the reader, and any other document-facing surface.

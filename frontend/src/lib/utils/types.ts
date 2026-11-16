@@ -117,6 +117,14 @@ export const URL_MODEL = [
 	// iso,
 	'organisation-issues',
 	'organisation-objectives',
+	// classifications
+	'object-classifications',
+	'classification-levels',
+	// document management
+	'document-containers',
+	'document-templates',
+	'managed-documents',
+	'document-revisions',
 	// crq,
 	'quantitative-risk-studies',
 	'quantitative-risk-scenarios',

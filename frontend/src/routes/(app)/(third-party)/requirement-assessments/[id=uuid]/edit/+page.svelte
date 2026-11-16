@@ -19,6 +19,8 @@
 	import { deserialize } from '$app/forms';
 	import { hideSuggestions } from '$lib/utils/stores';
 	import { m } from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
+	import { formatDateOrDateTime } from '$lib/utils/datetime';
 	import { countMasked } from '$lib/utils/related-visibility';
 
 	import List from '$lib/components/List/List.svelte';
@@ -901,11 +903,11 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleString();
+		return formatDateOrDateTime(dateStr, getLocale());
 	}
 
 	async function deleteAnalysis(analysisId: string) {
-		if (!confirm('Are you sure you want to delete this analysis?')) return;
+		if (!confirm(m.deleteAnalysisConfirm())) return;
 		deletingAnalysisId = analysisId;
 		try {
 			const formData = new FormData();
@@ -1763,7 +1765,7 @@
 					<div class="card bg-white shadow-sm border border-gray-200 rounded-xl p-5">
 						<label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
 							<i class="fa-solid fa-chart-bar text-[#005FA3]"></i>
-							Scoring
+							{m.scoringSection()}
 						</label>
 						{#if computedScore !== null}
 							<div class="flex flex-row items-center space-x-4">
@@ -1829,7 +1831,7 @@
 						<div class="flex items-center justify-between mb-3">
 							<h3 class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
 								<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
-								AI HISTORY
+								{m.aiAnalysisHistory()}
 							</h3>
 							{#if localAiAnalyses?.length > 0}
 								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
@@ -1850,13 +1852,15 @@
 										<span class="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 {analysis.status === 'completed' ? 'bg-emerald-500' : 'bg-red-400'}"></span>
 										<div class="flex-1 min-w-0">
 											<p class="text-sm font-medium text-gray-900">{formatDate(analysis.created_at)}</p>
-											<p class="text-xs text-gray-500">{analysis.gemini_files_count || 0} files analyzed</p>
+											<p class="text-xs text-gray-500">
+												{m.filesAnalyzedCount({ count: analysis.gemini_files_count || 0 })}
+											</p>
 										</div>
 										<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
 											<button
 												type="button"
 												class="p-1 text-gray-400 hover:text-red-500 transition-colors"
-												title="Delete analysis"
+												title={m.deleteAnalysis()}
 												disabled={deletingAnalysisId === analysis.id}
 												onclick={(e) => { e.stopPropagation(); deleteAnalysis(analysis.id); }}
 											>

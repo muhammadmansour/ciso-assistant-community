@@ -723,3 +723,17 @@ def update_selected_implementation_groups(compliance_assessment):
 
     compliance_assessment.selected_implementation_groups = list(igs_to_select)
     compliance_assessment.save(update_fields=["selected_implementation_groups"])
+
+
+def get_report_timezone():
+    """Timezone for document/report exports (upstream-compatible stub)."""
+    from zoneinfo import ZoneInfo
+
+    from global_settings.models import GlobalSettings
+
+    general = GlobalSettings.objects.filter(name=GlobalSettings.Names.GENERAL).first()
+    value = general.value if general and isinstance(general.value, dict) else {}
+    try:
+        return ZoneInfo(str(value.get("report_timezone") or "UTC"))
+    except (ValueError, KeyError, OSError):
+        return ZoneInfo("UTC")

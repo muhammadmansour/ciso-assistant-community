@@ -1,11 +1,12 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 // Endpoint-only route (no +page here) so an <iframe>/<a download> — which send
 // Accept: text/html — reach this handler instead of rendering the app page.
 export const GET: RequestHandler = async ({ fetch, url, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) {
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) {
 		error(403, 'Document management feature is disabled');
 	}
 	const rev = url.searchParams.get('rev');

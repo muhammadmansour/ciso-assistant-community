@@ -1,15 +1,16 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { errorFromBody } from '#lib/utils/errors.js';
+import { errorFromBody } from '$lib/utils/errors.js';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 // This static route shadows the generic [model=urlmodel]/[id=uuid] route (its
 // +page.server.ts redirects to the editor), so the table's edit/delete client
 // fetches to /document-containers/{id} need explicit method handlers here.
 
 export const GET: RequestHandler = async ({ fetch, params, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) error(404, 'Not found');
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) error(404, 'Not found');
 	const res = await fetch(`${BASE_API_URL}/document-containers/${params.id}/`);
 	if (!res.ok) {
 		errorFromBody(res.status, await res.json());
@@ -22,7 +23,7 @@ export const GET: RequestHandler = async ({ fetch, params, locals }) => {
 };
 
 export const PATCH: RequestHandler = async ({ fetch, params, request, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) error(404, 'Not found');
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) error(404, 'Not found');
 	const res = await fetch(`${BASE_API_URL}/document-containers/${params.id}/`, {
 		method: 'PATCH',
 		headers: { 'Content-Type': 'application/json' },
@@ -39,7 +40,7 @@ export const PATCH: RequestHandler = async ({ fetch, params, request, locals }) 
 };
 
 export const DELETE: RequestHandler = async ({ fetch, params, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) error(404, 'Not found');
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) error(404, 'Not found');
 	const res = await fetch(`${BASE_API_URL}/document-containers/${params.id}/`, {
 		method: 'DELETE'
 	});

@@ -1,13 +1,14 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
-import { fetchAllPages } from '#lib/utils/pagination.js';
-import { pickWorkingRevision } from '#lib/utils/documentRevisions.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
+import { fetchAllPages } from '$lib/utils/pagination.js';
+import { pickWorkingRevision } from '$lib/utils/documentRevisions.js';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 export const load: PageServerLoad = async (event) => {
 	const { fetch, params, cookies, locals } = event;
 
-	if (!(await locals.getFeatureFlags())?.policy_documents) {
+	if (!isFeatureFlagOn(locals.featureflags, 'policy_documents')) {
 		redirect(302, `/policies/${params.id}`);
 	}
 

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
+	import { formatDateOrDateTime } from '$lib/utils/datetime';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import AiAuditAnalysisModal from '$lib/components/Modals/AiAuditAnalysisModal.svelte';
 	import AiAnalysisReanalysisModal from '$lib/components/AiAnalysis/AiAnalysisReanalysisModal.svelte';
@@ -143,7 +145,7 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleString();
+		return formatDateOrDateTime(dateStr, getLocale());
 	}
 
 	function runAiAnalysis(additionalPrompt?: string) {
@@ -177,12 +179,12 @@
 			type="button"
 			class="btn bg-gradient-to-r from-[#005FA3] to-[#004d85] text-white hover:from-[#004d85] hover:to-[#003d6b] transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
 			disabled={isAnalyzing}
-			title="Start AI Analysis on Associated Evidences"
+			title={m.startAiAnalysisOnAssociatedEvidences()}
 			onclick={() => runAiAnalysis()}
 		>
 			{#if isRetrying}
 				<i class="fa-solid fa-rotate-right fa-spin mr-2"></i>
-				<span>Retrying ({retryAttempt}/{retryMaxAttempts})…</span>
+				<span>{m.retryingProgress({ attempt: retryAttempt, max: retryMaxAttempts })}</span>
 			{:else if isAnalyzing}
 				<i class="fa-solid fa-spinner fa-spin mr-2"></i>
 				<span>{m.analyzing()}</span>
@@ -211,10 +213,10 @@
 		<div class="mb-4 flex items-center justify-between">
 			<h3 class="text-lg font-semibold text-gray-800">
 				<i class="fa-solid fa-brain text-[#005FA3] mr-2"></i>
-				AI Analysis History
+				{m.aiAnalysisHistoryTitle()}
 			</h3>
 			<span class="text-sm text-gray-500">
-				{data.aiAnalyses?.length || 0} analysis(es)
+				{m.aiAnalysisCount({ count: data.aiAnalyses?.length || 0 })}
 			</span>
 		</div>
 
@@ -257,16 +259,16 @@
 										<button
 											class="btn btn-sm preset-tonal-primary"
 											onclick={() => openAnalysisDetail(analysis)}
-											title="View full analysis"
+											title={m.viewFullAnalysis()}
 										>
 											<i class="fa-solid fa-eye mr-1"></i>
-											View
+											{m.view()}
 										</button>
 										<form
 											method="POST"
 											action="?/deleteAiAnalysis"
 											use:enhance={() => {
-												if (!confirm('Are you sure you want to delete this analysis?')) {
+												if (!confirm(m.deleteAnalysisConfirm())) {
 													return ({ cancel }) => cancel();
 												}
 												deletingAnalysisId = analysis.id;
@@ -282,7 +284,7 @@
 											<button
 												type="submit"
 												class="btn btn-sm preset-tonal-error"
-												title="Delete analysis"
+												title={m.deleteAnalysis()}
 												disabled={deletingAnalysisId === analysis.id}
 											>
 												{#if deletingAnalysisId === analysis.id}
@@ -307,12 +309,12 @@
 				</div>
 				<h3 class="text-xl font-semibold text-gray-800 mb-2">{m.noAiAnalysesYet()}</h3>
 				<p class="text-gray-600 mb-6">
-					Click the "Start AI Analysis" button above to analyze all associated evidence files.
+					{m.startAiAnalysisControlEmptyHint({ button: m.startAiAnalysis() })}
 				</p>
 				<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto">
 					<p class="text-sm text-blue-800">
 						<i class="fa-solid fa-info-circle mr-2"></i>
-						Each analysis will be saved here for future reference.
+						{m.aiAnalysesSavedForReference()}
 					</p>
 				</div>
 			</div>
