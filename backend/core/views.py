@@ -3889,6 +3889,9 @@ class AppliedControlFilterSet(GenericFilterSet):
     is_assigned = df.BooleanFilter(method="filter_is_assigned")
     is_published = df.BooleanFilter(field_name="is_published")
     has_open_findings = df.BooleanFilter(method="filter_has_open_findings")
+    # Uses GenericCollection.applied_controls (related_name=collection_applied_controls),
+    # not the Policy M2M reverse that would otherwise match "genericcollection".
+    genericcollection = df.UUIDFilter(method="filter_genericcollection")
     # Nullable choice filters that support filtering for unset values using "--"
     category = NullableChoiceFilter(choices=AppliedControl.CATEGORY)
     csf_function = NullableChoiceFilter(choices=AppliedControl.CSF_FUNCTION)
@@ -3960,6 +3963,11 @@ class AppliedControlFilterSet(GenericFilterSet):
         else:
             return queryset.filter(owner__isnull=True)
 
+    def filter_genericcollection(self, queryset, name, value):
+        if not value:
+            return queryset
+        return queryset.filter(collection_applied_controls=value).distinct()
+
     def filter_has_open_findings(self, queryset, name, value):
         # "Open" = any Finding status that is not a terminal/closed state.
         # Excludes: dismissed, mitigated, resolved, closed, deprecated, "--".
@@ -3999,7 +4007,6 @@ class AppliedControlFilterSet(GenericFilterSet):
             "expiry_date": ["exact", "lte", "gte", "lt", "gt"],
             "ref_id": ["exact"],
             "processings": ["exact"],
-            "genericcollection": ["exact"],
         }
 
 

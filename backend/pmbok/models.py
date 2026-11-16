@@ -6,6 +6,7 @@ from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from iam.models import Folder, FolderMixin
 from core.models import (
+    AppliedControl,
     FilteringLabelMixin,
     FindingsAssessment,
     Policy,
@@ -59,6 +60,16 @@ class GenericCollection(NameDescriptionFolderMixin, FilteringLabelMixin):
     documents = models.ManyToManyField(
         Evidence,
         blank=True,
+    )
+    document_containers = models.ManyToManyField(
+        "doc_management.DocumentContainer",
+        blank=True,
+    )
+    applied_controls = models.ManyToManyField(
+        AppliedControl,
+        blank=True,
+        # Avoid clashing with policies → Policy (AppliedControl subclass) reverse name.
+        related_name="collection_applied_controls",
     )
     security_exceptions = models.ManyToManyField(
         SecurityException,

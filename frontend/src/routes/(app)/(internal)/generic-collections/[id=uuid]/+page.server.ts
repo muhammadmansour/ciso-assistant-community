@@ -12,11 +12,13 @@ import { BASE_API_URL } from '$lib/utils/constants';
 const FIELD_MAP: Record<string, string> = {
 	'compliance-assessments': 'compliance_assessments',
 	'risk-assessments': 'risk_assessments',
-	'quantitative-risk-studies': 'crq_studies',
-	'ebios-rm': 'ebios_studies',
+	// 'quantitative-risk-studies': 'crq_studies',
+	// 'ebios-rm': 'ebios_studies',
 	'entity-assessments': 'entity_assessments',
 	'findings-assessments': 'findings_assessments',
 	evidences: 'documents',
+	'document-containers': 'document_containers',
+	'applied-controls': 'applied_controls',
 	'security-exceptions': 'security_exceptions',
 	policies: 'policies',
 	'generic-collections': 'dependencies'
@@ -34,8 +36,22 @@ export const load: PageServerLoad = async (event) => {
 
 	// Fetch the full object data for updates
 	const objectEndpoint = `${BASE_API_URL}/${modelInfo.endpointUrl || URLModel}/${event.params.id}/object/`;
-	const objectResponse = await event.fetch(objectEndpoint);
-	const object = await objectResponse.json();
+	let object: Record<string, any> = {
+		name: data.data?.name,
+		description: data.data?.description,
+		folder: data.data?.folder?.id ?? data.data?.folder,
+		ref_id: data.data?.ref_id
+	};
+	try {
+		const objectResponse = await event.fetch(objectEndpoint);
+		if (objectResponse.ok) {
+			object = await objectResponse.json();
+		} else {
+			console.error('generic-collections object/ failed:', objectResponse.status);
+		}
+	} catch (err) {
+		console.error('generic-collections object/ fetch failed:', err);
+	}
 
 	// Create update forms for each many-to-many relationship
 	const updateForms = {};

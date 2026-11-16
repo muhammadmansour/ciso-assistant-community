@@ -1354,6 +1354,8 @@ export const GenericCollectionSchema = z.object({
 	entity_assessments: z.array(z.string().uuid().optional()).optional(),
 	findings_assessments: z.array(z.string().uuid().optional()).optional(),
 	documents: z.array(z.string().uuid().optional()).optional(),
+	document_containers: z.array(z.string().uuid().optional()).optional(),
+	applied_controls: z.array(z.string().uuid().optional()).optional(),
 	security_exceptions: z.array(z.string().uuid().optional()).optional(),
 	policies: z.array(z.string().uuid().optional()).optional(),
 	dependencies: z.array(z.string().uuid().optional()).optional(),
