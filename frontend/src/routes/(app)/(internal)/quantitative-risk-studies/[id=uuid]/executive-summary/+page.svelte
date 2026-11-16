@@ -508,7 +508,7 @@
 					<i class="fa-solid fa-clipboard-list text-4xl text-gray-400 mb-4"></i>
 					<h3 class="text-xl font-semibold text-gray-600 mb-2">{m.noSelectedScenarios()}</h3>
 					<p class="text-gray-500 mb-4">{m.noScenariosSelectedInStudy()}</p>
-					<p class="text-sm text-gray-400">Select scenarios to see the executive summary.</p>
+					<p class="text-sm text-gray-400">{m.selectScenariosExecutiveSummary()}</p>
 				</div>
 			{/if}
 		{:else}

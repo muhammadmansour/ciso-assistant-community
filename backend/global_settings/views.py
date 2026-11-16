@@ -58,8 +58,14 @@ class FeatureFlagsViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         obj, _ = self.model.objects.get_or_create(name="feature-flags")
+        value = dict(obj.value or {})
+        # Project management is part of this fork. Turn it on unless an admin
+        # has explicitly switched the flag off.
+        if "project_management" not in value:
+            value["project_management"] = True
+            obj.value = value
         obj.is_published = True  # we could do that at creation, but it's ok here
-        obj.save(update_fields=["is_published"])
+        obj.save(update_fields=["value", "is_published"])
         self.check_object_permissions(self.request, obj)
         return obj
 

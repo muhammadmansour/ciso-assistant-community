@@ -199,7 +199,7 @@
 		</span>
 		{#if data.requirement.implementation_groups?.length > 0}
 			<div class="ml-3">
-				<b class="mr-2">Implemetation Groups :</b>
+				<b class="mr-2">{m.implementationGroups()}</b>
 				{#each data.requirement.implementation_groups as ig}
 					<span class="badge bg-blue-100">
 						{ig}
@@ -476,7 +476,7 @@
 				{#if filteredAuditEntries.length === 0}
 					<div class="text-center py-6 text-gray-400">
 						<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
-						<p class="text-sm">No changes recorded yet.</p>
+						<p class="text-sm">{m.noChangesRecordedYet()}</p>
 					</div>
 				{:else}
 					<div class="mt-3 space-y-3">
@@ -494,7 +494,7 @@
 											<span class="font-medium text-gray-700">{entry.actor}</span>
 										{:else}
 											<i class="fa-solid fa-gear text-gray-400"></i>
-											<span class="text-gray-400">System</span>
+											<span class="text-gray-400">{m.systemLabel()}</span>
 										{/if}
 										<span class="text-gray-300">·</span>
 										<span>{new Date(entry.timestamp).toLocaleString()}</span>

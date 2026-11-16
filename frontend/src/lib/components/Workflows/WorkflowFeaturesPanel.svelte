@@ -296,11 +296,11 @@
 					<label class="relative block w-full sm:w-64 shrink-0">
 						<span class="sr-only">{safeTranslate('workflowGallerySearch')}</span>
 						<i
-							class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-surface-400 text-xs"
+							class="fa-solid fa-magnifying-glass absolute start-3 top-1/2 -translate-y-1/2 text-surface-400 text-xs"
 						></i>
 						<input
 							type="search"
-							class="input text-sm pl-8 w-full bg-white"
+							class="input text-sm ps-8 w-full bg-white"
 							placeholder={safeTranslate('workflowGallerySearch')}
 							bind:value={searchQuery}
 						/>

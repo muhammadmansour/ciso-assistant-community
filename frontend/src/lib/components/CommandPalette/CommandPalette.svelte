@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { browser } from '$app/environment';
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { navigationLinks } from './paletteData';
@@ -76,12 +77,12 @@
 				type="text"
 				bind:value={searchText}
 				bind:this={searchInput}
-				placeholder="Type a command..."
+				placeholder={m.typeACommand()}
 			/>
 			{#if filteredNavigationCommands.length > 0}
-				<span class="bg-white py-2 px-4 text-xs uppercase text-gray-500">Navigation</span>
+				<span class="bg-white py-2 px-4 text-xs uppercase text-gray-500">{m.navigation()}</span>
 			{:else}
-				<span class="bg-white py-2 px-1 text-black">No results found.</span>
+				<span class="bg-white py-2 px-1 text-black">{m.noResultsFoundPeriod()}</span>
 			{/if}
 			<div class="overflow-auto flex flex-col">
 				{#each filteredNavigationCommands as navigationCommand, index}

@@ -47,15 +47,15 @@
 
 {#if job && !job.showProgressModal && (job.status === 'running' || (job.status === 'complete' && job.pendingResult))}
 	{@const isLoading = job.status === 'running'}
-	<div class="ai-analysis-indicator fixed right-6 z-[55] {indicatorBottomClass} {isLoading ? 'ai-analysis-indicator--loading' : ''}">
+	<div class="ai-analysis-indicator fixed ltr:right-6 rtl:left-6 z-[55] {indicatorBottomClass} {isLoading ? 'ai-analysis-indicator--loading' : ''}">
 		<div
-			class="ai-analysis-indicator__inner flex max-w-sm items-center gap-3 rounded-2xl bg-white py-3 pl-4 pr-2 shadow-xl {isLoading
+			class="ai-analysis-indicator__inner flex max-w-sm items-center gap-3 rounded-2xl bg-white py-3 ps-4 pe-2 shadow-xl {isLoading
 				? ''
 				: 'border border-[#005FA3]/20'}"
 		>
 			<button
 				type="button"
-				class="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity hover:opacity-80"
+				class="flex min-w-0 flex-1 items-center gap-3 text-start transition-opacity hover:opacity-80"
 				onclick={handleIndicatorClick}
 			>
 				<div

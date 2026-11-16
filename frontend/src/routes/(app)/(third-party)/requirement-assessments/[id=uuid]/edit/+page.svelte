@@ -966,10 +966,10 @@
 			<span>Retrying ({retryAttempt}/{retryMaxAttempts})…</span>
 		{:else if isAnalyzing}
 			<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-			<span>Analyzing...</span>
+			<span>{m.analyzing()}</span>
 		{:else}
 			<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-			<span>Run AI Analysis</span>
+			<span>{m.runAiAnalysis()}</span>
 		{/if}
 	</button>
 </div>
@@ -990,7 +990,7 @@
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2 text-red-700">
 				<i class="fa-solid fa-circle-exclamation"></i>
-				<span class="font-semibold">AI Analysis Failed</span>
+				<span class="font-semibold">{m.aiAnalysisFailed()}</span>
 			</div>
 			<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (aiAnalysisError = null)}>
 				<i class="fa-solid fa-xmark"></i>
@@ -1004,7 +1004,7 @@
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-2 text-red-700">
 				<i class="fa-solid fa-circle-exclamation"></i>
-				<span class="font-semibold">Apply Failed</span>
+				<span class="font-semibold">{m.applyFailed()}</span>
 			</div>
 			<button type="button" class="text-red-400 hover:text-red-600" onclick={() => (applyError = null)}>
 				<i class="fa-solid fa-xmark"></i>
@@ -1021,10 +1021,10 @@
 					<i class="fa-solid fa-wand-magic-sparkles text-[#005FA3]"></i>
 				</div>
 				<div>
-					<p class="font-semibold text-[#005FA3]">AI Results Applied</p>
+					<p class="font-semibold text-[#005FA3]">{m.aiResultsApplied()}</p>
 					<p class="text-gray-600 text-sm">
 						Fields updated: <strong>{[...aiAppliedFields].join(', ')}</strong>.
-						Review and click <strong>Save</strong> to confirm.
+						{m.reviewAndSave()}
 					</p>
 				</div>
 			</div>
@@ -1416,7 +1416,7 @@
 						>
 							<span class="flex items-center gap-2.5">
 								<i class="fa-solid fa-robot text-[#005FA3]"></i>
-								<span class="text-sm font-semibold text-gray-800">Assessment Questions</span>
+								<span class="text-sm font-semibold text-gray-800">{m.assessmentQuestions()}</span>
 								<span class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-xs font-semibold bg-[#005FA3]/10 text-[#005FA3]">
 									{questionEntries.length}
 								</span>
@@ -1559,7 +1559,7 @@
 								{#if filteredAuditEntries.length === 0}
 									<div class="text-center py-6 text-gray-400">
 										<i class="fa-solid fa-clock-rotate-left text-2xl mb-2"></i>
-										<p class="text-sm">No changes recorded yet.</p>
+										<p class="text-sm">{m.noChangesRecordedYet()}</p>
 									</div>
 								{:else}
 									<div class="mt-3 space-y-3">
@@ -1577,7 +1577,7 @@
 															<span class="font-medium text-gray-700">{entry.actor}</span>
 														{:else}
 															<i class="fa-solid fa-gear text-gray-400"></i>
-															<span class="text-gray-400">System</span>
+															<span class="text-gray-400">{m.systemLabel()}</span>
 														{/if}
 														<span class="text-gray-300">·</span>
 														<span>{new Date(entry.timestamp).toLocaleString()}</span>
@@ -1875,7 +1875,7 @@
 								<div class="inline-block p-3 rounded-full bg-[#005FA3]/5 mb-2">
 									<i class="fa-solid fa-wand-magic-sparkles text-xl text-[#005FA3]/40"></i>
 								</div>
-								<p class="text-sm text-gray-500">No analyses yet</p>
+								<p class="text-sm text-gray-500">{m.noAnalysesYet()}</p>
 							</div>
 						{/if}
 					</div>
@@ -1990,7 +1990,7 @@
 						<i class="fa-solid fa-brain text-[#005FA3] text-lg"></i>
 					</div>
 					<div>
-						<h2 class="text-lg font-bold text-gray-800">AI Analysis Report</h2>
+						<h2 class="text-lg font-bold text-gray-800">{m.aiAnalysisReport()}</h2>
 						<p class="text-sm text-gray-500">
 							{data.requirement.ref_id} — {appliedControls.length} applied control{appliedControls.length !== 1 ? 's' : ''} analyzed
 							{#if selectedAnalysis?.created_at}
@@ -2023,13 +2023,13 @@
 				<!-- Summary Bar -->
 				<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 					<div class="bg-gray-50 rounded-lg p-4 text-center">
-						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Score</p>
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.score()}</p>
 						<p class="text-2xl font-bold {getScoreColor(typeof score === 'number' ? score : null)}">
 							{score ?? '—'}
 						</p>
 					</div>
 					<div class="bg-gray-50 rounded-lg p-4 text-center">
-						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Compliance</p>
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.compliance()}</p>
 						{#if complianceStatus}
 							<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {getStatusColor(complianceStatus)}">
 								{complianceStatus}
@@ -2039,7 +2039,7 @@
 						{/if}
 					</div>
 					<div class="bg-gray-50 rounded-lg p-4 text-center">
-						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Evidence Quality</p>
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.evidenceQualityPlain()}</p>
 						{#if evidenceQuality}
 							<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
 								{evidenceQuality.toLowerCase() === 'good' || evidenceQuality.toLowerCase() === 'strong' ? 'text-green-700 bg-green-100' :
@@ -2052,7 +2052,7 @@
 						{/if}
 					</div>
 					<div class="bg-gray-50 rounded-lg p-4 text-center">
-						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Applied Controls</p>
+						<p class="text-xs text-gray-500 uppercase tracking-wide mb-1">{m.appliedControlsHeading()}</p>
 						<p class="text-2xl font-bold text-gray-800">{appliedControls.length}</p>
 					</div>
 				</div>
@@ -2178,7 +2178,7 @@
 								<!-- Question evaluation cards -->
 								{:else if (sectionKey.toLowerCase().includes('question') || sectionKey.toLowerCase().includes('answer')) && Array.isArray(sectionValue)}
 									{#if sectionValue.length === 0}
-										<p class="text-gray-400 italic">No questions evaluated</p>
+										<p class="text-gray-400 italic">{m.noQuestionsEvaluated()}</p>
 									{:else}
 										<div class="space-y-4">
 											{#each sectionValue as item, idx}
@@ -2254,7 +2254,7 @@
 								{:else if sectionKey.toLowerCase().includes('gap') && (Array.isArray(sectionValue) || (typeof sectionValue === 'object' && sectionValue !== null && Array.isArray(sectionValue.gaps)))}
 									{@const gapItems = Array.isArray(sectionValue) ? sectionValue : (sectionValue.gaps || [])}
 									{#if gapItems.length === 0}
-										<p class="text-gray-400 italic">No gaps identified</p>
+										<p class="text-gray-400 italic">{m.noGapsIdentified()}</p>
 									{:else}
 										<div class="space-y-3">
 											{#each gapItems as item, idx}
@@ -2279,7 +2279,7 @@
 														{/if}
 														{#if gCurrentState}
 															<div>
-																<span class="font-medium text-gray-500">Current State:</span>
+																<span class="font-medium text-gray-500">{m.currentStateLabel()}</span>
 																<p class="text-gray-800 mt-0.5">{gCurrentState}</p>
 															</div>
 														{/if}
@@ -2314,7 +2314,7 @@
 								<!-- typicalEvidenceCheck: structured cards -->
 								{:else if sectionKey.toLowerCase() === 'typicalevidencecheck' && Array.isArray(sectionValue)}
 									{#if sectionValue.length === 0}
-										<p class="text-gray-400 italic">No evidence items checked</p>
+										<p class="text-gray-400 italic">{m.noEvidenceItemsChecked()}</p>
 									{:else}
 										<div class="space-y-3">
 											{#each sectionValue as item, idx}
@@ -2363,7 +2363,7 @@
 								<!-- Strengths / Weaknesses / Recommendations / Findings (string arrays) -->
 								{:else if Array.isArray(sectionValue)}
 									{#if sectionValue.length === 0}
-										<p class="text-gray-400 italic">No items</p>
+										<p class="text-gray-400 italic">{m.noItems()}</p>
 									{:else}
 										<ul class="space-y-2">
 											{#each sectionValue as item}
@@ -2512,8 +2512,8 @@
 					<i class="fa-solid fa-rotate text-amber-600 text-lg"></i>
 				</div>
 				<div>
-					<h3 class="text-lg font-bold text-gray-800">Re-Analyze</h3>
-					<p class="text-sm text-gray-500">Provide additional instructions for the AI</p>
+					<h3 class="text-lg font-bold text-gray-800">{m.reAnalyze()}</h3>
+					<p class="text-sm text-gray-500">{m.provideAiInstructions()}</p>
 				</div>
 				<div class="flex-1"></div>
 				<button
@@ -2536,7 +2536,7 @@
 					class="w-full h-36 px-4 py-3 border border-gray-300 rounded-xl text-sm text-gray-700
 						placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40
 						focus:border-amber-500 resize-none transition-all"
-					placeholder="e.g. Focus more on the gap analysis, consider the attached policies as partial evidence, be stricter on compliance scoring..."
+					placeholder={m.reanalyzeInstructions()}
 				></textarea>
 				<p class="text-xs text-gray-400">
 					These instructions will be appended to the analysis prompt. Leave empty to re-run with default settings.

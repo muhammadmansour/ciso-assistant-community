@@ -542,7 +542,7 @@
 		{/each}
 	{:catch error}
 		<div class="flex flex-col items-center justify-center py-8">
-			<p class="text-red-500">Error loading data</p>
+			<p class="text-red-500">{m.errorLoadingData()}</p>
 		</div>
 	{/await}
 </div>

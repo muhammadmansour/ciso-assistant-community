@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 	import type * as echarts from 'echarts';
 	const symbolSizeOffset = 10;
@@ -50,7 +51,7 @@
 
 				if (data.items && Array.isArray(data.items)) {
 					tooltipContent += `<div style="margin-top: 5px; border-top: 1px solid #ddd; padding-top: 5px;">
-						<strong>Resulting from:</strong>
+						<strong>{m.resultingFrom()}</strong>
 						<div style="white-space: pre-line; margin-top: 3px;">${data.items.join('<br>')}</div>
 					</div>`;
 				}
@@ -212,14 +213,14 @@
 </script>
 
 <div class="relative p-2">
-	<label for="graph-search" class="sr-only">Search</label>
+	<label for="graph-search" class="sr-only">{m.search()}</label>
 	<input
 		id="graph-search"
 		type="text"
 		class="w-full rounded-md border-gray-200 py-2.5 pe-10 shadow-xs"
 		bind:value={searchQuery}
 		onkeydown={handleKeyDown}
-		placeholder="Find a node ..."
+		placeholder={m.findANode()}
 	/>
 	<span class="absolute inset-y-0 end-0 grid w-10 place-content-center">
 		<button

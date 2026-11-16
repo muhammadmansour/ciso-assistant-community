@@ -6,6 +6,8 @@
 	import '@fortawesome/fontawesome-free/css/all.min.css';
 
 	import { browser } from '$app/environment';
+	import { getLocale } from '$paraglide/runtime';
+	import { getTextDirection } from '$lib/utils/i18n';
 
 	import Toast from '$lib/components/Toast/Toast.svelte';
 	import Modal from '$lib/components/Modals/Modal.svelte';
@@ -90,6 +92,16 @@
 			$page.url.searchParams.delete('refresh');
 			window.location.href = $page.url.href;
 		}
+	});
+
+	// Keep <html dir/lang> in sync with Paraglide locale so every page/component is RTL in Arabic.
+	$effect(() => {
+		if (!browser) return;
+		const locale = $page.data?.user?.preferences?.lang || getLocale();
+		const dir = getTextDirection(locale);
+		document.documentElement.dir = dir;
+		document.documentElement.lang = locale;
+		document.documentElement.setAttribute('data-dir', dir);
 	});
 </script>
 

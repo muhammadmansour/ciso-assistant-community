@@ -998,7 +998,7 @@
 
 																		{#if result.evidenceQuality}
 																			<div class="flex items-center space-x-2">
-																				<span class="font-medium">Evidence Quality:</span>
+																				<span class="font-medium">{m.evidenceQuality()}</span>
 																				<span class="badge preset-tonal px-2 py-1">
 																					{result.evidenceQuality}
 																				</span>
@@ -1055,7 +1055,7 @@
 																	<!-- Next Steps -->
 																	{#if result.nextSteps && result.nextSteps.length > 0}
 																		<div>
-																			<p class="font-medium mb-1 text-purple-600"><i class="fa-solid fa-arrow-right mr-1"></i>Next Steps:</p>
+																			<p class="font-medium mb-1 text-purple-600"><i class="fa-solid fa-arrow-right mr-1"></i>{m.nextSteps()}</p>
 																			<ul class="list-disc list-inside bg-white/50 rounded p-2 space-y-1">
 																				{#each result.nextSteps as step}
 																					<li>{step}</li>
@@ -1067,7 +1067,7 @@
 																	<!-- Detailed Analysis -->
 																	{#if result.detailedAnalysis}
 																		<div>
-																			<p class="font-medium mb-1"><i class="fa-solid fa-file-alt mr-1"></i>Detailed Analysis:</p>
+																			<p class="font-medium mb-1"><i class="fa-solid fa-file-alt mr-1"></i>{m.detailedAnalysis()}</p>
 																			<div class="bg-white/50 rounded p-2">
 																				<MarkdownRenderer content={result.detailedAnalysis} />
 																			</div>

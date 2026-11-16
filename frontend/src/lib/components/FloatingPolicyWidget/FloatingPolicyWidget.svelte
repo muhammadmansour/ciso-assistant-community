@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { getCSRFToken } from '$lib/django';
@@ -286,10 +287,10 @@
 							onclick={goBack}
 							class="text-white/80 hover:text-white transition-colors"
 						>
-							<i class="fa-solid fa-arrow-left text-sm"></i>
+							<i class="fa-solid fa-arrow-left text-sm rtl:rotate-180"></i>
 						</button>
 						<div>
-							<h3 class="text-white font-semibold text-sm">Policy Assistant</h3>
+							<h3 class="text-white font-semibold text-sm">{m.policyAssistant()}</h3>
 							<p class="text-white/50 text-xs">
 								{getSelectedCollectionCount()} collection{getSelectedCollectionCount() > 1 ? 's' : ''} selected
 							</p>
@@ -297,8 +298,8 @@
 					</div>
 				{:else}
 					<div>
-						<h3 class="text-white font-semibold text-sm">Policy Collections</h3>
-						<p class="text-white/50 text-xs">Select collections to chat with</p>
+						<h3 class="text-white font-semibold text-sm">{m.policyCollections()}</h3>
+						<p class="text-white/50 text-xs">{m.selectCollectionsToChat()}</p>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
@@ -399,7 +400,7 @@
 								type="text"
 								bind:value={chatInput}
 								onkeydown={handleChatKeydown}
-								placeholder="Ask about your policies..."
+								placeholder={m.askAboutPolicies()}
 								class="flex-1 px-3.5 py-2 bg-[#f4f6f9] border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
 							/>
 							<button
@@ -426,7 +427,7 @@
 								<div
 									class="w-8 h-8 border-3 border-[#0077CC]/30 border-t-[#0077CC] rounded-full animate-spin"
 								></div>
-								<p class="text-gray-400 text-sm">Loading collections...</p>
+								<p class="text-gray-400 text-sm">{m.loadingCollections()}</p>
 							</div>
 						</div>
 					{:else if error}
@@ -445,7 +446,7 @@
 					{:else if collections.length === 0}
 						<div class="flex flex-col items-center justify-center py-12 px-4">
 							<i class="fa-solid fa-folder-open text-gray-300 text-3xl mb-2"></i>
-							<p class="text-gray-400 text-sm text-center">No collections found</p>
+							<p class="text-gray-400 text-sm text-center">{m.noCollectionsFound()}</p>
 							<button
 								onclick={fetchCollections}
 								class="mt-3 text-[#0077CC] text-sm font-medium hover:underline"

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
@@ -97,7 +98,7 @@
 
 <div bind:this={container} class="vis-timeline-container" style="height: {height}; width: {width};">
 	{#if !browser}
-		<div class="ssr-placeholder">Timeline will render on client-side</div>
+		<div class="ssr-placeholder">{m.timelineClientOnly()}</div>
 	{/if}
 </div>
 

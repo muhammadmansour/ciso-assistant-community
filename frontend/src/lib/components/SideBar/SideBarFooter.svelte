@@ -75,9 +75,9 @@
 							onclick={(e) => {
 								window.location.href = e.target.href;
 							}}
-							class="unstyled cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
+							class="unstyled cursor-pointer flex items-center gap-2 w-full px-4 py-2.5 text-start text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
 							data-testid="profile-button"
-							><i class="fa-solid fa-address-card mr-2"></i>{m.myProfile()}</a
+							><i class="fa-solid fa-address-card me-2"></i>{m.myProfile()}</a
 						>
 						<!--
 							Wathbah customisation: hide Guided tour, Load demo data, About,
@@ -89,8 +89,8 @@
 						<form action="/logout" method="POST">
 							<button class="w-full" type="submit" data-testid="logout-button">
 								<span
-									class="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
-									><i class="fa-solid fa-right-from-bracket mr-2"></i>{m.Logout()}</span
+									class="flex items-center gap-2 w-full px-4 py-2.5 text-start text-sm hover:bg-gray-100 disabled:text-gray-500 text-gray-800"
+									><i class="fa-solid fa-right-from-bracket me-2"></i>{m.Logout()}</span
 								>
 							</button>
 						</form>
@@ -116,7 +116,7 @@
 			data-testid="sidebar-wathbah-admin-console"
 		>
 			<i class="fa-solid fa-gear text-white/80"></i>
-			<span class="font-medium">Muhkam Admin</span>
+			<span class="font-medium">{m.muhkamAdmin()}</span>
 		</a>
 	{/if}
 </div>

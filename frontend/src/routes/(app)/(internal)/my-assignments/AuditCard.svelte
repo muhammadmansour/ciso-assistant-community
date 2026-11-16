@@ -43,7 +43,7 @@
 				<span class="font-semibold">{m.framework()}: </span>{audit.framework.str}
 			</div>
 			<div class="text-xs">
-				<span class="font-semibold">ETA: </span>{formatDateOrDateTime(audit.eta, getLocale()) ??
+				<span class="font-semibold">{m.eta()}: </span>{formatDateOrDateTime(audit.eta, getLocale()) ??
 					'-'}
 			</div>
 		</div>

@@ -388,7 +388,7 @@
 							)?.length || 0}
 						</p>
 						<details class="mt-2">
-							<summary class="cursor-pointer font-medium">View raw scenario data</summary>
+							<summary class="cursor-pointer font-medium">{m.viewRawScenarioData()}</summary>
 							<pre class="mt-2 p-2 bg-yellow-100 rounded text-xs overflow-auto">{JSON.stringify(
 									keyMetricsData?.scenarios,
 									null,

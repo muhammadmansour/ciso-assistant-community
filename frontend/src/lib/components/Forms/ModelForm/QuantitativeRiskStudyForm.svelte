@@ -179,12 +179,12 @@
 		/>
 
 		<div class="space-y-2">
-			<h5 class="font-medium text-gray-600 my-2 py-2">Risk Tolerance Points</h5>
+			<h5 class="font-medium text-gray-600 my-2 py-2">{m.riskTolerancePoints()}</h5>
 			<div class="grid grid-cols-2 gap-4">
 				<!-- Point 1 Probability as Percentage -->
 				<div class="form-control">
 					<label class="label" for="point1_probability_percent">
-						<span class="label-text">Point 1 - Probability (%)</span>
+						<span class="label-text">{m.point1Probability()}</span>
 					</label>
 					<input
 						type="number"
@@ -216,7 +216,7 @@
 				<!-- Point 2 Probability as Percentage -->
 				<div class="form-control">
 					<label class="label" for="point2_probability_percent">
-						<span class="label-text">Point 2 - Probability (%)</span>
+						<span class="label-text">{m.point2Probability()}</span>
 					</label>
 					<input
 						type="number"

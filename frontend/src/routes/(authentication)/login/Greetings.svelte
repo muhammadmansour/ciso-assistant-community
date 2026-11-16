@@ -1,36 +1,37 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { m } from '$paraglide/messages';
 
 	const features = [
 		{
 			icon: 'fa-solid fa-shield-halved',
-			title: 'Framework Compliance',
-			desc: 'Qiyas, SAMA, NCA & national frameworks'
+			title: m.frameworkCompliance(),
+			desc: m.frameworkComplianceDesc()
 		},
 		{
 			icon: 'fa-solid fa-clipboard-check',
-			title: 'Assessment Engine',
-			desc: 'Workflows for all 10 perspectives & 23 axes'
+			title: m.assessmentEngine(),
+			desc: m.assessmentEngineDesc()
 		},
 		{
 			icon: 'fa-solid fa-chart-line',
-			title: 'Real-time Tracking',
-			desc: 'Monitor progress & control statuses live'
+			title: m.realtimeTracking(),
+			desc: m.realtimeTrackingDesc()
 		},
 		{
 			icon: 'fa-solid fa-brain',
-			title: 'AI Evidence Analysis',
-			desc: 'Auto-assess submissions against Qiyas criteria'
+			title: m.aiEvidenceAnalysis(),
+			desc: m.aiEvidenceAnalysisDesc()
 		},
 		{
 			icon: 'fa-solid fa-users',
-			title: 'Team Collaboration',
-			desc: 'Assign tasks, share evidence & coordinate reviews'
+			title: m.teamCollaboration(),
+			desc: m.teamCollaborationDesc()
 		},
 		{
 			icon: 'fa-solid fa-folder-open',
-			title: 'Structured Export',
-			desc: 'Organized folder structure mapped to Qiyas criteria'
+			title: m.structuredExport(),
+			desc: m.structuredExportDesc()
 		}
 	];
 
@@ -53,14 +54,13 @@
 	/>
 
 	<!-- Subtitle -->
-	<h1 class="text-3xl font-bold text-white leading-tight mb-4 whitespace-nowrap">
-		Compliance Management Platform
+	<h1 class="text-3xl font-bold text-white leading-tight mb-4">
+		{m.complianceManagementPlatform()}
 	</h1>
 
 	<!-- Description -->
 	<p class="text-gray-400 text-base leading-relaxed max-w-md mb-10">
-		Simplify compliance assessments, track requirements in real time, and ensure your organization
-		meets national regulatory standards.
+		{m.compliancePlatformDescription()}
 	</p>
 
 	<!-- Feature Carousel -->
@@ -90,7 +90,7 @@
 						? 'w-6 bg-[#00A3E0]'
 						: 'w-1.5 bg-white/20 hover:bg-white/30'}"
 					onclick={() => (activeIndex = i)}
-					aria-label="Feature {i + 1}"
+					aria-label={m.featureLabel({ n: i + 1 })}
 				></button>
 			{/each}
 		</div>

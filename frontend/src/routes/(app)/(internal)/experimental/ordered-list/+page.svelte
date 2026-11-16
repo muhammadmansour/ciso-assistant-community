@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import OrderedEntryList from '$lib/components/OrderedEntryList.svelte';
 
 	let entries = $state([
@@ -16,7 +17,7 @@
 
 <div class="container mx-auto p-6 max-w-4xl">
 	<div class="mb-6">
-		<h1 class="text-3xl font-bold mb-2">Ordered Entry List - Test Page</h1>
+		<h1 class="text-3xl font-bold mb-2">{m.orderedEntryListTest()}</h1>
 		<p class="text-gray-600">
 			Test the drag-and-drop ordered entry list component. Add, reorder, and delete entries.
 		</p>
@@ -29,7 +30,7 @@
 				bind:checked={debugMode}
 				class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
 			/>
-			<span>Enable Debug Mode</span>
+			<span>{m.enableDebugMode()}</span>
 		</label>
 	</div>
 

@@ -72,7 +72,7 @@ export function getSidebarVisibleItems(
 		quantitativeRiskStudies: featureFlags?.quantitative_risk_studies ?? false,
 		terminologies: featureFlags?.terminologies ?? true,
 		businessImpactAnalysis: featureFlags?.bia ?? true,
-		projectManagement: featureFlags?.project_management ?? false,
+		projectManagement: featureFlags?.project_management ?? true,
 		contracts: featureFlags?.contracts ?? false,
 		reports: featureFlags?.reports ?? false,
 		validationFlows: true,

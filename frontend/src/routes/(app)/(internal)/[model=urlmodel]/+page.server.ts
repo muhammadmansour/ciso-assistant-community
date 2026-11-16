@@ -17,12 +17,25 @@ import { setFlash } from 'sveltekit-flash-message/server';
 import { m } from '$paraglide/messages';
 import { safeTranslate } from '$lib/utils/i18n';
 
-export const load: PageServerLoad = async ({ params, fetch }) => {
+export const load: PageServerLoad = async ({ params, fetch, locals }) => {
 	const schema = z.object({ id: z.string().uuid() });
 	const deleteForm = await superValidate(zod(schema));
 	const URLModel = params.model!;
 	const createSchema = modelSchema(params.model!);
 	const createForm = await superValidate(zod(createSchema));
+	if (
+		(params.model === 'projects' || params.model === 'responsibility-matrices') &&
+		!createForm.data.folder &&
+		locals.user?.root_folder_id
+	) {
+		createForm.data.folder = locals.user.root_folder_id;
+	}
+	if (params.model === 'projects' && !createForm.data.kind) {
+		createForm.data.kind = 'project';
+	}
+	if (params.model === 'responsibility-matrices' && !createForm.data.preset) {
+		createForm.data.preset = 'raci';
+	}
 	const model: ModelInfo = getModelInfo(params.model!);
 	const selectFields = urlParamModelSelectFields(params.model);
 
@@ -85,7 +98,9 @@ export const actions: Actions = {
 			event.params.model === 'entity-assessments' ||
 				event.params.model === 'quantitative-risk-hypotheses' ||
 				event.params.model === 'quantitative-risk-studies' ||
-				event.params.model === 'quantitative-risk-scenarios'
+				event.params.model === 'quantitative-risk-scenarios' ||
+				event.params.model === 'projects' ||
+				event.params.model === 'responsibility-matrices'
 		);
 		return defaultWriteFormAction({
 			event,

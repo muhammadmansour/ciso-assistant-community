@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 	import SuperForm from '$lib/components/Forms/Form.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
@@ -16,23 +17,23 @@
 	const adminFeatures = [
 		{
 			icon: 'fa-solid fa-microscope',
-			title: 'Audit Studio',
-			desc: 'Build context sessions with requirements and queries'
+			title: m.auditStudio(),
+			desc: m.auditStudioDesc()
 		},
 		{
 			icon: 'fa-solid fa-wand-magic-sparkles',
-			title: 'Prompt Management',
-			desc: 'Configure and tune AI prompt templates'
+			title: m.promptManagement(),
+			desc: m.promptManagementDesc()
 		},
 		{
 			icon: 'fa-solid fa-folder-tree',
-			title: 'File Collections',
-			desc: 'Manage evidence stores and file indexing'
+			title: m.fileCollections(),
+			desc: m.fileCollectionsDesc()
 		},
 		{
 			icon: 'fa-solid fa-sliders',
-			title: 'System Config',
-			desc: 'Global settings, integrations, and API keys'
+			title: m.systemConfig(),
+			desc: m.systemConfigDesc()
 		}
 	];
 
@@ -74,7 +75,7 @@
 				<!-- Admin Console Badge -->
 				<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.08] border border-white/[0.12] mb-6">
 					<i class="fa-solid fa-gear text-[#00A3E0] text-xs"></i>
-					<span class="text-white/90 text-xs font-semibold uppercase tracking-widest">Admin Console</span>
+					<span class="text-white/90 text-xs font-semibold uppercase tracking-widest">{m.adminConsole()}</span>
 				</div>
 
 				<img
@@ -84,7 +85,7 @@
 				/>
 
 				<!-- Subtitle -->
-				<h2 class="text-2xl font-bold text-white mb-4">Admin</h2>
+				<h2 class="text-2xl font-bold text-white mb-4">{m.admin()}</h2>
 
 				<!-- Description -->
 				<p class="text-gray-400 text-base leading-relaxed max-w-md mb-10">
@@ -161,8 +162,8 @@
 								<i class="fa-solid fa-gear text-white text-lg"></i>
 							</div>
 							<div>
-								<h3 class="text-xl font-bold text-gray-900">Admin Sign In</h3>
-								<p class="text-gray-400 text-xs">Enter your administrator credentials to continue</p>
+								<h3 class="text-xl font-bold text-gray-900">{m.adminSignIn()}</h3>
+								<p class="text-gray-400 text-xs">{m.adminSignInHelp()}</p>
 							</div>
 						</div>
 

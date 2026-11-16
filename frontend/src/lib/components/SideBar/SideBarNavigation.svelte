@@ -58,6 +58,9 @@
 	if (!$lastAccordionItem.includes('thirdPartyCategory')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'thirdPartyCategory'];
 	}
+	if (!$lastAccordionItem.includes('projectManagement')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'projectManagement'];
+	}
 
 	interface Props {
 		sideBarVisibleItems: Record<string, boolean>;

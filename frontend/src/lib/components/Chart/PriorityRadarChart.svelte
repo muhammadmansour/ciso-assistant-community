@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
 
 	import { goto } from '$app/navigation';
@@ -101,7 +102,7 @@
 					if (params.value[0] >= 100) {
 						return (
 							params.value[3] +
-							'<br/>Links: <br/><i>ETA not set or beyond 100 days</i><br/>' +
+							'<br/>Links: <br/><i>{m.etaNotSetOrBeyond()}</i><br/>' +
 							params.value[4]
 						);
 					}

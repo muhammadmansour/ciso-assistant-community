@@ -346,9 +346,9 @@
 
 					<!-- Keyboard hints -->
 					<div class="mt-1 text-xs text-surface-400">
-						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs">↑↓</kbd> navigate
-						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs ml-1">Enter</kbd> go
-						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs ml-1">Esc</kbd> close
+						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs">↑↓</kbd> {m.tocNavigate()}
+						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs ml-1">Enter</kbd> {m.tocGo()}
+						<kbd class="px-1 py-0.5 bg-surface-200 rounded text-xs ml-1">Esc</kbd> {m.tocClose()}
 					</div>
 				</div>
 

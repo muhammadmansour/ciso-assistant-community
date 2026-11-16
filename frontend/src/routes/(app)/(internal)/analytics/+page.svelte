@@ -100,7 +100,7 @@
 				<Tabs.Panel value="summary">
 					{#await data.stream.metrics}
 						<div class="col-span-3 lg:col-span-1">
-							<div>Refreshing data ..</div>
+							<div>{m.refreshingData()}</div>
 							<LoadingSpinner />
 						</div>
 					{:then metrics}
@@ -276,14 +276,14 @@
 						</section>
 					{:catch error}
 						<div class="col-span-3 lg:col-span-1">
-							<p class="text-red-500">Error loading metrics</p>
+							<p class="text-red-500">{m.errorLoadingMetrics()}</p>
 						</div>
 					{/await}
 				</Tabs.Panel>
 				<Tabs.Panel value="governance">
 					{#await data.stream.counters}
 						<div class="col-span-3 lg:col-span-1">
-							<div>Refreshing data ..</div>
+							<div>{m.refreshingData()}</div>
 							<LoadingSpinner />
 						</div>
 					{:then counters}
@@ -331,11 +331,11 @@
 							</div>
 						</section>
 					{:catch}
-						<div>Data load eror</div>
+						<div>{m.dataLoadError()}</div>
 					{/await}
 					{#await data.stream.combinedAssessmentsStatus}
 						<div class="col-span-3 lg:col-span-1">
-							<div>Loading assessments data...</div>
+							<div>{m.loadingAssessmentsData()}</div>
 							<LoadingSpinner />
 						</div>
 					{:then combinedAssessmentsStatus}
@@ -356,7 +356,7 @@
 							</section>
 						{/if}
 					{:catch}
-						<div>Error loading assessments data</div>
+						<div>{m.errorLoadingAssessments()}</div>
 					{/await}
 
 					<!-- Calendar Heatmap -->
@@ -382,7 +382,7 @@
 						<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
 							<h3 class="text-lg font-semibold text-gray-900 mb-4">{m.activityCalendar()}</h3>
 							<div class="flex items-center justify-center h-64 text-gray-500">
-								<p>Error loading calendar data</p>
+								<p>{m.errorLoadingCalendar()}</p>
 							</div>
 						</div>
 					{/await}
@@ -406,7 +406,7 @@
 									/>
 								{:else}
 									<div class="flex items-center justify-center h-full text-gray-500">
-										<p>No applied controls data available</p>
+										<p>{m.noAppliedControlsData()}</p>
 									</div>
 								{/if}
 							</div>
@@ -451,12 +451,12 @@
 										/>
 									{:else}
 										<div class="flex items-center justify-center h-full text-gray-500">
-											<p>No findings assessment data available</p>
+											<p>{m.noFindingsAssessmentData()}</p>
 										</div>
 									{/if}
 								{:catch error}
 									<div class="flex items-center justify-center h-full text-red-500">
-										<p>Error loading findings assessment data</p>
+										<p>{m.errorLoadingFindingsAssessment()}</p>
 									</div>
 								{/await}
 							</div>
@@ -466,7 +466,7 @@
 					<!-- Security Exception Flow -->
 					{#await data.stream.operationsAnalytics}
 						<div class="col-span-3 lg:col-span-1">
-							<div>Loading exceptions data...</div>
+							<div>{m.loadingExceptionsData()}</div>
 							<LoadingSpinner />
 						</div>
 					{:then operationsAnalytics}
@@ -492,7 +492,7 @@
 							</div>
 						{/if}
 					{:catch}
-						<div>Error loading exceptions data</div>
+						<div>{m.errorLoadingExceptions()}</div>
 					{/await}
 				</Tabs.Panel>
 				<Tabs.Panel value="risk">
@@ -788,7 +788,7 @@
 				<Tabs.Panel value="operations">
 					{#await data.stream.operationsAnalytics}
 						<div class="col-span-3 lg:col-span-1">
-							<div>Refreshing data ..</div>
+							<div>{m.refreshingData()}</div>
 							<LoadingSpinner />
 						</div>
 					{:then operationsAnalytics}
@@ -812,7 +812,7 @@
 												/>
 											{:else}
 												<div class="flex items-center justify-center h-full text-gray-500">
-													<p>No applied controls data available</p>
+													<p>{m.noAppliedControlsData()}</p>
 												</div>
 											{/if}
 										</div>
@@ -837,7 +837,7 @@
 												/>
 											{:else}
 												<div class="flex items-center justify-center h-full text-gray-500">
-													<p>No tasks data available</p>
+													<p>{m.noTasksData()}</p>
 												</div>
 											{/if}
 										</div>
@@ -994,8 +994,8 @@
 								<i class="fas fa-exclamation-triangle text-6xl"></i>
 							</div>
 							<div class="text-red-600">
-								<p class="text-xl font-semibold mb-2">Error loading operations data</p>
-								<p class="text-sm text-red-500">Please try refreshing the page</p>
+								<p class="text-xl font-semibold mb-2">{m.errorLoadingOperations()}</p>
+								<p class="text-sm text-red-500">{m.pleaseRefreshPage()}</p>
 							</div>
 						</div>
 					{/await}

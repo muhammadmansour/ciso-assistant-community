@@ -1361,6 +1361,61 @@ export const GenericCollectionSchema = z.object({
 	filtering_labels: z.array(z.string().uuid().optional()).optional()
 });
 
+const optionalDate = z.union([z.literal('').transform(() => null), z.string()]).nullish();
+const optionalUuid = z.preprocess(
+	(value) => (value === '' ? null : value),
+	z.string().uuid().nullish()
+);
+const optionalNumber = z.preprocess(
+	(value) => (value === '' || value === undefined ? null : value),
+	z.coerce.number().nullish()
+);
+
+export const ProjectSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	kind: z.preprocess((value) => (value === '' ? 'project' : value), z.string().optional()),
+	ref_id: z.string().optional(),
+	ref_link: z.string().optional(),
+	owner: optionalUuid,
+	sponsor: optionalUuid,
+	status: optionalUuid,
+	priority: optionalNumber,
+	health: optionalUuid,
+	start_date: optionalDate,
+	end_date: optionalDate,
+	eta: optionalDate,
+	progress: optionalNumber,
+	purpose: z.string().optional(),
+	objectives: z.string().optional(),
+	success_criteria: z.string().optional(),
+	business_case: z.string().optional(),
+	deliverables: z.string().optional(),
+	assumptions: z.string().optional(),
+	constraints: z.string().optional(),
+	dependencies_note: z.string().optional(),
+	exit_criteria: z.string().optional(),
+	organizational_alignment: z.string().optional(),
+	approval_requirements: z.string().optional(),
+	budget: optionalNumber,
+	actual_cost: optionalNumber,
+	currency: z.string().optional(),
+	linked_collection: optionalUuid,
+	create_collection: z.boolean().optional().default(true),
+	parent_project: optionalUuid,
+	observation: z.string().optional().nullable(),
+	filtering_labels: z.array(z.string().uuid().optional()).optional()
+});
+
+export const ResponsibilityMatrixSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	ref_id: z.string().optional(),
+	preset: z.string().optional(),
+	projects: z.array(z.string().uuid().optional()).optional(),
+	filtering_labels: z.array(z.string().uuid().optional()).optional()
+});
+
 export const AccreditationSchema = z.object({
 	...NameDescriptionMixin,
 	folder: z.string(),
@@ -1531,6 +1586,8 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	roles: RoleSchema,
 	'generic-collections': GenericCollectionSchema,
 	accreditations: AccreditationSchema,
+	projects: ProjectSchema,
+	'responsibility-matrices': ResponsibilityMatrixSchema,
 	workflows: WorkflowSchema,
 	'metric-definitions': MetricDefinitionSchema,
 	'metric-instances': MetricInstanceSchema,

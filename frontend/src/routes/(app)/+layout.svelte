@@ -14,6 +14,7 @@
 	import { page } from '$app/stores';
 	import { m } from '$paraglide/messages';
 	import { getLocale, locales, setLocale } from '$paraglide/runtime';
+	import { getTextDirection } from '$lib/utils/i18n';
 
 	import type { PageData, ActionData } from './$types';
 	import QuickStartModal from '$lib/components/SideBar/QuickStart/QuickStartModal.svelte';
@@ -139,6 +140,12 @@
 	async function handleLocaleChange(newLang: (typeof locales)[number]) {
 		if (newLang === langValue) return;
 		langValue = newLang;
+		if (browser) {
+			const dir = getTextDirection(newLang);
+			document.documentElement.dir = dir;
+			document.documentElement.lang = newLang;
+			document.documentElement.setAttribute('data-dir', dir);
+		}
 		await fetch('/fe-api/user-preferences', {
 			method: 'PATCH',
 			body: JSON.stringify({ lang: newLang })
@@ -172,25 +179,25 @@
 		<div class="flex items-center justify-between px-6 py-3">
 			<!-- Search Bar -->
 			<div class="relative flex-1 max-w-xl">
-				<i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+				<i class="fa-solid fa-magnifying-glass absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
 				<input
 					type="text"
-					placeholder="Search..."
+					placeholder={m.searchPlaceholder()}
 					bind:value={searchQuery}
 					onkeydown={handleSearchKeydown}
-					class="w-full pl-10 pr-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
+					class="w-full ps-10 pe-4 py-2 bg-[#f4f6f9] border-0 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-all"
 				/>
 			</div>
 
-			<!-- Right Side Actions -->
-			<div class="flex items-center gap-3 ml-4">
+			<!-- Trailing actions (start Audit / language / brand) -->
+			<div class="flex items-center gap-3 ms-4">
 				{#if data?.user?.is_admin}
 					<button
 						onclick={modalQuickStart}
 						class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white text-sm font-medium rounded-lg shadow-sm hover:from-[#1a2740] hover:to-[#2a3a66] transition-all duration-200"
 					>
-						<i class="fa-solid fa-play text-xs"></i>
-						Start Audit
+						<i class="fa-solid fa-play text-xs rtl:rotate-180"></i>
+						{m.startAudit()}
 					</button>
 				{/if}
 
@@ -218,7 +225,7 @@
 				<img
 					src="/brand/muhkam/svg/muhkam-lockup-horizontal.svg"
 					alt="Muhkam"
-					class="h-6 w-auto max-w-[120px] opacity-70 hover:opacity-100 transition-opacity ml-2"
+					class="h-6 w-auto max-w-[120px] opacity-70 hover:opacity-100 transition-opacity ms-2"
 				/>
 			</div>
 		</div>

@@ -107,7 +107,7 @@
 											></i>
 										</span>
 										{#if step.preliminary}
-											<h3 class="font-medium leading-tight">Preliminary step</h3>
+											<h3 class="font-medium leading-tight">{m.preliminaryStep()}</h3>
 											<p class="text-sm">{step.title}</p>
 										{:else}
 											<h3 class="font-medium leading-tight">{m.activity()} {getStepNumber(i)}</h3>
@@ -129,7 +129,7 @@
 													<i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
 												</span>
 												{#if step.preliminary}
-													<h3 class="font-medium leading-tight text-start">Preliminary step</h3>
+													<h3 class="font-medium leading-tight text-start">{m.preliminaryStep()}</h3>
 													<p class="text-sm text-start">{step.title}</p>
 												{:else}
 													<h3 class="font-medium leading-tight text-start">

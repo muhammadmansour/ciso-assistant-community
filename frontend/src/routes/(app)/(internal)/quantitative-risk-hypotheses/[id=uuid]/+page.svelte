@@ -126,7 +126,7 @@
 					{:else}
 						<div class="text-gray-500">
 							<i class="fa-solid fa-chart-line text-2xl mb-2"></i>
-							<p>No LEC data available. Run a simulation to generate the chart.</p>
+							<p>{m.noLecData()}</p>
 						</div>
 					{/if}
 				</div>
@@ -135,7 +135,7 @@
 			<!-- Risk Metrics -->
 			<div class="bg-white rounded-lg p-6 shadow-sm">
 				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-lg font-semibold">Risk Insights</h3>
+					<h3 class="text-lg font-semibold">{m.riskInsights()}</h3>
 					{#if data.data.impact?.lb && data.data.impact?.ub}
 						<button
 							onclick={() => (showDistributionModal = true)}
@@ -166,14 +166,14 @@
 
 					<!-- Risk Metrics - First Row: VaR Metrics -->
 					<div class="mb-8">
-						<h4 class="text-md font-medium text-gray-700 mb-4">Value at Risk Metrics</h4>
+						<h4 class="text-md font-medium text-gray-700 mb-4">{m.valueAtRiskMetrics()}</h4>
 						<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
 							{#if metrics.mean_annual_loss !== undefined}
 								<div class="text-center">
 									<div class="text-2xl font-bold text-blue-600 mb-2">
 										{formatCurrency(metrics.mean_annual_loss)}
 									</div>
-									<div class="text-sm text-gray-600">Mean Annual Loss</div>
+									<div class="text-sm text-gray-600">{m.meanAnnualLoss()}</div>
 								</div>
 							{/if}
 							{#if metrics.var_95 !== undefined}
@@ -205,14 +205,14 @@
 
 					<!-- Loss Probabilities - Second Row -->
 					<div class="mb-8">
-						<h4 class="text-md font-medium text-gray-700 mb-4">Loss Probabilities</h4>
+						<h4 class="text-md font-medium text-gray-700 mb-4">{m.lossProbabilities()}</h4>
 						<div class="grid grid-cols-2 md:grid-cols-5 gap-6">
 							{#if metrics.prob_zero_loss !== undefined}
 								<div class="text-center">
 									<div class="text-2xl font-bold text-green-600 mb-2">
 										{(metrics.prob_zero_loss * 100).toFixed(1)}%
 									</div>
-									<div class="text-sm text-gray-600">Zero Loss</div>
+									<div class="text-sm text-gray-600">{m.zeroLoss()}</div>
 								</div>
 							{/if}
 							{#if metrics.prob_above_threshold !== undefined && data.data.loss_threshold}
@@ -257,7 +257,7 @@
 
 					<!-- Probability-Based Losses - Third Row -->
 					<div>
-						<h4 class="text-md font-medium text-gray-700 mb-4">Scenario-Based Losses</h4>
+						<h4 class="text-md font-medium text-gray-700 mb-4">{m.scenarioBasedLosses()}</h4>
 						<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
 							{#each scenarioLosses as { key, value, percentage }}
 								<div class="text-center">
@@ -273,10 +273,10 @@
 					<div class="text-center text-gray-500">
 						{#if data.lec?.message}
 							<i class="fa-solid fa-calculator text-2xl mb-2"></i>
-							<p>No metrics available. {data.lec.message}</p>
+							<p>{m.noMetricsWithMessage()} {data.lec.message}</p>
 						{:else}
 							<i class="fa-solid fa-calculator text-2xl mb-2"></i>
-							<p>No metrics available. Run a simulation to see risk insights.</p>
+							<p>{m.noMetricsRunSimulation()}</p>
 						{/if}
 					</div>
 				{/if}
@@ -295,7 +295,7 @@
 	>
 		<div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-auto">
 			<div class="flex justify-between items-center mb-4">
-				<h2 class="text-xl font-semibold">Impact Distribution</h2>
+				<h2 class="text-xl font-semibold">{m.impactDistribution()}</h2>
 				<div class="flex items-center space-x-4">
 					<div class="flex items-center space-x-2">
 						<label class="text-sm font-medium">X-axis:</label>

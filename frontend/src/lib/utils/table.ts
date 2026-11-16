@@ -2379,6 +2379,22 @@ export const listViewFields = {
 			filtering_labels: LABELS_FILTER
 		}
 	},
+	projects: {
+		head: ['ref_id', 'name', 'kind', 'status', 'health', 'progress', 'folder'],
+		body: ['ref_id', 'name', 'kind', 'status', 'health', 'progress', 'folder'],
+		filters: {
+			folder: DOMAIN_FILTER,
+			filtering_labels: LABELS_FILTER
+		}
+	},
+	'responsibility-matrices': {
+		head: ['ref_id', 'name', 'preset', 'folder'],
+		body: ['ref_id', 'name', 'preset', 'folder'],
+		filters: {
+			folder: DOMAIN_FILTER,
+			filtering_labels: LABELS_FILTER
+		}
+	},
 	workflows: {
 		head: ['name', 'description', 'triggerTypes', 'isActive', 'folder'],
 		body: ['name', 'description', 'trigger_types', 'is_active', 'folder'],

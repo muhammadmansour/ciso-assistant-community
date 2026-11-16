@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import { getModalStore, type ModalStore } from '$lib/components/Modals/stores';
 
 	const modalStore: ModalStore = getModalStore();
@@ -27,7 +28,7 @@
 {#if $modalStore[0]}
 	{@const scenarios = $modalStore[0].meta?.scenarios || []}
 	<div class={cBase}>
-		<header class={cHeader}>Unprocessed Scenarios</header>
+		<header class={cHeader}>{m.unprocessedScenarios()}</header>
 		<p class="text-surface-600">
 			The following scenarios have multiple residual hypotheses. Please select one residual
 			hypothesis per scenario to include it in the action plan.
@@ -50,7 +51,7 @@
 							</div>
 
 							<div class="space-y-2">
-								<p class="text-sm font-medium">Residual Hypotheses:</p>
+								<p class="text-sm font-medium">{m.residualHypotheses()}</p>
 								<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
 									{#each scenario.residual_hypotheses as hypothesis}
 										<div
@@ -62,9 +63,9 @@
 												<p class="font-medium text-sm">{hypothesis.name}</p>
 											</div>
 											{#if hypothesis.is_selected}
-												<span class="badge variant-filled-success text-xs">Selected</span>
+												<span class="badge variant-filled-success text-xs">{m.selected()}</span>
 											{:else}
-												<span class="badge variant-soft-surface text-xs">Not Selected</span>
+												<span class="badge variant-soft-surface text-xs">{m.notSelected()}</span>
 											{/if}
 										</div>
 									{/each}
@@ -82,13 +83,13 @@
 				</div>
 			{:else}
 				<div class="text-center py-8">
-					<p class="text-surface-600">No problematic scenarios found.</p>
+					<p class="text-surface-600">{m.noProblematicScenarios()}</p>
 				</div>
 			{/if}
 		</section>
 
 		<footer class="flex justify-end pt-4">
-			<button type="button" class="btn variant-filled" onclick={closeModal}> Close </button>
+			<button type="button" class="btn variant-filled" onclick={closeModal}> {m.close()} </button>
 		</footer>
 	</div>
 {/if}
