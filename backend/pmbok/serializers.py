@@ -26,6 +26,8 @@ class GenericCollectionReadSerializer(BaseModelSerializer):
     entity_assessments = FieldsRelatedField(many=True)
     findings_assessments = FieldsRelatedField(many=True)
     documents = FieldsRelatedField(many=True)
+    document_containers = FieldsRelatedField(many=True)
+    applied_controls = FieldsRelatedField(many=True)
     security_exceptions = FieldsRelatedField(many=True)
     policies = FieldsRelatedField(many=True)
     dependencies = FieldsRelatedField(many=True)

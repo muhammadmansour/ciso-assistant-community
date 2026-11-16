@@ -130,6 +130,7 @@ export const loadDetail = async ({ event, model, id }) => {
 						})
 				)
 				.map(async (e) => {
+					try {
 					if (
 						e.urlModel === 'perimeters' &&
 						model.urlModel === 'folders' &&
@@ -137,6 +138,10 @@ export const loadDetail = async ({ event, model, id }) => {
 					)
 						return;
 					const tableFieldsRef = listViewFields[e.urlModel];
+					if (!tableFieldsRef) {
+						console.error(`Missing listViewFields for related model ${e.urlModel}`);
+						return;
+					}
 					const tableFields = {
 						head: [...tableFieldsRef.head],
 						body: [...tableFieldsRef.body]
@@ -172,10 +177,16 @@ export const loadDetail = async ({ event, model, id }) => {
 					}
 					if (data.folder) {
 						if (!new RegExp(UUID_REGEX).test(data.folder) && !data?.folder?.id) {
-							const objectEndpoint = `${endpoint}object/`;
-							const objectResponse = await event.fetch(objectEndpoint);
-							const objectData = await objectResponse.json();
-							modelInitialData['folder'] = objectData.folder;
+							try {
+								const objectEndpoint = `${endpoint}object/`;
+								const objectResponse = await event.fetch(objectEndpoint);
+								if (objectResponse.ok) {
+									const objectData = await objectResponse.json();
+									modelInitialData['folder'] = objectData.folder;
+								}
+							} catch (err) {
+								console.error('Failed to resolve folder from object/:', err);
+							}
 						} else {
 							modelInitialData['folder'] = data?.folder?.id ?? data.folder;
 						}
@@ -210,18 +221,23 @@ export const loadDetail = async ({ event, model, id }) => {
 								if (selectField.formNestedField && selectField.detail === true) {
 									url = `${BASE_API_URL}/${selectField.endpointUrl}/${modelInitialData[selectField.formNestedField]}/${selectField.field}/`;
 								}
-								const response = await event.fetch(url);
-								if (response.ok) {
-									selectOptions[selectField.field] = await response.json().then((data) =>
-										Object.entries(data).map(([key, value]) => ({
-											label: value,
-											value: selectField.valueType === 'number' ? parseInt(key) : key
-										}))
-									);
-								} else {
-									console.error(
-										`Failed to fetch data for ${selectField.field}: ${response.statusText}`
-									);
+								try {
+									const response = await event.fetch(url);
+									if (response.ok) {
+										selectOptions[selectField.field] = await response.json().then((data) =>
+											Object.entries(data).map(([key, value]) => ({
+												label: value,
+												value: selectField.valueType === 'number' ? parseInt(key) : key
+											}))
+										);
+									} else {
+										console.error(
+											`Failed to fetch data for ${selectField.field}: ${response.statusText}`
+										);
+									}
+								} catch (err) {
+									// A single unreachable select-options endpoint must not 500 the detail page.
+									console.error(`Failed to fetch data for ${selectField.field}:`, err);
 								}
 							})
 						);
@@ -238,6 +254,9 @@ export const loadDetail = async ({ event, model, id }) => {
 						disableDelete: e.disableDelete,
 						disableEdit: e.disableEdit
 					};
+					} catch (err) {
+						console.error(`Failed to load related model ${e.urlModel}:`, err);
+					}
 				})
 		);
 	}

@@ -32,11 +32,13 @@
 	const contextMap: Record<string, string> = {
 		'compliance-assessments': 'selectComplianceAssessments',
 		'risk-assessments': 'selectRiskAssessments',
-		'quantitative-risk-studies': 'selectCrqStudies',
-		'ebios-rm': 'selectEbiosStudies',
+		// 'quantitative-risk-studies': 'selectCrqStudies',
+		// 'ebios-rm': 'selectEbiosStudies',
 		'entity-assessments': 'selectEntityAssessments',
 		'findings-assessments': 'selectFindingsAssessments',
 		evidences: 'selectDocuments',
+		'document-containers': 'selectDocumentContainers',
+		'applied-controls': 'selectAppliedControls',
 		'security-exceptions': 'selectSecurityExceptions',
 		policies: 'selectPolicies',
 		'generic-collections': 'selectDependencies'
@@ -46,11 +48,13 @@
 	const fieldMap: Record<string, string> = {
 		'compliance-assessments': 'compliance_assessments',
 		'risk-assessments': 'risk_assessments',
-		'quantitative-risk-studies': 'crq_studies',
-		'ebios-rm': 'ebios_studies',
+		// 'quantitative-risk-studies': 'crq_studies',
+		// 'ebios-rm': 'ebios_studies',
 		'entity-assessments': 'entity_assessments',
 		'findings-assessments': 'findings_assessments',
 		evidences: 'documents',
+		'document-containers': 'document_containers',
+		'applied-controls': 'applied_controls',
 		'security-exceptions': 'security_exceptions',
 		policies: 'policies',
 		'generic-collections': 'dependencies'

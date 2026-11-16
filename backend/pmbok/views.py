@@ -37,6 +37,8 @@ class GenericCollectionViewSet(BaseModelViewSet):
         "entity_assessments",
         "findings_assessments",
         "documents",
+        "document_containers",
+        "applied_controls",
         "security_exceptions",
         "policies",
         "filtering_labels",

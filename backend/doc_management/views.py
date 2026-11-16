@@ -261,6 +261,7 @@ class DocumentContainerFilter(GenericFilterSet):
             "task_templates",
             "processings",
             "assets",
+            "genericcollection",
         ]
 
     def _visible_state(self, queryset):

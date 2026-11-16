@@ -52,7 +52,7 @@
 		bind:cachedValue={formDataCache['risk_assessments']}
 		label={m.riskAssessments()}
 	/>
-{:else if context === 'selectCrqStudies'}
+<!-- {:else if context === 'selectCrqStudies'}
 	<AutocompleteSelect
 		{form}
 		multiple
@@ -75,7 +75,7 @@
 		cacheLock={cacheLocks['ebios_studies']}
 		bind:cachedValue={formDataCache['ebios_studies']}
 		label={m.ebiosRmStudies()}
-	/>
+	/> -->
 {:else if context === 'selectEntityAssessments'}
 	<AutocompleteSelect
 		{form}
@@ -111,6 +111,30 @@
 		cacheLock={cacheLocks['documents']}
 		bind:cachedValue={formDataCache['documents']}
 		label={m.documents()}
+	/>
+{:else if context === 'selectDocumentContainers'}
+	<AutocompleteSelect
+		{form}
+		multiple
+		optionsEndpoint="document-containers"
+		optionsExtraFields={[['folder', 'str']]}
+		optionsLabelField="auto"
+		field="document_containers"
+		cacheLock={cacheLocks['document_containers']}
+		bind:cachedValue={formDataCache['document_containers']}
+		label={m.documents()}
+	/>
+{:else if context === 'selectAppliedControls'}
+	<AutocompleteSelect
+		{form}
+		multiple
+		optionsEndpoint="applied-controls"
+		optionsExtraFields={[['folder', 'str']]}
+		optionsLabelField="auto"
+		field="applied_controls"
+		cacheLock={cacheLocks['applied_controls']}
+		bind:cachedValue={formDataCache['applied_controls']}
+		label={m.appliedControls()}
 	/>
 {:else if context === 'selectSecurityExceptions'}
 	<AutocompleteSelect
@@ -209,7 +233,7 @@
 			label={m.riskAssessments()}
 		/>
 
-		<AutocompleteSelect
+		<!-- <AutocompleteSelect
 			{form}
 			multiple
 			optionsEndpoint="quantitative-risk-studies"
@@ -231,7 +255,7 @@
 			cacheLock={cacheLocks['ebios_studies']}
 			bind:cachedValue={formDataCache['ebios_studies']}
 			label={m.ebiosRmStudies()}
-		/>
+		/> -->
 
 		<AutocompleteSelect
 			{form}
@@ -267,6 +291,30 @@
 			cacheLock={cacheLocks['documents']}
 			bind:cachedValue={formDataCache['documents']}
 			label={m.evidences()}
+		/>
+
+		<AutocompleteSelect
+			{form}
+			multiple
+			optionsEndpoint="document-containers"
+			optionsExtraFields={[['folder', 'str']]}
+			optionsLabelField="auto"
+			field="document_containers"
+			cacheLock={cacheLocks['document_containers']}
+			bind:cachedValue={formDataCache['document_containers']}
+			label={m.documents()}
+		/>
+
+		<AutocompleteSelect
+			{form}
+			multiple
+			optionsEndpoint="applied-controls"
+			optionsExtraFields={[['folder', 'str']]}
+			optionsLabelField="auto"
+			field="applied_controls"
+			cacheLock={cacheLocks['applied_controls']}
+			bind:cachedValue={formDataCache['applied_controls']}
+			label={m.appliedControls()}
 		/>
 
 		<AutocompleteSelect

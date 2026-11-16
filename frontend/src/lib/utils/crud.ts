@@ -2364,11 +2364,13 @@ export const URL_MODEL_MAP: ModelMap = {
 		reverseForeignKeyFields: [
 			{ field: 'genericcollection', urlModel: 'compliance-assessments' },
 			{ field: 'genericcollection', urlModel: 'risk-assessments' },
-			{ field: 'genericcollection', urlModel: 'quantitative-risk-studies' },
-			{ field: 'genericcollection', urlModel: 'ebios-rm' },
+			// { field: 'genericcollection', urlModel: 'quantitative-risk-studies' },
+			// { field: 'genericcollection', urlModel: 'ebios-rm' },
 			{ field: 'genericcollection', urlModel: 'entity-assessments' },
 			{ field: 'genericcollection', urlModel: 'findings-assessments' },
 			{ field: 'genericcollection', urlModel: 'evidences' },
+			{ field: 'genericcollection', urlModel: 'document-containers' },
+			{ field: 'genericcollection', urlModel: 'applied-controls' },
 			{ field: 'genericcollection', urlModel: 'security-exceptions' },
 			{ field: 'genericcollection', urlModel: 'policies' }
 		],
