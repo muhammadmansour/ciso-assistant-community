@@ -10867,6 +10867,26 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         if direct_ev_count > 0:
             merged_description += f"\nAdditionally, {direct_ev_count} evidence file(s) are directly attached to the requirement assessment."
 
+        # Tells Muraji to use the scoring prompt and on which scale to score.
+        compliance_assessment = requirement_assessment.compliance_assessment
+        include_scoring = bool(requirement_assessment.is_scored)
+        scoring = None
+        if include_scoring:
+            framework = compliance_assessment.framework
+            scoring = {
+                'min_score': compliance_assessment.min_score,
+                'max_score': compliance_assessment.max_score,
+                'scores_definition': (
+                    get_referential_translation(framework, 'scores_definition', get_language())
+                    if framework
+                    else compliance_assessment.scores_definition
+                ) or compliance_assessment.scores_definition or [],
+                'include_documentation_score': bool(compliance_assessment.show_documentation_score),
+                'current_score': requirement_assessment.score,
+                'current_documentation_score': requirement_assessment.documentation_score,
+            }
+        print(f"[RA-AI-ANALYSIS] Scoring: include={include_scoring} scale={scoring and (scoring['min_score'], scoring['max_score'])}")
+
         # Send questions as plain strings — the Muraji API expects a string array, not objects
         request_body = {
             'assessment_type': 'requirement',
@@ -10894,6 +10914,8 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 'include_recommendations': False,
                 'include_entity_extraction': False,
                 'include_compliance_check': False,
+                'include_scoring': include_scoring,
+                'scoring': scoring,
                 'response_language': 'auto',
                 'model': os.environ.get('GEMINI_MODEL', 'gemini-2.5-pro'),
             }
