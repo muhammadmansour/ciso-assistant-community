@@ -1,10 +1,11 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
-import { fetchAllPages } from '#lib/utils/pagination.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
+import { fetchAllPages } from '$lib/utils/pagination.js';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 export const load: PageServerLoad = async ({ fetch, params, url, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) {
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) {
 		redirect(302, '/');
 	}
 

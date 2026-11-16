@@ -1,6 +1,7 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 const LINK_FIELDS = [
 	'policies',
@@ -12,7 +13,7 @@ const LINK_FIELDS = [
 ] as const;
 
 export const POST: RequestHandler = async ({ request, fetch, locals }) => {
-	if (!(await locals.getFeatureFlags())?.document_management) error(404, 'Not found');
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) error(404, 'Not found');
 
 	const fd = await request.formData();
 	const source = String(fd.get('source') ?? 'author');

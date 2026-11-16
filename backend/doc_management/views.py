@@ -24,8 +24,16 @@ from rest_framework.parsers import (
     MultiPartParser,
 )
 from rest_framework.response import Response
-from weasyprint import HTML
-from weasyprint.urls import URLFetcher, URLFetcherResponse
+try:
+    from weasyprint import HTML
+    from weasyprint.urls import URLFetcher, URLFetcherResponse
+
+    WEASYPRINT_AVAILABLE = True
+except OSError:
+    WEASYPRINT_AVAILABLE = False
+    HTML = None
+    URLFetcher = None
+    URLFetcherResponse = None
 
 import django_filters as df
 
@@ -165,7 +173,11 @@ def _get_user_lang(request):
 
 
 _PDF_FETCH_MAX_BYTES = 10 * 1024 * 1024
-_DATA_URL_FETCHER = URLFetcher(allowed_protocols=("data",), allow_redirects=False)
+_DATA_URL_FETCHER = (
+    URLFetcher(allowed_protocols=("data",), allow_redirects=False)
+    if WEASYPRINT_AVAILABLE
+    else None
+)
 
 
 # Must be a URLFetcher subclass, not a plain callable: since 70.0 WeasyPrint
@@ -175,7 +187,7 @@ _DATA_URL_FETCHER = URLFetcher(allowed_protocols=("data",), allow_redirects=Fals
 # A configured `ssl_context` is not threaded through: deployments needing a
 # custom CA for embedded images won't get it. File an issue if that becomes a
 # real need.
-class _SafeURLFetcher(URLFetcher):
+class _SafeURLFetcher(URLFetcher if WEASYPRINT_AVAILABLE else object):
     def fetch(self, url, headers=None):
         if url.startswith("data:"):
             return _DATA_URL_FETCHER.fetch(url)
@@ -465,7 +477,7 @@ class DocumentContainerViewSet(PublishedReadMixin, BaseModelViewSet):
         folder_id = request.data.get("folder")
         try:
             folder = Folder.objects.get(id=folder_id)
-        except Folder.DoesNotExist, DjangoValidationError, ValueError:
+        except (Folder.DoesNotExist, DjangoValidationError, ValueError):
             return Response(
                 {"folder": "Required / not found."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -536,7 +548,7 @@ class DocumentContainerViewSet(PublishedReadMixin, BaseModelViewSet):
         folder_id = request.data.get("folder")
         try:
             folder = Folder.objects.get(id=folder_id)
-        except Folder.DoesNotExist, DjangoValidationError, ValueError:
+        except (Folder.DoesNotExist, DjangoValidationError, ValueError):
             return Response(
                 {"folder": "Required / not found."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -976,7 +988,7 @@ class DocumentAttachmentViewSet(PublishedReadMixin, BaseModelViewSet):
         """Serve the attachment file with correct content type."""
         try:
             pk_uuid = UUID(pk)
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         object_ids_view = readable_ids(request.user, DocumentAttachment)
@@ -1041,7 +1053,7 @@ class DocumentRevisionViewSet(PublishedReadMixin, BaseModelViewSet):
         """Serve an uploaded revision's file (PDF inline, everything else download)."""
         try:
             pk_uuid = UUID(pk)
-        except ValueError, AttributeError:
+        except (ValueError, AttributeError):
             return Response(status=status.HTTP_400_BAD_REQUEST)
         object_ids_view = readable_ids(request.user, DocumentRevision)
 

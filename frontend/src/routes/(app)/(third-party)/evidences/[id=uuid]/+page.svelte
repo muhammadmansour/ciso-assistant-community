@@ -22,6 +22,8 @@
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import { m } from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
+	import { formatDateOrDateTime } from '$lib/utils/datetime';
 	import { defaults } from 'sveltekit-superforms';
 	import { z } from 'zod';
 	import { zod } from 'sveltekit-superforms/adapters';
@@ -295,7 +297,7 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleString();
+		return formatDateOrDateTime(dateStr, getLocale());
 	}
 
 	function getStatusColor(status: string): string {
@@ -837,13 +839,13 @@
 							>
 								{#if isRetrying}
 									<i class="fa-solid fa-rotate-right fa-spin mr-2"></i>
-									Retrying ({retryAttempt}/{retryMaxAttempts})…
+									{m.retryingProgress({ attempt: retryAttempt, max: retryMaxAttempts })}
 								{:else if auditLoading}
 									<i class="fa-solid fa-spinner fa-spin mr-2"></i>
-									Analyzing...
+									{m.analyzing()}
 								{:else}
 									<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
-									Start AI Analysis
+									{m.startAiAnalysis()}
 								{/if}
 							</button>
 						</div>
@@ -906,10 +908,10 @@
 						<div class="mb-4 flex items-center justify-between">
 							<h3 class="text-lg font-semibold text-gray-800">
 								<i class="fa-solid fa-brain text-[#0A1628] mr-2"></i>
-								AI Analysis History
+								{m.aiAnalysisHistoryTitle()}
 							</h3>
 							<span class="text-sm text-gray-500">
-								{data.aiAnalyses?.length || 0} analysis(es)
+								{m.aiAnalysisCount({ count: data.aiAnalyses?.length || 0 })}
 							</span>
 						</div>
 
@@ -942,13 +944,13 @@
 															onclick={() => openAnalysisDetail(analysis)}
 														>
 															<i class="fa-solid fa-eye mr-1"></i>
-															View
+															{m.view()}
 														</button>
 														<form
 															method="POST"
 															action="?/deleteAiAnalysis"
 															use:enhance={() => {
-																if (!confirm('Are you sure you want to delete this analysis?')) {
+																if (!confirm(m.deleteAnalysisConfirm())) {
 																	return ({ cancel }) => cancel();
 																}
 																deletingAnalysisId = analysis.id;
@@ -987,7 +989,7 @@
 								</div>
 								<h3 class="text-xl font-semibold text-gray-800 mb-2">{m.noAiAnalysesYet()}</h3>
 								<p class="text-gray-600 mb-2">
-									Click "Start AI Analysis" to analyze this evidence file.
+									{m.startAiAnalysisEvidenceEmptyHint({ button: m.startAiAnalysis() })}
 								</p>
 								{#if questions.length === 0 && typicalEvidence.length === 0}
 									<p class="text-xs text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg inline-block">

@@ -96,6 +96,13 @@ READER_PERMISSIONS_LIST = [
     "view_responsibilitymatrixactivity",
     "view_responsibilitymatrixactor",
     "view_responsibilityassignment",
+    # doc_management
+    "view_documentcontainer",
+    "view_published_documentcontainer",
+    "view_manageddocument",
+    "view_documentrevision",
+    "view_documentattachment",
+    "view_documenttemplate",
     # metrology
     "view_metricdefinition",
     "view_metricinstance",
@@ -481,6 +488,13 @@ ANALYST_PERMISSIONS_LIST = [
     "change_responsibilitymatrixactor",
     "delete_responsibilitymatrixactor",
     "view_responsibilityassignment",
+    # doc_management
+    "view_documentcontainer",
+    "view_published_documentcontainer",
+    "view_manageddocument",
+    "view_documentrevision",
+    "view_documentattachment",
+    "view_documenttemplate",
     # metrology
     "view_metricdefinition",
     "view_metricinstance",
@@ -1210,6 +1224,38 @@ ADMINISTRATOR_PERMISSIONS_LIST = [
     "change_responsibilitymatrixactor",
     "delete_responsibilitymatrixactor",
     "view_responsibilityassignment",
+    # doc_management
+    "view_documentcontainer",
+    "view_published_documentcontainer",
+    "add_documentcontainer",
+    "change_documentcontainer",
+    "delete_documentcontainer",
+    "view_manageddocument",
+    "add_manageddocument",
+    "change_manageddocument",
+    "delete_manageddocument",
+    "view_documentrevision",
+    "add_documentrevision",
+    "change_documentrevision",
+    "delete_documentrevision",
+    "view_documentattachment",
+    "add_documentattachment",
+    "change_documentattachment",
+    "delete_documentattachment",
+    "view_documenttemplate",
+    "add_documenttemplate",
+    "change_documenttemplate",
+    "delete_documenttemplate",
+    "view_documentedit",
+    "sync_document_templates",
+    "view_objectclassification",
+    "add_objectclassification",
+    "change_objectclassification",
+    "delete_objectclassification",
+    "view_classificationlevel",
+    "add_classificationlevel",
+    "change_classificationlevel",
+    "delete_classificationlevel",
     # metrology
     "view_metricdefinition",
     "add_metricdefinition",
@@ -1468,6 +1514,13 @@ def startup(sender: AppConfig, **kwargs):
         Terminology.create_default_project_health()
     except Exception:
         logger.error("Error creating default project terminology", exc_info=True)
+
+    try:
+        from core.models import ObjectClassification
+
+        ObjectClassification.create_default_classifications()
+    except Exception:
+        logger.error("Error creating default object classifications", exc_info=True)
 
     try:
         from pmbok.models import ResponsibilityRole

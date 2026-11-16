@@ -803,6 +803,22 @@ class BaseModelViewSet(viewsets.ModelViewSet):
                 field_models[name] = related_model
         return field_models
 
+    def _user_can_view_all(self, model) -> bool:
+        """Return `True` if the user has the `"view_{model.__name__.lower()}"` permission on the root `Folder` recursively."""
+        user = self.request.user
+        if not getattr(user, "is_authenticated", False) or not user.is_active:
+            return False
+        return (
+            RoleAssignment.objects.filter(
+                Q(user=user) | Q(user_group__user=user),
+                perimeter_folders=Folder.get_root_folder(),
+                role__permissions__codename=f"view_{model.__name__.lower()}",
+                is_recursive=True,
+            )
+            .distinct()
+            .exists()
+        )
+
     def _get_accessible_ids_map(self, related_models):
         """Return visible object IDs per related model for the current user."""
         root_folder = Folder.get_root_folder()
@@ -14364,3 +14380,23 @@ class OrganizationContextViewSet(BaseModelViewSet):
     @action(detail=False, name="Get geographic scope choices")
     def geographic_scope(self, request):
         return Response(dict(OrganizationContext.GeoScope.choices))
+
+
+class ObjectClassificationViewSet(BaseModelViewSet):
+    model = ObjectClassification
+    filterset_fields = ["folder", "is_visible", "builtin"]
+    search_fields = ["name", "description", "ref_id"]
+    ordering = ["name"]
+
+
+class ClassificationLevelViewSet(BaseModelViewSet):
+    model = ClassificationLevel
+    filterset_fields = [
+        "object_classification",
+        "object_classification__is_visible",
+        "folder",
+        "is_visible",
+        "builtin",
+    ]
+    search_fields = ["name", "description", "abbreviation"]
+    ordering = ["object_classification", "rank"]

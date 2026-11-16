@@ -160,32 +160,43 @@ export const navData = {
 		// 		}
 		// 	]
 		// },
-		// {
-		// 	name: 'operations',
-		// 	items: [
-		// 		{
-		// 			name: 'appliedControls',
-		// 			fa_icon: 'fa-solid fa-fire-extinguisher',
-		// 			href: '/applied-controls'
-		// 		},
-		// 		{
-		// 			name: 'xRays',
-		// 			fa_icon: 'fa-solid fa-bolt',
-		// 			href: '/x-rays',
-		// 			permissions: ['view_riskassessment', 'view_assessment']
-		// 		},
-		// 		{
-		// 			name: 'incidents',
-		// 			fa_icon: 'fa-solid fa-bug',
-		// 			href: '/incidents'
-		// 		},
-		// 		{
-		// 			name: 'tasks',
-		// 			fa_icon: 'fa-solid fa-note-sticky',
-		// 			href: '/task-templates'
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'operations',
+			items: [
+				{
+					name: 'documents',
+					fa_icon: 'fa-solid fa-file-lines',
+					href: '/documents',
+					permissions: ['view_documentcontainer', 'view_published_documentcontainer'],
+					adminFallback: true
+				},
+				{
+					name: 'documentTemplates',
+					fa_icon: 'fa-solid fa-file-code',
+					href: '/document-templates',
+					permissions: ['view_documenttemplate'],
+					adminFallback: true
+				},
+				{
+					name: 'objectClassifications',
+					fa_icon: 'fa-solid fa-shield-halved',
+					href: '/object-classifications',
+					permissions: ['view_objectclassification'],
+					adminFallback: true
+				},
+				{
+					name: 'incidents',
+					fa_icon: 'fa-solid fa-bug',
+					href: '/incidents'
+				},
+				{
+					name: 'tasks',
+					fa_icon: 'fa-solid fa-note-sticky',
+					href: '/task-templates',
+					permissions: ['view_tasktemplate']
+				}
+			]
+		},
 		{
 			name: 'governance',
 			items: [

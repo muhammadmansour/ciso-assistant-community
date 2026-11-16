@@ -127,6 +127,16 @@ router.register(r"timeline-entries", TimelineEntryViewSet, basename="timeline-en
 router.register(r"task-templates", TaskTemplateViewSet, basename="task-templates")
 router.register(r"task-nodes", TaskNodeViewSet, basename="task-nodes")
 router.register(r"terminologies", TerminologyViewSet, basename="terminologies")
+router.register(
+    r"object-classifications",
+    ObjectClassificationViewSet,
+    basename="object-classifications",
+)
+router.register(
+    r"classification-levels",
+    ClassificationLevelViewSet,
+    basename="classification-levels",
+)
 router.register(r"activity-logs", ActivityLogViewSet, basename="activity-logs")
 
 ROUTES = settings.ROUTES
@@ -143,6 +153,7 @@ for route in ROUTES:
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("", include("doc_management.urls")),
     path("iam/", include("iam.urls")),
     path("serdes/", include("serdes.urls")),
     path("data-wizard/", include("data_wizard.urls")),

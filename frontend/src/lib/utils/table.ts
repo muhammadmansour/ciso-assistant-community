@@ -127,6 +127,64 @@ export const DOMAIN_FILTER: ListViewFilterConfig = {
 	}
 };
 
+export const DOCUMENT_TYPE_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		optionsEndpoint: 'document-containers/document_type',
+		optionsLabelField: 'label',
+		optionsValueField: 'value',
+		label: 'documentType',
+		browserCache: 'force-cache',
+		multiple: true
+	}
+};
+
+export const DOCUMENT_STATUS_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		optionsEndpoint: 'document-containers/status',
+		optionsLabelField: 'label',
+		optionsValueField: 'value',
+		label: 'status',
+		browserCache: 'force-cache',
+		multiple: true
+	}
+};
+
+export const DOCUMENT_SOURCE_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		optionsEndpoint: 'document-containers/source',
+		optionsLabelField: 'label',
+		optionsValueField: 'value',
+		label: 'source',
+		browserCache: 'force-cache',
+		multiple: true
+	}
+};
+
+export const CLASSIFICATION_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		optionsEndpoint: 'classification-levels',
+		optionsLabelField: 'label',
+		label: 'classification',
+		multiple: true
+	}
+};
+
+export const DOC_TEMPLATE_LANGUAGE_FILTER: ListViewFilterConfig = {
+	component: AutocompleteSelect,
+	props: {
+		label: 'language',
+		optionsEndpoint: 'document-templates/locale',
+		optionsLabelField: 'label',
+		optionsValueField: 'value',
+		browserCache: 'no-store',
+		multiple: true
+	}
+};
+
 export const LABELS_FILTER: ListViewFilterConfig = {
 	component: AutocompleteSelect,
 	props: {
@@ -1624,6 +1682,59 @@ export const listViewFields = {
 			filtering_labels: LABELS_FILTER
 		}
 	},
+	'document-revisions': {
+		head: ['versionNumber', 'status', 'author', 'changeSummary', 'createdAt'],
+		body: ['version_number', 'status_display', 'author', 'change_summary', 'created_at']
+	},
+	'document-containers': {
+		head: [
+			'refId',
+			'name',
+			'documentType',
+			'status',
+			'reviewProgress',
+			'classification',
+			'domain',
+			'labels'
+		],
+		body: [
+			'ref_id',
+			'name',
+			'document_type',
+			'status',
+			'progress',
+			'classification',
+			'folder',
+			'filtering_labels'
+		],
+		optionalFields: {
+			head: ['source'],
+			body: ['source']
+		},
+		filters: {
+			folder: DOMAIN_FILTER,
+			document_type: DOCUMENT_TYPE_FILTER,
+			source: DOCUMENT_SOURCE_FILTER,
+			status: DOCUMENT_STATUS_FILTER,
+			classification: CLASSIFICATION_FILTER,
+			filtering_labels: LABELS_FILTER
+		}
+	},
+	'document-templates': {
+		head: ['name', 'refId', 'documentType', 'provider', 'language', 'builtin', 'domain'],
+		body: ['name', 'ref_id', 'document_type', 'provider', 'locale', 'builtin', 'folder'],
+		meta: ['id', 'builtin'],
+		filters: {
+			folder: DOMAIN_FILTER,
+			document_type: DOCUMENT_TYPE_FILTER,
+			locale: DOC_TEMPLATE_LANGUAGE_FILTER,
+			builtin: BUILTIN_FILTER
+		}
+	},
+	'managed-documents': {
+		head: ['name', 'documentType', 'locale', 'domain'],
+		body: ['name', 'document_type', 'locale', 'folder']
+	},
 	requirements: {
 		head: ['ref_id', 'name', 'description', 'framework'],
 		body: ['ref_id', 'name', 'description', 'framework'],
@@ -2356,6 +2467,22 @@ export const listViewFields = {
 		body: ['field_path', 'name', 'description', 'translations', 'is_visible'],
 		filters: {
 			field_path: FIELD_PATH_FILTER,
+			builtin: BUILTIN_FILTER,
+			is_visible: IS_VISIBLE_FILTER
+		}
+	},
+	'object-classifications': {
+		head: ['name', 'description', 'ref_id', 'is_visible'],
+		body: ['name', 'description', 'ref_id', 'is_visible'],
+		filters: {
+			builtin: BUILTIN_FILTER,
+			is_visible: IS_VISIBLE_FILTER
+		}
+	},
+	'classification-levels': {
+		head: ['rank', 'abbreviation', 'name', 'hexcolor', 'is_visible'],
+		body: ['rank', 'abbreviation', 'name', 'hexcolor', 'is_visible'],
+		filters: {
 			builtin: BUILTIN_FILTER,
 			is_visible: IS_VISIBLE_FILTER
 		}

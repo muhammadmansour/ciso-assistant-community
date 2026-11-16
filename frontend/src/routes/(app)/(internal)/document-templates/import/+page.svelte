@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { m } from '#paraglide/messages.js';
+	import { m } from '$paraglide/messages';
 	import { enhance } from '$app/forms';
 	import { superForm, defaults } from 'sveltekit-superforms';
-	import { zod4 as zod } from 'sveltekit-superforms/adapters';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import { z } from 'zod';
-	import FolderTreeSelect from '#lib/components/Forms/FolderTreeSelect.svelte';
+	import AutocompleteSelect from '$lib/components/Forms/AutocompleteSelect.svelte';
 	import type { PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: { error?: string; result?: any } | null } = $props();
 
 	let submitting = $state(false);
 
-	// Local SPA superForm purely to host the form-coupled FolderTreeSelect; the
+	// Local SPA superForm purely to host the form-coupled folder select; the
 	// selected value is mirrored into the multipart form via a hidden input.
 	const _folderForm = superForm(defaults(zod(z.object({ folder: z.string().default('') }))), {
 		SPA: true,
@@ -91,7 +91,13 @@
 				};
 			}}
 		>
-			<FolderTreeSelect form={_folderForm} field="folder" label={m.domain()} />
+			<AutocompleteSelect
+				form={_folderForm}
+				optionsEndpoint="folders?content_type=DO&content_type=GL"
+				pathField="path"
+				field="folder"
+				label={m.domain()}
+			/>
 			<input type="hidden" name="folder" value={$folderData.folder ?? ''} />
 
 			<label class="label">

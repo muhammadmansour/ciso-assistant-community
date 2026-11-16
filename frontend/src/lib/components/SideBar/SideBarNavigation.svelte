@@ -5,7 +5,7 @@
 	import SideBarCategory from '$lib/components/SideBar/SideBarCategory.svelte';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';
-	import { URL_MODEL_MAP } from '$lib/utils/crud';
+	import { canSeeNavItem } from '$lib/components/SideBar/navVisibility';
 	import { driverInstance } from '$lib/utils/stores';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
 	import { safeTranslate } from '$lib/utils/i18n';
@@ -13,32 +13,11 @@
 	const user = page.data.user;
 
 	const items = navData.items
-		.map((item) => {
-			// Check and filter the sub-items based on user permissions
-		const filteredSubItems = item.items.filter((subItem) => {
-			if (subItem.alwaysShow) {
-				return true;
-			} else if (subItem.exclude) {
-				return subItem.exclude.some((role) => user?.roles && !user.roles.includes(role));
-			} else if (subItem.permissions) {
-					return subItem.permissions?.some(
-						(permission) => user?.permissions && Object.hasOwn(user.permissions, permission)
-					);
-				} else if (Object.hasOwn(URL_MODEL_MAP, subItem.href.split('/')[1])) {
-					const model = URL_MODEL_MAP[subItem.href.split('/')[1]];
-					const canViewObject =
-						user?.permissions && Object.hasOwn(user.permissions, `view_${model.name}`);
-					return canViewObject;
-				}
-				return false;
-			});
-
-			return {
-				...item,
-				items: filteredSubItems
-			};
-		})
-		.filter((item) => item.items.length > 0); // Filter out items with no sub-items
+		.map((item) => ({
+			...item,
+			items: item.items.filter((subItem) => canSeeNavItem(subItem, user))
+		}))
+		.filter((item) => item.items.length > 0);
 
 	import { lastAccordionItem } from '$lib/utils/stores';
 
@@ -60,6 +39,9 @@
 	}
 	if (!$lastAccordionItem.includes('projectManagement')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'projectManagement'];
+	}
+	if (!$lastAccordionItem.includes('operations')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'operations'];
 	}
 
 	interface Props {

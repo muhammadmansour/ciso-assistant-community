@@ -18,6 +18,8 @@ type SidebarBackendKeys = {
 	terminologies: boolean;
 	bia: boolean;
 	project_management: boolean;
+	document_management: boolean;
+	policy_documents: boolean;
 	contracts: boolean;
 	reports: boolean;
 	validation_flows: boolean;
@@ -44,6 +46,9 @@ type SidebarFrontendKeys = {
 	terminologies: boolean;
 	businessImpactAnalysis: boolean;
 	projectManagement: boolean;
+	documents: boolean;
+	documentTemplates: boolean;
+	objectClassifications: boolean;
 	contracts: boolean;
 	reports: boolean;
 	validationFlows: boolean;
@@ -73,6 +78,9 @@ export function getSidebarVisibleItems(
 		terminologies: featureFlags?.terminologies ?? true,
 		businessImpactAnalysis: featureFlags?.bia ?? true,
 		projectManagement: featureFlags?.project_management ?? true,
+		documents: featureFlags?.document_management ?? true,
+		documentTemplates: featureFlags?.document_management ?? true,
+		objectClassifications: featureFlags?.document_management ?? true,
 		contracts: featureFlags?.contracts ?? false,
 		reports: featureFlags?.reports ?? false,
 		validationFlows: true,

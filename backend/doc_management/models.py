@@ -254,8 +254,8 @@ class DocumentRevision(AbstractBaseModel, FolderMixin):
         verbose_name_plural = _("Document revisions")
 
     @classmethod
-    def from_db(cls, db, field_names, values, *, fetch_mode=None):
-        instance = super().from_db(db, field_names, values, fetch_mode=fetch_mode)
+    def from_db(cls, db, field_names, values, **kwargs):
+        instance = super().from_db(db, field_names, values, **kwargs)
         if "content" in field_names:
             instance._loaded_content = instance.content
         return instance
@@ -496,8 +496,6 @@ class DocumentReference(AbstractBaseModel):
         related_name="incoming_references",
     )
     fields_to_check = []
-
-    IAM_SCOPE_FIELD = Folder.IAM_NOT_IMPLEMENTED
 
     class Meta:
         constraints = [

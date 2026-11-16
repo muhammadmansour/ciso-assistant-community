@@ -1084,7 +1084,10 @@
 																	<!-- Files Analyzed -->
 																	{#if result.filesAnalyzed && result.filesAnalyzed.length > 0}
 																		<div class="text-sm text-gray-500">
-																			<p class="font-medium"><i class="fa-solid fa-file mr-1"></i>Files Analyzed ({result.filesAnalyzed.length}):</p>
+																			<p class="font-medium">
+																				<i class="fa-solid fa-file mr-1"></i>
+																				{m.filesAnalyzedHeading({ count: result.filesAnalyzed.length })}
+																			</p>
 																			<ul class="list-inside ml-4">
 																				{#each result.filesAnalyzed as file}
 																					<li>{file.filename} - <span class="text-xs">{file.relevance}</span></li>

@@ -1,10 +1,11 @@
-import { BASE_API_URL } from '#lib/utils/constants.js';
+import { BASE_API_URL } from '$lib/utils/constants.js';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { errorFromBody } from '#lib/utils/errors.js';
+import { errorFromBody } from '$lib/utils/errors.js';
+import { isFeatureFlagOn } from '$lib/feature-flags';
 
 async function assertFeatureEnabled(locals: App.Locals) {
-	if (!(await locals.getFeatureFlags())?.document_management) {
+	if (!isFeatureFlagOn(locals.featureflags, 'document_management')) {
 		error(403, 'Document management feature is disabled');
 	}
 }

@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0175_customdochtmltemplate_objectclassification_and_more"),
+        ("core", "0154_objectclassification_and_doc_prereqs"),
         ("doc_management", "0003_documents_management"),
     ]
 
