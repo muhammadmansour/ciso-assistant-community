@@ -74,6 +74,8 @@
 	import AccreditationForm from './ModelForm/AccreditationForm.svelte';
 	import ProjectForm from './ModelForm/ProjectForm.svelte';
 	import ResponsibilityMatrixForm from './ModelForm/ResponsibilityMatrixForm.svelte';
+	import DocumentContainerForm from './ModelForm/DocumentContainerForm.svelte';
+	import DocumentTemplateForm from './ModelForm/DocumentTemplateForm.svelte';
 	import MetricDefinitionForm from './ModelForm/MetricDefinitionForm.svelte';
 	import WorkflowForm from './ModelForm/WorkflowForm.svelte';
 	import MetricInstanceForm from './ModelForm/MetricInstanceForm.svelte';
@@ -824,6 +826,26 @@
 			<ProjectForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
 		{:else if URLModel === 'responsibility-matrices'}
 			<ResponsibilityMatrixForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
+		{:else if URLModel === 'document-containers'}
+			<DocumentContainerForm
+				{form}
+				{model}
+				{cacheLocks}
+				{formDataCache}
+				{initialData}
+				{object}
+				{context}
+			/>
+		{:else if URLModel === 'document-templates'}
+			<DocumentTemplateForm
+				{form}
+				{model}
+				{cacheLocks}
+				{formDataCache}
+				{initialData}
+				{object}
+				{context}
+			/>
 		{:else if URLModel === 'workflows'}
 			<WorkflowForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} {context} />
 		{:else if URLModel === 'metric-definitions'}
