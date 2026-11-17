@@ -175,6 +175,10 @@
 				<button type="button" class="btn btn-sm preset-tonal" onclick={clearFilters}>
 					<i class="fa-solid fa-rotate-left mr-2"></i>{m.clearFilters()}
 				</button>
+			{:else if canAdd}
+				<a href="/documents/new" class="btn btn-sm preset-filled-primary-500">
+					<i class="fa-solid fa-file-circle-plus mr-2"></i>{m.addDocumentContainer()}
+				</a>
 			{/if}
 		</div>
 	{/if}

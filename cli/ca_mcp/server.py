@@ -19,6 +19,7 @@ from .tools.read_tools import (
     get_risk_assessments,
     get_threats,
     get_assets,
+    get_asset_security_gaps,
     get_incidents,
     get_security_exceptions,
     get_frameworks,
@@ -49,6 +50,8 @@ from .tools.library_tools import (
     get_stored_libraries,
     get_loaded_libraries,
     import_stored_library,
+    find_requirements,
+    get_requirement_mappings,
 )
 
 from .tools.write_tools import (
@@ -132,6 +135,7 @@ from .tools.ebios_rm_tools import (
     get_operational_scenarios,
     get_elementary_actions,
     get_operating_modes,
+    get_operating_mode_quotation,
     get_kill_chains,
     # Write tools
     create_ebios_rm_study,
@@ -172,6 +176,7 @@ READ_TOOLS = [
     get_risk_assessments,
     get_threats,
     get_assets,
+    get_asset_security_gaps,
     get_incidents,
     get_security_exceptions,
     get_frameworks,
@@ -192,6 +197,8 @@ READ_TOOLS = [
     get_audit_global_score,
     get_stored_libraries,
     get_loaded_libraries,
+    find_requirements,
+    get_requirement_mappings,
     get_entities,
     get_entity_assessments,
     get_representatives,
@@ -206,6 +213,7 @@ READ_TOOLS = [
     get_operational_scenarios,
     get_elementary_actions,
     get_operating_modes,
+    get_operating_mode_quotation,
     get_kill_chains,
 ]
 

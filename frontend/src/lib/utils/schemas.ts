@@ -1418,6 +1418,30 @@ export const ResponsibilityMatrixSchema = z.object({
 	filtering_labels: z.array(z.string().uuid().optional()).optional()
 });
 
+export const DocumentContainerSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	ref_id: z.string().optional(),
+	document_type: z.string().optional(),
+	classification: optionalUuid,
+	reviewers: z.array(z.string().uuid().optional()).optional(),
+	policies: z.array(z.string().uuid().optional()).optional(),
+	applied_controls: z.array(z.string().uuid().optional()).optional(),
+	task_templates: z.array(z.string().uuid().optional()).optional(),
+	processings: z.array(z.string().uuid().optional()).optional(),
+	assets: z.array(z.string().uuid().optional()).optional(),
+	filtering_labels: z.array(z.string().uuid().optional()).optional()
+});
+
+export const DocumentTemplateSchema = z.object({
+	...NameDescriptionMixin,
+	folder: z.string(),
+	document_type: z.string().optional(),
+	locale: z.string().optional(),
+	provider: z.string().optional(),
+	content: z.string().optional().nullable()
+});
+
 export const AccreditationSchema = z.object({
 	...NameDescriptionMixin,
 	folder: z.string(),
@@ -1590,6 +1614,8 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	accreditations: AccreditationSchema,
 	projects: ProjectSchema,
 	'responsibility-matrices': ResponsibilityMatrixSchema,
+	'document-containers': DocumentContainerSchema,
+	'document-templates': DocumentTemplateSchema,
 	workflows: WorkflowSchema,
 	'metric-definitions': MetricDefinitionSchema,
 	'metric-instances': MetricInstanceSchema,
