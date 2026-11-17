@@ -14,12 +14,13 @@ export const navData = {
 					fa_icon: 'fa-solid fa-certificate',
 					href: '/compliance-assessments'
 				},
-				{
-					name: 'postureAssessments',
-					fa_icon: 'fa-solid fa-list-check',
-					href: '/posture-assessments',
-					permissions: ['view_postureassessment']
-				},
+				// Hidden: technical posture
+				// {
+				// 	name: 'postureAssessments',
+				// 	fa_icon: 'fa-solid fa-list-check',
+				// 	href: '/posture-assessments',
+				// 	permissions: ['view_postureassessment']
+				// },
 				{
 					name: 'evidences',
 					fa_icon: 'fa-solid fa-receipt',
