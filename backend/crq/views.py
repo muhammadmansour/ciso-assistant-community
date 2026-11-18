@@ -37,7 +37,6 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         "genericcollection",
     ]
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["-created_at"]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get status choices")
@@ -1033,7 +1032,6 @@ class QuantitativeRiskScenarioViewSet(BaseModelViewSet):
         "is_selected",
     ]
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["-created_at"]
 
     def _perform_write(self, serializer):
         if not serializer.validated_data.get(
@@ -1226,7 +1224,6 @@ class QuantitativeRiskHypothesisViewSet(BaseModelViewSet):
     model = QuantitativeRiskHypothesis
     filterset_fields = ["quantitative_risk_scenario", "risk_stage", "is_selected"]
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["-created_at"]
 
     def _perform_write(self, serializer):
         if not serializer.validated_data.get(

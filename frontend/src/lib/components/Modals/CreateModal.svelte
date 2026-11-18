@@ -63,20 +63,19 @@
 </script>
 
 {#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<div class="flex items-center justify-between">
+	<div class="modal-example-form {cBase} relative">
+		<button
+			type="button"
+			class="absolute top-4 end-4 z-10 flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-primary-500 hover:bg-gray-100 cursor-pointer"
+			onclick={parent.onClose}
+			aria-label="Close"
+		>
+			<i class="fa-solid fa-xmark"></i>
+		</button>
+		<div class="flex items-center justify-between pe-10">
 			<header class={cHeader} data-testid="modal-title">
 				{$modalStore[0].title ?? '(title missing)'}
 			</header>
-			<div
-				role="button"
-				tabindex="0"
-				class="flex items-center hover:text-primary-500 cursor-pointer"
-				onclick={parent.onClose}
-				onkeydown={parent.onClose}
-			>
-				<i class="fa-solid fa-xmark"></i>
-			</div>
 		</div>
 		<ModelForm
 			{form}

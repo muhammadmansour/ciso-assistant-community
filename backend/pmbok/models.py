@@ -80,6 +80,10 @@ class GenericCollection(NameDescriptionFolderMixin, FilteringLabelMixin):
         Policy,
         blank=True,
     )
+    task_templates = models.ManyToManyField(
+        "core.TaskTemplate",
+        blank=True,
+    )
 
     dependencies = models.ManyToManyField(
         "self",

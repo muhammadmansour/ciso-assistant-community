@@ -30,6 +30,7 @@ class GenericCollectionReadSerializer(BaseModelSerializer):
     applied_controls = FieldsRelatedField(many=True)
     security_exceptions = FieldsRelatedField(many=True)
     policies = FieldsRelatedField(many=True)
+    task_templates = FieldsRelatedField(many=True)
     dependencies = FieldsRelatedField(many=True)
     filtering_labels = FieldsRelatedField(["id", "folder"], many=True)
 

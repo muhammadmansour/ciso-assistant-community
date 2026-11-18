@@ -83,23 +83,23 @@
 			{:else}
 				<label class="text-sm font-semibold" for={field}>{label}</label>
 			{/if}
-			<div class="flex space-x-2">
+			<div class="flex gap-2">
 				<button
 					type="button"
 					data-testid="markdown-edit-btn-{field}"
 					class="btn btn-sm {!showPreview ? 'variant-filled-primary' : 'variant-soft'}"
 					onclick={() => (showPreview = false)}
 				>
-					<i class="fas fa-edit mr-1"></i>
-					Edit
+					<i class="fas fa-edit me-1"></i>
+					{m.edit()}
 				</button>
 				<button
 					type="button"
 					class="btn btn-sm {showPreview ? 'variant-filled-primary' : 'variant-soft'}"
 					onclick={() => (showPreview = true)}
 				>
-					<i class="fas fa-eye mr-1"></i>
-					Preview
+					<i class="fas fa-eye me-1"></i>
+					{m.contentPreview()}
 				</button>
 			</div>
 		</div>

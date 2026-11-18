@@ -118,7 +118,6 @@ class WorkflowViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     serializers_module = "automation.workflows.serializers"
     filterset_class = WorkflowFilterSet
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["created_at"]
 
     def get_queryset(self):
         # trigger_types/versions are serialized per row; prefetch so the list
@@ -690,7 +689,6 @@ class WorkflowTriggerViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["workflow", "folder", "enabled", "type", "event_key"]
     search_fields = ["node_ref", "event_key"]
-    ordering = ["created_at"]
     # POST detail actions map to add_* by default; rotation is a state change
     # on an existing row and no role holds add_workflowtrigger (publish-managed).
     # hook_url exposes the URL credential, so viewing rows isn't enough: only
@@ -760,7 +758,6 @@ class WorkflowTokenViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["instance", "status", "current_node", "folder"]
     search_fields = []
-    ordering = ["created_at"]
     permission_overrides = {
         "retry": "change_workflowtoken",
         "skip": "change_workflowtoken",
@@ -866,7 +863,6 @@ class WorkflowInstanceViewSet(WorkflowsFeatureGate, BaseModelViewSet):
     serializers_module = "automation.workflows.serializers"
     filterset_fields = ["workflow", "version", "status", "trigger", "folder"]
     search_fields = []
-    ordering = ["-created_at"]
 
     def get_queryset(self):
         # Preload what the read serializer touches per row (run_as, initiator,

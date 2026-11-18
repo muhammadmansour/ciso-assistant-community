@@ -160,6 +160,18 @@
 		bind:cachedValue={formDataCache['policies']}
 		label={m.policies()}
 	/>
+{:else if context === 'selectTaskTemplates'}
+	<AutocompleteSelect
+		{form}
+		multiple
+		optionsEndpoint="task-templates"
+		optionsExtraFields={[['folder', 'str']]}
+		optionsLabelField="auto"
+		field="task_templates"
+		cacheLock={cacheLocks['task_templates']}
+		bind:cachedValue={formDataCache['task_templates']}
+		label={m.taskTemplates()}
+	/>
 	<!-- {:else if context === 'selectDependencies'} -->
 	<!-- 	<AutocompleteSelect -->
 	<!-- 		{form} -->
@@ -339,6 +351,18 @@
 			cacheLock={cacheLocks['policies']}
 			bind:cachedValue={formDataCache['policies']}
 			label={m.policies()}
+		/>
+
+		<AutocompleteSelect
+			{form}
+			multiple
+			optionsEndpoint="task-templates"
+			optionsExtraFields={[['folder', 'str']]}
+			optionsLabelField="auto"
+			field="task_templates"
+			cacheLock={cacheLocks['task_templates']}
+			bind:cachedValue={formDataCache['task_templates']}
+			label={m.taskTemplates()}
 		/>
 
 		<!-- <AutocompleteSelect -->

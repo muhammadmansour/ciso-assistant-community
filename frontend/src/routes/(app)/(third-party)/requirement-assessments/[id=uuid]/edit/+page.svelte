@@ -1886,18 +1886,21 @@
 				</div>
 			</div>
 				<!-- Fixed Bottom Action Bar -->
-			<div class="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-				<div class="max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between">
+			<!-- Full-bleed bar (same width EN/AR). pe-* clears the floating chat widget. -->
+			<div
+				class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]"
+			>
+				<div class="px-6 pe-24 py-3 flex items-center justify-between gap-4">
 					<button
 						type="button"
-						class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+						class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors shrink-0"
 						onclick={cancel}
 					>
-						Cancel
+						{m.cancel()}
 					</button>
-					<div class="flex items-center gap-3">
+					<div class="flex items-center gap-3 shrink-0">
 						<button
-							class="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+							class="btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium px-5 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
 							data-testid="save-no-continue-button"
 							type="submit"
 							onclick={() =>
@@ -1905,10 +1908,10 @@
 									return { ...data, noRedirect: true };
 								})}
 						>
-							Save and Continue
+							{m.saveAndContinue()}
 						</button>
 						<button
-							class="btn bg-[#005FA3] hover:bg-[#004d85] text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm"
+							class="btn bg-[#005FA3] hover:bg-[#004d85] text-white font-medium px-8 py-2 rounded-lg text-sm transition-colors shadow-sm whitespace-nowrap"
 							data-testid="save-button"
 							type="submit"
 							onclick={() =>
@@ -1916,7 +1919,7 @@
 									return { ...data, noRedirect: false };
 								})}
 						>
-							Save
+							{m.save()}
 						</button>
 					</div>
 				</div>
@@ -2554,7 +2557,7 @@
 					class="btn preset-filled-surface-200-800 transition-all duration-200"
 					onclick={() => (showReanalysisModal = false)}
 				>
-					Cancel
+					{m.cancel()}
 				</button>
 				<button
 					type="button"

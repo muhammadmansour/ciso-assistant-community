@@ -41,10 +41,10 @@ class GenericCollectionViewSet(BaseModelViewSet):
         "applied_controls",
         "security_exceptions",
         "policies",
+        "task_templates",
         "filtering_labels",
     ]
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["created_at"]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get Generic Collection status choices")
@@ -71,7 +71,6 @@ class AccreditationViewSet(BaseModelViewSet):
         "filtering_labels",
     ]
     search_fields = ["name", "description", "ref_id", "authority"]
-    ordering = ["created_at"]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get Accreditation status choices")
@@ -100,7 +99,6 @@ class ProjectViewSet(BaseModelViewSet):
         "filtering_labels",
     ]
     search_fields = ["name", "description", "ref_id", "purpose", "objectives"]
-    ordering = ["created_at"]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get Project priority choices")
@@ -137,7 +135,6 @@ class ResponsibilityMatrixViewSet(BaseModelViewSet):
     serializers_module = "pmbok.serializers"
     filterset_fields = ["folder", "preset", "roles", "projects", "filtering_labels"]
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["created_at"]
 
     @method_decorator(cache_page(60 * LONG_CACHE_TTL))
     @action(detail=False, name="Get Responsibility Matrix preset choices")

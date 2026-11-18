@@ -2,10 +2,14 @@
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
+	import ModelForm from '$lib/components/Forms/ModelForm.svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { page } from '$app/state';
 	import { m } from '$paraglide/messages';
 	import { safeTranslate } from '$lib/utils/i18n';
+	import { canPerformAction } from '$lib/utils/access-control';
 	import type { PageData } from './$types';
+	import type { ProjectFormSection } from '$lib/components/Forms/ModelForm/ProjectForm.svelte';
 
 	interface Props {
 		data: PageData;
@@ -16,6 +20,15 @@
 	const collection = project.collection_data;
 
 	let tab = $state('overview');
+	let editingTab = $state<ProjectFormSection | null>(null);
+
+	const user = page.data.user;
+	const canEditProject = canPerformAction({
+		user,
+		action: 'change',
+		model: data.model.name,
+		domain: data.data.folder?.id ?? data.data.folder ?? user.root_folder_id
+	});
 
 	const collectionSections = [
 		{
@@ -76,6 +89,14 @@
 		return `${value}${currency}`;
 	}
 
+	function startEdit(section: ProjectFormSection) {
+		editingTab = section;
+	}
+
+	function stopEdit() {
+		editingTab = null;
+	}
+
 	const progressPct = Math.max(0, Math.min(100, Number(project.progress ?? 0) || 0));
 	const hasCharter = narrative.some(([key]) => project[key]);
 	const hasLinked =
@@ -83,6 +104,47 @@
 		Boolean(project.sub_projects?.length) ||
 		collectionSections.some((s) => collection?.[s.key]?.length);
 </script>
+
+{#snippet tabEditHeader(section: ProjectFormSection, title: string)}
+	<div class="flex items-center justify-between gap-3 mb-4">
+		<h3 class="font-semibold text-surface-800-100">{title}</h3>
+		{#if canEditProject}
+			{#if editingTab === section}
+				<button type="button" class="btn preset-tonal-surface" onclick={stopEdit}>
+					{m.cancel()}
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="btn bg-gradient-to-r from-[#0A1628] to-[#1a2740] text-white hover:from-[#1a2740] hover:to-[#2a3a66] shadow-sm"
+					onclick={() => startEdit(section)}
+					data-testid="{section}-edit-button"
+				>
+					<i class="fa-solid fa-pen-to-square mr-2"></i>{m.edit()}
+				</button>
+			{/if}
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet tabEditForm(section: ProjectFormSection)}
+	{#if editingTab === section && data.updateForm}
+		<div class="rounded-xl border border-surface-200-800 p-4 bg-surface-50-950 mb-4">
+			<ModelForm
+				form={data.updateForm}
+				object={data.object}
+				selectOptions={data.selectOptions}
+				model={data.model}
+				context="edit-{section}"
+				action="?/update"
+				cancelButton={false}
+				taintedMessage={false}
+				customNameDescription={section !== 'overview'}
+				parent={{ onConfirm: stopEdit }}
+			/>
+		</div>
+	{/if}
+{/snippet}
 
 <DetailView {data} displayModelTable={false} />
 
@@ -127,21 +189,62 @@
 			</div>
 		</div>
 
-		{#if project.sub_projects?.length}
-			<div class="flex flex-wrap gap-2 pt-1">
-				<span class="text-xs font-semibold uppercase tracking-wide text-surface-500 self-center"
-					>{m.subProjects()}</span
-				>
-				{#each project.sub_projects as child}
-					<Anchor
-						href="/projects/{child.id}"
-						class="badge preset-tonal hover:preset-filled-primary-500 transition-colors"
-					>
-						{labelOf(child)}
-					</Anchor>
-				{/each}
+		<dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 pt-2 text-sm">
+			<div>
+				<dt class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+					{m.assignedTo()}
+				</dt>
+				<dd class="mt-1 font-medium text-surface-800-100">
+					{labelOf(project.owner) || '—'}
+				</dd>
 			</div>
-		{/if}
+			<div>
+				<dt class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+					{m.sponsor()}
+				</dt>
+				<dd class="mt-1 font-medium text-surface-800-100">
+					{labelOf(project.sponsor) || '—'}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+					{m.parentProject()}
+				</dt>
+				<dd class="mt-1 font-medium text-surface-800-100">
+					{#if project.parent_project?.id}
+						<Anchor
+							href="/projects/{project.parent_project.id}"
+							class="text-primary-600 hover:underline"
+						>
+							{labelOf(project.parent_project)}
+						</Anchor>
+					{:else}
+						—
+					{/if}
+				</dd>
+			</div>
+			<div>
+				<dt class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+					{m.subProjects()}
+				</dt>
+				<dd class="mt-1">
+					{#if project.sub_projects?.length}
+						<div class="flex flex-wrap gap-2">
+							{#each project.sub_projects as child}
+								<Anchor
+									href="/projects/{child.id}"
+									class="badge preset-tonal hover:preset-filled-primary-500 transition-colors"
+								>
+									{labelOf(child)}
+								</Anchor>
+							{/each}
+						</div>
+					{:else}
+						<span class="font-medium text-surface-800-100">—</span>
+					{/if}
+				</dd>
+			</div>
+		</dl>
 	</div>
 
 	<!-- Tabs -->
@@ -150,6 +253,7 @@
 			value={tab}
 			onValueChange={(e) => {
 				tab = e.value;
+				editingTab = null;
 			}}
 			listJustify="justify-start flex flex-wrap gap-1 px-2 sm:px-4"
 		>
@@ -177,203 +281,231 @@
 			{#snippet content()}
 				<div class="p-5 sm:p-6">
 					<Tabs.Panel value="overview">
-						<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.status()}</p>
-								<p class="font-semibold">{labelOf(project.status) || '—'}</p>
+						{@render tabEditHeader('overview', m.overview())}
+						{@render tabEditForm('overview')}
+						{#if editingTab !== 'overview'}
+							<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.status()}</p>
+									<p class="font-semibold">{labelOf(project.status) || '—'}</p>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.health()}</p>
+									<p class="font-semibold">{labelOf(project.health) || '—'}</p>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.priority()}</p>
+									<p class="font-semibold"
+										>{project.priority != null ? `P${project.priority}` : '—'}</p
+									>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.progress()}</p>
+									<p class="font-semibold tabular-nums">{progressPct}%</p>
+								</div>
 							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.health()}</p>
-								<p class="font-semibold">{labelOf(project.health) || '—'}</p>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.priority()}</p>
-								<p class="font-semibold"
-									>{project.priority != null ? `P${project.priority}` : '—'}</p
-								>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.progress()}</p>
-								<p class="font-semibold tabular-nums">{progressPct}%</p>
-							</div>
-						</div>
-						{#if project.sub_projects?.length}
-							<div class="mt-6 space-y-2">
-								<h3 class="font-semibold">{m.subProjects()}</h3>
-								<ul class="space-y-1">
-									{#each project.sub_projects as child}
-										<li>
-											<Anchor href="/projects/{child.id}" class="text-primary-600 hover:underline"
-												>{labelOf(child)}</Anchor
-											>
-										</li>
-									{/each}
-								</ul>
-							</div>
+							{#if project.sub_projects?.length}
+								<div class="mt-6 space-y-2">
+									<h3 class="font-semibold">{m.subProjects()}</h3>
+									<ul class="space-y-1">
+										{#each project.sub_projects as child}
+											<li>
+												<Anchor
+													href="/projects/{child.id}"
+													class="text-primary-600 hover:underline"
+													>{labelOf(child)}</Anchor
+												>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
 						{/if}
 					</Tabs.Panel>
 
 					<Tabs.Panel value="charter">
-						{#if hasCharter}
-							<div class="space-y-5">
-								{#each narrative as [key, label]}
-									{#if project[key]}
-										<section>
-											<h3 class="font-semibold mb-1">{label}</h3>
-											<MarkdownRenderer content={project[key]} />
-										</section>
-									{/if}
-								{/each}
-							</div>
-						{:else}
-							<p class="text-surface-500 text-sm">{m.noCharterContent()}</p>
+						{@render tabEditHeader('charter', m.charter())}
+						{@render tabEditForm('charter')}
+						{#if editingTab !== 'charter'}
+							{#if hasCharter}
+								<div class="space-y-5">
+									{#each narrative as [key, label]}
+										{#if project[key]}
+											<section>
+												<h3 class="font-semibold mb-1">{label}</h3>
+												<MarkdownRenderer content={project[key]} />
+											</section>
+										{/if}
+									{/each}
+								</div>
+							{:else}
+								<p class="text-surface-500 text-sm">{m.noCharterContent()}</p>
+							{/if}
 						{/if}
 					</Tabs.Panel>
 
 					<Tabs.Panel value="tracking">
-						<dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.budget()}</dt>
-								<dd class="font-semibold mt-1">{money(project.budget)}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.actualCost()}</dt>
-								<dd class="font-semibold mt-1">{money(project.actual_cost)}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.progress()}</dt>
-								<dd class="font-semibold mt-1 tabular-nums">{progressPct}%</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.startDate()}</dt>
-								<dd class="font-semibold mt-1">{project.start_date || '—'}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.endDate()}</dt>
-								<dd class="font-semibold mt-1">{project.end_date || '—'}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.eta()}</dt>
-								<dd class="font-semibold mt-1">{project.eta || '—'}</dd>
-							</div>
-						</dl>
+						{@render tabEditHeader('tracking', m.projectTracking())}
+						{@render tabEditForm('tracking')}
+						{#if editingTab !== 'tracking'}
+							<dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.budget()}</dt>
+									<dd class="font-semibold mt-1">{money(project.budget)}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.actualCost()}</dt>
+									<dd class="font-semibold mt-1">{money(project.actual_cost)}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.progress()}</dt>
+									<dd class="font-semibold mt-1 tabular-nums">{progressPct}%</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.startDate()}</dt>
+									<dd class="font-semibold mt-1">{project.start_date || '—'}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.endDate()}</dt>
+									<dd class="font-semibold mt-1">{project.end_date || '—'}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.eta()}</dt>
+									<dd class="font-semibold mt-1">{project.eta || '—'}</dd>
+								</div>
+							</dl>
+						{/if}
 					</Tabs.Panel>
 
 					<Tabs.Panel value="linked">
-						{#if hasLinked || collection}
-							<div class="space-y-5">
-								{#if collection}
-									<section class="space-y-2">
-										<h3 class="font-semibold">{m.linkedCollection()}</h3>
-										<p>
-											<Anchor
-												href="/generic-collections/{collection.id}"
-												class="text-primary-600 hover:underline"
-											>
-												{collection.name}
-											</Anchor>
-										</p>
-										{#each collectionSections as section}
-											{#if collection[section.key]?.length}
-												<div class="mt-3">
-													<h4 class="text-sm font-semibold text-gray-700 mb-1">{section.label}</h4>
-													<ul class="space-y-1">
-														{#each collection[section.key] as item}
-															<li>
-																<Anchor
-																	href="{section.urlPattern}{item.id}"
-																	class="text-primary-600 hover:underline"
-																>
-																	{labelOf(item)}
-																</Anchor>
-															</li>
-														{/each}
-													</ul>
-												</div>
-											{/if}
-										{/each}
-									</section>
-								{:else}
-									<p class="text-surface-500 text-sm">{m.noLinkedItems()}</p>
-								{/if}
-							</div>
-						{:else}
-							<p class="text-surface-500 text-sm">{m.noLinkedItems()}</p>
+						{@render tabEditHeader('linked', m.projectLinked())}
+						{@render tabEditForm('linked')}
+						{#if editingTab !== 'linked'}
+							{#if hasLinked || collection}
+								<div class="space-y-5">
+									{#if collection}
+										<section class="space-y-2">
+											<h3 class="font-semibold">{m.linkedCollection()}</h3>
+											<p>
+												<Anchor
+													href="/generic-collections/{collection.id}"
+													class="text-primary-600 hover:underline"
+												>
+													{collection.name}
+												</Anchor>
+											</p>
+											{#each collectionSections as section}
+												{#if collection[section.key]?.length}
+													<div class="mt-3">
+														<h4 class="text-sm font-semibold text-gray-700 mb-1"
+															>{section.label}</h4
+														>
+														<ul class="space-y-1">
+															{#each collection[section.key] as item}
+																<li>
+																	<Anchor
+																		href="{section.urlPattern}{item.id}"
+																		class="text-primary-600 hover:underline"
+																	>
+																		{labelOf(item)}
+																	</Anchor>
+																</li>
+															{/each}
+														</ul>
+													</div>
+												{/if}
+											{/each}
+										</section>
+									{:else}
+										<p class="text-surface-500 text-sm">{m.noLinkedItems()}</p>
+									{/if}
+								</div>
+							{:else}
+								<p class="text-surface-500 text-sm">{m.noLinkedItems()}</p>
+							{/if}
 						{/if}
 					</Tabs.Panel>
 
 					<Tabs.Panel value="people">
-						<dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.projectOwner()}</dt>
-								<dd class="font-semibold mt-1">{labelOf(project.owner) || '—'}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.sponsor()}</dt>
-								<dd class="font-semibold mt-1">{labelOf(project.sponsor) || '—'}</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 md:col-span-2">
-								<dt class="text-surface-500 mb-2">{m.responsibilityMatrices()}</dt>
-								<dd>
-									{#if project.responsibility_matrices?.length}
-										<ul class="space-y-1">
-											{#each project.responsibility_matrices as matrix}
-												<li>
-													<Anchor
-														href="/responsibility-matrices/{matrix.id}"
-														class="text-primary-600 hover:underline"
-													>
-														{labelOf(matrix)}
-													</Anchor>
-												</li>
-											{/each}
-										</ul>
-									{:else}
-										—
-									{/if}
-								</dd>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4">
-								<dt class="text-surface-500">{m.parentProject()}</dt>
-								<dd class="font-semibold mt-1">
-									{#if project.parent_project?.id}
-										<Anchor
-											href="/projects/{project.parent_project.id}"
-											class="text-primary-600 hover:underline"
-										>
-											{labelOf(project.parent_project)}
-										</Anchor>
-									{:else}
-										—
-									{/if}
-								</dd>
-							</div>
-						</dl>
+						{@render tabEditHeader('people', m.projectPeople())}
+						{@render tabEditForm('people')}
+						{#if editingTab !== 'people'}
+							<dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.projectOwner()}</dt>
+									<dd class="font-semibold mt-1">{labelOf(project.owner) || '—'}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.sponsor()}</dt>
+									<dd class="font-semibold mt-1">{labelOf(project.sponsor) || '—'}</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 md:col-span-2">
+									<dt class="text-surface-500 mb-2">{m.responsibilityMatrices()}</dt>
+									<dd>
+										{#if project.responsibility_matrices?.length}
+											<ul class="space-y-1">
+												{#each project.responsibility_matrices as matrix}
+													<li>
+														<Anchor
+															href="/responsibility-matrices/{matrix.id}"
+															class="text-primary-600 hover:underline"
+														>
+															{labelOf(matrix)}
+														</Anchor>
+													</li>
+												{/each}
+											</ul>
+										{:else}
+											—
+										{/if}
+									</dd>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4">
+									<dt class="text-surface-500">{m.parentProject()}</dt>
+									<dd class="font-semibold mt-1">
+										{#if project.parent_project?.id}
+											<Anchor
+												href="/projects/{project.parent_project.id}"
+												class="text-primary-600 hover:underline"
+											>
+												{labelOf(project.parent_project)}
+											</Anchor>
+										{:else}
+											—
+										{/if}
+									</dd>
+								</div>
+							</dl>
+						{/if}
 					</Tabs.Panel>
 
 					<Tabs.Panel value="analytics">
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-2">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.progress()}</p>
-								<p class="text-3xl font-bold tabular-nums">{progressPct}%</p>
-								<div class="h-2 rounded-full bg-surface-200-700 overflow-hidden">
-									<div class="h-full bg-primary-500" style="width: {progressPct}%"></div>
+						{@render tabEditHeader('analytics', m.analytics())}
+						{@render tabEditForm('analytics')}
+						{#if editingTab !== 'analytics'}
+							<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-2">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.progress()}</p>
+									<p class="text-3xl font-bold tabular-nums">{progressPct}%</p>
+									<div class="h-2 rounded-full bg-surface-200-700 overflow-hidden">
+										<div class="h-full bg-primary-500" style="width: {progressPct}%"></div>
+									</div>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.budget()}</p>
+									<p class="text-xl font-semibold">{money(project.budget)}</p>
+									<p class="text-xs text-surface-500"
+										>{m.actualCost()}: {money(project.actual_cost)}</p
+									>
+								</div>
+								<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
+									<p class="text-xs uppercase tracking-wide text-surface-500">{m.subProjects()}</p>
+									<p class="text-3xl font-bold tabular-nums"
+										>{project.sub_projects?.length ?? 0}</p
+									>
 								</div>
 							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.budget()}</p>
-								<p class="text-xl font-semibold">{money(project.budget)}</p>
-								<p class="text-xs text-surface-500"
-									>{m.actualCost()}: {money(project.actual_cost)}</p
-								>
-							</div>
-							<div class="rounded-xl border border-surface-200-800 p-4 space-y-1">
-								<p class="text-xs uppercase tracking-wide text-surface-500">{m.subProjects()}</p>
-								<p class="text-3xl font-bold tabular-nums"
-									>{project.sub_projects?.length ?? 0}</p
-								>
-							</div>
-						</div>
+						{/if}
 					</Tabs.Panel>
 				</div>
 			{/snippet}
