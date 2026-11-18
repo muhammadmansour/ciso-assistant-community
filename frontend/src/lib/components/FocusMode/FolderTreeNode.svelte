@@ -6,8 +6,8 @@
 		name: string;
 		uuid: string;
 		content_type: string;
-		/** When false, the node exists in the tree for navigation only and cannot be selected. */
-		writable: boolean;
+		/** When false, the node exists in the tree for navigation only and cannot be selected. Absent means no write filter is in effect. */
+		writable?: boolean;
 		children: TreeNode[];
 	}
 
@@ -59,9 +59,11 @@
 
 	let isExpanded = $state(shouldAutoExpand || untrack(() => expanded));
 	const isSelected = $derived(node.uuid !== null && focusId === String(node.uuid));
-	// Node is selectable if it has a uuid, matches the allowed content types,
-	// and — when a write_perm filter is active.
-	const isSelectable = $derived(contentTypes.includes(node.content_type) && node.writable);
+	// Selectable when the content type is accepted. `writable: false` is set only
+	// when a write filter is active and this folder is navigation-only.
+	const isSelectable = $derived(
+		contentTypes.includes(node.content_type) && node.writable !== false
+	);
 	// Whether this node should be shown at all
 	const isVisible = $derived(contentTypes.includes(node.content_type));
 
