@@ -99,3 +99,11 @@ export function unsafeTranslate(
 export function safeTranslate(key: string, params = {}, options = {}): string {
 	return unsafeTranslate(key, params, options) || key;
 }
+
+export function translateChoiceLabel(label: unknown, value: unknown): string {
+	if (typeof value === 'string') {
+		const fromValue = safeTranslate(value);
+		if (fromValue !== value) return fromValue;
+	}
+	return safeTranslate(label as string);
+}

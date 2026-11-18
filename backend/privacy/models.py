@@ -57,6 +57,51 @@ LEGAL_BASIS_CHOICES = (
     ("privacy_other", "Other Legal Basis (Specify in Description)"),
 )
 
+# Upstream Data Wizard naming (Article 6 / 9 / Chapter V). Keep LEGAL_BASIS_CHOICES
+# as the local source of truth and expose these aliases for importers.
+ART6_LAWFUL_BASIS_CHOICES = tuple(
+    choice
+    for choice in LEGAL_BASIS_CHOICES
+    if choice[0]
+    in {
+        "privacy_consent",
+        "privacy_contract",
+        "privacy_legal_obligation",
+        "privacy_vital_interests",
+        "privacy_public_interest",
+        "privacy_legitimate_interests",
+    }
+)
+ART9_SPECIAL_CATEGORY_CONDITION_CHOICES = tuple(
+    choice
+    for choice in LEGAL_BASIS_CHOICES
+    if choice[0]
+    in {
+        "privacy_explicit_consent",
+        "privacy_employment_social_security",
+        "privacy_vital_interests_incapacity",
+        "privacy_nonprofit_organization",
+        "privacy_public_data",
+        "privacy_legal_claims",
+        "privacy_substantial_public_interest",
+        "privacy_preventive_medicine",
+        "privacy_public_health",
+        "privacy_archiving_research",
+    }
+)
+TRANSFER_MECHANISM_CHOICES = (
+    ("privacy_adequacy_decision", "Adequacy Decision (Art. 45)"),
+    (
+        "privacy_standard_contractual_clauses",
+        "Standard Contractual Clauses (Art. 46.2c)",
+    ),
+    ("privacy_appropriate_safeguards", "Appropriate Safeguards (Art. 46)"),
+    ("privacy_binding_corporate_rules", "Binding Corporate Rules (Art. 47)"),
+    ("privacy_codes_of_conduct", "Codes of Conduct (Art. 46.2e)"),
+    ("privacy_certification_mechanisms", "Certification Mechanisms (Art. 46.2f)"),
+    ("privacy_derogation", "Derogation for Specific Situations (Art. 49)"),
+)
+
 
 class ProcessingNature(ReferentialObjectMixin, I18nObjectMixin):
     DEFAULT_PROCESSING_NATURE = [
@@ -101,8 +146,22 @@ class Processing(NameDescriptionFolderMixin, FilteringLabelMixin):
         ("privacy_approved", "Approved"),
         ("privacy_deprecated", "Deprecated"),
     )
+    ROLE_CHOICES = (
+        ("privacy_controller", "Controller"),
+        ("privacy_joint_controller", "Joint Controller"),
+        ("privacy_data_processor", "Data Processor"),
+    )
 
     ref_id = models.CharField(max_length=100, blank=True)
+    role = models.CharField(
+        max_length=30, choices=ROLE_CHOICES, default="privacy_controller"
+    )
+    controllers = models.ManyToManyField(
+        Entity,
+        blank=True,
+        related_name="processings_as_controller",
+        help_text="Controllers on whose behalf this processing is carried out",
+    )
     nature = models.ManyToManyField(ProcessingNature, blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="privacy_draft"

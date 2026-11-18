@@ -56,7 +56,8 @@
 			label: m.securityExceptions(),
 			urlPattern: '/security-exceptions/'
 		},
-		{ key: 'policies', label: m.policies(), urlPattern: '/policies/' }
+		{ key: 'policies', label: m.policies(), urlPattern: '/policies/' },
+		{ key: 'task_templates', label: m.taskTemplates(), urlPattern: '/task-templates/' }
 	];
 
 	const narrative = [

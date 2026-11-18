@@ -31,4 +31,10 @@
 		link="/experimental/yearly-tasks-review"
 		tags={['tasks', 'planning', 'review', 'PRO']}
 	/>
+	<Article
+		title="Data import"
+		desc="Map spreadsheet columns to models, dry-run imports, and reuse saved mappings"
+		link="/experimental/data-import"
+		tags={['import', 'mapping', 'excel', 'csv']}
+	/>
 </div>

@@ -297,6 +297,23 @@ def escape_excel_formula(value):
     return "'" + s if s and s[0] in "=" else s
 
 
+def check_folder_add_permission(user, folder, *models):
+    """Raise PermissionDenied unless *user* may create each of *models* in *folder*.
+
+    Mirror of the check ``BaseModelSerializer.create`` performs; use it from
+    actions that create objects directly through the ORM.
+    """
+    for model in models:
+        if not RoleAssignment.is_access_allowed(
+            user=user,
+            perm=Permission.objects.get(codename=f"add_{model._meta.model_name}"),
+            folder=folder,
+        ):
+            raise PermissionDenied(
+                {"folder": "You do not have permission to add objects in this folder"}
+            )
+
+
 def create_xlsx_response(entries, filename, wrap_columns=None):
     """
     DRY helper to create XLSX response with consistent formatting.

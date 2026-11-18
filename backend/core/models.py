@@ -1353,6 +1353,7 @@ class Terminology(NameDescriptionMixin, FolderMixin, PublishInRootFolderMixin):
         PROJECT_HEALTH = "project.health", "projectHealth"
         ENTITY_RELATIONSHIP = "entity.relationship", "entityRelationship"
         METRIC_UNIT = "metric_definition.unit", "metricUnit"
+        PROCESSING_NATURE = "processing.nature", "processingNature"
 
     DEFAULT_ROTO_RISK_ORIGINS = [
         {

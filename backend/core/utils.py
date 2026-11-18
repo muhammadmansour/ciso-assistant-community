@@ -1,6 +1,7 @@
 import hashlib
 from enum import Enum
 import json
+import re
 from re import sub
 from typing import Literal
 from datetime import datetime, timedelta, date
@@ -737,3 +738,209 @@ def get_report_timezone():
         return ZoneInfo(str(value.get("report_timezone") or "UTC"))
     except (ValueError, KeyError, OSError):
         return ZoneInfo("UTC")
+
+
+def get_global_currency() -> str:
+    """Get the currency from global settings, defaulting to €."""
+    from global_settings.models import GlobalSettings
+
+    general_settings = GlobalSettings.objects.filter(name="general").first()
+    value = general_settings.value if general_settings else None
+    return (value or {}).get("currency") or "€"
+
+
+def escape_excel_formula(value):
+    """
+    Escape Excel formula injection by prefixing dangerous characters.
+    Prevents CSV/Formula injection (OWASP) when values start with =+-@
+    """
+    if value is None:
+        return ""
+    s = str(value)
+    if not s:
+        return ""
+    stripped = s.lstrip()
+    if stripped and stripped[0] in ("=", "+", "-", "@"):
+        return "'" + s
+    return s
+
+
+def unescape_excel_formula(value):
+    """Undo escape_excel_formula, so an exported value re-imports unchanged."""
+    if not isinstance(value, str) or not value.startswith("'"):
+        return value
+    stripped = value[1:].lstrip()
+    if stripped and stripped[0] in ("=", "+", "-", "@"):
+        return value[1:]
+    return value
+
+
+
+ILLEGAL_XLSX_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+XLSX_MAX_CELL_CHARS = 32_767
+
+
+def sanitize_xlsx_value(value):
+    """Strip ASCII control characters openpyxl refuses to write (tab/LF/CR are allowed)
+    and cap strings at Excel's per-cell limit."""
+    if isinstance(value, str):
+        return ILLEGAL_XLSX_CHARS_RE.sub("", value)[:XLSX_MAX_CELL_CHARS]
+    return value
+
+
+def build_questions_dict(node):
+    """Return questions from RequirementNode JSONField (this fork stores questions as JSON)."""
+    if node is None:
+        return None
+    questions = getattr(node, "questions", None)
+    return questions if isinstance(questions, dict) and questions else None
+
+
+ANSWER_LINE_RE = re.compile(r"^\[(?P<urn>urn:[^\]]+)\]\s*(?P<rest>.*)$")
+
+# Returned by the body parser for a line that must leave the stored answer alone
+# (an untouched template hint, or one we could not make sense of). Distinct from
+# None, which means "clear this answer".
+_SKIP = object()
+
+def _choice_values(choice):
+    """Every string a choice may have been exported as: base value, then each
+    translation. Matching on all of them is what lets a workbook exported in one
+    language be re-imported under another."""
+    values = []
+    base = choice.get("value", "")
+    if base:
+        values.append(base)
+    for translation in (choice.get("translations") or {}).values():
+        value = (translation or {}).get("value")
+        if value:
+            values.append(value)
+    return values
+
+
+def _question_texts(qdef):
+    """Same as `_choice_values`, for the pre-URN text-matching fallback."""
+    texts = []
+    base = qdef.get("text", "")
+    if base:
+        texts.append(base)
+    for translation in (qdef.get("translations") or {}).values():
+        text = (translation or {}).get("text")
+        if text:
+            texts.append(text)
+    return texts
+
+
+def _parse_answer_body(qdef, body, label):
+    """Parse one "... >> answer" block into (value, warning).
+
+    `value` is `_SKIP` to leave the stored answer untouched, None to clear it,
+    otherwise a choice URN, a list of choice URNs, or a raw string.
+    """
+    if ">>" not in body:
+        return _SKIP, f"No '>>' separator for {label}, line skipped"
+
+    _, _, answer_part = body.partition(">>")
+    # strip() drops the space after ">>" and the blank line before the next
+    # block, but keeps the newlines inside a multi-line free-text answer.
+    answer = answer_part.strip()
+
+    if answer.startswith("[") and answer.endswith("]"):
+        return _SKIP, None  # untouched template hint
+    if not answer:
+        return None, None  # emptied by hand: clear the answer
+
+    q_type = qdef.get("type")
+    if q_type in ("text", "date"):
+        return answer, None
+
+    value_to_urn = {}
+    for choice in qdef.get("choices", []):
+        for value in _choice_values(choice):
+            value_to_urn.setdefault(value, choice["urn"])
+
+    if q_type == "multiple_choice":
+        selected = [v.strip() for v in answer.split("|") if v.strip()]
+        urns = [value_to_urn[v] for v in selected if v in value_to_urn]
+        unknown = [v for v in selected if v not in value_to_urn]
+        warning = (
+            f"Unknown choice(s) {', '.join(repr(v) for v in unknown)} for {label}"
+            if unknown
+            else None
+        )
+        if not urns:
+            return _SKIP, warning
+        return urns, warning
+
+    if answer in value_to_urn:
+        return value_to_urn[answer], None
+    return _SKIP, f"Unknown choice '{answer}' for {label}"
+
+
+def _parse_legacy_answers_cell(lines, questions_dict):
+    """Cells exported before the URN prefix existed: one answer per line, matched
+    on question text."""
+    text_to_question = {}
+    for q_urn, qdef in questions_dict.items():
+        for text in _question_texts(qdef):
+            text_to_question.setdefault(text, (q_urn, qdef))
+
+    answers = {}
+    warnings = []
+    for line in lines:
+        line = line.strip()
+        if not line or ">>" not in line:
+            continue
+        q_part, _, _ = line.partition(">>")
+        q_text = q_part.replace("(multiple)", "").strip()
+        matched = text_to_question.get(q_text)
+        if not matched:
+            warnings.append(f"No question matches '{q_text}', line skipped")
+            continue
+        q_urn, qdef = matched
+        value, warning = _parse_answer_body(qdef, line, f"'{q_text}'")
+        if warning:
+            warnings.append(warning)
+        if value is not _SKIP:
+            answers[q_urn] = value
+    return answers, warnings
+
+
+def parse_answers_cell(cell, questions_dict):
+    """Parse an exported `answers` cell back into ({question_urn: value}, warnings).
+
+    Blocks are delimited by the leading "[urn:...]" rather than by newlines, so a
+    free-text answer keeps its own line breaks. Anything skipped is reported in
+    `warnings` instead of vanishing.
+    """
+    if cell in (None, "") or not questions_dict:
+        return {}, []
+
+    blocks = []
+    legacy_lines = []
+    for raw_line in str(cell).split("\n"):
+        match = ANSWER_LINE_RE.match(raw_line.lstrip())
+        if match:
+            blocks.append([match.group("urn"), match.group("rest")])
+        elif blocks:
+            blocks[-1][1] += "\n" + raw_line
+        else:
+            legacy_lines.append(raw_line)
+
+    if not blocks:
+        return _parse_legacy_answers_cell(legacy_lines, questions_dict)
+
+    answers = {}
+    warnings = []
+    for q_urn, body in blocks:
+        qdef = questions_dict.get(q_urn)
+        if qdef is None:
+            warnings.append(f"Unknown question '{q_urn}', line skipped")
+            continue
+        value, warning = _parse_answer_body(qdef, body, f"'{qdef.get('text', q_urn)}'")
+        if warning:
+            warnings.append(warning)
+        if value is not _SKIP:
+            answers[q_urn] = value
+    return answers, warnings
+

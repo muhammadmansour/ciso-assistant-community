@@ -297,6 +297,7 @@ INSTALLED_APPS = [
     "metrology",
     "core",
     "doc_management",
+    "data_wizard",
     "cal",
     "django_filters",
     "library",
