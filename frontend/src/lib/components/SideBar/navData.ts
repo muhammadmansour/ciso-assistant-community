@@ -401,6 +401,23 @@ export const navData = {
 				}
 			]
 		},
+		{
+			name: 'extra',
+			items: [
+				{
+					name: 'dataWizard',
+					fa_icon: 'fa-solid fa-hat-wizard',
+					href: '/extra/data-wizard',
+					permissions: ['change_folder']
+				},
+				{
+					name: 'experimental',
+					fa_icon: 'fa-solid fa-flask',
+					href: '/experimental',
+					permissions: ['change_globalsettings']
+				}
+			]
+		},
 		// {
 		// 	name: 'privacy',
 		// 	items: [

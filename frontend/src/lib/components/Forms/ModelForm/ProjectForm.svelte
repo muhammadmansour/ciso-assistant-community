@@ -152,7 +152,8 @@
 	<AutocompleteSelect
 		{form}
 		optionsEndpoint="projects"
-		optionsLabelField="str"
+		optionsLabelField="auto"
+		optionsSelf={object}
 		field="parent_project"
 		cacheLock={cacheLocks['parent_project']}
 		bind:cachedValue={formDataCache['parent_project']}

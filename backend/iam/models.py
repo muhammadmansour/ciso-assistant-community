@@ -61,6 +61,7 @@ ALLOWED_PERMISSION_APPS = (
     "crq",
     "pmbok",
     "doc_management",
+    "data_wizard",
     "iam",
 )
 

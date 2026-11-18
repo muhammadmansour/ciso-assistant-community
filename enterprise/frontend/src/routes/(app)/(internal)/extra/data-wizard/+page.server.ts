@@ -1,8 +1,8 @@
-import { BASE_API_URL } from '$lib/utils/constants';
+import { BASE_API_URL } from '#lib/utils/constants.js';
 import type { Actions } from '@sveltejs/kit';
 import { fail } from '@sveltejs/kit'; // Import from kit instead of assert
 import { setFlash } from 'sveltekit-flash-message/server';
-import { m } from '$paraglide/messages';
+import { m } from '#paraglide/messages.js';
 import type { PageServerLoad } from './$types';
 
 export const load = (async ({ fetch }) => {
@@ -24,6 +24,8 @@ export const actions: Actions = {
 		const perimeter = formData.get('perimeter') as string;
 		const framework = formData.get('framework') as string;
 		const matrix = formData.get('matrix') as string;
+		const target = formData.get('target') as string;
+		const onConflict = (formData.get('onConflict') as string) || 'stop';
 
 		if (!file?.name || file?.name === 'undefined') {
 			// Using the fail function from SvelteKit
@@ -43,10 +45,17 @@ export const actions: Actions = {
 					'Content-Disposition': `attachment; filename="${file.name}"`,
 					'Content-Type': file.type,
 					'X-Model-Type': model,
-					'X-Folder-Id': folder,
-					'X-Perimeter-Id': perimeter,
-					'X-Framework-Id': framework,
-					'X-Matrix-Id': matrix
+					// Optional scope selectors omit their hidden input when empty, so
+					// formData.get() returns null. Coerce to '' — sending null would
+					// serialize to the string "null" and the backend's `or None`
+					// guard would treat it as a real (invalid) id. The backend maps
+					// '' -> None.
+					'X-Folder-Id': folder ?? '',
+					'X-Perimeter-Id': perimeter ?? '',
+					'X-Framework-Id': framework ?? '',
+					'X-Matrix-Id': matrix ?? '',
+					'X-Target-Id': target ?? '',
+					'X-On-Conflict': onConflict
 				},
 				body: file
 			});

@@ -98,6 +98,7 @@ def _terminology_label(term):
 
 
 class ProjectReadSerializer(BaseModelSerializer):
+    str = serializers.CharField(source="__str__")
     path = PathField(read_only=True)
     folder = FieldsRelatedField()
     owner = FieldsRelatedField()
