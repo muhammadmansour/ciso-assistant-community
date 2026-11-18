@@ -943,6 +943,17 @@ class RoleAssignment(NameDescriptionMixin, FolderMixin):
         return folder_ids
 
     @staticmethod
+    def has_permission_anywhere(
+        user: AbstractBaseUser | AnonymousUser, codename: str
+    ) -> bool:
+        """True when the user holds `codename` on at least one domain."""
+        try:
+            permission = Permission.objects.get(codename=codename)
+        except Permission.DoesNotExist:
+            return False
+        return bool(RoleAssignment.get_allowed_folder_ids(user, permission))
+
+    @staticmethod
     def get_viewable_object_ids(
         user: AbstractBaseUser | AnonymousUser,
         model: Any,
@@ -952,6 +963,17 @@ class RoleAssignment(NameDescriptionMixin, FolderMixin):
         return RoleAssignment.get_accessible_object_ids(
             folder or Folder.get_root_folder(), user, model
         )[0]
+
+    @staticmethod
+    def get_changeable_object_ids(
+        user: AbstractBaseUser | AnonymousUser,
+        model: Any,
+        folder: Folder | None = None,
+    ) -> "list[Any]":
+        """IDs of `model` objects the user can change, optionally under `folder`."""
+        return RoleAssignment.get_accessible_object_ids(
+            folder or Folder.get_root_folder(), user, model
+        )[1]
 
     @staticmethod
     def get_accessible_object_ids(
