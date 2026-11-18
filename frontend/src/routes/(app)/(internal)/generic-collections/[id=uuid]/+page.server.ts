@@ -21,6 +21,7 @@ const FIELD_MAP: Record<string, string> = {
 	'applied-controls': 'applied_controls',
 	'security-exceptions': 'security_exceptions',
 	policies: 'policies',
+	'task-templates': 'task_templates',
 	'generic-collections': 'dependencies'
 } as const;
 

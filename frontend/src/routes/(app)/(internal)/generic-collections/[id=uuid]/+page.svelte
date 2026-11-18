@@ -41,6 +41,7 @@
 		'applied-controls': 'selectAppliedControls',
 		'security-exceptions': 'selectSecurityExceptions',
 		policies: 'selectPolicies',
+		'task-templates': 'selectTaskTemplates',
 		'generic-collections': 'selectDependencies'
 	};
 
@@ -57,6 +58,7 @@
 		'applied-controls': 'applied_controls',
 		'security-exceptions': 'security_exceptions',
 		policies: 'policies',
+		'task-templates': 'task_templates',
 		'generic-collections': 'dependencies'
 	};
 

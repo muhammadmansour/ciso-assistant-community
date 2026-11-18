@@ -280,9 +280,11 @@
 {#if missingConstraints.length > 0}
 	<div class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
 		{m.missingMandatoyObjects1({ model: safeTranslate(model.localName) })}:
-		{#each missingConstraints as key}
-			<li class="font-bold">{safeTranslate(key)}</li>
-		{/each}
+		<ul class="list-disc ps-5 my-2 space-y-1">
+			{#each missingConstraints as key}
+				<li class="font-bold">{safeTranslate(key)}</li>
+			{/each}
+		</ul>
 		{m.missingMandatoyObjects2()}
 	</div>
 {/if}
@@ -823,7 +825,23 @@
 		{:else if URLModel === 'accreditations'}
 			<AccreditationForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
 		{:else if URLModel === 'projects'}
-			<ProjectForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
+			<ProjectForm
+				{form}
+				{model}
+				{cacheLocks}
+				{formDataCache}
+				{initialData}
+				{object}
+				section={context.startsWith('edit-')
+					? (context.slice(5) as
+							| 'overview'
+							| 'charter'
+							| 'tracking'
+							| 'linked'
+							| 'people'
+							| 'analytics')
+					: 'all'}
+			/>
 		{:else if URLModel === 'responsibility-matrices'}
 			<ResponsibilityMatrixForm {form} {model} {cacheLocks} {formDataCache} {initialData} {object} />
 		{:else if URLModel === 'document-containers'}
@@ -922,7 +940,7 @@
 				{...rest}
 			/>
 		{/if}
-		<div class="flex flex-row justify-between space-x-4 mt-2">
+		<div class="flex flex-row justify-between gap-4 mt-2">
 			{#if closeModal}
 				<button
 					class="btn bg-gray-200 text-gray-700 hover:bg-gray-300 font-semibold w-full rounded-lg transition-colors"

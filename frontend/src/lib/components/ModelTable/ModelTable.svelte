@@ -598,13 +598,13 @@
 		     Shows during initial load AND subsequent refetches (filter changes,
 		     pagination, sort). Pointer events disabled so it never blocks UI. -->
 		<div
-			class="absolute top-0 left-0 right-0 h-0.5 z-30 pointer-events-none overflow-hidden bg-blue-100/60"
+			class="absolute top-0 inset-x-0 h-0.5 z-30 pointer-events-none overflow-hidden bg-blue-100/60"
 			aria-hidden="true"
 		>
 			<div class="model-table-indeterminate-bar absolute h-full bg-blue-500"></div>
 		</div>
 	{/if}
-	<header class="flex justify-between items-center space-x-8 p-3 border-b border-gray-100">
+	<header class="flex justify-between items-center gap-8 p-3 border-b border-gray-100">
 		{#if !hideFilters}
 			<Popover
 				open={openState}
@@ -659,7 +659,7 @@
 		{#if pagination && rowsPerPage}
 			<RowsPerPage {handler} />
 		{/if}
-		<div class="flex space-x-2 items-center">
+		<div class="flex gap-2 items-center">
 			{@render optButton?.()}
 			{#if canSelectObject}
 				{@render selectButton?.()}
@@ -684,6 +684,7 @@
 		class="table caption-bottom {classesTable}"
 		class:table-interactive={interactive}
 		role="grid"
+		dir={getLocale() === 'ar' ? 'rtl' : undefined}
 		use:tableA11y
 	>
 		<thead class="table-head {regionHead}">

@@ -49,6 +49,8 @@
 	);
 
 	const occurrencesModel = $derived(data.relatedModels?.['task-nodes']);
+	const collectionsModel = $derived(data.relatedModels?.['generic-collections']);
+	const collectionsTable = $derived(buildTableSource('generic-collections'));
 </script>
 
 <DetailView
@@ -83,6 +85,12 @@
 				</Tabs.Control>
 				<Tabs.Control value="related-findings">
 					{m.relatedFindings()}
+				</Tabs.Control>
+				<Tabs.Control value="generic-collections">
+					{m.genericCollections()}
+					{#if collectionsModel?.table?.body?.length > 0}
+						<span class="badge preset-tonal-secondary">{collectionsModel.table.body.length}</span>
+					{/if}
 				</Tabs.Control>
 			{/snippet}
 			{#snippet content()}
@@ -158,6 +166,24 @@
 							{/if}
 						</div>
 					</Tabs.Panel>
+				<Tabs.Panel value="generic-collections">
+					<div class="flex flex-col px-4 py-2">
+						<div class="flex flex-row justify-between py-2">
+							<h4 class="font-semibold lowercase capitalize-first my-auto">
+								{m.genericCollections()}
+							</h4>
+						</div>
+						<ModelTable
+							URLModel="generic-collections"
+							source={collectionsModel?.table ?? collectionsTable}
+							baseEndpoint="/generic-collections?task_templates={page.params.id}"
+							search={true}
+							rowsPerPage={true}
+							disableCreate={true}
+							disableDelete={true}
+						/>
+					</div>
+				</Tabs.Panel>
 			{/snippet}
 		</Tabs>
 </div>

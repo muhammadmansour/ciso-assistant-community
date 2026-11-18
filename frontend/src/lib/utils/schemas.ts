@@ -1358,6 +1358,7 @@ export const GenericCollectionSchema = z.object({
 	applied_controls: z.array(z.string().uuid().optional()).optional(),
 	security_exceptions: z.array(z.string().uuid().optional()).optional(),
 	policies: z.array(z.string().uuid().optional()).optional(),
+	task_templates: z.array(z.string().uuid().optional()).optional(),
 	dependencies: z.array(z.string().uuid().optional()).optional(),
 	observation: z.string().optional().nullable(),
 	filtering_labels: z.array(z.string().uuid().optional()).optional()

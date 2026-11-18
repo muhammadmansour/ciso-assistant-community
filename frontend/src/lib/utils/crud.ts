@@ -1984,6 +1984,12 @@ export const URL_MODEL_MAP: ModelMap = {
 				defaultFilters: {
 					past: [{ value: 'false' }]
 				}
+			},
+			{
+				field: 'task_templates',
+				urlModel: 'generic-collections',
+				disableCreate: true,
+				disableDelete: true
 			}
 		]
 	},
@@ -2360,7 +2366,10 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'created_at', type: 'datetime' },
 			{ field: 'updated_at', type: 'datetime' }
 		],
-		foreignKeyFields: [{ field: 'folder', urlModel: 'folders' }],
+		foreignKeyFields: [
+			{ field: 'folder', urlModel: 'folders' },
+			{ field: 'task_templates', urlModel: 'task-templates' }
+		],
 		reverseForeignKeyFields: [
 			{ field: 'genericcollection', urlModel: 'compliance-assessments' },
 			{ field: 'genericcollection', urlModel: 'risk-assessments' },
@@ -2372,7 +2381,8 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'genericcollection', urlModel: 'document-containers' },
 			{ field: 'genericcollection', urlModel: 'applied-controls' },
 			{ field: 'genericcollection', urlModel: 'security-exceptions' },
-			{ field: 'genericcollection', urlModel: 'policies' }
+			{ field: 'genericcollection', urlModel: 'policies' },
+			{ field: 'genericcollection', urlModel: 'task-templates' }
 		],
 		selectFields: [{ field: 'folder' }, { field: 'ref_id' }]
 	},
@@ -2424,11 +2434,33 @@ export const URL_MODEL_MAP: ModelMap = {
 		verboseName: 'Project',
 		verboseNamePlural: 'Projects',
 		endpointUrl: 'pmbok/projects',
+		detailViewFields: [
+			{ field: 'ref_id' },
+			{ field: 'folder' },
+			{ field: 'kind' },
+			{ field: 'status' },
+			{ field: 'health' },
+			{ field: 'priority' },
+			{ field: 'progress' },
+			{ field: 'owner' },
+			{ field: 'sponsor' },
+			{ field: 'parent_project' },
+			{ field: 'sub_projects' },
+			{ field: 'linked_collection' },
+			{ field: 'start_date', type: 'date' },
+			{ field: 'end_date', type: 'date' },
+			{ field: 'eta', type: 'date' },
+			{ field: 'budget' },
+			{ field: 'actual_cost' },
+			{ field: 'currency' },
+			{ field: 'filtering_labels' }
+		],
 		foreignKeyFields: [
 			{ field: 'folder', urlModel: 'folders' },
 			{ field: 'owner', urlModel: 'actors' },
 			{ field: 'sponsor', urlModel: 'actors' },
 			{ field: 'parent_project', urlModel: 'projects' },
+			{ field: 'sub_projects', urlModel: 'projects' },
 			{ field: 'linked_collection', urlModel: 'generic-collections' },
 			{
 				field: 'status',

@@ -304,11 +304,47 @@ select {
 	background-position: right 8px center !important;
 	background-size: 16px !important;
 	padding-right: 32px !important;
+	padding-left: 8px !important;
+}
+[dir="rtl"] select {
+	background-position: left 8px center !important;
+	padding-left: 32px !important;
+	padding-right: 8px !important;
 }
 
 /* Smooth page transitions */
 .wgrc-transition {
 	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* space-x uses physical margins — reverse it under RTL */
+[dir="rtl"] .space-x-1 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-3 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-5 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-6 > :not([hidden]) ~ :not([hidden]),
+[dir="rtl"] .space-x-8 > :not([hidden]) ~ :not([hidden]) {
+	--tw-space-x-reverse: 1;
+}
+
+/*
+ * System-wide: Arabic tables reverse column order (first DOM col → right).
+ * Use !important so Skeleton/component styles cannot force LTR column flow.
+ */
+html[dir="rtl"] table,
+html[lang="ar"] table {
+	direction: rtl !important;
+}
+html[dir="rtl"] table th,
+html[dir="rtl"] table td,
+html[lang="ar"] table th,
+html[lang="ar"] table td {
+	text-align: start;
+}
+html[dir="rtl"] .table-wrap header,
+html[lang="ar"] .table-wrap header {
+	flex-direction: row-reverse;
 }
 
 /* Physical left/right utilities mirror in Arabic. */
@@ -400,8 +436,6 @@ select {
 [dir="rtl"] .pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .left-0 { left: auto; right: 0; }
-[dir="rtl"] .right-0 { right: auto; left: 0; }
 [dir="rtl"] .ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .text-left { text-align: right; }
@@ -500,8 +534,6 @@ select {
 [dir="rtl"] .sm\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .sm\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .sm\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .sm\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .sm\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .sm\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .sm\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .sm\:text-left { text-align: right; }
@@ -600,8 +632,6 @@ select {
 [dir="rtl"] .md\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .md\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .md\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .md\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .md\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .md\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .md\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .md\:text-left { text-align: right; }
@@ -700,8 +730,6 @@ select {
 [dir="rtl"] .lg\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .lg\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .lg\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .lg\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .lg\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .lg\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .lg\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .lg\:text-left { text-align: right; }
@@ -800,8 +828,6 @@ select {
 [dir="rtl"] .xl\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .xl\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .xl\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .xl\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .xl\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .xl\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .xl\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .xl\:text-left { text-align: right; }
@@ -900,8 +926,6 @@ select {
 [dir="rtl"] .2xl\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .2xl\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .2xl\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .2xl\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .2xl\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .2xl\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .2xl\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .2xl\:text-left { text-align: right; }
@@ -1000,8 +1024,6 @@ select {
 [dir="rtl"] .hover\:pr-12 { padding-right: 0; padding-left: 3rem; }
 [dir="rtl"] .hover\:left-12 { left: auto; right: 3rem; }
 [dir="rtl"] .hover\:right-12 { right: auto; left: 3rem; }
-[dir="rtl"] .hover\:left-0 { left: auto; right: 0; }
-[dir="rtl"] .hover\:right-0 { right: auto; left: 0; }
 [dir="rtl"] .hover\:ml-auto { margin-left: unset; margin-right: auto; }
 [dir="rtl"] .hover\:mr-auto { margin-right: unset; margin-left: auto; }
 [dir="rtl"] .hover\:text-left { text-align: right; }

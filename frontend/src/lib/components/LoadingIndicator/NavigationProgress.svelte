@@ -61,7 +61,7 @@
 
 {#if visible}
 	<div
-		class="fixed top-0 left-0 right-0 h-[3px] z-[9999] pointer-events-none transition-opacity duration-300"
+		class="fixed top-0 inset-x-0 h-[3px] z-[9999] pointer-events-none transition-opacity duration-300"
 		class:opacity-0={fading}
 		class:opacity-100={!fading}
 		aria-hidden="true"

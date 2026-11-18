@@ -284,7 +284,9 @@
 		setCookie('show_first_login_modal', 'false');
 	});
 
-	let classesSidebarOpen = $derived((open: boolean) => (open ? '' : 'ltr:-ml-56 rtl:-mr-56 pointer-events-none'));
+	let classesSidebarOpen = $derived((open: boolean) =>
+		open ? '' : 'ltr:-translate-x-[calc(100%-1.75rem)] rtl:translate-x-[calc(100%-1.75rem)] pointer-events-none'
+	);
 </script>
 
 <div data-testid="sidebar" class="sidebar">

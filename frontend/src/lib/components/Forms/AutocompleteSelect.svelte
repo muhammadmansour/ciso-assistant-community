@@ -451,7 +451,7 @@
 		</div>
 	{/if}
 	<div
-		class="control overflow-x-clip flex items-center space-x-2"
+		class="control overflow-x-clip flex items-center gap-2"
 		data-testid="{fieldContext}-{field.replaceAll('_', '-')}"
 	>
 		{#if Array.isArray($value)}

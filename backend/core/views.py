@@ -650,7 +650,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    ordering = ["created_at"]
+    ordering = ["-updated_at"]
     ordering_fields = "__all__"
     search_fields = ["name", "description"]
     filterset_fields = []
@@ -1648,7 +1648,6 @@ class AssetViewSet(ExportMixin, BaseModelViewSet):
     model = Asset
     filterset_class = AssetFilter
     search_fields = ["name", "description", "ref_id"]
-    ordering = ["folder__name", "name"]
 
     def get_queryset(self) -> models.query.QuerySet:
         return (
@@ -5371,7 +5370,7 @@ class ComplianceAssessmentEvidenceList(generics.ListAPIView):
     }
     search_fields = ["name", "description"]
     ordering_fields = ["name", "status", "updated_at", "expiry_date"]
-    ordering = ["name"]
+    ordering = ["-updated_at"]
 
     filter_backends = [
         DjangoFilterBackend,
@@ -13529,6 +13528,7 @@ class TaskTemplateFilter(GenericFilterSet):
             "last_occurrence_status",
             "next_occurrence_status",
             "evidences",
+            "genericcollection",
         ]
 
     def filter_last_occurrence_status(self, queryset, name, values):
@@ -13565,6 +13565,7 @@ class TaskTemplateViewSet(ExportMixin, BaseModelViewSet):
         "applied_controls",
         "evidences",
         "findings_assessment",
+        "genericcollection",
     ]
     search_fields = ["ref_id", "name"]
     filterset_class = TaskTemplateFilter
