@@ -13,7 +13,7 @@ from datetime import date, datetime
 from functools import cached_property
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, ClassVar, Final, Mapping, Optional
+from typing import Any, ClassVar, Final, Generic, Mapping, Optional, TypeVar
 from uuid import UUID
 
 import pandas as pd
@@ -1037,7 +1037,10 @@ class BaseContext:
     container_name: Optional[str] = None
 
 
-class RecordConsumer[Context](ABC):
+ContextT = TypeVar("ContextT")
+
+
+class RecordConsumer(ABC, Generic[ContextT]):
     SERIALIZER_CLASS: ClassVar[type[BaseModelSerializer]]
     # Maps record_data keys to possible source record keys when they differ.
     # Override in subclasses that use alternative/aliased column names.
@@ -1076,12 +1079,12 @@ class RecordConsumer[Context](ABC):
         return getattr(module, cls.SERIALIZER_CLASS.__name__, cls.SERIALIZER_CLASS)
 
     @abstractmethod
-    def create_context(self) -> tuple[Context, Optional[Error]]:
+    def create_context(self) -> tuple[ContextT, Optional[Error]]:
         pass
 
     @abstractmethod
     def prepare_create(
-        self, record: dict, context: Context
+        self, record: dict, context: ContextT
     ) -> tuple[dict, Optional[Error]]:
         pass
 
