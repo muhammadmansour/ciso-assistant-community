@@ -4438,7 +4438,7 @@
 	"rptGenerateReport": "Generate Report",
 	"rptOutcome": "Outcome",
 	"rptAuditSetupIntro": "Choose an audit assessment and the sections to include. The PDF, Word and XLSX exports follow the same selection.",
-	"rptRiskSetupIntro": "Choose a risk assessment and the sections to include. The PDF and XLSX exports follow the same selection.",
+	"rptRiskSetupIntro": "Choose a risk assessment and the sections to include. The PDF, Word and XLSX exports follow the same selection.",
 	"rptNoComplianceAssessment": "No compliance assessment is visible to this account.",
 	"rptNoRiskAssessment": "No risk assessment is visible to this account.",
 	"rptAuditAssessment": "Audit assessment",
@@ -4574,5 +4574,14 @@
 	"rptTargetDate": "Target date",
 	"rptNoPlannedControls": "No planned controls",
 	"rptStillAboveTolerance": "Still above tolerance",
-	"rptUnclassified": "Unclassified"
+	"rptUnclassified": "Unclassified",
+	"rptRiskSummaryPurpose": "How exposed the organisation is today, in one view for the board.",
+	"rptScoringPurpose": "What the risk scores measure and which business objectives the spend protects.",
+	"rptAreasPurpose": "Which parts of the business carry the most risk, so attention goes there first.",
+	"rptTopRisksPurpose": "The risks that matter most, how far controls have reduced them and who owns them.",
+	"rptHeatmapsPurpose": "How the risk picture shifts from no controls, to today, to after the planned treatment.",
+	"rptControlsPurpose": "What the organisation already spends to keep its top risks under control.",
+	"rptCostAllocationPurpose": "Where each currency unit of control spend goes, by risk and by objective.",
+	"rptCostEffectivenessPurpose": "Whether the control spend buys real risk reduction, and where it does not.",
+	"rptTreatmentPurpose": "What is planned to bring the remaining risks within tolerance, at what cost and by when."
 }

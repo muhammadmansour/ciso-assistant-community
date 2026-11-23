@@ -7,6 +7,7 @@ from .audit_report_views import (
 from .evidence_report_views import EvidenceReportView, EvidenceReportXlsxView
 from .nca_ecc_report_views import NcaEccReadinessView, NcaEccReadinessXlsxView
 from .risk_posture_report_views import (
+    RiskPostureReportDocxView,
     RiskPostureReportPdfView,
     RiskPostureReportView,
     RiskPostureReportXlsxView,
@@ -280,6 +281,11 @@ urlpatterns = [
         "reports/risk-posture/pdf/",
         RiskPostureReportPdfView.as_view(),
         name="risk-posture-report-pdf",
+    ),
+    path(
+        "reports/risk-posture/docx/",
+        RiskPostureReportDocxView.as_view(),
+        name="risk-posture-report-docx",
     ),
     path("policy-collections/", PolicyCollectionsGeminiView.as_view()),
     path("policy-collections/chat/", PolicyCollectionsChatView.as_view()),

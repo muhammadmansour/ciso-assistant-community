@@ -7,11 +7,17 @@ const FORMATS = {
 	xlsx: {
 		type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 		filename: 'risk-posture-report.xlsx'
+	},
+	docx: {
+		type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		filename: 'risk-posture-report.docx'
 	}
 } as const;
 
 export const GET: RequestHandler = async ({ fetch, url }) => {
-	const format = url.searchParams.get('format') === 'xlsx' ? 'xlsx' : 'pdf';
+	const requested = url.searchParams.get('format');
+	const format: keyof typeof FORMATS =
+		requested === 'xlsx' || requested === 'docx' ? requested : 'pdf';
 	const params = new URLSearchParams();
 	for (const key of ['assessment', 'sections']) {
 		const value = url.searchParams.get(key);

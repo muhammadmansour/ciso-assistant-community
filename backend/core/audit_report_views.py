@@ -388,109 +388,24 @@ SEVERITY_COLORS = {
 
 
 def audit_document(payload: dict) -> bytes:
-    from docx import Document
-    from docx.enum.section import WD_ORIENT
-    from docx.enum.table import WD_TABLE_ALIGNMENT
-    from docx.oxml import OxmlElement
-    from docx.oxml.ns import qn
-    from docx.shared import Cm, Pt, RGBColor
+    from docx.shared import Pt
 
-    from core.branding import add_docx_branding
+    from core.report_docx import BLUE, NAVY, ReportDocument, color
 
     assessment = payload["assessment"]
     summary = payload["summary"]
     sections = payload.get("sections") or SECTION_KEYS
     numbers = payload.get("section_numbers") or {}
-    navy = RGBColor(0x19, 0x2A, 0x44)
-    blue = RGBColor(0x31, 0x6F, 0xD3)
-    grey = RGBColor(0x64, 0x74, 0x8B)
-
-    document = Document()
-    page = document.sections[0]
-    page.orientation = WD_ORIENT.PORTRAIT
-    page.page_width, page.page_height = Cm(21), Cm(29.7)
-    page.left_margin = page.right_margin = Cm(1.8)
-    page.top_margin = page.bottom_margin = Cm(1.8)
-    add_docx_branding(document, f"{assessment['name']} · Audit report")
-    document.styles["Normal"].font.size = Pt(9.5)
-
-    def shade(cell, fill):
-        properties = cell._tc.get_or_add_tcPr()
-        shading = OxmlElement("w:shd")
-        shading.set(qn("w:val"), "clear")
-        shading.set(qn("w:color"), "auto")
-        shading.set(qn("w:fill"), fill)
-        properties.append(shading)
-
-    def text(paragraph, value, *, bold=False, color=None, size=None):
-        run = paragraph.add_run(value)
-        run.bold = bold
-        if color is not None:
-            run.font.color.rgb = color
-        if size is not None:
-            run.font.size = Pt(size)
-        return run
-
-    def heading(key, title, note):
-        paragraph = document.add_paragraph()
-        paragraph.paragraph_format.space_before = Pt(14)
-        paragraph.paragraph_format.space_after = Pt(0)
-        paragraph.paragraph_format.keep_with_next = True
-        text(paragraph, f"{numbers.get(key, '')}. ", bold=True, color=blue, size=13)
-        text(paragraph, title, bold=True, color=navy, size=13)
-        note_paragraph = document.add_paragraph()
-        note_paragraph.paragraph_format.space_after = Pt(4)
-        note_paragraph.paragraph_format.keep_with_next = True
-        text(note_paragraph, note, color=grey, size=8)
-
-    def grid(headers, rows, widths):
-        table = document.add_table(rows=1, cols=len(headers))
-        table.style = "Table Grid"
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-        for cell, header in zip(table.rows[0].cells, headers):
-            shade(cell, "EEF3FB")
-            cell.paragraphs[0].text = ""
-            text(cell.paragraphs[0], header, bold=True, color=navy, size=8)
-        for values in rows:
-            cells = table.add_row().cells
-            for cell, value in zip(cells, values):
-                if isinstance(value, tuple):
-                    label, color = value
-                    text(cell.paragraphs[0], label, bold=True, color=color, size=8.5)
-                else:
-                    text(cell.paragraphs[0], "" if value is None else str(value), size=8.5)
-        for row in table.rows:
-            for cell, width in zip(row.cells, widths):
-                cell.width = Cm(width)
-        return table
-
-    def key_values(rows):
-        table = document.add_table(rows=0, cols=2)
-        table.style = "Table Grid"
-        for key, value in rows:
-            cells = table.add_row().cells
-            shade(cells[0], "F8FAFC")
-            text(cells[0].paragraphs[0], key, bold=True, color=navy, size=8.5)
-            text(cells[1].paragraphs[0], value or "—", size=8.5)
-            cells[0].width, cells[1].width = Cm(4.2), Cm(13.2)
-        return table
+    findings = payload["findings"]
+    doc = ReportDocument(f"{assessment['name']} · Audit report")
 
     def severity(finding):
-        color = SEVERITY_COLORS.get(finding["severity_key"], SEVERITY_COLORS["info"])
-        return finding["severity_label"], RGBColor.from_string(color)
+        return finding["severity_label"], color(SEVERITY_COLORS.get(finding["severity_key"]))
 
-    eyebrow = document.add_paragraph()
-    eyebrow.paragraph_format.space_after = Pt(0)
-    text(eyebrow, "AUDIT REPORT", bold=True, color=blue, size=8.5)
-    title = document.add_paragraph()
-    title.paragraph_format.space_after = Pt(2)
     prefix = f"{assessment['framework_ref']} — " if assessment["framework_ref"] else ""
-    text(title, f"{prefix}{assessment['name']}", bold=True, color=navy, size=20)
-    subtitle = document.add_paragraph()
-    text(subtitle, f"{assessment['framework']} · Generated {payload['generated_on']}", color=grey, size=10)
-
+    doc.title("Audit report", f"{prefix}{assessment['name']}", f"{assessment['framework']} · Generated {payload['generated_on']}")
     perimeter = assessment["folder"] + (f" — {assessment['perimeter']}" if assessment["perimeter"] else "")
-    key_values(
+    doc.key_values(
         [
             ("Perimeter", perimeter),
             ("Assessment status", f"{assessment['status'] or '—'} · {summary['reviewed_pct']}% reviewed"),
@@ -499,10 +414,9 @@ def audit_document(payload: dict) -> bytes:
         ]
     )
 
-    findings = payload["findings"]
     if "summary" in sections:
-        heading(
-            "summary",
+        doc.heading(
+            numbers.get("summary"),
             "Summary",
             "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded.",
         )
@@ -516,12 +430,10 @@ def audit_document(payload: dict) -> bytes:
             assessed += f" · {summary['not_assessed']} of {summary['total']} not assessed yet"
 
         def domain_label(domain):
-            if not domain:
-                return "—"
-            return f"{domain['ref_id']} {domain['name']} — {domain['ratio']}%".strip()
+            return f"{domain['ref_id']} {domain['name']} — {domain['ratio']}%".strip() if domain else "—"
 
         counts = " / ".join(f"{s['label']} {s['count']}" for s in payload["severity_counts"])
-        key_values(
+        doc.key_values(
             [
                 ("Compliance ratio", ratio),
                 ("Controls assessed", assessed),
@@ -533,8 +445,8 @@ def audit_document(payload: dict) -> bytes:
         )
 
     if "domains" in sections:
-        heading(
-            "domains",
+        doc.heading(
+            numbers.get("domains"),
             "Results by domain",
             "Requirement answers grouped by top-level framework node. Same ratio formula per group.",
         )
@@ -543,68 +455,48 @@ def audit_document(payload: dict) -> bytes:
             return f"{value}%" if value is not None else "—"
 
         rows = [
-            [
-                f"{d['ref_id']} {d['name']}".strip(),
-                d["assessed"],
-                d["compliant"],
-                d["partially_compliant"],
-                d["non_compliant"],
-                d["not_applicable"],
-                ratio_text(d["ratio"]),
-                ", ".join(d["findings"]) or "—",
-            ]
+            [f"{d['ref_id']} {d['name']}".strip(), d["assessed"], d["compliant"], d["partially_compliant"],
+             d["non_compliant"], d["not_applicable"], ratio_text(d["ratio"]), ", ".join(d["findings"]) or "—"]
             for d in payload["domains"]
         ]
         rows.append(
-            [
-                ("Total", navy),
-                summary["assessed"],
-                summary["compliant"],
-                summary["partially_compliant"],
-                summary["non_compliant"],
-                summary["not_applicable"],
-                ratio_text(summary["ratio"]),
-                len(findings),
-            ]
+            [("Total", NAVY), summary["assessed"], summary["compliant"], summary["partially_compliant"],
+             summary["non_compliant"], summary["not_applicable"], ratio_text(summary["ratio"]), len(findings)]
         )
-        grid(
+        doc.grid(
             ["Domain", "Controls", "I", "PI", "NI", "N/A", "Ratio", "Findings"],
             rows,
             [5.6, 1.6, 1.0, 1.0, 1.0, 1.1, 1.5, 4.6],
         )
 
     if "findings" in sections:
-        heading(
-            "findings",
+        doc.heading(
+            numbers.get("findings"),
             "Findings",
             "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control.",
         )
         if findings:
-            grid(
+            doc.grid(
                 ["ID", "Title", "Severity", "Status"],
                 [[f["code"], f["name"], severity(f), f["status_label"]] for f in findings],
                 [2.8, 9.6, 2.4, 2.6],
             )
         else:
-            text(document.add_paragraph(), "No findings recorded for this assessment.", color=grey)
+            doc.paragraph("No findings recorded for this assessment.")
 
         detailed = payload["detailed_findings"]
         if detailed:
-            sub = document.add_paragraph()
-            sub.paragraph_format.space_before = Pt(10)
-            sub.paragraph_format.keep_with_next = True
-            text(sub, "Details — Critical & High", bold=True, color=navy, size=11)
+            doc.subheading("Details — Critical & High")
             for finding in detailed:
-                head = document.add_paragraph()
+                head = doc.document.add_paragraph()
                 head.paragraph_format.space_before = Pt(8)
-                head.paragraph_format.space_after = Pt(2)
                 head.paragraph_format.keep_with_next = True
                 if finding["ref_id"]:
-                    text(head, f"{finding['ref_id']} ", bold=True, color=blue)
-                text(head, f"{finding['name']}  ", bold=True, color=navy)
-                label, color = severity(finding)
-                text(head, label, bold=True, color=color, size=8.5)
-                key_values(
+                    doc.text(head, f"{finding['ref_id']} ", bold=True, color=BLUE)
+                doc.text(head, f"{finding['name']}  ", bold=True, color=NAVY)
+                label, label_color = severity(finding)
+                doc.text(head, label, bold=True, color=label_color, size=8.5)
+                doc.key_values(
                     [
                         ("Description", finding["description"]),
                         (
@@ -627,41 +519,37 @@ def audit_document(payload: dict) -> bytes:
                 )
 
     if "observations" in sections:
-        heading(
-            "observations",
+        doc.heading(
+            numbers.get("observations"),
             "Observations",
             "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim.",
         )
         if payload["observations"]:
-            grid(
+            doc.grid(
                 ["ID", "Observation"],
                 [[o["ref_id"], o["observation"] or "—"] for o in payload["observations"]],
                 [2.8, 14.6],
             )
         else:
-            text(document.add_paragraph(), "No observations.", color=grey)
+            doc.paragraph("No observations.")
 
     if "action_plan" in sections:
-        heading(
-            "action_plan",
+        doc.heading(
+            numbers.get("action_plan"),
             "Action plan",
             "All non-active applied controls linked to this assessment's findings, sorted by ETA.",
         )
         if payload["action_plan"]:
-            grid(
+            doc.grid(
                 ["Applied control", "Linked findings", "Owner", "ETA", "Status"],
-                [
-                    [c["name"], ", ".join(c["findings"]), ", ".join(c["owners"]) or "—", c["eta"] or "—", c["status_label"]]
-                    for c in payload["action_plan"]
-                ],
+                [[c["name"], ", ".join(c["findings"]), ", ".join(c["owners"]) or "—", c["eta"] or "—", c["status_label"]]
+                 for c in payload["action_plan"]],
                 [5.8, 3.8, 3.4, 2.2, 2.2],
             )
         else:
-            text(document.add_paragraph(), "No open actions.", color=grey)
+            doc.paragraph("No open actions.")
 
-    buffer = io.BytesIO()
-    document.save(buffer)
-    return buffer.getvalue()
+    return doc.to_bytes()
 
 
 def _selected_sections(raw: str | None) -> list[str]:

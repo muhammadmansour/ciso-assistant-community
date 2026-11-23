@@ -608,6 +608,275 @@ def risk_posture_workbook(payload: dict) -> bytes:
     return buffer.getvalue()
 
 
+def risk_posture_document(payload: dict) -> bytes:
+    from core.report_docx import CONTENT_WIDTH_CM, NAVY, ReportDocument
+
+    assessment = payload["assessment"]
+    summary = payload["summary"]
+    sections = payload.get("sections") or SECTION_KEYS
+    numbers = payload.get("section_numbers") or {}
+    tolerance = payload["tolerance"]
+    doc = ReportDocument(f"{assessment['name']} · Risk posture report")
+
+    def rating(value):
+        return f"{value['score']} {value['name']} ({value['lxi']})" if value.get("rated") else "—"
+
+    def joined(values, separator=", "):
+        return separator.join(str(v) for v in values) or "—"
+
+    doc.title(
+        "Risk posture report",
+        assessment["name"],
+        f"{assessment['risk_matrix']} · Generated {payload['generated_on']}",
+    )
+    perimeter = assessment["folder"] + (f" — {assessment['perimeter']}" if assessment["perimeter"] else "")
+    doc.key_values(
+        [
+            ("Perimeter", perimeter),
+            ("Risk tolerance", tolerance["name"] if tolerance else "Not set"),
+            ("Authors", ", ".join(assessment["authors"])),
+            ("Reviewers", ", ".join(assessment["reviewers"])),
+        ]
+    )
+
+    if "summary" in sections:
+        doc.heading(
+            numbers.get("summary"),
+            "Executive summary",
+            f"Top {summary['top_count']} of {summary['total_risks']} risk scenarios, ranked by current risk level "
+            "then score. Score = probability × impact on the matrix scales.",
+        )
+        posture = (
+            f"{summary['posture']} — " + ", ".join(f"{b['count']} {b['name']}" for b in summary["band_mix"])
+            if summary["posture"]
+            else "No rated risks"
+        )
+        if tolerance:
+            above = f"{len(summary['above'])}"
+            if summary["above"]:
+                above += ": " + ", ".join(f"{r['ref_id']} {r['name']}".strip() for r in summary["above"])
+        else:
+            above = "Risk tolerance is not set on this assessment"
+        highest = summary["highest"]
+        top_objective = summary["top_objective"]
+        least = summary["least_effective"]
+        doc.key_values(
+            [
+                ("Overall posture", posture),
+                ("Risks above tolerance", above),
+                ("Highest current risks", f"{joined(summary['highest_refs'])} — {highest['score']} ({highest['name']})" if highest else "—"),
+                ("Highest-exposure areas", joined(summary["exposure_areas"], "; ")),
+                ("Annual cost of controls", f"{summary['total_control_cost_label']} across {summary['control_count']} controls"),
+                (
+                    "Objective with the most spend",
+                    f"{top_objective['name']} — {top_objective['label']} ({top_objective['pct']}%)"
+                    if top_objective and top_objective.get("amount")
+                    else "—",
+                ),
+                (
+                    "Least cost-effective spend",
+                    f"{least['ref']}: {least['cost_label']} for {least['reduction']} points ({least['cost_per_point_label']} per point)"
+                    if least
+                    else "—",
+                ),
+                (
+                    "Extra investment planned",
+                    f"{summary['total_extra_label']} a year; total after treatment {summary['after_treatment_label']}",
+                ),
+            ]
+        )
+
+    if "scoring" in sections:
+        doc.heading(
+            numbers.get("scoring"),
+            "Context, objectives and scoring method",
+            "Objectives come from the controls that treat the top risks. Scores use the assessment's risk matrix.",
+        )
+        if payload["objectives"]:
+            doc.grid(
+                ["Objective", "Control spend", "Share", "Risks above tolerance"],
+                [[o["name"], o["label"], f"{o['pct']}%", o["above_count"]] for o in payload["objectives"]],
+                [7.4, 3.6, 2.4, 4.0],
+            )
+        else:
+            doc.paragraph("No objectives are linked to the controls of the top risks.")
+        scales = payload["scales"]
+        rows = [["Probability", f"{p['value']} · {p['name']}", p["description"] or "—"] for p in scales["probability"]]
+        rows += [["Impact", f"{p['value']} · {p['name']}", p["description"] or "—"] for p in scales["impact"]]
+        rows += [
+            ["Risk level", level["name"] + (" (within tolerance)" if level["within_tolerance"] else ""), level["description"] or "—"]
+            for level in scales["levels"]
+        ]
+        doc.subheading("Scales")
+        doc.grid(["Scale", "Value", "Description"], rows, [2.8, 4.6, 10.0])
+
+    if "areas" in sections:
+        doc.heading(
+            numbers.get("areas"),
+            "High-risk areas",
+            "Top risks grouped by their first qualification, ranked by highest current level, then tolerance breaches.",
+        )
+        if payload["areas"]:
+            doc.grid(
+                ["#", "Risk area", "Top risks", "Highest current", "Above tolerance", "Inherent → current", "Annual control cost"],
+                [
+                    [
+                        a["rank"],
+                        a["name"],
+                        joined(a["risks"]),
+                        f"{a['top']['score']} {a['top']['name']}",
+                        f"{len(a['above'])} ({joined(a['above'])})" if a["above"] else "0",
+                        f"{a['inherent_sum']} → {a['current_sum']}",
+                        f"{a['cost_label']} ({a['cost_pct']}%)",
+                    ]
+                    for a in payload["areas"]
+                ],
+                [0.8, 3.0, 3.2, 2.6, 2.8, 2.2, 2.8],
+            )
+        else:
+            doc.paragraph("No rated risks.")
+
+    if "top_risks" in sections:
+        doc.heading(
+            numbers.get("top_risks"),
+            "Top risks",
+            "Inherent assumes no controls, current reflects controls in place, residual is the target after planned treatment.",
+        )
+        if payload["top_risks"]:
+            doc.grid(
+                ["ID", "Risk", "Area", "Inherent", "Current", "Residual", "Status", "Owner"],
+                [
+                    [
+                        r["ref_id"] or "—",
+                        r["name"],
+                        r["area"],
+                        rating(r["inherent"]),
+                        rating(r["current"]),
+                        rating(r["residual"]),
+                        ("Above" if r["above"] else "Within") if tolerance else "—",
+                        joined(r["owners"]),
+                    ]
+                    for r in payload["top_risks"]
+                ],
+                [1.8, 3.6, 2.0, 2.3, 2.3, 2.3, 1.4, 1.7],
+            )
+        else:
+            doc.paragraph("No rated risks.")
+
+    if "heatmaps" in sections:
+        doc.heading(numbers.get("heatmaps"), "Inherent, current and residual heatmaps", "Top risks placed on the risk matrix at each stage.")
+        for heatmap in payload["heatmaps"]:
+            doc.heatmap(heatmap["title"], heatmap)
+
+    if "controls" in sections:
+        doc.heading(
+            numbers.get("controls"),
+            "Controls in place for the top risks",
+            "Existing applied controls. Annual cost = run cost + amortised build cost; "
+            "a control covering several top risks has its cost split evenly.",
+        )
+        if payload["controls"]:
+            rows = [
+                [
+                    c["ref_id"] or "—",
+                    c["name"],
+                    c["type"] or "—",
+                    c["status_label"],
+                    c["annual_cost_label"],
+                    joined(f"{r['ref']} {r['pct']}%" for r in c["risks"]),
+                    joined(c["objectives"]),
+                ]
+                for c in payload["controls"]
+            ]
+            rows.append(["", ("Total", NAVY), "", "", summary["total_control_cost_label"], "", ""])
+            doc.grid(
+                ["ID", "Control", "Type", "Status", "Annual cost", "Risks covered", "Objectives"],
+                rows,
+                [1.8, 4.0, 2.4, 1.8, 2.2, 2.6, 2.6],
+            )
+        else:
+            doc.paragraph("No existing controls are linked to the top risks.")
+
+    if "cost_allocation" in sections:
+        doc.heading(
+            numbers.get("cost_allocation"),
+            "How control costs add up to risks and objectives",
+            "Control cost is split across the risks it covers, then across the control's objectives.",
+        )
+        objectives = payload["objectives"]
+        if payload["top_risks"] and payload["controls"]:
+            rows = [
+                [
+                    f"{r['ref_id']} {r['name']}".strip(),
+                    joined((f"{p['ref']} {p['label']}" for p in r["cost_parts"]), "; "),
+                    r["control_cost_label"],
+                    *[o["label"] for o in r["objective_costs"]],
+                ]
+                for r in payload["top_risks"]
+            ]
+            rows.append([("Total", NAVY), "", summary["total_control_cost_label"], *[o["label"] for o in objectives]])
+            fixed = [4.2, 4.0, 2.2]
+            rest = (CONTENT_WIDTH_CM - sum(fixed)) / max(len(objectives), 1)
+            doc.grid(["Risk", "Built from controls", "Total", *[o["name"] for o in objectives]], rows, fixed + [rest] * len(objectives))
+        else:
+            doc.paragraph("No control costs to allocate.")
+
+    if "cost_effectiveness" in sections:
+        note = "Cost per point = annual control cost ÷ (inherent score − current score)."
+        if summary["average_per_point"]:
+            note += f" Average: {summary['average_per_point_label']} per point."
+        doc.heading(numbers.get("cost_effectiveness"), "Cost-effectiveness of control spend", note)
+        if payload["effectiveness"]:
+            doc.grid(
+                ["ID", "Risk", "Control cost", "Inherent → current", "Points reduced", "Cost per point", "Flags"],
+                [
+                    [
+                        e["ref_id"] or "—",
+                        e["name"],
+                        e["cost_label"],
+                        f"{e['inherent'] if e['inherent'] is not None else '—'} → {e['current'] if e['current'] is not None else '—'}",
+                        e["reduction"] if e["reduction"] is not None else "—",
+                        e["cost_per_point_label"],
+                        joined(e["flags"], "; "),
+                    ]
+                    for e in payload["effectiveness"]
+                ],
+                [1.8, 4.0, 2.2, 2.2, 1.8, 2.2, 3.2],
+            )
+        else:
+            doc.paragraph("No costed controls on the top risks.")
+
+    if "treatment" in sections:
+        intro = (
+            "Top risks above tolerance, with their planned applied controls."
+            if tolerance
+            else "Top risks with planned applied controls (no risk tolerance set)."
+        )
+        doc.heading(numbers.get("treatment"), "Treatment plan", f"{intro} Extra annual cost: {summary['total_extra_label']}.")
+        if payload["treatment"]:
+            doc.grid(
+                ["Risk", "Current", "Treatment", "Extra annual cost", "Target residual", "Owner", "Target date"],
+                [
+                    [
+                        f"{t['ref_id']} {t['name']}".strip(),
+                        rating(t["current"]),
+                        t["treatment_label"]
+                        + "".join(f"\n• {c['ref_id'] + ' ' if c['ref_id'] else ''}{c['name']} [{c['status_label']}]" for c in t["controls"]),
+                        t["extra_cost_label"],
+                        rating(t["residual"]) + ("\nStill above tolerance" if t["residual_above"] else ""),
+                        joined(t["owners"]),
+                        t["target_date"] or "—",
+                    ]
+                    for t in payload["treatment"]
+                ],
+                [3.4, 2.3, 3.9, 2.0, 2.3, 1.8, 1.7],
+            )
+        else:
+            doc.paragraph("No top risk is above tolerance." if tolerance else "No planned treatment.")
+
+    return doc.to_bytes()
+
+
 def _payload_or_404(request):
     payload = build_risk_posture_report(request.user, request.query_params.get("assessment"))
     if payload is None:
@@ -644,6 +913,21 @@ class RiskPostureReportXlsxView(APIView):
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = 'attachment; filename="risk-posture-report.xlsx"'
+        return response
+
+
+class RiskPostureReportDocxView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        payload, error = _payload_or_404(request)
+        if error or payload["assessment"] is None:
+            return error or Response(status=status.HTTP_404_NOT_FOUND)
+        response = HttpResponse(
+            risk_posture_document(payload),
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        response["Content-Disposition"] = 'attachment; filename="risk-posture-report.docx"'
         return response
 
 
