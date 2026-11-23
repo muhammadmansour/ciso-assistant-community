@@ -414,3 +414,34 @@ class TestPickingExistingFindings:
             format="json",
         )
         assert res.status_code == 200, res.json()
+
+
+class TestGapFollowUps:
+    """A follow-up converted from a requirement gap is bound to that requirement's audit."""
+
+    audit = TestFindingsFromRequirements.audit
+
+    def test_a_gap_follow_up_is_bound_to_the_audit(self, setup, audit):
+        assessment, ra = audit
+        res = setup["client"].post(
+            "/api/findings-assessments/",
+            {
+                "name": "Gap follow-up",
+                "folder": str(setup["domain"].id),
+                "source": "requirement",
+                "source_object_id": str(ra.id),
+            },
+            format="json",
+        )
+        assert res.status_code == 201, res.json()
+        follow_up = FindingsAssessment.objects.get(id=res.json()["id"])
+        assert follow_up.compliance_assessment_id == assessment.id
+
+    def test_a_follow_up_without_a_source_stays_unbound(self, setup, audit):
+        res = setup["client"].post(
+            "/api/findings-assessments/",
+            {"name": "Standalone follow-up", "folder": str(setup["domain"].id)},
+            format="json",
+        )
+        assert res.status_code == 201, res.json()
+        assert FindingsAssessment.objects.get(id=res.json()["id"]).compliance_assessment_id is None

@@ -2921,6 +2921,28 @@ class FindingsAssessmentWriteSerializer(BaseModelSerializer):
 
         return super().update(instance, validated_data)
 
+    def create(self, validated_data):
+        # A follow-up converted from a requirement gap belongs to that requirement's audit,
+        # so its findings show up in the audit report.
+        if (
+            validated_data.get("source") == "requirement"
+            and validated_data.get("source_object_id")
+            and not validated_data.get("compliance_assessment")
+        ):
+            view_ids = RoleAssignment.get_accessible_object_ids(
+                Folder.get_root_folder(), self.context["request"].user, RequirementAssessment
+            )[0]
+            requirement_assessment = (
+                RequirementAssessment.objects.filter(
+                    id=validated_data["source_object_id"], id__in=view_ids
+                )
+                .select_related("compliance_assessment")
+                .first()
+            )
+            if requirement_assessment:
+                validated_data["compliance_assessment"] = requirement_assessment.compliance_assessment
+        return super().create(validated_data)
+
     class Meta:
         model = FindingsAssessment
         exclude = ["created_at", "updated_at"]
