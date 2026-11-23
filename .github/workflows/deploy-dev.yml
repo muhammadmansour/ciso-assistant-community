@@ -88,9 +88,11 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-dev/ciso-assistant-community/frontend/build/
 
       - name: Migrate and restart services
+        # Non-interactive SSH skips ~/.bashrc, so poetry/pm2 are not on PATH;
+        # a login + interactive shell gets the same env as a manual session.
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd ~/ciso-dev/ciso-assistant-community/backend && \
+            "bash -ilc 'cd ~/ciso-dev/ciso-assistant-community/backend && \
              poetry run python manage.py migrate --noinput && \
              cd .. && \
-             pm2 restart dev-backend dev-frontend dev-huey dev-mcp"
+             pm2 restart dev-backend dev-frontend dev-huey dev-mcp'"
