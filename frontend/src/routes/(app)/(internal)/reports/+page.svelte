@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { m } from '$paraglide/messages';
 	import type { PageData } from './$types';
 	import ReportTile from './ReportTile.svelte';
 
@@ -22,16 +21,6 @@
 
 	// Available report tiles
 	const reportTiles: ReportTileData[] = [
-		{
-			id: 'dora-roi',
-			title: 'DORA Register of Information',
-			description:
-				'Generate DORA-compliant Register of Information (ROI) containing entity data required by the Digital Operational Resilience Act',
-			icon: 'fa-solid fa-building-shield',
-			category: 'compliance',
-			href: '/reports/dora-roi',
-			tags: ['DORA', 'Regulation', 'Entities', 'Beta']
-		},
 		{
 			id: 'audit-report',
 			title: 'Audit Report',
@@ -80,25 +69,6 @@
 					onclick={tile.href ? undefined : () => handleTileClick(tile)}
 				/>
 			{/each}
-		</div>
-	</div>
-
-	<!-- Info Section -->
-	<div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-6">
-		<div class="flex items-start gap-4">
-			<div class="flex-shrink-0">
-				<i class="fas fa-info-circle text-2xl text-blue-600"></i>
-			</div>
-			<div>
-				<h3 class="text-lg font-semibold text-gray-900 mb-2">
-					{m.aboutReports ? m.aboutReports() : 'About Reports'}
-				</h3>
-				<p class="text-gray-700">
-					{m.aboutReportsDescription
-						? m.aboutReportsDescription()
-						: 'Reports provide a simple tools to generate specialized reports useful for key insights or required by authorities for specific standards.\nMore specialized capabilities will be added as we identify specific cases.'}
-				</p>
-			</div>
 		</div>
 	</div>
 </div>
