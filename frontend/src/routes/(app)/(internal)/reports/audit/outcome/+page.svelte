@@ -138,9 +138,9 @@
 					['Authors', report.assessment.authors.join(', ') || '—'],
 					['Reviewers', report.assessment.reviewers.join(', ') || '—']
 				] as item}
-					<div>
+					<div class="min-w-0">
 						<div class="text-xs uppercase tracking-wide text-gray-500">{item[0]}</div>
-						<div class="font-medium text-gray-900">{item[1]}</div>
+						<div class="font-medium text-gray-900 truncate" title={item[1]}>{item[1]}</div>
 					</div>
 				{/each}
 			</div>
@@ -387,3 +387,10 @@
 		{/if}
 	{/if}
 </div>
+
+<style>
+	table th,
+	table td {
+		text-align: left;
+	}
+</style>
