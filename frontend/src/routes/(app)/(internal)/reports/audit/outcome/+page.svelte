@@ -343,12 +343,11 @@
 			{:else}
 				<table class="w-full text-sm">
 					<thead class="text-left text-xs uppercase text-gray-500">
-						<tr><th class="py-2 pr-3 w-20">ID</th><th class="py-2 pr-3 w-28">Ref</th><th class="py-2">Observation</th></tr>
+						<tr><th class="py-2 pr-3 w-28">ID</th><th class="py-2">Observation</th></tr>
 					</thead>
 					<tbody>
 						{#each report.observations as observation}
 							<tr class="border-t border-gray-100">
-								<td class="py-2 pr-3 text-gray-500">{observation.code}</td>
 								<td class="py-2 pr-3"><a href={observation.href} class="hover:underline">{observation.ref_id}</a></td>
 								<td class="py-2 text-gray-900">{observation.observation || 'No observation recorded'}</td>
 							</tr>

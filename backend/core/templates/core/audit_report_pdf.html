@@ -172,11 +172,11 @@
         <p class="section-note">{% trans "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim." %}</p>
         {% if observations %}
         <table class="grid">
-            <colgroup><col style="width: 7%"><col style="width: 11%"><col style="width: 82%"></colgroup>
-            <thead><tr><th>ID</th><th>{% trans "Ref" %}</th><th>{% trans "Observation" %}</th></tr></thead>
+            <colgroup><col style="width: 14%"><col style="width: 86%"></colgroup>
+            <thead><tr><th>ID</th><th>{% trans "Observation" %}</th></tr></thead>
             <tbody>
             {% for o in observations %}
-                <tr><td class="muted">{{ o.code }}</td><td class="strong">{{ o.ref_id }}</td><td dir="{{ o.observation|text_dir }}">{% if o.observation %}{{ o.observation }}{% else %}<span class="muted">{% trans "No observation recorded" %}</span>{% endif %}</td></tr>
+                <tr><td class="strong">{{ o.ref_id }}</td><td dir="{{ o.observation|text_dir }}">{% if o.observation %}{{ o.observation }}{% else %}<span class="muted">{% trans "No observation recorded" %}</span>{% endif %}</td></tr>
             {% endfor %}
             </tbody>
         </table>

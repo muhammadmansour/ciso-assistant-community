@@ -1,6 +1,11 @@
 from .audit_report_views import AuditReportPdfView, AuditReportView, AuditReportXlsxView
 from .evidence_report_views import EvidenceReportView, EvidenceReportXlsxView
 from .nca_ecc_report_views import NcaEccReadinessView, NcaEccReadinessXlsxView
+from .risk_posture_report_views import (
+    RiskPostureReportPdfView,
+    RiskPostureReportView,
+    RiskPostureReportXlsxView,
+)
 from .views import *
 from .activity_log import ActivityLogViewSet
 from .views_policy_collections import (
@@ -259,6 +264,17 @@ urlpatterns = [
     path("reports/audit/", AuditReportView.as_view(), name="audit-report"),
     path("reports/audit/xlsx/", AuditReportXlsxView.as_view(), name="audit-report-xlsx"),
     path("reports/audit/pdf/", AuditReportPdfView.as_view(), name="audit-report-pdf"),
+    path("reports/risk-posture/", RiskPostureReportView.as_view(), name="risk-posture-report"),
+    path(
+        "reports/risk-posture/xlsx/",
+        RiskPostureReportXlsxView.as_view(),
+        name="risk-posture-report-xlsx",
+    ),
+    path(
+        "reports/risk-posture/pdf/",
+        RiskPostureReportPdfView.as_view(),
+        name="risk-posture-report-pdf",
+    ),
     path("policy-collections/", PolicyCollectionsGeminiView.as_view()),
     path("policy-collections/chat/", PolicyCollectionsChatView.as_view()),
     # Same handlers as before refactor (c08d11d8a); use if proxies/clients still expect this prefix.

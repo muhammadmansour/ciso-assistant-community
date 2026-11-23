@@ -40,6 +40,15 @@
 			category: 'compliance',
 			href: '/reports/audit',
 			tags: ['Assessment', 'Results by domain', 'Findings', 'Observations', 'Action plan']
+		},
+		{
+			id: 'risk-posture',
+			title: 'Risk Posture Report',
+			description: 'Input: Selecting risk assessment -- Output: board-level risk posture report',
+			icon: 'fa-solid fa-shield-halved',
+			category: 'risk',
+			href: '/reports/risk-posture',
+			tags: ['Top risks', 'Heatmaps', 'Control cost', 'Cost-effectiveness', 'Treatment plan']
 		}
 	];
 

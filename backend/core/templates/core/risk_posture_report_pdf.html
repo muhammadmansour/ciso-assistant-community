@@ -1,0 +1,239 @@
+{% extends 'core/base_pdf.html' %}
+{% block content %}
+{% load i18n core_extras %}
+{% include 'core/_report_pdf_styles.html' %}
+
+<style>
+    .badge { display: inline-block; padding: 0 0.15cm; border-radius: 3px; font-size: 6.5pt; font-weight: 600; color: #316FD3; background: #EEF3FB; border: 1px solid #C7D5EE; vertical-align: 0.03cm; }
+    .section { margin-top: 0.45cm; }
+    .section-title { font-size: 11.5pt; font-weight: 700; color: #192A44; margin: 0; page-break-after: avoid; }
+    .section-title .n { color: #316FD3; margin-right: 0.12cm; }
+    .section-note { font-size: 7.5pt; color: #64748B; margin: 0.02cm 0 0.15cm 0; page-break-after: avoid; }
+
+    table.kv { width: 100%; border-collapse: collapse; }
+    table.kv td { padding: 0.1cm 0.15cm; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
+    table.kv td.k { width: 24%; font-weight: 600; color: #192A44; }
+
+    .code { font-weight: 700; color: #316FD3; white-space: nowrap; }
+    .above { color: #B91C1C; font-weight: 700; }
+    .within { color: #15803D; font-weight: 600; }
+    tr.total td { font-weight: 700; color: #192A44; border-top: 1px solid #CBD5E1; }
+    .flag { display: inline-block; margin: 0 0.1cm 0.04cm 0; padding: 0 0.14cm; border-radius: 3px; font-size: 6.8pt; background: #FEF3C7; color: #92400E; }
+
+    table.matrices { width: 100%; border-collapse: separate; border-spacing: 0.3cm 0; margin: 0 -0.3cm; table-layout: fixed; }
+    table.matrices > tbody > tr > td { vertical-align: top; border: 1px solid #E2E8F0; border-radius: 6px; padding: 0.2cm 0.25cm; }
+    .matrix-title { font-weight: 700; color: #192A44; font-size: 9.5pt; margin-bottom: 0.12cm; }
+    table.matrix { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+    table.matrix td { height: 1.05cm; text-align: center; vertical-align: middle; border-radius: 3px; font-size: 7pt; font-weight: 600; color: #1E293B; padding: 1px; word-wrap: break-word; }
+    table.matrix td.axis { background: #EEF3FB; color: #192A44; font-size: 6.5pt; font-weight: 600; height: auto; padding: 0.06cm; }
+    table.matrix td.corner { background: none; }
+    .axis-caption { font-size: 7pt; color: #64748B; text-align: center; margin-top: 0.05cm; }
+</style>
+
+<div class="report-header">
+    <table><tr>
+        <td><img src="{% muhkam_logo %}" alt="Muhkam"></td>
+        <td class="title"><strong>{{ assessment.name }}</strong> &middot; {% trans "Risk posture report" %}</td>
+    </tr></table>
+</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on }}</div>
+
+<main>
+    <p class="eyebrow">{% trans "Risk posture report" %}</p>
+    <h1 class="report-title" dir="{{ assessment.name|text_dir }}">{{ assessment.name }}</h1>
+    <p class="report-subtitle">{{ assessment.risk_matrix }} &middot; {% trans "Generated" %} {{ generated_on }} <span class="badge">{% trans "data-only report" %}</span></p>
+
+    <table class="meta">
+        <tr>
+            <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ assessment.folder }}{% if assessment.perimeter %} — {{ assessment.perimeter }}{% endif %}</span></td>
+            <td><span class="label">{% trans "Risk tolerance" %}</span><span class="value">{% if tolerance %}{{ tolerance.name }}{% else %}{% trans "Not set" %}{% endif %}</span></td>
+            <td><span class="label">{% trans "Authors" %}</span><span class="value">{{ assessment.authors|join:", "|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Reviewers" %}</span><span class="value">{{ assessment.reviewers|join:", "|default:"—" }}</span></td>
+        </tr>
+    </table>
+
+    <table class="kpis">
+        <tr>
+            <td><div class="kpi-value">{{ summary.posture|default:"—" }}</div><div class="kpi-label">{% trans "Overall posture" %}</div></td>
+            <td class="{% if summary.above %}alert{% endif %}"><div class="kpi-value">{{ summary.above|length }}</div><div class="kpi-label">{% trans "Above tolerance" %}</div></td>
+            <td><div class="kpi-value">{{ summary.avg_inherent|default:"—" }} → {{ summary.avg_current|default:"—" }}</div><div class="kpi-label">{% trans "Avg score, inherent → current" %} (/{{ max_score }})</div></td>
+            <td><div class="kpi-value">{{ summary.total_control_cost_label }}</div><div class="kpi-label">{{ summary.control_count }} {% trans "controls · annual cost" %}</div></td>
+            <td><div class="kpi-value">{{ summary.total_extra_label }}</div><div class="kpi-label">{% trans "Extra annual spend planned" %}</div></td>
+        </tr>
+    </table>
+
+    {% if "summary" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.summary }}.</span>{% trans "Executive summary" %}</h2>
+        <p class="section-note">{% trans "Top" %} {{ summary.top_count }} {% trans "of" %} {{ summary.total_risks }} {% trans "risk scenarios, ranked by current risk level then score. Score = probability × impact on the matrix scales." %}</p>
+        <table class="kv">
+            <tr><td class="k">{% trans "Overall posture" %}</td><td>{% if summary.posture %}<strong>{{ summary.posture }}</strong> — {% for b in summary.band_mix %}{{ b.count }} {{ b.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}<span class="muted">{% trans "No rated risks yet" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Risks above tolerance" %}</td><td>{% if tolerance %}{{ summary.above|length }}{% if summary.above %}: {% for r in summary.above %}{% if r.ref_id %}<span class="code">{{ r.ref_id }}</span> {% endif %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% else %}<span class="muted">{% trans "Risk tolerance is not set on this assessment" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Highest current risks" %}</td><td>{% if summary.highest %}{{ summary.highest_refs|join:", " }} — {{ summary.highest.score }} ({{ summary.highest.name }}){% else %}—{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Highest-exposure areas" %}</td><td>{{ summary.exposure_areas|join:"; "|default:"—" }}</td></tr>
+            <tr><td class="k">{% trans "Annual cost of controls" %}</td><td>{{ summary.total_control_cost_label }} {% trans "across" %} {{ summary.control_count }} {% trans "controls" %}</td></tr>
+            <tr><td class="k">{% trans "Objective with the most spend" %}</td><td>{% if summary.top_objective and summary.top_objective.amount %}{{ summary.top_objective.name }} — {{ summary.top_objective.label }} ({{ summary.top_objective.pct }}%){% else %}—{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Least cost-effective spend" %}</td><td>{% if summary.least_effective %}<span class="code">{{ summary.least_effective.ref }}</span>: {{ summary.least_effective.cost_label }} {% trans "for" %} {{ summary.least_effective.reduction }} {% trans "points" %} ({{ summary.least_effective.cost_per_point_label }} {% trans "per point" %}){% else %}—{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Extra investment planned" %}</td><td>{{ summary.total_extra_label }} {% trans "a year; total after treatment" %} {{ summary.after_treatment_label }}</td></tr>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if "scoring" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.scoring }}.</span>{% trans "Context, objectives and scoring method" %}</h2>
+        <p class="section-note">{% trans "Objectives come from the controls that treat the top risks. Scores use the assessment's risk matrix." %}</p>
+        {% if objectives %}
+        <table class="grid">
+            <thead><tr><th>{% trans "Objective" %}</th><th class="num">{% trans "Control spend" %}</th><th class="num">{% trans "Share" %}</th><th class="num">{% trans "Risks above tolerance" %}</th></tr></thead>
+            <tbody>{% for o in objectives %}<tr><td class="strong">{{ o.name }}</td><td class="num">{{ o.label }}</td><td class="num">{{ o.pct }}%</td><td class="num">{{ o.above_count }}</td></tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No objectives are linked to the controls of the top risks." %}</div>{% endif %}
+        <table class="matrices" style="margin-top: 0.25cm"><tr>
+            <td><div class="matrix-title">{% trans "Probability" %}</div><table class="kv">{% for p in scales.probability %}<tr><td class="k">{{ p.value }} · {{ p.name }}</td><td>{{ p.description|default:"—" }}</td></tr>{% endfor %}</table></td>
+            <td><div class="matrix-title">{% trans "Impact" %}</div><table class="kv">{% for p in scales.impact %}<tr><td class="k">{{ p.value }} · {{ p.name }}</td><td>{{ p.description|default:"—" }}</td></tr>{% endfor %}</table></td>
+            <td><div class="matrix-title">{% trans "Risk levels" %}</div><table class="kv">{% for l in scales.levels %}<tr><td class="k"><span class="swatch" style="background: {{ l.color }}"></span>{{ l.name }}</td><td>{{ l.description|default:"—" }}{% if l.within_tolerance %} <span class="within">· {% trans "within tolerance" %}</span>{% endif %}</td></tr>{% endfor %}</table></td>
+        </tr></table>
+    </div>
+    {% endif %}
+
+    {% if "areas" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.areas }}.</span>{% trans "High-risk areas" %}</h2>
+        <p class="section-note">{% trans "Top risks grouped by their first qualification, ranked by highest current level, then tolerance breaches." %}</p>
+        {% if areas %}
+        <table class="grid">
+            <thead><tr><th style="width: 5%">#</th><th>{% trans "Risk area" %}</th><th>{% trans "Top risks" %}</th><th>{% trans "Highest current" %}</th><th>{% trans "Above tolerance" %}</th><th class="num">{% trans "Inherent → current (sum)" %}</th><th class="num">{% trans "Annual control cost" %}</th></tr></thead>
+            <tbody>{% for a in areas %}<tr>
+                <td>{{ a.rank }}</td><td class="strong">{{ a.name }}</td><td>{{ a.risks|join:", " }}</td>
+                <td><span class="level" style="background: {{ a.top.color }}; color: {{ a.top.text }}">{{ a.top.score }} {{ a.top.name }}</span></td>
+                <td>{% if a.above %}<span class="above">{{ a.above|length }}</span> ({{ a.above|join:", " }}){% else %}0{% endif %}</td>
+                <td class="num">{{ a.inherent_sum }} → {{ a.current_sum }}</td><td class="num">{{ a.cost_label }} ({{ a.cost_pct }}%)</td>
+            </tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No rated risks yet." %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if "top_risks" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.top_risks }}.</span>{% trans "Top risks" %}</h2>
+        <p class="section-note">{% trans "Inherent assumes no controls, current reflects controls in place, residual is the target after planned treatment." %}</p>
+        {% if top_risks %}
+        <table class="grid">
+            <colgroup><col style="width: 5%"><col style="width: 21%"><col style="width: 10%"><col style="width: 10%"><col style="width: 10%"><col style="width: 10%"><col style="width: 8%"><col style="width: 13%"><col style="width: 13%"></colgroup>
+            <thead><tr><th>ID</th><th>{% trans "Risk" %}</th><th>{% trans "Area" %}</th><th>{% trans "Inherent" %}</th><th>{% trans "Current" %}</th><th>{% trans "Residual" %}</th><th>{% trans "Status" %}</th><th>{% trans "Objectives" %}</th><th>{% trans "Owner" %}</th></tr></thead>
+            <tbody>{% for r in top_risks %}<tr>
+                <td class="code">{{ r.ref_id|default:"—" }}</td>
+                <td class="strong" dir="{{ r.name|text_dir }}">{{ r.name }}{% if r.description %}<span class="desc">{{ r.description|truncatechars:160 }}</span>{% endif %}</td>
+                <td>{{ r.area }}</td>
+                {% include "core/_risk_posture_rating_cell.html" with v=r.inherent %}
+                {% include "core/_risk_posture_rating_cell.html" with v=r.current %}
+                {% include "core/_risk_posture_rating_cell.html" with v=r.residual %}
+                <td>{% if not tolerance %}<span class="muted">—</span>{% elif r.above %}<span class="above">{% trans "Above" %}</span>{% else %}<span class="within">{% trans "Within" %}</span>{% endif %}</td>
+                <td>{{ r.objectives|join:", "|default:"—" }}</td>
+                <td>{{ r.owners|join:", "|default:"—" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No rated risks yet." %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if "heatmaps" in sections %}
+    <div class="section" style="page-break-inside: avoid">
+        <h2 class="section-title"><span class="n">{{ section_numbers.heatmaps }}.</span>{% trans "Inherent, current and residual heatmaps" %}</h2>
+        <p class="section-note">{% trans "Top risks placed on the risk matrix at each stage." %}</p>
+        <table class="matrices"><tr>
+            {% for m in heatmaps %}
+            <td>
+                <div class="matrix-title">{{ m.title }}</div>
+                <table class="matrix">
+                    {% for row in m.rows %}<tr><td class="axis">{{ row.label }}</td>{% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{{ cell.refs|join:", " }}</td>{% endfor %}</tr>{% endfor %}
+                    <tr><td class="corner"></td>{% for col in m.columns %}<td class="axis">{{ col.label }}</td>{% endfor %}</tr>
+                </table>
+                <div class="axis-caption">{% trans "Rows" %}: <strong>{{ m.row_axis }}</strong> · {% trans "Columns" %}: <strong>{{ m.col_axis }}</strong></div>
+            </td>
+            {% endfor %}
+        </tr></table>
+    </div>
+    {% endif %}
+
+    {% if "controls" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.controls }}.</span>{% trans "Controls in place for the top risks" %}</h2>
+        <p class="section-note">{% trans "Existing applied controls. Annual cost = run cost + amortised build cost; a control covering several top risks has its cost split evenly." %}</p>
+        {% if controls %}
+        <table class="grid">
+            <colgroup><col style="width: 7%"><col style="width: 27%"><col style="width: 15%"><col style="width: 11%"><col style="width: 11%"><col style="width: 15%"><col style="width: 14%"></colgroup>
+            <thead><tr><th>ID</th><th>{% trans "Control" %}</th><th>{% trans "Type" %}</th><th>{% trans "Status" %}</th><th class="num">{% trans "Annual cost" %}</th><th>{% trans "Risks covered" %}</th><th>{% trans "Objectives" %}</th></tr></thead>
+            <tbody>{% for c in controls %}<tr>
+                <td class="code">{{ c.ref_id|default:"—" }}</td><td class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</td><td>{{ c.type }}</td><td>{{ c.status_label }}</td>
+                <td class="num">{{ c.annual_cost_label }}</td><td>{% for r in c.risks %}{{ r.ref }} {{ r.pct }}%{% if not forloop.last %}, {% endif %}{% endfor %}</td><td>{{ c.objectives|join:", "|default:"—" }}</td>
+            </tr>{% endfor %}
+            <tr class="total"><td></td><td>{% trans "Total" %}</td><td></td><td></td><td class="num">{{ summary.total_control_cost_label }}</td><td></td><td></td></tr>
+            </tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No existing applied controls are linked to the top risks." %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if "cost_allocation" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.cost_allocation }}.</span>{% trans "How control costs add up to risks and objectives" %}</h2>
+        <p class="section-note">{% trans "Control cost is split across the risks it covers, then across the control's objectives." %}</p>
+        {% if top_risks and controls %}
+        <table class="grid">
+            <thead><tr><th style="width: 18%">{% trans "Risk" %}</th><th style="width: 24%">{% trans "Built from controls" %}</th><th class="num">{% trans "Total" %}</th>{% for o in objectives %}<th class="num">{{ o.name }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for r in top_risks %}<tr>
+                <td class="strong">{% if r.ref_id %}<span class="code">{{ r.ref_id }}</span> {% endif %}{{ r.name|truncatechars:40 }}</td>
+                <td class="small">{% for p in r.cost_parts %}{{ p.ref }} {{ p.label }}{% if not forloop.last %}; {% endif %}{% empty %}—{% endfor %}</td>
+                <td class="num strong">{{ r.control_cost_label }}</td>
+                {% for o in r.objective_costs %}<td class="num">{{ o.label }}</td>{% endfor %}
+            </tr>{% endfor %}
+            <tr class="total"><td>{% trans "Total" %}</td><td></td><td class="num">{{ summary.total_control_cost_label }}</td>{% for o in objectives %}<td class="num">{{ o.label }}</td>{% endfor %}</tr>
+            </tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No control costs to allocate." %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if "cost_effectiveness" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.cost_effectiveness }}.</span>{% trans "Cost-effectiveness of control spend" %}</h2>
+        <p class="section-note">{% trans "Cost per point = annual control cost ÷ (inherent score − current score)." %}{% if summary.average_per_point %} {% trans "Average" %}: {{ summary.average_per_point_label }} {% trans "per point" %}.{% endif %}</p>
+        {% if effectiveness %}
+        <table class="grid">
+            <thead><tr><th style="width: 7%">ID</th><th style="width: 27%">{% trans "Risk" %}</th><th class="num">{% trans "Control cost" %}</th><th class="num">{% trans "Inherent → current" %}</th><th class="num">{% trans "Points reduced" %}</th><th class="num">{% trans "Cost per point" %}</th><th style="width: 24%">{% trans "Flags" %}</th></tr></thead>
+            <tbody>{% for e in effectiveness %}<tr>
+                <td class="code">{{ e.ref_id|default:"—" }}</td><td class="strong">{{ e.name }}</td><td class="num">{{ e.cost_label }}</td>
+                <td class="num">{{ e.inherent|default:"—" }} → {{ e.current|default:"—" }}</td><td class="num">{{ e.reduction|default:"—" }}</td>
+                <td class="num">{{ e.cost_per_point_label }}</td><td>{% for f in e.flags %}<span class="flag">{{ f }}</span>{% empty %}<span class="muted">—</span>{% endfor %}</td>
+            </tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<div class="empty">{% trans "No costed controls are linked to the top risks." %}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if "treatment" in sections %}
+    <div class="section">
+        <h2 class="section-title"><span class="n">{{ section_numbers.treatment }}.</span>{% trans "Treatment plan" %}</h2>
+        <p class="section-note">{% if tolerance %}{% trans "Top risks above tolerance, with their planned applied controls." %}{% else %}{% trans "Top risks with planned applied controls (no risk tolerance set)." %}{% endif %} {% trans "Extra annual cost" %}: {{ summary.total_extra_label }}.</p>
+        {% if treatment %}
+        <table class="grid">
+            <colgroup><col style="width: 15%"><col style="width: 11%"><col style="width: 30%"><col style="width: 10%"><col style="width: 11%"><col style="width: 12%"><col style="width: 11%"></colgroup>
+            <thead><tr><th>{% trans "Risk" %}</th><th>{% trans "Current" %}</th><th>{% trans "Treatment" %}</th><th class="num">{% trans "Extra annual cost" %}</th><th>{% trans "Target residual" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Target date" %}</th></tr></thead>
+            <tbody>{% for t in treatment %}<tr>
+                <td class="strong">{% if t.ref_id %}<span class="code">{{ t.ref_id }}</span> {% endif %}{{ t.name }}</td>
+                <td><span class="level" style="background: {{ t.current.color }}; color: {{ t.current.text }}">{{ t.current.score }} {{ t.current.name }}</span><span class="desc">{{ t.current.lxi }}</span></td>
+                <td><strong>{{ t.treatment_label }}</strong>{% for c in t.controls %}<span class="desc">{% if c.ref_id %}{{ c.ref_id }} · {% endif %}{{ c.name }} [{{ c.status_label }}]</span>{% empty %}<span class="desc">{% trans "No planned controls" %}</span>{% endfor %}</td>
+                <td class="num">{{ t.extra_cost_label }}</td>
+                <td>{% if t.residual.rated %}<span class="level" style="background: {{ t.residual.color }}; color: {{ t.residual.text }}">{{ t.residual.score }} {{ t.residual.name }}</span>{% if t.residual_above %}<span class="desc above">{% trans "Still above tolerance" %}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{{ t.owners|join:", "|default:"—" }}</td><td>{{ t.target_date|default:"—" }}</td>
+            </tr>{% endfor %}</tbody>
+        </table>
+        {% else %}<div class="empty">{% if tolerance %}{% trans "No top risk is above tolerance." %}{% else %}{% trans "No planned treatment controls on the top risks." %}{% endif %}</div>{% endif %}
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

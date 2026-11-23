@@ -155,8 +155,9 @@ def _findings(assessment, user, ra_by_requirement, section_of):
         )
 
     items.sort(key=lambda f: (-f["severity"], f["ref_id"] or "~", f["name"].lower()))
-    for index, item in enumerate(items, start=1):
-        item["code"] = f"F-{index:02d}"
+    for item in items:
+        item["code"] = item["ref_id"] or "—"
+        item["label"] = item["ref_id"] or item["name"]
     return items
 
 
@@ -216,7 +217,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
     findings = _findings(assessment, user, ra_by_requirement, section_of)
     for finding in findings:
         for index in finding["sections"]:
-            domains[index]["findings"].append(finding["code"])
+            domains[index]["findings"].append(finding["label"])
 
     totals = _counts(context["requirement_assessments"])
     rated = [d for d in domains if d["ratio"] is not None]
@@ -225,12 +226,10 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
 
     finding_requirements = {rid for f in findings for rid in f["requirement_ids"]}
     observations = [
-        {**entry["obs"], "code": ""}
+        entry["obs"]
         for rid, entry in ra_by_requirement.items()
         if entry["obs"]["result"] == "partially_compliant" and rid not in finding_requirements
     ]
-    for index, item in enumerate(observations, start=1):
-        item["code"] = f"O-{index:02d}"
 
     plan = {}
     for finding in findings:
@@ -238,7 +237,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
             if control["status"] in ACTION_PLAN_EXCLUDED:
                 continue
             entry = plan.setdefault(control["id"], {**control, "findings": []})
-            entry["findings"].append(finding["code"])
+            entry["findings"].append(finding["label"])
     action_plan = sorted(plan.values(), key=lambda c: (c["eta"] is None, c["eta"] or "", c["name"].lower()))
 
     severity_counts = [
@@ -341,10 +340,10 @@ def audit_workbook(payload: dict) -> bytes:
     table(
         "findings",
         "Findings",
-        ["ID", "Ref", "Title", "Severity", "Status", "Description", "Requirement observations",
+        ["ID", "Title", "Severity", "Status", "Description", "Requirement observations",
          "Applied controls", "Evidence"],
         [
-            [f["code"], f["ref_id"], f["name"], f["severity_label"], f["status_label"], f["description"],
+            [f["ref_id"], f["name"], f["severity_label"], f["status_label"], f["description"],
              "; ".join(f"{r['ref_id']}: {r['observation'] + ' ' if r['observation'] else ''}({r['abbr']})" for r in f["requirements"]),
              "; ".join(f"{c['name']} [{c['status_label']}]" for c in f["controls"]),
              ", ".join(f["evidence"])]
@@ -354,8 +353,8 @@ def audit_workbook(payload: dict) -> bytes:
     table(
         "observations",
         "Observations",
-        ["ID", "Ref", "Observation"],
-        [[o["code"], o["ref_id"], o["observation"]] for o in payload["observations"]],
+        ["ID", "Observation"],
+        [[o["ref_id"], o["observation"]] for o in payload["observations"]],
     )
     table(
         "action_plan",
