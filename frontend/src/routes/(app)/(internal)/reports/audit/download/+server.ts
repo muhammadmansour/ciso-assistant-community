@@ -12,8 +12,12 @@ const FORMATS = {
 
 export const GET: RequestHandler = async ({ fetch, url }) => {
 	const format = url.searchParams.get('format') === 'xlsx' ? 'xlsx' : 'pdf';
-	const assessment = url.searchParams.get('assessment');
-	const query = assessment ? `?assessment=${encodeURIComponent(assessment)}` : '';
+	const params = new URLSearchParams();
+	for (const key of ['assessment', 'sections']) {
+		const value = url.searchParams.get(key);
+		if (value) params.set(key, value);
+	}
+	const query = params.size ? `?${params.toString()}` : '';
 
 	const res = await fetch(`${BASE_API_URL}/reports/audit/${format}/${query}`);
 	if (!res.ok) {

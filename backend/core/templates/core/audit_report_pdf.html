@@ -77,8 +77,9 @@
         </tr>
     </table>
 
+    {% if "summary" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">1.</span>{% trans "Summary" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.summary }}.</span>{% trans "Summary" %}</h2>
         <p class="section-note">{% trans "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded." %}</p>
         <table class="kv">
             <tr><td class="k">{% trans "Compliance ratio" %}</td><td>{% if summary.ratio is not None %}<strong>{{ summary.ratio }}%</strong> <span class="formula">= ({{ summary.compliant }} + 0.5×{{ summary.partially_compliant }}) / {{ summary.assessable }}</span>{% else %}<span class="muted">{% trans "No implemented, partial or non-implemented answers yet" %}</span>{% endif %}</td></tr>
@@ -88,9 +89,11 @@
             <tr><td class="k">{% trans "Findings" %}</td><td>{{ findings|length }} — {% for s in severity_counts %}<span class="sev sev-{{ s.key }}">{{ s.label }}</span> {% endfor %}({% for s in severity_counts %}{{ s.count }}{% if not forloop.last %} / {% endif %}{% endfor %})</td></tr>
         </table>
     </div>
+    {% endif %}
 
+    {% if "domains" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">2.</span>{% trans "Results by domain" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.domains }}.</span>{% trans "Results by domain" %}</h2>
         <p class="section-note">{% trans "Requirement answers grouped by top-level framework node. Same ratio formula per group." %}</p>
         <table class="grid">
             <colgroup><col style="width: 38%"><col style="width: 7%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 7%"><col style="width: 28%"></colgroup>
@@ -121,9 +124,11 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 
+    {% if "findings" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">3.</span>{% trans "Findings" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.findings }}.</span>{% trans "Findings" %}</h2>
         <p class="section-note">{% trans "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control." %}</p>
         {% if findings %}
         <table class="grid">
@@ -159,9 +164,11 @@
         <div class="empty">{% trans "No findings are linked to this assessment's requirements or applied controls." %}</div>
         {% endif %}
     </div>
+    {% endif %}
 
+    {% if "observations" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">4.</span>{% trans "Observations" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.observations }}.</span>{% trans "Observations" %}</h2>
         <p class="section-note">{% trans "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim." %}</p>
         {% if observations %}
         <table class="grid">
@@ -177,9 +184,11 @@
         <div class="empty">{% trans "No partially implemented requirements without a finding." %}</div>
         {% endif %}
     </div>
+    {% endif %}
 
+    {% if "action_plan" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">5.</span>{% trans "Action plan" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.action_plan }}.</span>{% trans "Action plan" %}</h2>
         <p class="section-note">{% trans "All non-active applied controls linked to this assessment's findings, sorted by ETA." %}</p>
         {% if action_plan %}
         <table class="grid">
@@ -201,5 +210,6 @@
         <div class="empty">{% trans "No pending applied controls are linked to the findings." %}</div>
         {% endif %}
     </div>
+    {% endif %}
 </main>
 {% endblock %}

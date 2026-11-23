@@ -111,6 +111,7 @@ def _assessment_choices(assessment_ids):
             "id": str(item.id),
             "name": item.name,
             "framework": item.framework.name if item.framework else "",
+            "framework_ref": (item.framework.ref_id or "") if item.framework else "",
             "folder": item.folder.name if item.folder else "",
             "evidence_count": item.evidence_count,
         }

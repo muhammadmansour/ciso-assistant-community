@@ -34,6 +34,7 @@ SEVERITIES = [
 ]
 SEVERITY_BY_VALUE = {s["value"]: s for s in SEVERITIES}
 DETAILED_SEVERITIES = {3, 4}
+SECTION_KEYS = ["summary", "domains", "findings", "observations", "action_plan"]
 CLOSED_FINDING_STATUSES = {"dismissed", "mitigated", "resolved", "closed", "deprecated"}
 ACTION_PLAN_EXCLUDED = {"active", "deprecated"}
 
@@ -282,8 +283,9 @@ def audit_workbook(payload: dict) -> bytes:
     workbook = Workbook()
     assessment = payload["assessment"]
     summary = payload["summary"]
+    sections = payload.get("sections") or SECTION_KEYS
     sheet = workbook.active
-    sheet.title = "Summary"
+    sheet.title = "Summary" if "summary" in sections else "Assessment"
     severity_text = " / ".join(f"{s['label']} {s['count']}" for s in payload["severity_counts"])
     for row in [
         ["Assessment", assessment["name"]],
@@ -294,6 +296,10 @@ def audit_workbook(payload: dict) -> bytes:
         ["Authors", ", ".join(assessment["authors"])],
         ["Reviewers", ", ".join(assessment["reviewers"])],
         ["Generated on", payload["generated_on"]],
+    ]:
+        sheet.append(row)
+
+    for row in [] if "summary" not in sections else [
         [],
         ["Compliance ratio", f"{summary['ratio']}%" if summary["ratio"] is not None else "-"],
         ["Formula", "(I + 0.5 x PI) / (I + PI + NI), N/A excluded"],
@@ -310,13 +316,16 @@ def audit_workbook(payload: dict) -> bytes:
     ]:
         sheet.append(row)
 
-    def table(title, headers, rows):
+    def table(key, title, headers, rows):
+        if key not in sections:
+            return
         target = workbook.create_sheet(title)
         target.append(headers)
         for row in rows:
             target.append(row)
 
     table(
+        "domains",
         "Results by domain",
         ["Domain", "Controls", "I", "PI", "NI", "N/A", "Not assessed", "Ratio %", "Findings"],
         [
@@ -330,6 +339,7 @@ def audit_workbook(payload: dict) -> bytes:
             summary["ratio"] if summary["ratio"] is not None else "", len(payload["findings"])]],
     )
     table(
+        "findings",
         "Findings",
         ["ID", "Ref", "Title", "Severity", "Status", "Description", "Requirement observations",
          "Applied controls", "Evidence"],
@@ -342,11 +352,13 @@ def audit_workbook(payload: dict) -> bytes:
         ],
     )
     table(
+        "observations",
         "Observations",
         ["ID", "Ref", "Observation"],
         [[o["code"], o["ref_id"], o["observation"]] for o in payload["observations"]],
     )
     table(
+        "action_plan",
         "Action plan",
         ["Applied control", "Linked findings", "Owner", "ETA", "Status"],
         [[c["name"], ", ".join(c["findings"]), ", ".join(c["owners"]), c["eta"] or "", c["status_label"]]
@@ -358,6 +370,12 @@ def audit_workbook(payload: dict) -> bytes:
     return buffer.getvalue()
 
 
+def _selected_sections(raw: str | None) -> list[str]:
+    requested = {key.strip() for key in (raw or "").split(",")}
+    selected = [key for key in SECTION_KEYS if key in requested]
+    return selected or list(SECTION_KEYS)
+
+
 def _payload_or_404(request):
     payload = build_audit_report(request.user, request.query_params.get("assessment"))
     if payload is None:
@@ -365,6 +383,9 @@ def _payload_or_404(request):
             {"error": "Assessment not found or not visible."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    sections = _selected_sections(request.query_params.get("sections"))
+    payload["sections"] = sections
+    payload["section_numbers"] = {key: index for index, key in enumerate(sections, start=1)}
     return payload, None
 
 
@@ -372,6 +393,9 @@ class AuditReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        if request.query_params.get("choices") == "1":
+            choices = _assessment_choices(_accessible_ids(request.user, ComplianceAssessment))
+            return Response({"assessments": choices})
         payload, error = _payload_or_404(request)
         return error or Response(payload)
 
