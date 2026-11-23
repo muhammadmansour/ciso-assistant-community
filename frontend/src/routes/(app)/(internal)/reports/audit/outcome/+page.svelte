@@ -64,12 +64,13 @@
 	}
 </script>
 
-{#snippet sectionTitle(index: string, icon: string, title: string, note: string)}
+{#snippet sectionTitle(index: string, icon: string, title: string, purpose: string, note: string)}
 	<div class="mb-3">
 		<h2 class="text-lg font-semibold text-gray-900">
 			<span class="text-blue-600">{index}.</span>
 			<i class="{icon} mx-1 text-blue-600"></i>{title}
 		</h2>
+		<p class="text-sm text-gray-700">{purpose}</p>
 		<p class="text-xs text-gray-500">{note}</p>
 	</div>
 {/snippet}
@@ -175,7 +176,7 @@
 
 		{#if sections.includes('summary')}
 		<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-			{@render sectionTitle(String(sectionNumbers.summary), 'fa-solid fa-chart-simple', 'Summary', 'Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded.')}
+			{@render sectionTitle(String(sectionNumbers.summary), 'fa-solid fa-chart-simple', 'Summary', 'How compliant the organisation is today, in one view for management.', 'Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded.')}
 			<table class="w-full text-sm">
 				<thead class="text-left text-xs uppercase text-gray-500">
 					<tr><th class="py-2 pr-3 w-1/4">Headline</th><th class="py-2">Result</th></tr>
@@ -222,7 +223,7 @@
 
 		{#if sections.includes('domains')}
 		<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-			{@render sectionTitle(String(sectionNumbers.domains), 'fa-solid fa-sitemap', 'Results by domain', 'Requirement answers grouped by top-level framework node. Same ratio formula per group.')}
+			{@render sectionTitle(String(sectionNumbers.domains), 'fa-solid fa-sitemap', 'Results by domain', 'Where the organisation is strong and where it falls short, so effort goes to the weakest areas first.', 'Requirement answers grouped by top-level framework node. Same ratio formula per group.')}
 			<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead class="text-left text-xs uppercase text-gray-500">
@@ -271,7 +272,7 @@
 
 		{#if sections.includes('findings')}
 		<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-			{@render sectionTitle(String(sectionNumbers.findings), 'fa-solid fa-triangle-exclamation', 'Findings', "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control.")}
+			{@render sectionTitle(String(sectionNumbers.findings), 'fa-solid fa-triangle-exclamation', 'Findings', 'The gaps the audit found that expose the organisation to risk, ranked by severity.', "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control.")}
 			{#if report.findings.length === 0}
 				{@render empty("No findings are linked to this assessment's requirements or applied controls.")}
 			{:else}
@@ -339,7 +340,7 @@
 
 		{#if sections.includes('observations')}
 		<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-			{@render sectionTitle(String(sectionNumbers.observations), 'fa-solid fa-eye', 'Observations', "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim.")}
+			{@render sectionTitle(String(sectionNumbers.observations), 'fa-solid fa-eye', 'Observations', 'Partial gaps worth fixing before they become findings at the next audit.', "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim.")}
 			{#if report.observations.length === 0}
 				{@render empty('No partially implemented requirements without a finding.')}
 			{:else}
@@ -362,7 +363,7 @@
 
 		{#if sections.includes('action_plan')}
 		<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-			{@render sectionTitle(String(sectionNumbers.action_plan), 'fa-solid fa-list-check', 'Action plan', "All non-active applied controls linked to this assessment's findings, sorted by ETA.")}
+			{@render sectionTitle(String(sectionNumbers.action_plan), 'fa-solid fa-list-check', 'Action plan', 'Who is fixing what, and by when, to close the open findings.', "All non-active applied controls linked to this assessment's findings, sorted by ETA.")}
 			{#if report.action_plan.length === 0}
 				{@render empty('No pending applied controls are linked to the findings.')}
 			{:else}
