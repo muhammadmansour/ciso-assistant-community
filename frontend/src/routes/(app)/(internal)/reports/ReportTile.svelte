@@ -36,7 +36,7 @@
 	}
 
 	const baseClasses =
-		'block text-left p-6 rounded-lg border-2 transition-all duration-200 hover:shadow-lg transform hover:-translate-y-1 cursor-pointer';
+		'block text-start p-6 rounded-lg border-2 transition-all duration-200 hover:shadow-lg transform hover:-translate-y-1 cursor-pointer';
 </script>
 
 {#if href}
@@ -57,8 +57,8 @@
 				<div class="mt-4">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center text-sm font-medium {getCategoryIconColor(category)}">
-							{m.generateReport ? m.generateReport() : 'Generate Report'}
-							<i class="fas fa-arrow-right ml-2 text-xs"></i>
+							{m.rptGenerateReport()}
+							<i class="fas fa-arrow-right ms-2 text-xs rtl:rotate-180"></i>
 						</div>
 					</div>
 					{#if tags.length > 0}
@@ -94,8 +94,8 @@
 				<div class="mt-4">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center text-sm font-medium {getCategoryIconColor(category)}">
-							{m.generateReport ? m.generateReport() : 'Generate Report'}
-							<i class="fas fa-arrow-right ml-2 text-xs"></i>
+							{m.rptGenerateReport()}
+							<i class="fas fa-arrow-right ms-2 text-xs rtl:rotate-180"></i>
 						</div>
 					</div>
 					{#if tags.length > 0}

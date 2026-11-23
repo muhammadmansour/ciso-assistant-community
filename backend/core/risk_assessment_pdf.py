@@ -127,6 +127,8 @@ def _matrix_view(matrix, cells, swap_axes, flip_vertical):
     return {
         "row_axis": _("Impact") if swap_axes else _("Probability"),
         "col_axis": _("Probability") if swap_axes else _("Impact"),
+        "row_axis_key": "impact" if swap_axes else "probability",
+        "col_axis_key": "probability" if swap_axes else "impact",
         "rows": rows,
         "columns": [
             {"label": a.get("abbreviation") or a.get("name"), "title": a.get("name")}

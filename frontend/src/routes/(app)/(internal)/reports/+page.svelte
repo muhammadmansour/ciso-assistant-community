@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { m } from '$paraglide/messages';
 	import type { PageData } from './$types';
 	import ReportTile from './ReportTile.svelte';
 
@@ -20,26 +21,38 @@
 	}
 
 	// Available report tiles
-	const reportTiles: ReportTileData[] = [
+	const reportTiles: ReportTileData[] = $derived([
 		{
 			id: 'audit-report',
-			title: 'Audit Report',
-			description: 'Input: Selecting audit assessment -- Output: structured report',
+			title: m.rptAuditReport(),
+			description: m.rptAuditReportDescription(),
 			icon: 'fa-solid fa-clipboard-check',
 			category: 'compliance',
 			href: '/reports/audit',
-			tags: ['Assessment', 'Results by domain', 'Findings', 'Observations', 'Action plan']
+			tags: [
+				m.rptAuditAssessment(),
+				m.rptResultsByDomain(),
+				m.findings(),
+				m.rptObservations(),
+				m.actionPlan()
+			]
 		},
 		{
 			id: 'risk-posture',
-			title: 'Risk Posture Report',
-			description: 'Input: Selecting risk assessment -- Output: board-level risk posture report',
+			title: m.rptRiskPostureReport(),
+			description: m.rptRiskPostureReportDescription(),
 			icon: 'fa-solid fa-shield-halved',
 			category: 'risk',
 			href: '/reports/risk-posture',
-			tags: ['Top risks', 'Heatmaps', 'Control cost', 'Cost-effectiveness', 'Treatment plan']
+			tags: [
+				m.rptTopRisks(),
+				m.rptHeatmapsTag(),
+				m.rptControlCostTag(),
+				m.rptCostEffectivenessTag(),
+				m.rptTreatmentPlan()
+			]
 		}
-	];
+	]);
 
 	function handleTileClick(tile: ReportTileData): void {
 		if (tile.onClick) {

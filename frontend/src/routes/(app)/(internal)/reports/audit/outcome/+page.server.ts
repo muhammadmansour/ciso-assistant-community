@@ -1,5 +1,6 @@
 import { BASE_API_URL } from '$lib/utils/constants';
 import { error } from '@sveltejs/kit';
+import { m } from '$paraglide/messages';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch, url }) => {
@@ -13,5 +14,5 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 	if (!res.ok) {
 		error(res.status, 'Could not load the audit report');
 	}
-	return { report: await res.json() };
+	return { report: await res.json(), title: m.rptAuditReport() };
 };

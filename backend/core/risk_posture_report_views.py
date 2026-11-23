@@ -29,6 +29,11 @@ SECTION_KEYS = [
 TOP_RISK_COUNT = 10
 UNCLASSIFIED_AREA = "Unclassified"
 NO_OBJECTIVE = "No objective"
+EFFECTIVENESS_FLAGS = {
+    "no_reduction": "No score reduction from current controls",
+    "twice_average": "At least twice the average cost per point",
+    "above_tolerance": "Still above risk tolerance",
+}
 
 
 def _selected_sections(raw: str | None) -> list[str]:
@@ -219,6 +224,8 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
                 "name": control.name,
                 "href": f"/applied-controls/{control.id}",
                 "type": _control_category(control),
+                "category": control.category or "",
+                "csf_function": control.csf_function or "",
                 "status": control.status or "--",
                 "status_label": _status_label(control),
                 "effort": control.get_effort_display() if control.effort else "",
@@ -274,6 +281,7 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
                         "ref_id": c.ref_id or "",
                         "name": c.name,
                         "href": f"/applied-controls/{c.id}",
+                        "status": c.status or "--",
                         "status_label": _status_label(c),
                         "eta": c.eta.isoformat() if c.eta else None,
                         "annual_cost": round(float(c.annual_cost or 0)),
@@ -335,13 +343,14 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
         [r for r in top_items if r["control_cost"]],
         key=lambda r: (r["cost_per_point"] is not None, -(r["cost_per_point"] or 0)),
     ):
-        flags = []
+        flag_keys = []
         if not risk["reduction"] or risk["reduction"] <= 0:
-            flags.append("No score reduction from current controls")
+            flag_keys.append("no_reduction")
         elif average_per_point and risk["cost_per_point"] >= 2 * average_per_point:
-            flags.append("At least twice the average cost per point")
+            flag_keys.append("twice_average")
         if risk["above"]:
-            flags.append("Still above risk tolerance")
+            flag_keys.append("above_tolerance")
+        flags = [EFFECTIVENESS_FLAGS[key] for key in flag_keys]
         effectiveness.append(
             {
                 "ref": risk["ref"],
@@ -356,6 +365,7 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
                 "cost_per_point": risk["cost_per_point"],
                 "cost_per_point_label": _money(risk["cost_per_point"], currency),
                 "flags": flags,
+                "flag_keys": flag_keys,
             }
         )
 
@@ -375,6 +385,7 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
                 "href": risk["href"],
                 "current": risk["current"],
                 "residual": risk["residual"],
+                "treatment": risk["treatment"],
                 "treatment_label": risk["treatment_label"],
                 "controls": risk["planned_controls"],
                 "extra_cost": extra,
@@ -431,6 +442,7 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
             "href": f"/risk-assessments/{assessment.id}",
         },
         "generated_on": timezone.localtime().strftime("%d %b %Y, %H:%M"),
+        "generated_at": timezone.localtime().isoformat(),
         "currency": currency,
         "max_score": max_score,
         "tolerance": (

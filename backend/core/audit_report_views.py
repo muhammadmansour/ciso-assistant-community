@@ -259,6 +259,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
             "ref_id": assessment.ref_id or "",
             "version": assessment.version or "",
             "status": assessment.get_status_display() if assessment.status else "",
+            "status_key": assessment.status or "",
             "framework": framework.name if framework else "",
             "framework_ref": (getattr(framework, "ref_id", "") or "") if framework else "",
             "folder": assessment.folder.name if assessment.folder else "",
@@ -268,6 +269,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
             "href": f"/compliance-assessments/{assessment.id}",
         },
         "generated_on": timezone.localtime().strftime("%d %b %Y, %H:%M"),
+        "generated_at": timezone.localtime().isoformat(),
         "summary": {
             **totals,
             "total": len(context["requirement_assessments"]),
