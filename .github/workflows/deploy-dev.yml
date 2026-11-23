@@ -49,8 +49,8 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Pull latest backend code on server
-        # The remote restart script only runs `poetry install` + `migrate` against
-        # whatever code is checked out on disk; it does NOT fetch from origin.
+        # The remote restart only runs `migrate` against whatever code is
+        # checked out on disk; it does NOT fetch from origin.
         # Without this step, backend changes pushed to `dev-version` would
         # never reach the server. We fetch and hard-reset to origin/dev-version
         # so the deployed tree always matches the branch that just triggered the
@@ -87,7 +87,10 @@ jobs:
             ./frontend/build/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/mansourmuhammad37/ciso-dev/ciso-assistant-community/frontend/build/
 
-      - name: Run remote start script
+      - name: Migrate and restart services
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "bash ~/ciso-dev/ciso-assistant-community/start-pm2.sh restart"
+            "cd ~/ciso-dev/ciso-assistant-community/backend && \
+             poetry run python manage.py migrate --noinput && \
+             cd .. && \
+             pm2 restart dev-backend dev-frontend dev-huey dev-mcp"
