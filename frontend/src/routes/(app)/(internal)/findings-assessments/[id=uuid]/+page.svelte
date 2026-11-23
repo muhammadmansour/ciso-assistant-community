@@ -79,6 +79,15 @@
 <DetailView {data} disableCreate={data.data?.is_locked} disableDelete={data.data?.is_locked} exclude={['source_object_id']}>
 	{#snippet actions()}
 		<div class="flex flex-col space-y-2">
+			{#if data.data.compliance_assessment}
+				<Anchor
+					breadcrumbAction="push"
+					href={`/compliance-assessments/${data.data.compliance_assessment.id}`}
+					class="btn preset-filled-secondary-500 w-full"
+					data-testid="go-to-audit-button"
+					><i class="fa-solid fa-list-check mr-2"></i>{m.complianceAssessment()}</Anchor
+				>
+			{/if}
 			<Popover
 				open={exportPopupOpen}
 				onOpenChange={(e) => (exportPopupOpen = e.open)}

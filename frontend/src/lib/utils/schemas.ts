@@ -366,6 +366,7 @@ export const RequirementAssessmentSchema = z.object({
 	applied_controls: z.array(z.string().uuid().optional()).optional(),
 	observation: z.string().optional().nullable(),
 	security_exceptions: z.string().uuid().optional().array().optional(),
+	findings: z.string().uuid().optional().array().optional(),
 	noRedirect: z.boolean().default(false)
 });
 
@@ -556,7 +557,8 @@ export const FeatureFlagsSchema = z.object({
 	reports: z.boolean().optional(),
 	validation_flows: z.boolean().optional(),
 	outgoing_webhooks: z.boolean().optional(),
-	metrology: z.boolean().optional()
+	metrology: z.boolean().optional(),
+	findings_from_requirements: z.boolean().optional()
 });
 
 export const SSOSettingsSchema = z.object({
@@ -1113,6 +1115,7 @@ export const FindingSchema = z.object({
 	applied_controls: z.string().uuid().optional().array().optional(),
 	reference_controls: z.string().uuid().optional().array().optional(),
 	findings_assessment: z.string(),
+	requirement_node: z.string().uuid().optional().nullable(),
 	requirement_assessment: z.string().uuid().optional().nullable(),
 	severity: z.number().default(-1),
 	priority: z.number().optional().nullable(),
@@ -1137,7 +1140,6 @@ export const FindingsAssessmentSchema = z.object({
 	observation: z.string().optional().nullable(),
 	category: z.string().default('--'),
 	evidences: z.string().uuid().optional().array().optional(),
-	compliance_assessment: z.string().uuid().optional().nullable(),
 	source: z.enum(['requirement', 'control', 'evidence']).optional(),
 	source_object_id: z.string().uuid().optional(),
 	is_locked: z.boolean().optional().default(false)

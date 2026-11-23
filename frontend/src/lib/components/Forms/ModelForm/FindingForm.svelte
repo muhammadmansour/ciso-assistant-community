@@ -43,21 +43,6 @@
 
 	let isParentLocked = $derived(object?.findings_assessment?.is_locked || false);
 
-	const formStore = form.form;
-	let auditId = $state('');
-	$effect(() => {
-		const findingsAssessmentId = $formStore.findings_assessment;
-		if (!findingsAssessmentId) {
-			auditId = '';
-			return;
-		}
-		fetch(`/findings-assessments/${findingsAssessmentId}`)
-			.then((r) => (r.ok ? r.json() : null))
-			.then((data) => {
-				auditId = data?.compliance_assessment?.id ?? '';
-			});
-	});
-
 	const modalStore = getModalStore();
 
 	const appliedControlModel = getModelInfo('applied-controls');
@@ -166,21 +151,6 @@
 	label={m.findingsAssessment()}
 	hidden={initialData.findings_assessment}
 />
-{#if auditId}
-	{#key auditId}
-		<AutocompleteSelect
-			{form}
-			optionsEndpoint="requirement-assessments"
-			optionsDetailedUrlParameters={[['compliance_assessment', auditId]]}
-			field="requirement_assessment"
-			nullable
-			cacheLock={cacheLocks['requirement_assessment']}
-			bind:cachedValue={formDataCache['requirement_assessment']}
-			label={m.requirementAssessment()}
-			hidden={initialData.requirement_assessment}
-		/>
-	{/key}
-{/if}
 <div class="flex flex-row space-x-2 items-center">
 	<div class="w-full">
 		{#key page.data}

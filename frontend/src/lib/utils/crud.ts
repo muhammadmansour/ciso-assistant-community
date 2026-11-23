@@ -900,6 +900,11 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'assets', urlModel: 'assets' },
 			{ field: 'evidences', urlModel: 'evidences' }
 		],
+		// The audit's findings are reachable through the binder raised from its
+		// requirements — no second list to build.
+		reverseForeignKeyFields: [
+			{ field: 'compliance_assessment', urlModel: 'findings-assessments', disableCreate: true }
+		],
 		selectFields: [{ field: 'status' }],
 		filters: [{ field: 'status' }]
 	},
@@ -1873,6 +1878,7 @@ export const URL_MODEL_MAP: ModelMap = {
 		foreignKeyFields: [
 			{ field: 'findings_assessment', urlModel: 'findings-assessments' },
 			{ field: 'applied_controls', urlModel: 'applied-controls' },
+			{ field: 'requirement_assessment', urlModel: 'requirement-assessments' },
 			{ field: 'evidences', urlModel: 'evidences' }
 		],
 		reverseForeignKeyFields: [

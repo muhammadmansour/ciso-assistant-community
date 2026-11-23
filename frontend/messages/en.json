@@ -4427,5 +4427,8 @@
 	"mySpace": "My space",
 	"noDomainsAvailable": "No domains available",
 	"sortAscending": "Sort A → Z",
-	"sortDescending": "Sort Z → A"
+	"sortDescending": "Sort Z → A",
+	"findingsFromRequirements": "Findings from requirements",
+	"findingsFromRequirementsDescription": "Adds a Findings tab on a requirement assessment for raising findings. The audit's findings are collected in a binder created on first use.",
+	"raiseFinding": "Raise a finding"
 }

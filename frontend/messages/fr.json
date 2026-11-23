@@ -3291,5 +3291,8 @@
 	"addTeam": "Ajouter une équipe",
 	"viewTeam": "Voir une équipe",
 	"changeTeam": "Modifier une équipe",
-	"deleteTeam": "Supprimer une équipe"
+	"deleteTeam": "Supprimer une équipe",
+	"findingsFromRequirements": "Constats depuis les exigences",
+	"findingsFromRequirementsDescription": "Ajoute un onglet Constats sur l'évaluation d'une exigence pour créer des constats. Les constats de l'audit sont regroupés dans un classeur créé à la première utilisation.",
+	"raiseFinding": "Créer un constat"
 }

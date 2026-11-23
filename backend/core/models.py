@@ -6599,6 +6599,7 @@ class ComplianceAssessment(Assessment):
                 Prefetch("applied_controls"),
                 Prefetch("security_exceptions"),
                 Prefetch("evidences"),
+                Prefetch("findings"),
                 Prefetch("requirement__reference_controls"),
                 Prefetch("requirement__threats"),
             )
@@ -7716,7 +7717,7 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
         verbose_name=_("Requirement"),
     )
     # The catalog node above is shared by every audit on that framework, so it cannot
-    # say which assessment raised the finding. This can.
+    # say which assessment raised the finding. This can, and it is the way back.
     requirement_assessment = models.ForeignKey(
         "RequirementAssessment",
         on_delete=models.SET_NULL,
@@ -7788,19 +7789,7 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
     def is_locked(self) -> bool:
         return self.findings_assessment.is_locked
 
-    def _sync_requirement_links(self):
-        if self.requirement_assessment_id:
-            self.requirement_node_id = self.requirement_assessment.requirement_id
-            return
-        audit_id = self.findings_assessment.compliance_assessment_id
-        if self.requirement_node_id and audit_id:
-            self.requirement_assessment = RequirementAssessment.objects.filter(
-                compliance_assessment_id=audit_id,
-                requirement_id=self.requirement_node_id,
-            ).first()
-
     def save(self, *args, **kwargs):
-        self._sync_requirement_links()
         super().save(*args, **kwargs)
         # Update parent findings assessment's updated_at timestamp
         FindingsAssessment.objects.filter(id=self.findings_assessment.id).update(

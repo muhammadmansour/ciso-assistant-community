@@ -49,17 +49,6 @@
 	label={m.perimeter()}
 	hidden={initialData.perimeter}
 />
-<AutocompleteSelect
-	{form}
-	optionsEndpoint="compliance-assessments"
-	optionsExtraFields={[['perimeter', 'str']]}
-	field="compliance_assessment"
-	nullable
-	cacheLock={cacheLocks['compliance_assessment']}
-	bind:cachedValue={formDataCache['compliance_assessment']}
-	label={m.audit()}
-	hidden={initialData.compliance_assessment}
-/>
 <TextField
 	{form}
 	field="version"

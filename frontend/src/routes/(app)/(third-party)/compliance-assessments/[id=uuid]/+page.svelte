@@ -1028,6 +1028,17 @@
 				</Popover>
 
 				{#if !page.data.user.is_third_party}
+					{#each page.data?.featureflags?.findings_from_requirements ? (data.compliance_assessment.findings_assessments ?? []) : [] as binder}
+						<Anchor
+							href={`/findings-assessments/${binder.id}`}
+							breadcrumbAction="push"
+							class="unstyled w-full px-4 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm"
+							data-testid="go-to-findings-binder-button"
+						>
+							<i class="fa-solid fa-bug w-4 h-4 text-rose-500"></i>
+							<span>{m.findings()}</span>
+						</Anchor>
+					{/each}
 					<Anchor
 						href={`${page.url.pathname}/evidences-list`}
 						breadcrumbAction="push"

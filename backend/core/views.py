@@ -6,6 +6,7 @@ import csv
 import json
 import mimetypes
 import re
+from django import forms
 from django_filters.filterset import filterset_factory
 from django_filters.utils import try_dbfield
 import regex
@@ -260,6 +261,51 @@ class NullableChoiceFilter(df.MultipleChoiceFilter):
         else:
             # No valid values, return empty queryset
             return qs.none()
+
+
+class NullableModelMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def clean(self, value):
+        if value is None:
+            return super().clean(value)
+
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+
+        return super().clean(v for v in value if v != "--")
+
+
+class NullableModelChoiceFilter(df.ModelMultipleChoiceFilter):
+    """
+    A model multiple choice filter which supports filtering for null values using "--" to represent null.
+    """
+
+    field_class = NullableModelMultipleChoiceField
+
+    def filter(self, qs, value):
+        raw_values = []
+        parent_request = getattr(self.parent, "request", None)
+
+        if parent_request is not None:
+            raw_values = self.parent.request.query_params.getlist(self.field_name)
+
+        if not raw_values and hasattr(self.parent.data, "getlist"):
+            raw_values = self.parent.data.getlist(self.field_name)
+
+        if not raw_values:
+            return qs
+
+        has_null = "--" in raw_values
+        has_real = any(v != "--" for v in raw_values)
+
+        filters = Q()
+
+        if has_null:
+            filters |= Q(**{f"{self.field_name}__isnull": True})
+
+        if has_real:
+            filters |= Q(**{f"{self.field_name}__in": value})
+
+        return qs.filter(filters).distinct()
 
 
 def add_unset_option(choices):
@@ -8054,7 +8100,7 @@ class RequirementViewSet(BaseModelViewSet):
         )
         requirement_assessments = RequirementAssessment.objects.filter(
             requirement=requirement, id__in=viewable_objects
-        ).prefetch_related("folder", "compliance_assessment__perimeter")
+        ).prefetch_related("folder", "compliance_assessment__perimeter", "findings")
         serialized_requirement_assessments = RequirementAssessmentReadSerializer(
             requirement_assessments, many=True
         ).data
@@ -10574,9 +10620,64 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
         "confirm_ai_write": "change_requirementassessment",
         "log_ai_apply": "change_requirementassessment",
         "audit_log": "view_requirementassessment",
+        # Raising a finding is an edit of the requirement assessment, not an "add" of one:
+        # nobody has add_requirementassessment, they are created with the audit.
+        "findings_binder": "change_requirementassessment",
     }
 
     model = RequirementAssessment
+
+    @action(detail=True, methods=["post"], url_path="findings-binder")
+    def findings_binder(self, request, pk=None):
+        """Return the audit's findings binder, creating it on first use."""
+        if not ff_is_enabled("findings_from_requirements"):
+            return Response(
+                {"error": "This feature is not enabled."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        requirement_assessment = self.get_object()
+        audit = requirement_assessment.compliance_assessment
+        if audit.is_locked:
+            return Response(
+                {"error": "Cannot raise a finding on a locked audit"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # `add_findingsassessment` on the audit's folder is what authorizes creating it.
+        if not RoleAssignment.is_access_allowed(
+            user=request.user,
+            perm=Permission.objects.get(codename="add_findingsassessment"),
+            folder=audit.folder,
+        ):
+            raise PermissionDenied(
+                {"folder": "You do not have permission to add a findings binder here"}
+            )
+
+        # An audit can carry more than one binder, so get_or_create would raise
+        # MultipleObjectsReturned. Oldest wins, for a stable choice.
+        binder = (
+            FindingsAssessment.objects.filter(compliance_assessment=audit)
+            .order_by("created_at")
+            .first()
+        )
+        created = binder is None
+        if created:
+            binder = FindingsAssessment.objects.create(
+                compliance_assessment=audit,
+                # Distinguishable at a glance from the audit it belongs to.
+                name=str(_("%(audit)s (findings)")) % {"audit": audit.name},
+                folder=audit.folder,
+                perimeter=audit.perimeter,
+                category=FindingsAssessment.Category.AUDIT,
+                description=str(_("Findings raised from %(audit)s"))
+                % {"audit": audit.name},
+            )
+        return Response(
+            {"id": str(binder.id), "name": binder.name, "created": created},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
     filterset_fields = [
         "folder",
         "folder__name",
@@ -10616,6 +10717,7 @@ class RequirementAssessmentViewSet(BaseModelViewSet):
                 "evidences",  # ManyToManyField serialized as FieldsRelatedField
                 "applied_controls",  # ManyToManyField to AppliedControl
                 "security_exceptions",  # ManyToManyField serialized as FieldsRelatedField
+                "findings",  # Reverse FK from Finding serialized as FieldsRelatedField
             )
         )
 
@@ -12896,22 +12998,33 @@ class FindingsAssessmentViewSet(BaseModelViewSet):
         return Response(sunburst_data)
 
 
+class FindingFilterSet(GenericFilterSet):
+    # Same convention: the requirement assessment picker asks for the unbound
+    # findings alongside its own.
+    requirement_assessment = NullableModelChoiceFilter(
+        queryset=RequirementAssessment.objects.all()
+    )
+
+    class Meta:
+        model = Finding
+        fields = {
+            "name": ["exact"],
+            "owner": ["exact"],
+            "folder": ["exact"],
+            "status": ["exact"],
+            "severity": ["exact"],
+            "priority": ["exact"],
+            "findings_assessment": ["exact"],
+            "requirement_node": ["exact"],
+            "filtering_labels": ["exact"],
+            "applied_controls": ["exact"],
+            "evidences": ["exact"],
+        }
+
+
 class FindingViewSet(BaseModelViewSet):
     model = Finding
-    filterset_fields = [
-        "name",
-        "owner",
-        "folder",
-        "status",
-        "severity",
-        "priority",
-        "findings_assessment",
-        "filtering_labels",
-        "applied_controls",
-        "evidences",
-        "requirement_assessment",
-        "requirement_assessment__compliance_assessment",
-    ]
+    filterset_class = FindingFilterSet
     ordering = ["ref_id"]
 
     def get_queryset(self) -> models.query.QuerySet:

@@ -52,6 +52,7 @@ export const load = (async ({ fetch, params, locals }) => {
 	object.applied_controls = object.applied_controls.map((applied_control) => applied_control.id);
 	object.security_exceptions =
 		object.security_exceptions?.map((security_exception) => security_exception.id) ?? [];
+	object.findings = object.findings?.map((finding) => finding.id) ?? [];
 	const form = await superValidate(object, zod(schema), { errors: true });
 
 	const selectOptions: Record<string, any> = {};
@@ -103,7 +104,7 @@ export const load = (async ({ fetch, params, locals }) => {
 	const tables: Record<string, any> = {};
 
 	await Promise.all(
-		['applied-controls', 'evidences', 'security-exceptions'].map(async (key) => {
+		['applied-controls', 'evidences', 'security-exceptions', 'findings'].map(async (key) => {
 			const table: TableSource = {
 				head: headData(key),
 				body: [],
@@ -330,6 +331,10 @@ export const actions: Actions = {
 	createSecurityException: async (event) => {
 		const result = await nestedWriteFormAction({ event, action: 'create' });
 		return { form: result.form, newSecurityException: result.form.message.object.id };
+	},
+	createFinding: async (event) => {
+		const result = await nestedWriteFormAction({ event, action: 'create' });
+		return { form: result.form, newFinding: result.form.message.object.id };
 	},
 	runAiAnalysis: async (event) => {
 		// Call backend which calls Muraji API directly, wait for result.

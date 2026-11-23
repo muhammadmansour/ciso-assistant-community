@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
-	import { RequirementAssessmentSchema } from '$lib/utils/schemas';
+	import { FindingSchema, RequirementAssessmentSchema } from '$lib/utils/schemas';
+	import { getModelInfo } from '$lib/utils/crud';
+	import { canPerformActionOnObject } from '$lib/utils/access-control';
+	import { getFlash } from 'sveltekit-flash-message';
 	import type { ActionData, PageData } from './$types';
 
 	import { page } from '$app/state';
+	import { page as pageStore } from '$app/stores';
 	import AutocompleteSelect from '$lib/components/Forms/AutocompleteSelect.svelte';
 	import SuperForm from '$lib/components/Forms/Form.svelte';
 	import HiddenInput from '$lib/components/Forms/HiddenInput.svelte';
@@ -35,7 +39,7 @@
 	} from '$lib/components/AiAnalysis/aiAnalysisJobs';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
-	import { superForm } from 'sveltekit-superforms';
+	import { defaults, superForm } from 'sveltekit-superforms';
 	import {
 		getModalStore,
 		type ModalComponent,
@@ -166,6 +170,71 @@
 			title: safeTranslate('add-' + data.evidenceModel.localName)
 		};
 		modalStore.trigger(modal);
+	}
+
+	// Off by default: only teams who work this way see the button.
+	const canRaiseFinding = $derived(
+		!!page.data?.featureflags?.findings_from_requirements &&
+			canPerformActionOnObject({
+				user: page.data.user,
+				action: 'add',
+				model: 'finding',
+				object: data.requirementAssessment
+			})
+	);
+	// Picking an existing finding edits that finding, so it needs change rather than add.
+	const canBindFinding = $derived(
+		!!page.data?.featureflags?.findings_from_requirements &&
+			canPerformActionOnObject({
+				user: page.data.user,
+				action: 'change',
+				model: 'finding',
+				object: data.requirementAssessment
+			})
+	);
+	const showFindings = $derived(
+		(canRaiseFinding || canBindFinding) && !page.data.user.is_third_party
+	);
+
+	const flash = getFlash(pageStore);
+
+	async function modalFindingCreateForm(): Promise<void> {
+		// The audit's binder is created on first use, so the finding has somewhere to live
+		// and the audit gets its findings list for free.
+		const res = await fetch(
+			`/requirement-assessments/${data.requirementAssessment.id}/findings-binder`,
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+		);
+		if (!res.ok) {
+			// Never fail silently: a missing route or a permission refusal both land here.
+			flash.set({ type: 'error', message: `${m.anErrorOccurred()} (${res.status})` });
+			return;
+		}
+		const binder = await res.json();
+
+		const findingModel = getModelInfo('findings');
+		const modalComponent: ModalComponent = {
+			ref: CreateModal,
+			props: {
+				form: defaults(
+					{
+						findings_assessment: binder.id,
+						// The assessment implies the requirement; setting the catalog node too
+						// just renders the same thing twice on the finding.
+						requirement_assessment: data.requirementAssessment.id
+					},
+					zod(FindingSchema)
+				),
+				formAction: '?/createFinding',
+				model: findingModel,
+				debug: false
+			}
+		};
+		modalStore.trigger({
+			type: 'component',
+			component: modalComponent,
+			title: m.raiseFinding()
+		});
 	}
 
 	function modalSecurityExceptionCreateForm(): void {
@@ -310,6 +379,20 @@
 			);
 			form.newSecurityException = undefined;
 			console.debug('formStore', $formStore);
+		}
+	});
+
+	$effect(() => {
+		if (form?.newFinding) {
+			refreshKey = !refreshKey;
+			requirementAssessmentForm.form.update(
+				(current: Record<string, any>) => ({
+					...current,
+					findings: [...(current.findings ?? []), form?.newFinding]
+				}),
+				{ taint: false }
+			);
+			form.newFinding = undefined;
 		}
 	});
 
@@ -1265,6 +1348,13 @@
 									onclick={() => (group = 'security_exceptions')}
 								>{m.securityExceptions()}</button>
 							{/if}
+							{#if showFindings}
+								<button type="button"
+									class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {group === 'findings' ? 'border-[#1D53DA] text-[#1D53DA]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
+									onclick={() => (group = 'findings')}
+									data-testid="findings-tab"
+								>{m.findings()}</button>
+							{/if}
 					</div>
 					{/snippet}
 						{#snippet content()}
@@ -1399,6 +1489,48 @@
 											baseEndpoint="/security-exceptions?requirement_assessments={page.data
 												.requirementAssessment.id}"
 										/>
+									</div>
+								</Tabs.Panel>
+							{/if}
+							{#if showFindings}
+								<Tabs.Panel value="findings">
+									<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+										{#if canRaiseFinding}
+											<span class="flex flex-row justify-end items-center">
+												<button
+													class="btn preset-filled-primary-500 self-end"
+													onclick={modalFindingCreateForm}
+													data-testid="raise-finding-button"
+													type="button"
+												>
+													<i class="fa-solid fa-plus mr-2"></i>
+													{m.raiseFinding()}
+												</button>
+											</span>
+										{/if}
+										{#key refreshKey}
+											{#if canBindFinding}
+												<AutocompleteSelect
+													multiple
+													{form}
+													optionsEndpoint="findings"
+													optionsDetailedUrlParameters={[
+														['requirement_assessment', '--'],
+														['requirement_assessment', page.data.requirementAssessment.id]
+													]}
+													optionsExtraFields={[['folder', 'str']]}
+													field="findings"
+												/>
+											{/if}
+											<ModelTable
+												source={page.data.tables['findings']}
+												hideFilters={true}
+												URLModel="findings"
+												expectedCount={countMasked(page.data.requirementAssessment.findings)}
+												baseEndpoint="/findings?requirement_assessment={page.data
+													.requirementAssessment.id}"
+											/>
+										{/key}
 									</div>
 								</Tabs.Panel>
 							{/if}

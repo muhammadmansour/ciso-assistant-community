@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 
 from ciso_assistant.settings import EMAIL_HOST, EMAIL_HOST_RESCUE
@@ -2101,6 +2101,8 @@ class ComplianceAssessmentReadSerializer(AssessmentReadSerializer):
     perimeter = FieldsRelatedField(["id", "folder"])
     folder = FieldsRelatedField()
     campaign = FieldsRelatedField()
+    # The binder raised from this audit's requirements, so the page can link to it.
+    findings_assessments = FieldsRelatedField(many=True)
     framework = FieldsRelatedField(
         [
             "id",
@@ -2400,6 +2402,8 @@ class RequirementAssessmentReadSerializer(BaseModelSerializer):
     security_exceptions = FieldsRelatedField(many=True)
     is_locked = serializers.BooleanField()
     applied_controls = FieldsRelatedField(many=True)
+    # Reverse FK from Finding: DRF does not pick it up from Meta.
+    findings = FieldsRelatedField(many=True)
 
     class Meta:
         model = RequirementAssessment
@@ -2408,6 +2412,11 @@ class RequirementAssessmentReadSerializer(BaseModelSerializer):
 
 class RequirementAssessmentWriteSerializer(BaseModelSerializer):
     requirement = serializers.PrimaryKeyRelatedField(read_only=True)
+    # Reverse FK from Finding: binding an existing finding to this requirement
+    # assessment is done from the assessment's side, like the other pickers.
+    findings = serializers.PrimaryKeyRelatedField(
+        many=True, required=False, queryset=Finding.objects.all()
+    )
 
     def validate(self, attrs):
         compliance_assessment = self.get_compliance_assessment()
@@ -2482,8 +2491,67 @@ class RequirementAssessmentWriteSerializer(BaseModelSerializer):
                 "The specified Compliance Assessment does not exist."
             )
 
+    def _check_findings_rebind(self, instance, findings):
+        """Binding or unbinding a finding edits the finding, not just the assessment.
+
+        Runs inside update()'s transaction: the current, changed and binder rows
+        are read under row locks (on PostgreSQL; SQLite has a single writer), so
+        a binder locked between validation and the write is still refused and
+        a finding bound meanwhile is not silently dropped. `instance.findings`
+        is not used here because get_object() prefetched it before the
+        transaction.
+        """
+        current = set(
+            Finding.objects.select_for_update().filter(requirement_assessment=instance)
+        )
+        changed_ids = [f.id for f in current.symmetric_difference(findings)]
+        if not changed_ids:
+            return
+        changed = list(Finding.objects.select_for_update().filter(id__in=changed_ids))
+        binder_ids = {
+            f.findings_assessment_id for f in changed if f.findings_assessment_id
+        }
+        # Lock every binder involved, not only the locked ones: an unlocked
+        # binder must not get locked between this check and the write.
+        locked_binders = {
+            binder.id
+            for binder in FindingsAssessment.objects.select_for_update().filter(
+                id__in=binder_ids
+            )
+            if binder.is_locked
+        }
+        for finding in changed:
+            if finding.findings_assessment_id in locked_binders:
+                raise serializers.ValidationError(
+                    {
+                        "findings": "⚠️ Cannot bind or unbind a finding whose findings assessment is locked."
+                    }
+                )
+            # A finding belongs to one requirement assessment. Moving it is done
+            # from the finding, never as a side effect of editing another assessment.
+            if (
+                finding.requirement_assessment_id
+                and finding.requirement_assessment_id != instance.id
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "findings": "⚠️ This finding is already bound to another requirement assessment."
+                    }
+                )
+            self._check_object_perm(finding, "change", model=Finding)
+
     def update(self, instance, validated_data):
-        instance = super().update(instance, validated_data)
+        with transaction.atomic():
+            findings = validated_data.pop("findings", None)
+            if findings is not None:
+                self._check_findings_rebind(instance, findings)
+
+            instance = super().update(instance, validated_data)
+
+            if findings is not None:
+                # bulk=False goes through Finding.save(): updated_at moves and the
+                # binder's daily metrics are refreshed, as on any finding edit.
+                instance.findings.set(findings, bulk=False)
 
         requirement = instance.requirement
 
@@ -2864,7 +2932,8 @@ class FindingsAssessmentReadSerializer(AssessmentReadSerializer):
     owner = FieldsRelatedField(many=True)
     findings_count = serializers.IntegerField(source="findings.count")
     evidences = FieldsRelatedField(many=True)
-    compliance_assessment = FieldsRelatedField(["id", "name"])
+    # The audit this binder captures findings for — the way back.
+    compliance_assessment = FieldsRelatedField()
     validation_flows = FieldsRelatedField(
         many=True,
         fields=[
@@ -2891,19 +2960,19 @@ class FindingWriteSerializer(BaseModelSerializer):
             raise serializers.ValidationError(
                 "⚠️ Cannot modify the finding when the findings assessment is locked."
             )
-        requirement_assessment = attrs.get("requirement_assessment")
-        findings_assessment = attrs.get("findings_assessment") or getattr(
-            self.instance, "findings_assessment", None
-        )
-        audit_id = getattr(findings_assessment, "compliance_assessment_id", None)
-        if (
-            requirement_assessment
-            and audit_id
-            and requirement_assessment.compliance_assessment_id != audit_id
-        ):
+        target_assessment = attrs.get("findings_assessment")
+        if target_assessment and target_assessment.is_locked:
             raise serializers.ValidationError(
                 {
-                    "requirement_assessment": "The requirement must belong to the audit of the findings assessment."
+                    "findings_assessment": "⚠️ Cannot attach the finding to a locked findings assessment."
+                }
+            )
+        # Same rule as the findings-binder endpoint, for direct API writes.
+        target_requirement_assessment = attrs.get("requirement_assessment")
+        if target_requirement_assessment and target_requirement_assessment.is_locked:
+            raise serializers.ValidationError(
+                {
+                    "requirement_assessment": "⚠️ Cannot bind a finding to a requirement of a locked audit."
                 }
             )
         return super().validate(attrs)
@@ -2934,10 +3003,11 @@ class FindingReadSerializer(FindingWriteSerializer):
         source="findings_assessment.perimeter", fields=["id", "name", "folder"]
     )
     folder = FieldsRelatedField()
-    requirement_node = FieldsRelatedField(["id", "ref_id", "name"])
-    requirement_assessment = FieldsRelatedField(
-        ["id", {"compliance_assessment": ["id", "name"]}]
-    )
+    # No standalone page exists for requirement nodes: omit "id" so the
+    # generic detail view renders plain text instead of a dead link.
+    requirement_node = FieldsRelatedField(["ref_id", "name"])
+    # This one does have a page — it is the way back to what raised the finding.
+    requirement_assessment = FieldsRelatedField()
     severity = serializers.CharField(source="get_severity_display")
     priority = serializers.CharField(source="get_priority_display")
 

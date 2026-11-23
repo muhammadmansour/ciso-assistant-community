@@ -76,6 +76,9 @@
 	const documentationScore = data.requirementAssessment.documentation_score;
 
 	let group = $state(page.data.user.is_third_party ? 'evidence' : 'applied_controls');
+	const showFindings = $derived(
+		!!page.data?.featureflags?.findings_from_requirements && !page.data.user.is_third_party
+	);
 
 	// ── Audit Trail / Change History (PRD 2.2) ──────────────────
 	let showChangeHistory = $state(false);
@@ -392,6 +395,9 @@
 					<Tabs.Control value="applied_controls" stateActive="border-b-[#1D53DA] opacity-100">{m.appliedControls()}</Tabs.Control>
 				{/if}
 				<Tabs.Control value="evidence" stateActive="border-b-[#1D53DA] opacity-100">{m.evidences()}</Tabs.Control>
+				{#if showFindings}
+					<Tabs.Control value="findings" stateActive="border-b-[#1D53DA] opacity-100">{m.findings()}</Tabs.Control>
+				{/if}
 			{/snippet}
 			{#snippet content()}
 				<Tabs.Panel value="applied_controls">
@@ -427,6 +433,18 @@
 						/>
 					</div>
 				</Tabs.Panel>
+				{#if showFindings}
+					<Tabs.Panel value="findings">
+						<div class="h-full flex flex-col space-y-2 rounded-container p-4">
+							<ModelTable
+								source={data.tables['findings']}
+								hideFilters={true}
+								URLModel="findings"
+								baseEndpoint="/findings?requirement_assessment={page.data.requirementAssessment.id}"
+							/>
+						</div>
+					</Tabs.Panel>
+				{/if}
 			{/snippet}
 		</Tabs>
 	</div>

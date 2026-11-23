@@ -98,6 +98,11 @@
 					description: m.complianceAssessmentsDescription()
 				},
 				{
+					field: 'findings_from_requirements',
+					label: m.findingsFromRequirements(),
+					description: m.findingsFromRequirementsDescription()
+				},
+				{
 					field: 'privacy',
 					label: m.privacy(),
 					description: m.privacyDescription()

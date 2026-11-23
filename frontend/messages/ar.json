@@ -4414,5 +4414,8 @@
 	"mySpace": "مساحتي",
 	"noDomainsAvailable": "لا توجد مجالات متاحة",
 	"sortAscending": "ترتيب أ ← ي",
-	"sortDescending": "ترتيب ي ← أ"
+	"sortDescending": "ترتيب ي ← أ",
+	"findingsFromRequirements": "ملاحظات من المتطلبات",
+	"findingsFromRequirementsDescription": "يضيف تبويب ملاحظات إلى تقييم المتطلب لتسجيل الملاحظات. وتُجمَّع ملاحظات التدقيق في سجل يُنشأ عند أول استخدام.",
+	"raiseFinding": "تسجيل ملاحظة"
 }
