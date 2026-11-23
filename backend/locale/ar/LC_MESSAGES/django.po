@@ -1,0 +1,710 @@
+# Arabic translations for ciso-assistant.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the ciso-assistant project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ciso-assistant VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-23 15:47+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: ar\n"
+"Language-Team: ar <LL@li.org>\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=0 && n%100<=2 ? 4 : 5);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+msgid "Audit report"
+msgstr "تقرير التدقيق"
+
+msgid "Generated on"
+msgstr "أُنشئ في"
+
+msgid "Audit report — Outcome"
+msgstr "تقرير التدقيق — النتيجة"
+
+msgid "Generated"
+msgstr "أُنشئ"
+
+msgid "Perimeter"
+msgstr "النطاق"
+
+msgid "Assessment status"
+msgstr "حالة التقييم"
+
+msgid "reviewed"
+msgstr "تمت المراجعة"
+
+msgid "Authors"
+msgstr "المؤلفون"
+
+msgid "Reviewers"
+msgstr "المراجعون"
+
+msgid "Compliance ratio"
+msgstr "نسبة الامتثال"
+
+msgid "Controls assessed"
+msgstr "الضوابط المقيّمة"
+
+msgid "pending"
+msgstr "قيد الانتظار"
+
+msgid "Findings"
+msgstr "الملاحظات"
+
+msgid "Observations"
+msgstr "المشاهدات"
+
+msgid "Summary"
+msgstr "الملخص"
+
+msgid "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded."
+msgstr "تُحسب من إجابات المتطلبات: النسبة = (مطبّق + 0.5×جزئي) / القابل للتقييم، مع استبعاد غير المنطبق."
+
+msgid "No implemented, partial or non-implemented answers yet"
+msgstr "لا توجد إجابات مطبّقة أو جزئية أو غير مطبّقة بعد"
+
+msgid "not applicable"
+msgstr "غير منطبق"
+
+msgid "of"
+msgstr "من"
+
+msgid "not assessed yet"
+msgstr "لم تُقيَّم بعد"
+
+msgid "Strongest domain"
+msgstr "أقوى نطاق"
+
+msgid "Weakest domain"
+msgstr "أضعف نطاق"
+
+msgid "Results by domain"
+msgstr "النتائج حسب النطاق"
+
+msgid "Requirement answers grouped by top-level framework node. Same ratio formula per group."
+msgstr "إجابات المتطلبات مجمّعة حسب المستوى الأعلى في الإطار، بنفس معادلة النسبة لكل مجموعة."
+
+msgid "Domain"
+msgstr "النطاق"
+
+msgid "Controls"
+msgstr "الضوابط"
+
+msgid "Ratio"
+msgstr "النسبة"
+
+msgid "not assessed"
+msgstr "غير مقيّم"
+
+msgid "Total"
+msgstr "الإجمالي"
+
+msgid "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control."
+msgstr "الملاحظات المسجلة في وحدة المتابعة. يُؤخذ المالك والموعد المتوقع من الضابط المطبق المرتبط بكل ملاحظة."
+
+msgid "Title"
+msgstr "العنوان"
+
+msgid "Severity"
+msgstr "الخطورة"
+
+msgid "Status"
+msgstr "الحالة"
+
+msgid "Details — Critical & High"
+msgstr "التفاصيل — الحرجة والمرتفعة"
+
+msgid "Description"
+msgstr "الوصف"
+
+msgid "Requirement obs."
+msgstr "مشاهدة المتطلب"
+
+msgid "Applied control"
+msgstr "الضابط المطبق"
+
+msgid "owner"
+msgstr "المالك"
+
+msgid "None linked"
+msgstr "لا يوجد ربط"
+
+msgid "Evidence"
+msgstr "الأدلة"
+
+msgid "None attached"
+msgstr "لا توجد مرفقات"
+
+msgid "No findings are linked to this assessment's requirements or applied controls."
+msgstr "لا توجد ملاحظات مرتبطة بمتطلبات هذا التقييم أو بضوابطه المطبقة."
+
+msgid "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim."
+msgstr "إجابات المتطلبات المصنفة مطبّقة جزئياً دون ملاحظة مرتبطة؛ النص منقول حرفياً من حقل المشاهدة في المتطلب."
+
+msgid "Observation"
+msgstr "المشاهدة"
+
+msgid "No observation recorded"
+msgstr "لا توجد مشاهدة مسجلة"
+
+msgid "No partially implemented requirements without a finding."
+msgstr "لا توجد متطلبات مطبّقة جزئياً دون ملاحظة."
+
+msgid "Action plan"
+msgstr "خطة العمل"
+
+msgid "All non-active applied controls linked to this assessment's findings, sorted by ETA."
+msgstr "جميع الضوابط المطبقة غير النشطة المرتبطة بملاحظات هذا التقييم، مرتبة حسب الموعد المتوقع."
+
+msgid "Linked findings"
+msgstr "الملاحظات المرتبطة"
+
+msgid "Owner"
+msgstr "المالك"
+
+msgid "No pending applied controls are linked to the findings."
+msgstr "لا توجد ضوابط مطبقة معلقة مرتبطة بالملاحظات."
+
+msgid "Risk posture report"
+msgstr "تقرير وضع المخاطر"
+
+msgid "Risk tolerance"
+msgstr "حدّ تحمّل المخاطر"
+
+msgid "Not set"
+msgstr "غير محدد"
+
+msgid "Overall posture"
+msgstr "الوضع العام"
+
+msgid "Above tolerance"
+msgstr "فوق حدّ التحمّل"
+
+msgid "Avg score, inherent → current"
+msgstr "متوسط الدرجة، الكامنة ← الحالية"
+
+msgid "controls · annual cost"
+msgstr "ضوابط · التكلفة السنوية"
+
+msgid "Extra annual spend planned"
+msgstr "الإنفاق السنوي الإضافي المخطط"
+
+msgid "Executive summary"
+msgstr "الملخص التنفيذي"
+
+msgid "Top"
+msgstr "أبرز"
+
+msgid "risk scenarios, ranked by current risk level then score. Score = probability × impact on the matrix scales."
+msgstr "سيناريو مخاطر، مرتبة حسب مستوى المخاطر الحالي ثم الدرجة. الدرجة = الاحتمالية × التأثير وفق مقاييس المصفوفة."
+
+msgid "No rated risks yet"
+msgstr "لا توجد مخاطر مقيّمة بعد"
+
+msgid "Risks above tolerance"
+msgstr "المخاطر فوق حدّ التحمّل"
+
+msgid "Risk tolerance is not set on this assessment"
+msgstr "لم يُحدَّد حدّ تحمّل المخاطر في هذا التقييم"
+
+msgid "Highest current risks"
+msgstr "أعلى المخاطر الحالية"
+
+msgid "Highest-exposure areas"
+msgstr "المجالات الأكثر تعرضاً"
+
+msgid "Annual cost of controls"
+msgstr "التكلفة السنوية للضوابط"
+
+msgid "across"
+msgstr "موزعة على"
+
+msgid "controls"
+msgstr "ضوابط"
+
+msgid "Objective with the most spend"
+msgstr "الهدف الأعلى إنفاقاً"
+
+msgid "Least cost-effective spend"
+msgstr "الإنفاق الأقل فعالية من حيث التكلفة"
+
+msgid "for"
+msgstr "مقابل"
+
+msgid "points"
+msgstr "نقاط"
+
+msgid "per point"
+msgstr "لكل نقطة"
+
+msgid "Extra investment planned"
+msgstr "الاستثمار الإضافي المخطط"
+
+msgid "a year; total after treatment"
+msgstr "سنوياً؛ الإجمالي بعد المعالجة"
+
+msgid "Context, objectives and scoring method"
+msgstr "السياق والأهداف ومنهجية التقييم"
+
+msgid "Objectives come from the controls that treat the top risks. Scores use the assessment's risk matrix."
+msgstr "تُستمد الأهداف من الضوابط التي تعالج أبرز المخاطر، وتُحسب الدرجات وفق مصفوفة المخاطر الخاصة بالتقييم."
+
+msgid "Objective"
+msgstr "الهدف"
+
+msgid "Control spend"
+msgstr "الإنفاق على الضوابط"
+
+msgid "Share"
+msgstr "الحصة"
+
+msgid "No objectives are linked to the controls of the top risks."
+msgstr "لا توجد أهداف مرتبطة بضوابط أبرز المخاطر."
+
+msgid "Probability"
+msgstr "الاحتمالية"
+
+msgid "Impact"
+msgstr "التأثير"
+
+msgid "Risk levels"
+msgstr "مستويات المخاطر"
+
+msgid "within tolerance"
+msgstr "ضمن حدّ التحمّل"
+
+msgid "High-risk areas"
+msgstr "المجالات عالية المخاطر"
+
+msgid "Top risks grouped by their first qualification, ranked by highest current level, then tolerance breaches."
+msgstr "أبرز المخاطر مجمّعة حسب تصنيفها الأول، ومرتبة حسب أعلى مستوى حالي ثم تجاوزات حدّ التحمّل."
+
+msgid "Risk area"
+msgstr "مجال المخاطر"
+
+msgid "Top risks"
+msgstr "أبرز المخاطر"
+
+msgid "Highest current"
+msgstr "أعلى مستوى حالي"
+
+msgid "Inherent → current (sum)"
+msgstr "الكامنة ← الحالية (المجموع)"
+
+msgid "Annual control cost"
+msgstr "التكلفة السنوية للضوابط"
+
+msgid "No rated risks yet."
+msgstr "لا توجد مخاطر مقيّمة بعد."
+
+msgid "Inherent assumes no controls, current reflects controls in place, residual is the target after planned treatment."
+msgstr "الكامنة تفترض عدم وجود ضوابط، والحالية تعكس الضوابط القائمة، والمتبقية هي المستهدف بعد المعالجة المخططة."
+
+msgid "Risk"
+msgstr "الخطر"
+
+msgid "Area"
+msgstr "المجال"
+
+msgid "Inherent"
+msgstr "الكامنة"
+
+msgid "Current"
+msgstr "الحالية"
+
+msgid "Residual"
+msgstr "المتبقية"
+
+msgid "Objectives"
+msgstr "الأهداف"
+
+msgid "Above"
+msgstr "فوق الحد"
+
+msgid "Within"
+msgstr "ضمن الحد"
+
+msgid "Inherent, current and residual heatmaps"
+msgstr "الخرائط الحرارية للمخاطر الكامنة والحالية والمتبقية"
+
+msgid "Top risks placed on the risk matrix at each stage."
+msgstr "أبرز المخاطر على مصفوفة المخاطر في كل مرحلة."
+
+msgid "Rows"
+msgstr "الصفوف"
+
+msgid "Columns"
+msgstr "الأعمدة"
+
+msgid "Controls in place for the top risks"
+msgstr "الضوابط القائمة لأبرز المخاطر"
+
+msgid "Existing applied controls. Annual cost = run cost + amortised build cost; a control covering several top risks has its cost split evenly."
+msgstr "الضوابط المطبقة القائمة. التكلفة السنوية = تكلفة التشغيل + تكلفة البناء المستهلكة؛ وتُقسَّم تكلفة الضابط بالتساوي على المخاطر التي يغطيها."
+
+msgid "Control"
+msgstr "الضابط"
+
+msgid "Type"
+msgstr "النوع"
+
+msgid "Annual cost"
+msgstr "التكلفة السنوية"
+
+msgid "Risks covered"
+msgstr "المخاطر المغطاة"
+
+msgid "No existing applied controls are linked to the top risks."
+msgstr "لا توجد ضوابط مطبقة قائمة مرتبطة بأبرز المخاطر."
+
+msgid "How control costs add up to risks and objectives"
+msgstr "كيف تتوزع تكاليف الضوابط على المخاطر والأهداف"
+
+msgid "Control cost is split across the risks it covers, then across the control's objectives."
+msgstr "تُوزَّع تكلفة الضابط على المخاطر التي يغطيها، ثم على أهداف الضابط."
+
+msgid "Built from controls"
+msgstr "مكوّنة من الضوابط"
+
+msgid "No control costs to allocate."
+msgstr "لا توجد تكاليف ضوابط لتوزيعها."
+
+msgid "Cost-effectiveness of control spend"
+msgstr "فعالية تكلفة الإنفاق على الضوابط"
+
+msgid "Cost per point = annual control cost ÷ (inherent score − current score)."
+msgstr "التكلفة لكل نقطة = التكلفة السنوية للضوابط ÷ (الدرجة الكامنة − الدرجة الحالية)."
+
+msgid "Average"
+msgstr "المتوسط"
+
+msgid "Control cost"
+msgstr "تكلفة الضوابط"
+
+msgid "Inherent → current"
+msgstr "الكامنة ← الحالية"
+
+msgid "Points reduced"
+msgstr "النقاط المخفّضة"
+
+msgid "Cost per point"
+msgstr "التكلفة لكل نقطة"
+
+msgid "Flags"
+msgstr "تنبيهات"
+
+msgid "No costed controls are linked to the top risks."
+msgstr "لا توجد ضوابط ذات تكلفة مرتبطة بأبرز المخاطر."
+
+msgid "Treatment plan"
+msgstr "خطة المعالجة"
+
+msgid "Top risks above tolerance, with their planned applied controls."
+msgstr "أبرز المخاطر فوق حدّ التحمّل مع ضوابطها المطبقة المخططة."
+
+msgid "Top risks with planned applied controls (no risk tolerance set)."
+msgstr "أبرز المخاطر ذات الضوابط المطبقة المخططة (لم يُحدَّد حدّ للتحمّل)."
+
+msgid "Extra annual cost"
+msgstr "التكلفة السنوية الإضافية"
+
+msgid "Treatment"
+msgstr "المعالجة"
+
+msgid "Target residual"
+msgstr "المتبقي المستهدف"
+
+msgid "Target date"
+msgstr "التاريخ المستهدف"
+
+msgid "No planned controls"
+msgstr "لا توجد ضوابط مخططة"
+
+msgid "Still above tolerance"
+msgstr "لا تزال فوق حدّ التحمّل"
+
+msgid "No top risk is above tolerance."
+msgstr "لا توجد مخاطر بارزة فوق حدّ التحمّل."
+
+msgid "No planned treatment controls on the top risks."
+msgstr "لا توجد ضوابط معالجة مخططة لأبرز المخاطر."
+
+msgid "Page"
+msgstr "صفحة"
+
+msgid "Critical"
+msgstr "حرج"
+
+msgid "High"
+msgstr "مرتفع"
+
+msgid "Medium"
+msgstr "متوسط"
+
+msgid "Low"
+msgstr "منخفض"
+
+msgid "Assessment"
+msgstr "التقييم"
+
+msgid "Undefined"
+msgstr "غير محدد"
+
+msgid "Framework"
+msgstr "الإطار"
+
+msgid "Not assessed"
+msgstr "غير مقيّم"
+
+msgid "Ratio %"
+msgstr "النسبة %"
+
+msgid "Requirement observations"
+msgstr "مشاهدات المتطلبات"
+
+msgid "Applied controls"
+msgstr "الضوابط المطبقة"
+
+msgid "ETA"
+msgstr "الموعد المتوقع"
+
+msgid "Formula"
+msgstr "المعادلة"
+
+msgid "(I + 0.5 x PI) / (I + PI + NI), N/A excluded"
+msgstr "(مطبّق + 0.5 × جزئي) / (مطبّق + جزئي + غير مطبّق)، مع استبعاد غير المنطبق"
+
+msgid "Implemented (I)"
+msgstr "مطبّق (I)"
+
+msgid "Partially implemented (PI)"
+msgstr "مطبّق جزئياً (PI)"
+
+msgid "Not implemented (NI)"
+msgstr "غير مطبّق (NI)"
+
+msgid "Not applicable (N/A)"
+msgstr "غير منطبق (N/A)"
+
+msgid "Requirements"
+msgstr "المتطلبات"
+
+msgid "Unclassified"
+msgstr "غير مصنّف"
+
+msgid "No objective"
+msgstr "بدون هدف"
+
+msgid "No score reduction from current controls"
+msgstr "لا يوجد خفض في الدرجة من الضوابط الحالية"
+
+msgid "At least twice the average cost per point"
+msgstr "ضعف متوسط التكلفة لكل نقطة على الأقل"
+
+msgid "Still above risk tolerance"
+msgstr "لا تزال فوق حدّ تحمّل المخاطر"
+
+msgid "Inherent risk"
+msgstr "المخاطر الكامنة"
+
+msgid "Current risk"
+msgstr "المخاطر الحالية"
+
+msgid "Residual risk"
+msgstr "المخاطر المتبقية"
+
+msgid "Scoring"
+msgstr "منهجية التقييم"
+
+msgid "Risk areas"
+msgstr "مجالات المخاطر"
+
+msgid "Controls in place"
+msgstr "الضوابط القائمة"
+
+msgid "Cost allocation"
+msgstr "توزيع التكلفة"
+
+msgid "Cost-effectiveness"
+msgstr "فعالية التكلفة"
+
+msgid "Risk assessment"
+msgstr "تقييم المخاطر"
+
+msgid "Risk matrix"
+msgstr "مصفوفة المخاطر"
+
+msgid "Scale"
+msgstr "المقياس"
+
+msgid "Value"
+msgstr "القيمة"
+
+msgid "Name"
+msgstr "الاسم"
+
+msgid "Rank"
+msgstr "الترتيب"
+
+msgid "Inherent sum"
+msgstr "مجموع الكامنة"
+
+msgid "Current sum"
+msgstr "مجموع الحالية"
+
+msgid "Inherent LxI"
+msgstr "الكامنة (احتمالية×تأثير)"
+
+msgid "Inherent score"
+msgstr "الدرجة الكامنة"
+
+msgid "Inherent level"
+msgstr "المستوى الكامن"
+
+msgid "Current LxI"
+msgstr "الحالية (احتمالية×تأثير)"
+
+msgid "Current score"
+msgstr "الدرجة الحالية"
+
+msgid "Current level"
+msgstr "المستوى الحالي"
+
+msgid "Residual score"
+msgstr "الدرجة المتبقية"
+
+msgid "Residual level"
+msgstr "المستوى المتبقي"
+
+msgid "Owners"
+msgstr "المالكون"
+
+msgid "Planned controls"
+msgstr "الضوابط المخططة"
+
+msgid "Scales"
+msgstr "المقاييس"
+
+msgid "Risks in scope"
+msgstr "المخاطر ضمن النطاق"
+
+msgid "Average inherent score"
+msgstr "متوسط الدرجة الكامنة"
+
+msgid "Average current score"
+msgstr "متوسط الدرجة الحالية"
+
+msgid "Risk level"
+msgstr "مستوى المخاطر"
+
+msgid "Yes"
+msgstr "نعم"
+
+msgid "No"
+msgstr "لا"
+
+msgid "Identified"
+msgstr "محدد"
+
+msgid "Confirmed"
+msgstr "مؤكد"
+
+msgid "Dismissed"
+msgstr "مستبعد"
+
+msgid "Assigned"
+msgstr "مُسنَد"
+
+msgid "In Progress"
+msgstr "قيد التنفيذ"
+
+msgid "Mitigated"
+msgstr "مخفف"
+
+msgid "Resolved"
+msgstr "تمت المعالجة"
+
+msgid "Closed"
+msgstr "مغلق"
+
+msgid "Deprecated"
+msgstr "ملغى"
+
+msgid "Planned"
+msgstr "مخطط"
+
+msgid "In progress"
+msgstr "قيد التنفيذ"
+
+msgid "In review"
+msgstr "قيد المراجعة"
+
+msgid "Done"
+msgstr "مكتمل"
+
+msgid "To do"
+msgstr "للتنفيذ"
+
+msgid "On hold"
+msgstr "معلّق"
+
+msgid "Active"
+msgstr "نشط"
+
+msgid "Policy"
+msgstr "سياسة"
+
+msgid "Process"
+msgstr "عملية"
+
+msgid "Technical"
+msgstr "تقني"
+
+msgid "Physical"
+msgstr "مادي"
+
+msgid "Procedure"
+msgstr "إجراء"
+
+msgid "Govern"
+msgstr "الحوكمة"
+
+msgid "Identify"
+msgstr "التحديد"
+
+msgid "Protect"
+msgstr "الحماية"
+
+msgid "Detect"
+msgstr "الرصد"
+
+msgid "Respond"
+msgstr "الاستجابة"
+
+msgid "Recover"
+msgstr "الاسترداد"
+
+msgid "Open"
+msgstr "مفتوح"
+
+msgid "Mitigate"
+msgstr "تخفيف"
+
+msgid "Accept"
+msgstr "قبول"
+
+msgid "Avoid"
+msgstr "تجنّب"
+
+msgid "Transfer"
+msgstr "نقل"
+
+msgid "Info"
+msgstr "معلوماتي"
+

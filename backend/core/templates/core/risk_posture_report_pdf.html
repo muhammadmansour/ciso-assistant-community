@@ -1,7 +1,10 @@
 {% extends 'core/base_pdf.html' %}
+{% load i18n %}
+{% block html_attributes %}{% get_current_language as language %}{% get_current_language_bidi as bidi %}lang="{{ language }}"{% if bidi %} dir="rtl"{% endif %}{% endblock %}
 {% block content %}
 {% load i18n core_extras %}
 {% include 'core/_report_pdf_styles.html' %}
+{% get_current_language_bidi as rtl %}
 
 <style>
     .badge { display: inline-block; padding: 0 0.15cm; border-radius: 3px; font-size: 6.5pt; font-weight: 600; color: #316FD3; background: #EEF3FB; border: 1px solid #C7D5EE; vertical-align: 0.03cm; }
@@ -57,7 +60,7 @@
         <tr>
             <td><div class="kpi-value">{{ summary.posture|default:"—" }}</div><div class="kpi-label">{% trans "Overall posture" %}</div></td>
             <td class="{% if summary.above %}alert{% endif %}"><div class="kpi-value">{{ summary.above|length }}</div><div class="kpi-label">{% trans "Above tolerance" %}</div></td>
-            <td><div class="kpi-value">{{ summary.avg_inherent|default:"—" }} → {{ summary.avg_current|default:"—" }}</div><div class="kpi-label">{% trans "Avg score, inherent → current" %} (/{{ max_score }})</div></td>
+            <td><div class="kpi-value">{{ summary.avg_inherent|default:"—" }} {% if rtl %}←{% else %}→{% endif %} {{ summary.avg_current|default:"—" }}</div><div class="kpi-label">{% trans "Avg score, inherent → current" %} (/{{ max_score }})</div></td>
             <td><div class="kpi-value">{{ summary.total_control_cost_label }}</div><div class="kpi-label">{{ summary.control_count }} {% trans "controls · annual cost" %}</div></td>
             <td><div class="kpi-value">{{ summary.total_extra_label }}</div><div class="kpi-label">{% trans "Extra annual spend planned" %}</div></td>
         </tr>
@@ -109,7 +112,7 @@
                 <td>{{ a.rank }}</td><td class="strong">{{ a.name }}</td><td>{{ a.risks|join:", " }}</td>
                 <td><span class="level" style="background: {{ a.top.color }}; color: {{ a.top.text }}">{{ a.top.score }} {{ a.top.name }}</span></td>
                 <td>{% if a.above %}<span class="above">{{ a.above|length }}</span> ({{ a.above|join:", " }}){% else %}0{% endif %}</td>
-                <td class="num">{{ a.inherent_sum }} → {{ a.current_sum }}</td><td class="num">{{ a.cost_label }} ({{ a.cost_pct }}%)</td>
+                <td class="num">{{ a.inherent_sum }} {% if rtl %}←{% else %}→{% endif %} {{ a.current_sum }}</td><td class="num">{{ a.cost_label }} ({{ a.cost_pct }}%)</td>
             </tr>{% endfor %}</tbody>
         </table>
         {% else %}<div class="empty">{% trans "No rated risks yet." %}</div>{% endif %}
@@ -208,7 +211,7 @@
             <thead><tr><th style="width: 10%">ID</th><th style="width: 24%">{% trans "Risk" %}</th><th class="num">{% trans "Control cost" %}</th><th class="num">{% trans "Inherent → current" %}</th><th class="num">{% trans "Points reduced" %}</th><th class="num">{% trans "Cost per point" %}</th><th style="width: 24%">{% trans "Flags" %}</th></tr></thead>
             <tbody>{% for e in effectiveness %}<tr>
                 <td class="code">{{ e.ref_id|default:"—" }}</td><td class="strong">{{ e.name }}</td><td class="num">{{ e.cost_label }}</td>
-                <td class="num">{{ e.inherent|default:"—" }} → {{ e.current|default:"—" }}</td><td class="num">{{ e.reduction|default:"—" }}</td>
+                <td class="num">{{ e.inherent|default:"—" }} {% if rtl %}←{% else %}→{% endif %} {{ e.current|default:"—" }}</td><td class="num">{{ e.reduction|default:"—" }}</td>
                 <td class="num">{{ e.cost_per_point_label }}</td><td>{% for f in e.flags %}<span class="flag">{{ f }}</span>{% empty %}<span class="muted">—</span>{% endfor %}</td>
             </tr>{% endfor %}</tbody>
         </table>

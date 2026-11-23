@@ -1,4 +1,6 @@
 {% extends 'core/base_pdf.html' %}
+{% load i18n %}
+{% block html_attributes %}{% get_current_language as language %}{% get_current_language_bidi as bidi %}lang="{{ language }}"{% if bidi %} dir="rtl"{% endif %}{% endblock %}
 {% block content %}
 {% load i18n core_extras %}
 {% include 'core/_report_pdf_styles.html' %}
@@ -43,6 +45,11 @@
     .card td.k { width: 3.2cm; font-size: 6.8pt; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B; padding-top: 0.07cm; }
     tr.total td { font-weight: 700; color: #192A44; border-top: 1px solid #CBD5E1; }
     tr.weakest td { background: #FEF2F2 !important; }
+    html[dir="rtl"] .card { border-left: 1px solid #E2E8F0; border-right: 3px solid #CBD5E1; }
+    html[dir="rtl"] .card.critical { border-right-color: #DC2626; }
+    html[dir="rtl"] .card.high { border-right-color: #EA580C; }
+    html[dir="rtl"] .card .head .sev { float: left; }
+    html[dir="rtl"] .card td.k { letter-spacing: 0; }
 </style>
 
 <div class="report-header">

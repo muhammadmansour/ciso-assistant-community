@@ -4,6 +4,9 @@ from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.formats import date_format
+from django.utils.translation import get_language_bidi, gettext_noop
+from django.utils.translation import gettext as _
 from openpyxl import Workbook
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -27,10 +30,10 @@ RESULT_ABBR = {
     "not_assessed": "—",
 }
 SEVERITIES = [
-    {"value": 4, "key": "critical", "label": "Critical", "short": "C"},
-    {"value": 3, "key": "high", "label": "High", "short": "H"},
-    {"value": 2, "key": "medium", "label": "Medium", "short": "M"},
-    {"value": 1, "key": "low", "label": "Low", "short": "L"},
+    {"value": 4, "key": "critical", "label": gettext_noop("Critical"), "short": "C"},
+    {"value": 3, "key": "high", "label": gettext_noop("High"), "short": "H"},
+    {"value": 2, "key": "medium", "label": gettext_noop("Medium"), "short": "M"},
+    {"value": 1, "key": "low", "label": gettext_noop("Low"), "short": "L"},
 ]
 SEVERITY_BY_VALUE = {s["value"]: s for s in SEVERITIES}
 DETAILED_SEVERITIES = {3, 4}
@@ -78,7 +81,7 @@ def _control_item(control):
         "id": str(control.id),
         "name": control.name,
         "status": control.status or "--",
-        "status_label": control.get_status_display() if control.status else "Undefined",
+        "status_label": control.get_status_display() if control.status else _("Undefined"),
         "owners": _actors(control.owner),
         "eta": _date(control.eta),
         "href": f"/applied-controls/{control.id}",
@@ -147,7 +150,7 @@ def _findings(assessment, user, ra_by_requirement, section_of):
                 "description": finding.description or "",
                 "severity": finding.severity,
                 "severity_key": severity["key"] if severity else "info",
-                "severity_label": severity["label"] if severity else finding.get_severity_display().capitalize(),
+                "severity_label": _(severity["label"] if severity else finding.get_severity_display().capitalize()),
                 "status": finding.status,
                 "status_label": finding.get_status_display(),
                 "status_tone": _finding_tone(finding.status),
@@ -215,7 +218,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
             {
                 "index": index,
                 "ref_id": node.ref_id if node else "",
-                "name": (node.name if node else "") or "Requirements",
+                "name": (node.name if node else "") or _("Requirements"),
                 **_counts(section_rows),
                 "findings": [],
             }
@@ -248,7 +251,8 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
     action_plan = sorted(plan.values(), key=lambda c: (c["eta"] is None, c["eta"] or "", c["name"].lower()))
 
     severity_counts = [
-        {**s, "count": sum(1 for f in findings if f["severity"] == s["value"])} for s in SEVERITIES
+        {**s, "label": _(s["label"]), "count": sum(1 for f in findings if f["severity"] == s["value"])}
+        for s in SEVERITIES
     ]
     framework = assessment.framework
     return {
@@ -268,7 +272,7 @@ def build_audit_report(user, assessment_id: str | None = None) -> dict | None:
             "reviewers": _actors(assessment.reviewers),
             "href": f"/compliance-assessments/{assessment.id}",
         },
-        "generated_on": timezone.localtime().strftime("%d %b %Y, %H:%M"),
+        "generated_on": date_format(timezone.localtime(), "j M Y, H:i"),
         "generated_at": timezone.localtime().isoformat(),
         "summary": {
             **totals,
@@ -293,34 +297,35 @@ def audit_workbook(payload: dict) -> bytes:
     summary = payload["summary"]
     sections = payload.get("sections") or SECTION_KEYS
     sheet = workbook.active
-    sheet.title = "Summary" if "summary" in sections else "Assessment"
+    sheet.sheet_view.rightToLeft = get_language_bidi()
+    sheet.title = _("Summary") if "summary" in sections else _("Assessment")
     severity_text = " / ".join(f"{s['label']} {s['count']}" for s in payload["severity_counts"])
     for row in [
-        ["Assessment", assessment["name"]],
-        ["Framework", assessment["framework"]],
-        ["Domain", assessment["folder"]],
-        ["Perimeter", assessment["perimeter"]],
-        ["Status", assessment["status"]],
-        ["Authors", ", ".join(assessment["authors"])],
-        ["Reviewers", ", ".join(assessment["reviewers"])],
-        ["Generated on", payload["generated_on"]],
+        [_("Assessment"), assessment["name"]],
+        [_("Framework"), assessment["framework"]],
+        [_("Domain"), assessment["folder"]],
+        [_("Perimeter"), assessment["perimeter"]],
+        [_("Status"), assessment["status"]],
+        [_("Authors"), ", ".join(assessment["authors"])],
+        [_("Reviewers"), ", ".join(assessment["reviewers"])],
+        [_("Generated on"), payload["generated_on"]],
     ]:
         sheet.append(row)
 
     for row in [] if "summary" not in sections else [
         [],
-        ["Compliance ratio", f"{summary['ratio']}%" if summary["ratio"] is not None else "-"],
-        ["Formula", "(I + 0.5 x PI) / (I + PI + NI), N/A excluded"],
-        ["Controls assessed", summary["assessed"]],
-        ["Implemented (I)", summary["compliant"]],
-        ["Partially implemented (PI)", summary["partially_compliant"]],
-        ["Not implemented (NI)", summary["non_compliant"]],
-        ["Not applicable (N/A)", summary["not_applicable"]],
-        ["Not assessed", summary["not_assessed"]],
-        ["Strongest domain", f"{summary['strongest']['name']} ({summary['strongest']['ratio']}%)" if summary["strongest"] else "-"],
-        ["Weakest domain", f"{summary['weakest']['name']} ({summary['weakest']['ratio']}%)" if summary["weakest"] else "-"],
-        ["Findings", f"{len(payload['findings'])} ({severity_text})"],
-        ["Observations", len(payload["observations"])],
+        [_("Compliance ratio"), f"{summary['ratio']}%" if summary["ratio"] is not None else "-"],
+        [_("Formula"), _("(I + 0.5 x PI) / (I + PI + NI), N/A excluded")],
+        [_("Controls assessed"), summary["assessed"]],
+        [_("Implemented (I)"), summary["compliant"]],
+        [_("Partially implemented (PI)"), summary["partially_compliant"]],
+        [_("Not implemented (NI)"), summary["non_compliant"]],
+        [_("Not applicable (N/A)"), summary["not_applicable"]],
+        [_("Not assessed"), summary["not_assessed"]],
+        [_("Strongest domain"), f"{summary['strongest']['name']} ({summary['strongest']['ratio']}%)" if summary["strongest"] else "-"],
+        [_("Weakest domain"), f"{summary['weakest']['name']} ({summary['weakest']['ratio']}%)" if summary["weakest"] else "-"],
+        [_("Findings"), f"{len(payload['findings'])} ({severity_text})"],
+        [_("Observations"), len(payload["observations"])],
     ]:
         sheet.append(row)
 
@@ -328,29 +333,30 @@ def audit_workbook(payload: dict) -> bytes:
         if key not in sections:
             return
         target = workbook.create_sheet(title)
+        target.sheet_view.rightToLeft = get_language_bidi()
         target.append(headers)
         for row in rows:
             target.append(row)
 
     table(
         "domains",
-        "Results by domain",
-        ["Domain", "Controls", "I", "PI", "NI", "N/A", "Not assessed", "Ratio %", "Findings"],
+        _("Results by domain"),
+        [_("Domain"), _("Controls"), "I", "PI", "NI", "N/A", _("Not assessed"), _("Ratio %"), _("Findings")],
         [
             [f"{d['ref_id']} {d['name']}".strip(), d["assessed"], d["compliant"], d["partially_compliant"],
              d["non_compliant"], d["not_applicable"], d["not_assessed"],
              d["ratio"] if d["ratio"] is not None else "", ", ".join(d["findings"])]
             for d in payload["domains"]
         ]
-        + [["Total", summary["assessed"], summary["compliant"], summary["partially_compliant"],
+        + [[_("Total"), summary["assessed"], summary["compliant"], summary["partially_compliant"],
             summary["non_compliant"], summary["not_applicable"], summary["not_assessed"],
             summary["ratio"] if summary["ratio"] is not None else "", len(payload["findings"])]],
     )
     table(
         "findings",
-        "Findings",
-        ["ID", "Title", "Severity", "Status", "Description", "Requirement observations",
-         "Applied controls", "Evidence"],
+        _("Findings"),
+        ["ID", _("Title"), _("Severity"), _("Status"), _("Description"), _("Requirement observations"),
+         _("Applied controls"), _("Evidence")],
         [
             [f["ref_id"], f["name"], f["severity_label"], f["status_label"], f["description"],
              "; ".join(f"{r['ref_id']}: {r['observation'] + ' ' if r['observation'] else ''}({r['abbr']})" for r in f["requirements"]),
@@ -361,14 +367,14 @@ def audit_workbook(payload: dict) -> bytes:
     )
     table(
         "observations",
-        "Observations",
-        ["ID", "Observation"],
+        _("Observations"),
+        ["ID", _("Observation")],
         [[o["ref_id"], o["observation"]] for o in payload["observations"]],
     )
     table(
         "action_plan",
-        "Action plan",
-        ["Applied control", "Linked findings", "Owner", "ETA", "Status"],
+        _("Action plan"),
+        [_("Applied control"), _("Linked findings"), _("Owner"), _("ETA"), _("Status")],
         [[c["name"], ", ".join(c["findings"]), ", ".join(c["owners"]), c["eta"] or "", c["status_label"]]
          for c in payload["action_plan"]],
     )
@@ -397,37 +403,44 @@ def audit_document(payload: dict) -> bytes:
     sections = payload.get("sections") or SECTION_KEYS
     numbers = payload.get("section_numbers") or {}
     findings = payload["findings"]
-    doc = ReportDocument(f"{assessment['name']} · Audit report")
+    doc = ReportDocument(f"{assessment['name']} · {_('Audit report')}")
 
     def severity(finding):
         return finding["severity_label"], color(SEVERITY_COLORS.get(finding["severity_key"]))
 
     prefix = f"{assessment['framework_ref']} — " if assessment["framework_ref"] else ""
-    doc.title("Audit report", f"{prefix}{assessment['name']}", f"{assessment['framework']} · Generated {payload['generated_on']}")
+    doc.title(
+        _("Audit report"),
+        f"{prefix}{assessment['name']}",
+        f"{assessment['framework']} · {_('Generated on')} {payload['generated_on']}",
+    )
     perimeter = assessment["folder"] + (f" — {assessment['perimeter']}" if assessment["perimeter"] else "")
     doc.key_values(
         [
-            ("Perimeter", perimeter),
-            ("Assessment status", f"{assessment['status'] or '—'} · {summary['reviewed_pct']}% reviewed"),
-            ("Authors", ", ".join(assessment["authors"])),
-            ("Reviewers", ", ".join(assessment["reviewers"])),
+            (_("Perimeter"), perimeter),
+            (
+                _("Assessment status"),
+                f"{assessment['status'] or '—'} · {summary['reviewed_pct']}% {_('reviewed')}",
+            ),
+            (_("Authors"), ", ".join(assessment["authors"])),
+            (_("Reviewers"), ", ".join(assessment["reviewers"])),
         ]
     )
 
     if "summary" in sections:
         doc.heading(
             numbers.get("summary"),
-            "Summary",
-            "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded.",
+            _("Summary"),
+            _("Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded."),
         )
         ratio = (
             f"{summary['ratio']}% = ({summary['compliant']} + 0.5×{summary['partially_compliant']}) / {summary['assessable']}"
             if summary["ratio"] is not None
-            else "No implemented, partially implemented or not implemented answers yet"
+            else _("No implemented, partial or non-implemented answers yet")
         )
-        assessed = f"{summary['assessed']} ({summary['not_applicable']} not applicable)"
+        assessed = f"{summary['assessed']} ({summary['not_applicable']} {_('not applicable')})"
         if summary["not_assessed"]:
-            assessed += f" · {summary['not_assessed']} of {summary['total']} not assessed yet"
+            assessed += f" · {summary['not_assessed']} {_('of')} {summary['total']} {_('not assessed yet')}"
 
         def domain_label(domain):
             return f"{domain['ref_id']} {domain['name']} — {domain['ratio']}%".strip() if domain else "—"
@@ -435,20 +448,20 @@ def audit_document(payload: dict) -> bytes:
         counts = " / ".join(f"{s['label']} {s['count']}" for s in payload["severity_counts"])
         doc.key_values(
             [
-                ("Compliance ratio", ratio),
-                ("Controls assessed", assessed),
-                ("Strongest domain", domain_label(summary["strongest"])),
-                ("Weakest domain", domain_label(summary["weakest"])),
-                ("Findings", f"{len(findings)} — {counts}"),
-                ("Observations", str(len(payload["observations"]))),
+                (_("Compliance ratio"), ratio),
+                (_("Controls assessed"), assessed),
+                (_("Strongest domain"), domain_label(summary["strongest"])),
+                (_("Weakest domain"), domain_label(summary["weakest"])),
+                (_("Findings"), f"{len(findings)} — {counts}"),
+                (_("Observations"), str(len(payload["observations"]))),
             ]
         )
 
     if "domains" in sections:
         doc.heading(
             numbers.get("domains"),
-            "Results by domain",
-            "Requirement answers grouped by top-level framework node. Same ratio formula per group.",
+            _("Results by domain"),
+            _("Requirement answers grouped by top-level framework node. Same ratio formula per group."),
         )
 
         def ratio_text(value):
@@ -460,11 +473,11 @@ def audit_document(payload: dict) -> bytes:
             for d in payload["domains"]
         ]
         rows.append(
-            [("Total", NAVY), summary["assessed"], summary["compliant"], summary["partially_compliant"],
+            [(_("Total"), NAVY), summary["assessed"], summary["compliant"], summary["partially_compliant"],
              summary["non_compliant"], summary["not_applicable"], ratio_text(summary["ratio"]), len(findings)]
         )
         doc.grid(
-            ["Domain", "Controls", "I", "PI", "NI", "N/A", "Ratio", "Findings"],
+            [_("Domain"), _("Controls"), "I", "PI", "NI", "N/A", _("Ratio"), _("Findings")],
             rows,
             [5.6, 1.6, 1.0, 1.0, 1.0, 1.1, 1.5, 4.6],
         )
@@ -472,21 +485,21 @@ def audit_document(payload: dict) -> bytes:
     if "findings" in sections:
         doc.heading(
             numbers.get("findings"),
-            "Findings",
-            "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control.",
+            _("Findings"),
+            _("Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control."),
         )
         if findings:
             doc.grid(
-                ["ID", "Title", "Severity", "Status"],
+                ["ID", _("Title"), _("Severity"), _("Status")],
                 [[f["code"], f["name"], severity(f), f["status_label"]] for f in findings],
                 [2.8, 9.6, 2.4, 2.6],
             )
         else:
-            doc.paragraph("No findings recorded for this assessment.")
+            doc.paragraph(_("No findings are linked to this assessment's requirements or applied controls."))
 
         detailed = payload["detailed_findings"]
         if detailed:
-            doc.subheading("Details — Critical & High")
+            doc.subheading(_("Details — Critical & High"))
             for finding in detailed:
                 head = doc.document.add_paragraph()
                 head.paragraph_format.space_before = Pt(8)
@@ -498,56 +511,60 @@ def audit_document(payload: dict) -> bytes:
                 doc.text(head, label, bold=True, color=label_color, size=8.5)
                 doc.key_values(
                     [
-                        ("Description", finding["description"]),
+                        (_("Description"), finding["description"]),
                         (
-                            "Requirement obs.",
+                            _("Requirement obs."),
                             "; ".join(
                                 f"{r['ref_id']}: {r['observation'] + ' ' if r['observation'] else ''}({r['abbr']})"
                                 for r in finding["requirements"]
                             ),
                         ),
                         (
-                            "Applied control",
+                            _("Applied control"),
                             "\n".join(
-                                f"{c['name']} [{c['status_label']}] · owner {', '.join(c['owners']) or '—'}"
-                                + (f" · ETA {c['eta']}" if c["eta"] else "")
+                                f"{c['name']} [{c['status_label']}] · {_('owner')} {', '.join(c['owners']) or '—'}"
+                                + (f" · {_('ETA')} {c['eta']}" if c["eta"] else "")
                                 for c in finding["controls"]
-                            ),
+                            )
+                            or _("None linked"),
                         ),
-                        ("Evidence", ", ".join(finding["evidence"]) or "None attached"),
+                        (_("Evidence"), ", ".join(finding["evidence"]) or _("None attached")),
                     ]
                 )
 
     if "observations" in sections:
         doc.heading(
             numbers.get("observations"),
-            "Observations",
-            "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim.",
+            _("Observations"),
+            _(
+                "Requirement answers marked Partially implemented with no linked finding; "
+                "text is the requirement's observation field, verbatim."
+            ),
         )
         if payload["observations"]:
             doc.grid(
-                ["ID", "Observation"],
-                [[o["ref_id"], o["observation"] or "—"] for o in payload["observations"]],
+                ["ID", _("Observation")],
+                [[o["ref_id"], o["observation"] or _("No observation recorded")] for o in payload["observations"]],
                 [2.8, 14.6],
             )
         else:
-            doc.paragraph("No observations.")
+            doc.paragraph(_("No partially implemented requirements without a finding."))
 
     if "action_plan" in sections:
         doc.heading(
             numbers.get("action_plan"),
-            "Action plan",
-            "All non-active applied controls linked to this assessment's findings, sorted by ETA.",
+            _("Action plan"),
+            _("All non-active applied controls linked to this assessment's findings, sorted by ETA."),
         )
         if payload["action_plan"]:
             doc.grid(
-                ["Applied control", "Linked findings", "Owner", "ETA", "Status"],
+                [_("Applied control"), _("Linked findings"), _("Owner"), _("ETA"), _("Status")],
                 [[c["name"], ", ".join(c["findings"]), ", ".join(c["owners"]) or "—", c["eta"] or "—", c["status_label"]]
                  for c in payload["action_plan"]],
                 [5.8, 3.8, 3.4, 2.2, 2.2],
             )
         else:
-            doc.paragraph("No open actions.")
+            doc.paragraph(_("No pending applied controls are linked to the findings."))
 
     return doc.to_bytes()
 

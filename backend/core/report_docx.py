@@ -7,6 +7,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+from django.utils.translation import get_language_bidi
+from django.utils.translation import gettext as _
 
 from core.branding import add_docx_branding
 
@@ -14,6 +16,16 @@ NAVY = RGBColor(0x19, 0x2A, 0x44)
 BLUE = RGBColor(0x31, 0x6F, 0xD3)
 GREY = RGBColor(0x64, 0x74, 0x8B)
 CONTENT_WIDTH_CM = 17.4
+# Paragraph-property elements that the OOXML schema requires after w:bidi.
+PPR_AFTER_BIDI = {
+    qn(f"w:{tag}")
+    for tag in (
+        "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing", "mirrorIndents",
+        "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap",
+        "outlineLvl", "divId", "cnfStyle", "rPr", "sectPr", "pPrChange",
+    )
+}
+TBLPR_BEFORE_BIDI_VISUAL = {qn("w:tblStyle"), qn("w:tblpPr"), qn("w:tblOverlap")}
 
 
 def color(hex_value: str | None, default: str = "475569") -> RGBColor:
@@ -133,7 +145,9 @@ class ReportDocument:
             self.text(cell.paragraphs[0], column["label"], bold=True, color=NAVY, size=7.5)
         first = 2.4
         self._widths(table, [first] + [(CONTENT_WIDTH_CM - first) / len(columns)] * len(columns))
-        caption = self.paragraph(f"Rows: {heatmap['row_axis']} · Columns: {heatmap['col_axis']}", size=8)
+        caption = self.paragraph(
+            f"{_('Rows')}: {heatmap['row_axis']} · {_('Columns')}: {heatmap['col_axis']}", size=8
+        )
         caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     @staticmethod
@@ -142,7 +156,54 @@ class ReportDocument:
             for cell, width in zip(row.cells, widths):
                 cell.width = Cm(width)
 
+    def _parts(self):
+        yield self.document.element.body
+        for section in self.document.sections:
+            for part in (section.header, section.footer, section.first_page_header, section.first_page_footer):
+                if not part.is_linked_to_previous:
+                    yield part._element
+
+    @staticmethod
+    def _complex_script_formatting(root) -> None:
+        """Arabic runs take size and bold from w:szCs / w:bCs, so mirror w:sz / w:b onto them."""
+        for rpr in root.iter(qn("w:rPr")):
+            for source, target in (("w:b", "w:bCs"), ("w:sz", "w:szCs")):
+                element = rpr.find(qn(source))
+                if element is None or rpr.find(qn(target)) is not None:
+                    continue
+                mirror = OxmlElement(target)
+                if element.get(qn("w:val")) is not None:
+                    mirror.set(qn("w:val"), element.get(qn("w:val")))
+                element.addnext(mirror)
+
+    @staticmethod
+    def _right_to_left(root) -> None:
+        for paragraph in root.iter(qn("w:p")):
+            ppr = paragraph.get_or_add_pPr()
+            if ppr.find(qn("w:bidi")) is not None:
+                continue
+            successor = next((child for child in ppr if child.tag in PPR_AFTER_BIDI), None)
+            bidi = OxmlElement("w:bidi")
+            if successor is None:
+                ppr.append(bidi)
+            else:
+                successor.addprevious(bidi)
+        for tblpr in root.iter(qn("w:tblPr")):
+            if tblpr.find(qn("w:bidiVisual")) is not None:
+                continue
+            predecessors = [child for child in tblpr if child.tag in TBLPR_BEFORE_BIDI_VISUAL]
+            bidi_visual = OxmlElement("w:bidiVisual")
+            if predecessors:
+                predecessors[-1].addnext(bidi_visual)
+            else:
+                tblpr.insert(0, bidi_visual)
+
     def to_bytes(self) -> bytes:
+        rtl = get_language_bidi()
+        for root in self._parts():
+            self._complex_script_formatting(root)
+            if rtl:
+                self._right_to_left(root)
         buffer = io.BytesIO()
         self.document.save(buffer)
         return buffer.getvalue()
