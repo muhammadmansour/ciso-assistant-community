@@ -1,11 +1,11 @@
 {% load i18n core_extras %}
-<table class="grid">
-    <colgroup><col style="width: 7%"><col style="width: 27%"><col style="width: 9%"><col style="width: 6%"><col style="width: 10%"><col style="width: 9%"><col style="width: 6%"><col style="width: 12%"><col style="width: 14%"></colgroup>
+<table class="grid dense">
+    <colgroup><col style="width: 10%"><col style="width: 23%"><col style="width: 9%"><col style="width: 7%"><col style="width: 10%"><col style="width: 9%"><col style="width: 8%"><col style="width: 12%"><col style="width: 12%"></colgroup>
     <thead><tr><th>{% trans "Ref" %}</th><th>{% trans "Control" %}</th><th>{% trans "Status" %}</th><th>{% trans "Priority" %}</th><th>{% trans "Category" %}</th><th>{% trans "Target date" %}</th><th>{% trans "Effort" %}</th><th>{% trans "Owners" %}</th><th>{% trans "Scenarios" %}</th></tr></thead>
     <tbody>
     {% for c in items %}
         <tr>
-            <td class="strong">{{ c.ref_id|default:"—" }}</td>
+            <td class="strong ref">{{ c.ref_id|default:"—" }}</td>
             <td><span class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</span>{% if c.description %}<span class="desc" dir="{{ c.description|text_dir }}">{{ c.description|truncatechars:200 }}</span>{% endif %}</td>
             <td><span class="pill" style="background: {{ c.status_color }}{% if c.status == '--' %}; color: #334155{% endif %}">{{ c.status_label }}</span></td>
             <td>{{ c.priority|default:"—" }}</td>

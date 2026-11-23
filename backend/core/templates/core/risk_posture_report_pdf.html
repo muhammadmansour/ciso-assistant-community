@@ -25,6 +25,7 @@
     .matrix-title { font-weight: 700; color: #192A44; font-size: 9.5pt; margin-bottom: 0.12cm; }
     table.matrix { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
     table.matrix td { height: 1.05cm; text-align: center; vertical-align: middle; border-radius: 3px; font-size: 7pt; font-weight: 600; color: #1E293B; padding: 1px; word-wrap: break-word; }
+    table.matrix td .ref { display: block; white-space: nowrap; font-size: 5.6pt; line-height: 1.25; }
     table.matrix td.axis { background: #EEF3FB; color: #192A44; font-size: 6.5pt; font-weight: 600; height: auto; padding: 0.06cm; }
     table.matrix td.corner { background: none; }
     .axis-caption { font-size: 7pt; color: #64748B; text-align: center; margin-top: 0.05cm; }
@@ -121,7 +122,7 @@
         <p class="section-note">{% trans "Inherent assumes no controls, current reflects controls in place, residual is the target after planned treatment." %}</p>
         {% if top_risks %}
         <table class="grid">
-            <colgroup><col style="width: 5%"><col style="width: 21%"><col style="width: 10%"><col style="width: 10%"><col style="width: 10%"><col style="width: 10%"><col style="width: 8%"><col style="width: 13%"><col style="width: 13%"></colgroup>
+            <colgroup><col style="width: 8%"><col style="width: 18%"><col style="width: 12%"><col style="width: 11%"><col style="width: 11%"><col style="width: 11%"><col style="width: 7%"><col style="width: 11%"><col style="width: 11%"></colgroup>
             <thead><tr><th>ID</th><th>{% trans "Risk" %}</th><th>{% trans "Area" %}</th><th>{% trans "Inherent" %}</th><th>{% trans "Current" %}</th><th>{% trans "Residual" %}</th><th>{% trans "Status" %}</th><th>{% trans "Objectives" %}</th><th>{% trans "Owner" %}</th></tr></thead>
             <tbody>{% for r in top_risks %}<tr>
                 <td class="code">{{ r.ref_id|default:"—" }}</td>
@@ -148,7 +149,7 @@
             <td>
                 <div class="matrix-title">{{ m.title }}</div>
                 <table class="matrix">
-                    {% for row in m.rows %}<tr><td class="axis">{{ row.label }}</td>{% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{{ cell.refs|join:", " }}</td>{% endfor %}</tr>{% endfor %}
+                    {% for row in m.rows %}<tr><td class="axis">{{ row.label }}</td>{% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{% for ref in cell.refs %}<span class="ref">{{ ref }}</span>{% endfor %}</td>{% endfor %}</tr>{% endfor %}
                     <tr><td class="corner"></td>{% for col in m.columns %}<td class="axis">{{ col.label }}</td>{% endfor %}</tr>
                 </table>
                 <div class="axis-caption">{% trans "Rows" %}: <strong>{{ m.row_axis }}</strong> · {% trans "Columns" %}: <strong>{{ m.col_axis }}</strong></div>
@@ -164,7 +165,7 @@
         <p class="section-note">{% trans "Existing applied controls. Annual cost = run cost + amortised build cost; a control covering several top risks has its cost split evenly." %}</p>
         {% if controls %}
         <table class="grid">
-            <colgroup><col style="width: 7%"><col style="width: 27%"><col style="width: 15%"><col style="width: 11%"><col style="width: 11%"><col style="width: 15%"><col style="width: 14%"></colgroup>
+            <colgroup><col style="width: 10%"><col style="width: 24%"><col style="width: 15%"><col style="width: 11%"><col style="width: 11%"><col style="width: 15%"><col style="width: 14%"></colgroup>
             <thead><tr><th>ID</th><th>{% trans "Control" %}</th><th>{% trans "Type" %}</th><th>{% trans "Status" %}</th><th class="num">{% trans "Annual cost" %}</th><th>{% trans "Risks covered" %}</th><th>{% trans "Objectives" %}</th></tr></thead>
             <tbody>{% for c in controls %}<tr>
                 <td class="code">{{ c.ref_id|default:"—" }}</td><td class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</td><td>{{ c.type }}</td><td>{{ c.status_label }}</td>
@@ -204,7 +205,7 @@
         <p class="section-note">{% trans "Cost per point = annual control cost ÷ (inherent score − current score)." %}{% if summary.average_per_point %} {% trans "Average" %}: {{ summary.average_per_point_label }} {% trans "per point" %}.{% endif %}</p>
         {% if effectiveness %}
         <table class="grid">
-            <thead><tr><th style="width: 7%">ID</th><th style="width: 27%">{% trans "Risk" %}</th><th class="num">{% trans "Control cost" %}</th><th class="num">{% trans "Inherent → current" %}</th><th class="num">{% trans "Points reduced" %}</th><th class="num">{% trans "Cost per point" %}</th><th style="width: 24%">{% trans "Flags" %}</th></tr></thead>
+            <thead><tr><th style="width: 10%">ID</th><th style="width: 24%">{% trans "Risk" %}</th><th class="num">{% trans "Control cost" %}</th><th class="num">{% trans "Inherent → current" %}</th><th class="num">{% trans "Points reduced" %}</th><th class="num">{% trans "Cost per point" %}</th><th style="width: 24%">{% trans "Flags" %}</th></tr></thead>
             <tbody>{% for e in effectiveness %}<tr>
                 <td class="code">{{ e.ref_id|default:"—" }}</td><td class="strong">{{ e.name }}</td><td class="num">{{ e.cost_label }}</td>
                 <td class="num">{{ e.inherent|default:"—" }} → {{ e.current|default:"—" }}</td><td class="num">{{ e.reduction|default:"—" }}</td>

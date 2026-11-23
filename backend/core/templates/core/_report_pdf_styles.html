@@ -1,7 +1,7 @@
 {% load i18n %}
 <style>
     @page {
-        size: A4 landscape;
+        size: A4 portrait;
         margin: 2.1cm 1.2cm 1.5cm 1.2cm;
         @top-left { content: element(reportHeader); width: 100%; }
         @bottom-left { content: element(reportFooter); }
@@ -72,6 +72,11 @@
     table.grid tbody tr:nth-child(even) td { background: #FAFBFD; }
     table.grid .num { text-align: right; }
     table.grid .strong { font-weight: 600; color: #192A44; }
+    /* Portrait pages leave little room for wide tables. */
+    table.grid.dense thead th { font-size: 6.3pt; padding: 0.08cm 0.1cm; }
+    table.grid.dense td { font-size: 7pt; padding: 0.08cm 0.1cm; }
+    table.grid.dense td.ref { white-space: nowrap; }
+    table.grid.dense .pill, table.grid.dense .level { font-size: 6.2pt; padding: 0.02cm 0.12cm; white-space: normal; }
     table.grid .desc { display: block; font-size: 7.5pt; color: #64748B; margin-top: 0.03cm; }
 
     .pill { display: inline-block; padding: 0.02cm 0.18cm; border-radius: 9999px; font-size: 7pt; font-weight: 600; color: #FFFFFF; white-space: nowrap; background: #64748B; }

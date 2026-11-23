@@ -15,6 +15,7 @@
     .matrix-title { font-weight: 700; color: #192A44; font-size: 9.5pt; margin-bottom: 0.12cm; }
     table.matrix { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
     table.matrix td { height: 1.15cm; text-align: center; vertical-align: middle; border-radius: 3px; font-size: 7pt; font-weight: 600; color: #1E293B; padding: 1px; word-wrap: break-word; }
+    table.matrix td .ref { display: block; white-space: nowrap; font-size: 5.6pt; line-height: 1.25; }
     table.matrix td.axis { background: #EEF3FB; color: #192A44; font-size: 6.5pt; font-weight: 600; height: auto; padding: 0.06cm; }
     table.matrix td.corner { background: none; }
     .axis-caption { font-size: 7pt; color: #64748B; text-align: center; margin-top: 0.05cm; }
@@ -107,7 +108,7 @@
                     {% for row in m.rows %}
                     <tr>
                         <td class="axis" title="{{ row.title }}">{{ row.label }}</td>
-                        {% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{{ cell.refs|join:", " }}</td>{% endfor %}
+                        {% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{% for ref in cell.refs %}<span class="ref">{{ ref }}</span>{% endfor %}</td>{% endfor %}
                     </tr>
                     {% endfor %}
                     <tr>
@@ -135,11 +136,11 @@
     <div class="chapter">
         <div class="chapter-band"><span class="stats">{{ summary.total }} {% trans "scenarios" %}</span><span class="num">2</span><span class="name">{% trans "Risk scenarios" %}</span></div>
         {% if scenarios %}
-        <table class="grid">
+        <table class="grid dense">
             <colgroup>
-                <col style="width: 5%"><col style="width: {% if include_inherent %}16%{% else %}19%{% endif %}"><col style="width: 10%"><col style="width: 9%"><col style="width: 11%">
+                <col style="width: 9%"><col style="width: {% if include_inherent %}11%{% else %}14%{% endif %}"><col style="width: 9%"><col style="width: 9%"><col style="width: {% if include_inherent %}8%{% else %}10%{% endif %}">
                 {% if include_inherent %}<col style="width: 7%">{% endif %}
-                <col style="width: 7.5%"><col style="width: 7%"><col style="width: 12%"><col style="width: 7.5%"><col style="width: 5%"><col style="width: 7%">
+                <col style="width: 9%"><col style="width: 9%"><col style="width: {% if include_inherent %}8%{% else %}10%{% endif %}"><col style="width: 9%"><col style="width: 5%"><col style="width: 7%">
             </colgroup>
             <thead><tr>
                 <th>{% trans "Ref" %}</th><th>{% trans "Scenario" %}</th><th>{% trans "Threats" %}</th><th>{% trans "Assets" %}</th><th>{% trans "Existing controls" %}</th>
@@ -149,7 +150,7 @@
             <tbody>
             {% for s in scenarios %}
                 <tr>
-                    <td class="strong">{{ s.ref_id|default:"—" }}</td>
+                    <td class="strong ref">{{ s.ref_id|default:"—" }}</td>
                     <td><span class="strong" dir="{{ s.name|text_dir }}">{{ s.name }}</span>{% if s.description %}<span class="desc" dir="{{ s.description|text_dir }}">{{ s.description|truncatechars:220 }}</span>{% endif %}</td>
                     <td>{{ s.threats|join:", "|default:"—" }}</td>
                     <td>{{ s.assets|join:", "|default:"—" }}</td>
