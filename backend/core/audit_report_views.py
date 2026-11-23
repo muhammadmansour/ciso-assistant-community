@@ -1,11 +1,12 @@
 import io
 
+from django.conf import settings
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.formats import date_format
-from django.utils.translation import get_language_bidi, gettext_noop
+from django.utils.translation import get_language, get_language_bidi, gettext_noop, override
 from django.utils.translation import gettext as _
 from openpyxl import Workbook
 from rest_framework import permissions, status
@@ -575,6 +576,13 @@ def _selected_sections(raw: str | None) -> list[str]:
     return selected or list(SECTION_KEYS)
 
 
+def report_language(request):
+    """Exports follow the language the UI is showing, which can differ from the profile language."""
+    requested = request.query_params.get("lang")
+    supported = {code for code, _name in settings.LANGUAGES}
+    return override(requested if requested in supported else get_language())
+
+
 def _payload_or_404(request):
     payload = build_audit_report(request.user, request.query_params.get("assessment"))
     if payload is None:
@@ -603,11 +611,13 @@ class AuditReportXlsxView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            workbook = audit_workbook(payload)
         response = HttpResponse(
-            audit_workbook(payload),
+            workbook,
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = 'attachment; filename="audit-report.xlsx"'
@@ -618,11 +628,13 @@ class AuditReportDocxView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            document = audit_document(payload)
         response = HttpResponse(
-            audit_document(payload),
+            document,
             content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         response["Content-Disposition"] = 'attachment; filename="audit-report.docx"'
@@ -635,13 +647,14 @@ class AuditReportPdfView(APIView):
     def get(self, request):
         from core.views import _render_weasyprint_pdf
 
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
-        try:
-            pdf = _render_weasyprint_pdf(render_to_string("core/audit_report_pdf.html", payload))
-        except RuntimeError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            try:
+                pdf = _render_weasyprint_pdf(render_to_string("core/audit_report_pdf.html", payload))
+            except RuntimeError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="audit-report.pdf"'
         return response

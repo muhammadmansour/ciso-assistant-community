@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
 	import { formatGenerated, isEnglish, label } from '../../report-i18n';
 	import type { PageData } from './$types';
 
@@ -77,7 +78,8 @@
 		const params = new URLSearchParams({
 			format,
 			assessment: report.assessment.id,
-			sections: sections.join(',')
+			sections: sections.join(','),
+			lang: getLocale()
 		});
 		return `/reports/audit/download?${params.toString()}`;
 	}

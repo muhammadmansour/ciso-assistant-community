@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 	const format: keyof typeof FORMATS =
 		requested === 'xlsx' || requested === 'docx' ? requested : 'pdf';
 	const params = new URLSearchParams();
-	for (const key of ['assessment', 'sections']) {
+	for (const key of ['assessment', 'sections', 'lang']) {
 		const value = url.searchParams.get(key);
 		if (value) params.set(key, value);
 	}

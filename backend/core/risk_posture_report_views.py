@@ -13,6 +13,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.audit_report_views import report_language
 from core.models import AppliedControl, RiskAssessment, RiskScenario
 from core.nca_ecc_report_views import _accessible_ids
 from core.risk_assessment_pdf import _matrix_view, _rating
@@ -950,11 +951,13 @@ class RiskPostureReportXlsxView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            workbook = risk_posture_workbook(payload)
         response = HttpResponse(
-            risk_posture_workbook(payload),
+            workbook,
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
         response["Content-Disposition"] = 'attachment; filename="risk-posture-report.xlsx"'
@@ -965,11 +968,13 @@ class RiskPostureReportDocxView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            document = risk_posture_document(payload)
         response = HttpResponse(
-            risk_posture_document(payload),
+            document,
             content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
         response["Content-Disposition"] = 'attachment; filename="risk-posture-report.docx"'
@@ -982,13 +987,14 @@ class RiskPostureReportPdfView(APIView):
     def get(self, request):
         from core.views import _render_weasyprint_pdf
 
-        payload, error = _payload_or_404(request)
-        if error or payload["assessment"] is None:
-            return error or Response(status=status.HTTP_404_NOT_FOUND)
-        try:
-            pdf = _render_weasyprint_pdf(render_to_string("core/risk_posture_report_pdf.html", payload))
-        except RuntimeError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
+        with report_language(request):
+            payload, error = _payload_or_404(request)
+            if error or payload["assessment"] is None:
+                return error or Response(status=status.HTTP_404_NOT_FOUND)
+            try:
+                pdf = _render_weasyprint_pdf(render_to_string("core/risk_posture_report_pdf.html", payload))
+            except RuntimeError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="risk-posture-report.pdf"'
         return response
