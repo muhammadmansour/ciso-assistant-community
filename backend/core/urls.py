@@ -1,4 +1,9 @@
-from .audit_report_views import AuditReportPdfView, AuditReportView, AuditReportXlsxView
+from .audit_report_views import (
+    AuditReportDocxView,
+    AuditReportPdfView,
+    AuditReportView,
+    AuditReportXlsxView,
+)
 from .evidence_report_views import EvidenceReportView, EvidenceReportXlsxView
 from .nca_ecc_report_views import NcaEccReadinessView, NcaEccReadinessXlsxView
 from .risk_posture_report_views import (
@@ -264,6 +269,7 @@ urlpatterns = [
     path("reports/audit/", AuditReportView.as_view(), name="audit-report"),
     path("reports/audit/xlsx/", AuditReportXlsxView.as_view(), name="audit-report-xlsx"),
     path("reports/audit/pdf/", AuditReportPdfView.as_view(), name="audit-report-pdf"),
+    path("reports/audit/docx/", AuditReportDocxView.as_view(), name="audit-report-docx"),
     path("reports/risk-posture/", RiskPostureReportView.as_view(), name="risk-posture-report"),
     path(
         "reports/risk-posture/xlsx/",

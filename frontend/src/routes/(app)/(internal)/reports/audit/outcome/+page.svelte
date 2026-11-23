@@ -54,7 +54,7 @@
 	const sections = $derived<string[]>(report.sections ?? []);
 	const sectionNumbers = $derived<Record<string, number>>(report.section_numbers ?? {});
 
-	function downloadHref(format: 'pdf' | 'xlsx') {
+	function downloadHref(format: 'pdf' | 'xlsx' | 'docx') {
 		const params = new URLSearchParams({
 			format,
 			assessment: report.assessment.id,
@@ -112,7 +112,6 @@
 						</h1>
 						<p class="text-sm text-gray-500">
 							{report.assessment.framework} · Generated {report.generated_on}
-							<span class="ml-1 rounded border border-blue-200 bg-blue-50 px-1.5 text-xs text-blue-700">data-only report</span>
 						</p>
 					</div>
 				</div>
@@ -122,6 +121,9 @@
 					</a>
 					<a href={downloadHref('xlsx')} class="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
 						<i class="fa-solid fa-file-excel mr-1.5"></i>XLSX
+					</a>
+					<a href={downloadHref('docx')} class="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
+						<i class="fa-solid fa-file-word mr-1.5"></i>Word
 					</a>
 					<a href={downloadHref('pdf')} class="px-3 py-2 rounded-lg bg-[#0A1628] text-sm text-white hover:bg-[#1a2740]">
 						<i class="fa-solid fa-file-pdf mr-1.5"></i>PDF
