@@ -1113,6 +1113,7 @@ export const FindingSchema = z.object({
 	applied_controls: z.string().uuid().optional().array().optional(),
 	reference_controls: z.string().uuid().optional().array().optional(),
 	findings_assessment: z.string(),
+	requirement_assessment: z.string().uuid().optional().nullable(),
 	severity: z.number().default(-1),
 	priority: z.number().optional().nullable(),
 	filtering_labels: z.string().optional().array().optional(),
@@ -1136,6 +1137,7 @@ export const FindingsAssessmentSchema = z.object({
 	observation: z.string().optional().nullable(),
 	category: z.string().default('--'),
 	evidences: z.string().uuid().optional().array().optional(),
+	compliance_assessment: z.string().uuid().optional().nullable(),
 	source: z.enum(['requirement', 'control', 'evidence']).optional(),
 	source_object_id: z.string().uuid().optional(),
 	is_locked: z.boolean().optional().default(false)

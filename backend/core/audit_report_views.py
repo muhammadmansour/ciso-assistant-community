@@ -89,12 +89,19 @@ def _findings(assessment, user, ra_by_requirement, section_of):
     assessment_controls = AppliedControl.objects.filter(
         requirement_assessments__compliance_assessment=assessment
     )
+    bound_here = Q(requirement_assessment__compliance_assessment=assessment) | Q(
+        findings_assessment__compliance_assessment=assessment
+    )
+    unbound = Q(
+        requirement_assessment__isnull=True,
+        findings_assessment__compliance_assessment__isnull=True,
+    ) & (
+        Q(applied_controls__in=assessment_controls)
+        | Q(requirement_node_id__in=list(ra_by_requirement), folder=assessment.folder)
+    )
     findings = (
         Finding.objects.filter(id__in=_accessible_ids(user, Finding))
-        .filter(
-            Q(applied_controls__in=assessment_controls)
-            | Q(requirement_node_id__in=list(ra_by_requirement), folder=assessment.folder)
-        )
+        .filter(bound_here | unbound)
         .distinct()
         .prefetch_related(
             "evidences",

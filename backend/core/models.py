@@ -7597,6 +7597,16 @@ class FindingsAssessment(Assessment):
         ),
     )
 
+    compliance_assessment = models.ForeignKey(
+        "ComplianceAssessment",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="findings_assessments",
+        help_text=_("The audit whose findings this binder captures"),
+        verbose_name=_("Audit"),
+    )
+
     def get_findings_metrics(self):
         findings = self.findings.all()
         total_count = findings.count()
@@ -7705,6 +7715,16 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
         related_name="findings",
         verbose_name=_("Requirement"),
     )
+    # The catalog node above is shared by every audit on that framework, so it cannot
+    # say which assessment raised the finding. This can.
+    requirement_assessment = models.ForeignKey(
+        "RequirementAssessment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="findings",
+        verbose_name=_("Requirement assessment"),
+    )
     vulnerabilities = models.ManyToManyField(
         Vulnerability,
         verbose_name=_("Vulnerabilities"),
@@ -7768,7 +7788,19 @@ class Finding(NameDescriptionMixin, FolderMixin, FilteringLabelMixin, ETADueDate
     def is_locked(self) -> bool:
         return self.findings_assessment.is_locked
 
+    def _sync_requirement_links(self):
+        if self.requirement_assessment_id:
+            self.requirement_node_id = self.requirement_assessment.requirement_id
+            return
+        audit_id = self.findings_assessment.compliance_assessment_id
+        if self.requirement_node_id and audit_id:
+            self.requirement_assessment = RequirementAssessment.objects.filter(
+                compliance_assessment_id=audit_id,
+                requirement_id=self.requirement_node_id,
+            ).first()
+
     def save(self, *args, **kwargs):
+        self._sync_requirement_links()
         super().save(*args, **kwargs)
         # Update parent findings assessment's updated_at timestamp
         FindingsAssessment.objects.filter(id=self.findings_assessment.id).update(

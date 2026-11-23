@@ -12439,6 +12439,7 @@ class FindingsAssessmentViewSet(BaseModelViewSet):
         "status",
         "evidences",
         "genericcollection",
+        "compliance_assessment",
     ]
     search_fields = ["name", "description", "ref_id"]
 
@@ -12908,6 +12909,8 @@ class FindingViewSet(BaseModelViewSet):
         "filtering_labels",
         "applied_controls",
         "evidences",
+        "requirement_assessment",
+        "requirement_assessment__compliance_assessment",
     ]
     ordering = ["ref_id"]
 

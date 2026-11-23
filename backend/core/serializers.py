@@ -2864,6 +2864,7 @@ class FindingsAssessmentReadSerializer(AssessmentReadSerializer):
     owner = FieldsRelatedField(many=True)
     findings_count = serializers.IntegerField(source="findings.count")
     evidences = FieldsRelatedField(many=True)
+    compliance_assessment = FieldsRelatedField(["id", "name"])
     validation_flows = FieldsRelatedField(
         many=True,
         fields=[
@@ -2889,6 +2890,21 @@ class FindingWriteSerializer(BaseModelSerializer):
         ):
             raise serializers.ValidationError(
                 "⚠️ Cannot modify the finding when the findings assessment is locked."
+            )
+        requirement_assessment = attrs.get("requirement_assessment")
+        findings_assessment = attrs.get("findings_assessment") or getattr(
+            self.instance, "findings_assessment", None
+        )
+        audit_id = getattr(findings_assessment, "compliance_assessment_id", None)
+        if (
+            requirement_assessment
+            and audit_id
+            and requirement_assessment.compliance_assessment_id != audit_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "requirement_assessment": "The requirement must belong to the audit of the findings assessment."
+                }
             )
         return super().validate(attrs)
 
@@ -2918,6 +2934,10 @@ class FindingReadSerializer(FindingWriteSerializer):
         source="findings_assessment.perimeter", fields=["id", "name", "folder"]
     )
     folder = FieldsRelatedField()
+    requirement_node = FieldsRelatedField(["id", "ref_id", "name"])
+    requirement_assessment = FieldsRelatedField(
+        ["id", {"compliance_assessment": ["id", "name"]}]
+    )
     severity = serializers.CharField(source="get_severity_display")
     priority = serializers.CharField(source="get_priority_display")
 

@@ -1698,6 +1698,7 @@ async def create_findings_assessment(
     reported_at: str = None,
     description: str = None,
     ref_id: str = None,
+    compliance_assessment_id: str = None,
 ) -> str:
     """Create a new findings assessment (findings binder, e.g. a pentest report)
 
@@ -1713,6 +1714,7 @@ async def create_findings_assessment(
         reported_at: Report date (YYYY-MM-DD)
         description: Description
         ref_id: Reference ID
+        compliance_assessment_id: Audit UUID or exact name whose findings this binder captures
     """
     try:
         if not folder_id and GLOBAL_FOLDER_ID:
@@ -1731,6 +1733,12 @@ async def create_findings_assessment(
             "ref_id": ref_id,
         }
         payload.update({k: v for k, v in optional.items() if v is not None})
+        if compliance_assessment_id:
+            from ..resolvers import resolve_compliance_assessment_id
+
+            payload["compliance_assessment"] = resolve_compliance_assessment_id(
+                compliance_assessment_id
+            )
 
         res = make_post_request("/findings-assessments/", payload)
 
@@ -1755,6 +1763,7 @@ async def create_finding(
     eta: str = None,
     evidences: list = None,
     ref_id: str = None,
+    requirement_assessment_id: str = None,
 ) -> str:
     """Create a new finding in a findings assessment (binder)
 
@@ -1773,6 +1782,8 @@ async def create_finding(
         eta: Expected resolution date (YYYY-MM-DD)
         evidences: List of evidence IDs/names
         ref_id: Reference ID
+        requirement_assessment_id: UUID of the requirement assessment (in one audit) that raised the finding;
+            when the binder has an audit, it must be one of that audit's requirement assessments
     """
     if severity is not None and _severity_value(severity) is None:
         return _invalid_severity_error(severity)
@@ -1797,6 +1808,12 @@ async def create_finding(
             payload["evidences"] = [resolve_evidence_id(x) for x in evidences]
         if ref_id is not None:
             payload["ref_id"] = ref_id
+        if requirement_assessment_id:
+            from ..resolvers import resolve_requirement_assessment_id
+
+            payload["requirement_assessment"] = resolve_requirement_assessment_id(
+                requirement_assessment_id
+            )
 
         res = make_post_request("/findings/", payload)
 
