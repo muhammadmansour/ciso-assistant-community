@@ -1,3 +1,6 @@
+from .audit_report_views import AuditReportPdfView, AuditReportView, AuditReportXlsxView
+from .evidence_report_views import EvidenceReportView, EvidenceReportXlsxView
+from .nca_ecc_report_views import NcaEccReadinessView, NcaEccReadinessXlsxView
 from .views import *
 from .activity_log import ActivityLogViewSet
 from .views_policy_collections import (
@@ -233,6 +236,29 @@ urlpatterns = [
         name="user-perms-on-folder-list",
     ),
     path("quick-start/", QuickStartView.as_view(), name="quick-start"),
+    path(
+        "reports/nca-ecc-readiness/",
+        NcaEccReadinessView.as_view(),
+        name="nca-ecc-readiness",
+    ),
+    path(
+        "reports/nca-ecc-readiness/xlsx/",
+        NcaEccReadinessXlsxView.as_view(),
+        name="nca-ecc-readiness-xlsx",
+    ),
+    path(
+        "reports/evidence-coverage/",
+        EvidenceReportView.as_view(),
+        name="evidence-coverage",
+    ),
+    path(
+        "reports/evidence-coverage/xlsx/",
+        EvidenceReportXlsxView.as_view(),
+        name="evidence-coverage-xlsx",
+    ),
+    path("reports/audit/", AuditReportView.as_view(), name="audit-report"),
+    path("reports/audit/xlsx/", AuditReportXlsxView.as_view(), name="audit-report-xlsx"),
+    path("reports/audit/pdf/", AuditReportPdfView.as_view(), name="audit-report-pdf"),
     path("policy-collections/", PolicyCollectionsGeminiView.as_view()),
     path("policy-collections/chat/", PolicyCollectionsChatView.as_view()),
     # Same handlers as before refactor (c08d11d8a); use if proxies/clients still expect this prefix.

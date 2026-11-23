@@ -3,120 +3,236 @@
 {% load i18n core_extras %}
 
 <style>
-    /* Muhkam brand: repeating logo header + footer on every page */
     @page {
-        size: A3 landscape;
-        margin: 2.3cm 0.5cm 1.3cm 0.5cm;
-        @top-left { content: element(muhkamHeader); }
-        @bottom-center { content: element(muhkamFooter); }
+        size: A4 landscape;
+        margin: 2.1cm 1.2cm 1.5cm 1.2cm;
+        @top-left { content: element(reportHeader); width: 100%; }
+        @bottom-left { content: element(reportFooter); }
+        @bottom-right {
+            content: "{% trans 'Page' %} " counter(page) " / " counter(pages);
+            font-family: 'Cairo', sans-serif;
+            font-size: 7.5pt;
+            color: #64748B;
+        }
     }
-    .muhkam-header {
-        position: running(muhkamHeader);
-        padding-bottom: 0.15cm;
-        border-bottom: 2px solid #316FD3;
-        width: 100%;
-    }
-    .muhkam-header img { height: 1cm; width: auto; }
-    .muhkam-footer {
-        position: running(muhkamFooter);
-        font-size: 0.68rem;
-        color: #192A44;
-    }
-    h1 { color: #192A44; }
-    .meta-table td { border: none; padding: 0.15rem 0.5rem; }
-    table.req, table.req th, table.req td { border: 1px solid #A8A29E; border-collapse: collapse; }
-    table.req { width: 100%; }
-    table.req thead tr { background-color: #192A44; color: #FFFFFF; }
-    table.req thead tr th { color: #FFFFFF; padding: 0.4rem; }
-    table.req td { padding: 0.35rem; vertical-align: top; font-size: 0.8rem; }
-    .summary td { border: 1px solid #A8A29E; padding: 0.3rem 0.6rem; }
-    .summary thead tr { background-color: #316FD3; color: #FFFFFF; }
-    .pill { font-weight: 600; }
+
+    body { font-family: 'Cairo', sans-serif; color: #1E293B; font-size: 8.5pt; line-height: 1.45; }
+    th { text-align: left; }
+
+    .report-header { position: running(reportHeader); width: 100%; }
+    .report-header table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #316FD3; }
+    .report-header td { padding: 0 0 0.12cm 0; vertical-align: bottom; }
+    .report-header img { height: 0.85cm; width: auto; }
+    .report-header .title { text-align: right; font-size: 7.5pt; color: #64748B; }
+    .report-header .title strong { color: #192A44; font-weight: 600; }
+    .report-footer { position: running(reportFooter); font-size: 7.5pt; color: #64748B; }
+
+    .muted { color: #94A3B8; }
+    .eyebrow { font-size: 8pt; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #316FD3; margin: 0; }
+    h1.report-title { font-size: 21pt; font-weight: 700; color: #192A44; margin: 0.05cm 0 0 0; line-height: 1.2; }
+    .report-subtitle { font-size: 10.5pt; color: #475569; margin: 0.05cm 0 0.45cm 0; }
+
+    h2.section-title { font-size: 12pt; font-weight: 700; color: #192A44; margin: 0.55cm 0 0.2cm 0; }
+    h2.section-title span { color: #316FD3; }
+
+    table.meta { width: 100%; border-collapse: separate; border-spacing: 0; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; }
+    table.meta td { padding: 0.16cm 0.3cm; vertical-align: top; width: 25%; }
+    table.meta .label { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; }
+    table.meta .value { display: block; font-weight: 600; color: #192A44; }
+
+    table.kpis { width: 100%; border-collapse: separate; border-spacing: 0.25cm 0; margin: 0.45cm -0.25cm 0 -0.25cm; }
+    table.kpis td { width: 25%; border: 1px solid #E2E8F0; border-top: 3px solid #316FD3; border-radius: 6px; padding: 0.22cm 0.35cm; background: #FFFFFF; }
+    table.kpis .kpi-value { font-size: 18pt; font-weight: 700; color: #192A44; line-height: 1.15; }
+    table.kpis .kpi-label { font-size: 7.5pt; color: #64748B; }
+
+    .bar { width: 100%; height: 0.38cm; border-radius: 4px; overflow: hidden; background: #E2E8F0; }
+    .bar table { width: 100%; height: 0.38cm; border-collapse: collapse; }
+    .bar td { padding: 0; height: 0.38cm; }
+    .bar.small, .bar.small table, .bar.small td { height: 0.22cm; }
+
+    .legend { margin-top: 0.15cm; }
+    .legend span.item { display: inline-block; margin-right: 0.45cm; font-size: 7.5pt; color: #334155; }
+    .swatch { display: inline-block; width: 0.22cm; height: 0.22cm; border-radius: 2px; vertical-align: -0.02cm; margin-right: 0.08cm; }
+
+    .r-compliant { background: #16A34A; }
+    .r-partially_compliant { background: #F59E0B; }
+    .r-non_compliant { background: #DC2626; }
+    .r-not_applicable { background: #64748B; }
+    .r-not_assessed { background: #CBD5E1; }
+
+    table.breakdown { width: 100%; border-collapse: collapse; }
+    table.breakdown th { font-size: 7pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B; border-bottom: 1px solid #CBD5E1; padding: 0.1cm 0.15cm; }
+    table.breakdown td { border-bottom: 1px solid #EEF2F6; padding: 0.12cm 0.15cm; vertical-align: middle; }
+    table.breakdown .num { text-align: right; width: 1.6cm; }
+    table.breakdown .name { font-weight: 600; color: #192A44; }
+    table.breakdown tr.total td { font-weight: 700; color: #192A44; border-top: 1px solid #CBD5E1; border-bottom: none; }
+
+    .detail-start { page-break-before: always; }
+    .section-band { background: #192A44; color: #FFFFFF; border-radius: 5px; padding: 0.16cm 0.35cm; margin: 0.4cm 0 0.15cm 0; page-break-after: avoid; }
+    .section-band .ref { color: #93C5FD; font-weight: 700; margin-right: 0.2cm; }
+    .section-band .name { font-weight: 700; font-size: 10pt; }
+    .section-band .stats { float: right; font-size: 7.5pt; color: #CBD5E1; padding-top: 0.06cm; }
+    .detail-start .section-band:first-of-type { margin-top: 0.1cm; }
+    .group-title { font-size: 9pt; font-weight: 700; color: #316FD3; margin: 0.25cm 0 0.1cm 0; page-break-after: avoid; }
+    .group-title .ref { color: #192A44; margin-right: 0.15cm; }
+
+    table.req { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0.15cm; }
+    table.req thead th { background: #EEF3FB; color: #192A44; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.1cm 0.15cm; border-bottom: 1px solid #C7D5EE; }
+    table.req td { padding: 0.13cm 0.15cm; vertical-align: top; border-bottom: 1px solid #E2E8F0; font-size: 8pt; }
+    table.req tr { page-break-inside: avoid; }
+    table.req tbody tr:nth-child(even) td { background: #FAFBFD; }
+    table.req .ref { font-weight: 700; color: #192A44; white-space: nowrap; }
+    table.req .req-name { font-weight: 600; color: #192A44; display: block; }
+    table.req .req-text { color: #475569; display: block; }
+    table.req .center { text-align: center; }
+    [dir="rtl"] { direction: rtl; text-align: right; }
+    table.req ul { margin: 0; padding: 0; }
+    table.req li { margin: 0 0 0.05cm 0; }
+
+    .pill { display: inline-block; padding: 0.02cm 0.18cm; border-radius: 9999px; font-size: 7pt; font-weight: 600; color: #FFFFFF; white-space: nowrap; }
+    .pill.r-not_assessed { color: #334155; }
 </style>
 
-<div class="muhkam-header"><img src="{% muhkam_logo %}" alt="Muhkam"></div>
-<div class="muhkam-footer">Muhkam &middot; {{ compliance_assessment.name }} &middot; {% trans "Assessment report" %}</div>
+<div class="report-header">
+    <table><tr>
+        <td><img src="{% muhkam_logo %}" alt="Muhkam"></td>
+        <td class="title"><strong>{{ compliance_assessment.name }}</strong> &middot; {% trans "Assessment report" %}</td>
+    </tr></table>
+</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on|date:"Y-m-d H:i" }}</div>
 
-<main class="p-2 m-2 main">
-    <h1 class="flex justify-center">{% trans "Assessment report" %}</h1>
+<main>
+    <p class="eyebrow">{% trans "Compliance assessment report" %}</p>
+    <h1 class="report-title">{{ compliance_assessment.name }}</h1>
+    <p class="report-subtitle">{{ compliance_assessment.framework }}</p>
 
-    <table class="meta-table m-2">
+    <table class="meta">
         <tr>
-            <td class="font-semibold">{% trans "Domain" %}:</td>
-            <td>{{ compliance_assessment.perimeter.folder }}</td>
-            <td class="font-semibold">{% trans "Perimeter" %}:</td>
-            <td>{{ compliance_assessment.perimeter.name }}</td>
+            <td><span class="label">{% trans "Domain" %}</span><span class="value">{{ compliance_assessment.folder|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ compliance_assessment.perimeter.name|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Version" %}</span><span class="value">{{ compliance_assessment.version|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Status" %}</span><span class="value">{{ compliance_assessment.get_status_display|default:"—" }}</span></td>
         </tr>
         <tr>
-            <td class="font-semibold">{% trans "Audit" %}:</td>
-            <td>{{ compliance_assessment.name }} - {{ compliance_assessment.version }}</td>
-            <td class="font-semibold">{% trans "Framework" %}:</td>
-            <td>{{ compliance_assessment.framework }}</td>
-        </tr>
-        <tr>
-            <td class="font-semibold">{% trans "Status" %}:</td>
-            <td>{{ compliance_assessment.get_status_display|default:"--" }}</td>
-            <td class="font-semibold">{% trans "Requirements" %}:</td>
-            <td>{{ total_count }}</td>
+            <td><span class="label">{% trans "Reference" %}</span><span class="value">{{ compliance_assessment.ref_id|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Due date" %}</span><span class="value">{{ compliance_assessment.due_date|date:"Y-m-d"|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Authors" %}</span><span class="value">{% for actor in compliance_assessment.authors.all %}{{ actor }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span></td>
+            <td><span class="label">{% trans "Reviewers" %}</span><span class="value">{% for actor in compliance_assessment.reviewers.all %}{{ actor }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span></td>
         </tr>
     </table>
 
-    <p class="p-2 m-2 text-lg font-semibold">{% trans "Results summary" %}</p>
-    <table class="summary m-2">
-        <thead>
-            <tr>
-                {% for key, label in result_labels.items %}
-                    <th>{{ label }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                {% for key, label in result_labels.items %}
-                    <td class="text-center">{{ result_counts|get_item:key|default:0 }}</td>
-                {% endfor %}
-            </tr>
-        </tbody>
+    <table class="kpis">
+        <tr>
+            <td><div class="kpi-value">{{ summary.total }}</div><div class="kpi-label">{% trans "Assessable requirements" %}</div></td>
+            <td><div class="kpi-value">{{ summary.progress_pct }}%</div><div class="kpi-label">{% trans "Assessed" %} ({{ summary.assessed }} / {{ summary.total }})</div></td>
+            <td><div class="kpi-value">{% if summary.has_applicable %}{{ summary.compliance_pct }}%{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Compliant, of assessed and applicable" %}</div></td>
+            <td><div class="kpi-value">{% if average_score is not None %}{{ average_score }}{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Average score" %}{% if average_score is not None %} ({{ compliance_assessment.min_score }}–{{ compliance_assessment.max_score }}, {{ scored_count }} {% trans "scored" %}){% endif %}</div></td>
+        </tr>
     </table>
 
-    <p class="p-2 m-2 text-lg font-semibold">{% trans "Requirements" %}</p>
-    <table class="req m-2">
+    <h2 class="section-title">{% trans "Results" %}</h2>
+    <div class="bar"><table><tr>
+        {% for r in summary.results %}{% if r.count %}<td class="r-{{ r.key }}" style="width: {{ r.pct }}%"></td>{% endif %}{% endfor %}
+    </tr></table></div>
+    <div class="legend">
+        {% for r in summary.results %}
+            <span class="item"><span class="swatch r-{{ r.key }}"></span>{{ r.label }}: <strong>{{ r.count }}</strong> ({{ r.pct }}%)</span>
+        {% endfor %}
+    </div>
+
+    <h2 class="section-title">{% trans "Results by section" %}</h2>
+    <table class="breakdown">
         <thead>
-            <tr class="uppercase">
-                <th>{% trans "Ref" %}</th>
-                <th>{% trans "Requirement" %}</th>
-                <th>{% trans "Result" %}</th>
-                <th>{% trans "Score" %}</th>
-                <th>{% trans "Observation" %}</th>
-                <th>{% trans "Applied controls" %}</th>
-                <th>{% trans "Evidences" %}</th>
+            <tr>
+                <th>{% trans "Section" %}</th>
+                <th class="num">{% trans "Total" %}</th>
+                {% for r in summary.results %}<th class="num">{{ r.label }}</th>{% endfor %}
+                <th style="width: 4.2cm">{% trans "Distribution" %}</th>
+                <th class="num">{% trans "Compliant" %} %</th>
             </tr>
         </thead>
         <tbody>
-            {% for ra in requirement_assessments %}
+            {% for section in sections %}
             <tr>
-                <td>{{ ra.requirement.ref_id|default:"--" }}</td>
-                <td>{{ ra.requirement.description|default:ra.requirement.name|default:"--"|linebreaksbr }}</td>
-                <td>{{ ra.get_result_display }}</td>
-                <td class="text-center">
-                    {% if ra.is_scored %}{{ ra.score|default_if_none:"--" }}{% else %}--{% endif %}
-                </td>
-                <td>{{ ra.observation|default:"--"|linebreaksbr }}</td>
+                <td class="name">{% if section.node %}{{ section.node.ref_id }} {{ section.node.name }}{% else %}{% trans "Requirements" %}{% endif %}</td>
+                <td class="num">{{ section.breakdown.total }}</td>
+                {% for r in section.breakdown.results %}<td class="num{% if not r.count %} muted{% endif %}">{{ r.count }}</td>{% endfor %}
                 <td>
-                    {% for ac in ra.applied_controls.all %}
-                        {{ ac.name }}<br>
-                    {% empty %}--{% endfor %}
+                    <div class="bar small"><table><tr>
+                        {% for r in section.breakdown.results %}{% if r.count %}<td class="r-{{ r.key }}" style="width: {{ r.pct }}%"></td>{% endif %}{% endfor %}
+                    </tr></table></div>
                 </td>
-                <td>
-                    {% for ev in ra.evidences.all %}
-                        {{ ev.name }}<br>
-                    {% empty %}--{% endfor %}
-                </td>
+                <td class="num">{% if section.breakdown.has_applicable %}{{ section.breakdown.compliance_pct }}%{% else %}<span class="muted">—</span>{% endif %}</td>
             </tr>
-            {% empty %}
-            <tr><td colspan="7" class="text-center">{% trans "No entries found" %}</td></tr>
             {% endfor %}
+            {% if sections|length > 1 %}
+            <tr class="total">
+                <td>{% trans "Total" %}</td>
+                <td class="num">{{ summary.total }}</td>
+                {% for r in summary.results %}<td class="num">{{ r.count }}</td>{% endfor %}
+                <td></td>
+                <td class="num">{% if summary.has_applicable %}{{ summary.compliance_pct }}%{% else %}—{% endif %}</td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
+
+    <div class="detail-start">
+        <h2 class="section-title" style="margin-top: 0">{% trans "Detailed results" %}</h2>
+        {% for section in sections %}
+            <div class="section-band">
+                <span class="stats">{{ section.breakdown.total }} {% trans "requirements" %} &middot; {{ section.breakdown.progress_pct }}% {% trans "assessed" %}</span>
+                {% if section.node %}<span class="ref">{{ section.node.ref_id }}</span><span class="name">{{ section.node.name }}</span>{% else %}<span class="name">{% trans "Requirements" %}</span>{% endif %}
+            </div>
+            {% for group in section.groups %}
+                {% if group.node %}
+                    <div class="group-title"><span class="ref">{{ group.node.ref_id }}</span>{{ group.node.name }}</div>
+                {% endif %}
+                <table class="req">
+                    <colgroup>
+                        <col style="width: 7%"><col style="width: 37%"><col style="width: 10%"><col style="width: 5%">
+                        <col style="width: 17%"><col style="width: 12%"><col style="width: 12%">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>{% trans "Ref" %}</th>
+                            <th>{% trans "Requirement" %}</th>
+                            <th>{% trans "Result" %}</th>
+                            <th class="center">{% trans "Score" %}</th>
+                            <th>{% trans "Observation" %}</th>
+                            <th>{% trans "Applied controls" %}</th>
+                            <th>{% trans "Evidences" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ra in group.rows %}
+                        <tr>
+                            <td class="ref">{{ ra.requirement.ref_id|default:"—" }}</td>
+                            <td>
+                                {% if ra.requirement.name %}<span class="req-name" dir="{{ ra.requirement.name|text_dir }}">{{ ra.requirement.name }}</span>{% endif %}
+                                {% if ra.requirement.description %}<span class="req-text" dir="{{ ra.requirement.description|text_dir }}">{{ ra.requirement.description|linebreaksbr }}</span>{% endif %}
+                            </td>
+                            <td><span class="pill r-{{ ra.result }}">{{ ra.get_result_display }}</span></td>
+                            <td class="center">{% if ra.is_scored and ra.score is not None %}{{ ra.score }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                            <td>{% if ra.observation %}<div dir="{{ ra.observation|text_dir }}">{{ ra.observation|linebreaksbr }}</div>{% else %}<span class="muted">—</span>{% endif %}</td>
+                            <td>
+                                {% with controls=ra.applied_controls.all %}
+                                {% if controls %}<ul>{% for ac in controls %}<li>{{ ac.name }}</li>{% endfor %}</ul>{% else %}<span class="muted">—</span>{% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with evidences=ra.evidences.all %}
+                                {% if evidences %}<ul>{% for ev in evidences %}<li>{{ ev.name }}</li>{% endfor %}</ul>{% else %}<span class="muted">—</span>{% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        {% empty %}
+            <p class="muted">{% trans "No entries found" %}</p>
+        {% endfor %}
+    </div>
 </main>
 {% endblock %}

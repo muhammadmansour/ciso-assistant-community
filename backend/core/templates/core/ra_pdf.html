@@ -1,4 +1,186 @@
 {% extends 'core/base_pdf.html' %}
 {% block content %}
-{% include 'snippets/ra_data.html' with pdf=True scenarios=context settings=settings %}
+{% load i18n core_extras %}
+{% include 'core/_report_pdf_styles.html' %}
+
+<style>
+    table.dist { width: 100%; border-collapse: collapse; }
+    table.dist td { padding: 0.08cm 0; vertical-align: middle; }
+    table.dist td.label { width: 2.2cm; font-weight: 600; color: #192A44; }
+    table.dist td.counts { width: 45%; padding-left: 0.3cm; font-size: 7.5pt; color: #334155; }
+    table.dist td.counts span { margin-right: 0.3cm; white-space: nowrap; }
+
+    table.matrices { width: 100%; border-collapse: separate; border-spacing: 0.3cm 0; margin: 0 -0.3cm; table-layout: fixed; }
+    table.matrices > tbody > tr > td { vertical-align: top; border: 1px solid #E2E8F0; border-radius: 6px; padding: 0.2cm 0.25cm; }
+    .matrix-title { font-weight: 700; color: #192A44; font-size: 9.5pt; margin-bottom: 0.12cm; }
+    table.matrix { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; }
+    table.matrix td { height: 1.15cm; text-align: center; vertical-align: middle; border-radius: 3px; font-size: 7pt; font-weight: 600; color: #1E293B; padding: 1px; word-wrap: break-word; }
+    table.matrix td.axis { background: #EEF3FB; color: #192A44; font-size: 6.5pt; font-weight: 600; height: auto; padding: 0.06cm; }
+    table.matrix td.corner { background: none; }
+    .axis-caption { font-size: 7pt; color: #64748B; text-align: center; margin-top: 0.05cm; }
+    .axis-caption strong { color: #192A44; }
+
+    table.levels { width: 100%; border-collapse: collapse; margin-top: 0.15cm; }
+    table.levels td { padding: 0.08cm 0.15cm; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
+    table.levels td.swatch-cell { width: 0.7cm; }
+    table.levels td.name { width: 18%; font-weight: 600; color: #192A44; }
+</style>
+
+<div class="report-header">
+    <table><tr>
+        <td><img src="{% muhkam_logo %}" alt="Muhkam"></td>
+        <td class="title"><strong>{{ assessment.name }}</strong> &middot; {% trans "Risk assessment report" %}</td>
+    </tr></table>
+</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on }}</div>
+
+<main>
+    <p class="eyebrow">{% trans "Risk assessment report" %}</p>
+    <h1 class="report-title" dir="{{ assessment.name|text_dir }}">{{ assessment.name }}</h1>
+    <p class="report-subtitle">{{ assessment.risk_matrix }}</p>
+
+    <table class="meta">
+        <tr>
+            <td><span class="label">{% trans "Domain" %}</span><span class="value">{{ assessment.folder|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ assessment.perimeter|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Version" %}</span><span class="value">{{ assessment.version|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Status" %}</span><span class="value">{{ assessment.status|default:"—" }}</span></td>
+        </tr>
+        <tr>
+            <td><span class="label">{% trans "Reference" %}</span><span class="value">{{ assessment.ref_id|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Risk tolerance" %}</span><span class="value">{% if tolerance %}<span class="level" style="background: {{ tolerance.color }}; color: {{ tolerance.text }}">{{ tolerance.name }}</span>{% else %}—{% endif %}</span></td>
+            <td><span class="label">{% trans "Authors" %}</span><span class="value">{{ assessment.authors|join:", "|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Reviewers" %}</span><span class="value">{{ assessment.reviewers|join:", "|default:"—" }}</span></td>
+        </tr>
+        <tr>
+            <td><span class="label">{% trans "ETA" %}</span><span class="value">{{ assessment.eta|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Due date" %}</span><span class="value">{{ assessment.due_date|default:"—" }}</span></td>
+            <td colspan="2"><span class="label">{% trans "Risk matrix" %}</span><span class="value">{{ assessment.risk_matrix }}</span></td>
+        </tr>
+    </table>
+    {% if assessment.description %}<p class="description" dir="{{ assessment.description|text_dir }}">{{ assessment.description|linebreaksbr }}</p>{% endif %}
+
+    <table class="kpis">
+        <tr>
+            <td><div class="kpi-value">{{ summary.total }}</div><div class="kpi-label">{% trans "Risk scenarios" %} · {{ summary.rated }} {% trans "rated" %}</div></td>
+            <td class="{% if summary.current_above %}alert{% endif %}"><div class="kpi-value">{% if summary.has_tolerance %}{{ summary.current_above }}{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Current risk above tolerance" %}</div></td>
+            <td class="{% if summary.residual_above %}alert{% endif %}"><div class="kpi-value">{% if summary.has_tolerance %}{{ summary.residual_above }}{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Residual risk above tolerance" %}</div></td>
+            <td class="{% if summary.open %}alert{% endif %}"><div class="kpi-value">{{ summary.open }}</div><div class="kpi-label">{% trans "Untreated (open)" %}</div></td>
+            <td><div class="kpi-value">{{ controls.items|length }}</div><div class="kpi-label">{% trans "Treatment controls" %} · {{ controls.done }} {% trans "active" %}</div></td>
+            <td class="{% if controls.overdue %}alert{% endif %}"><div class="kpi-value">{{ controls.overdue }}</div><div class="kpi-label">{% trans "Overdue controls" %}</div></td>
+        </tr>
+    </table>
+
+    {% if attention %}
+    <div class="attention">
+        <div class="title">{% trans "Points needing attention" %}</div>
+        <ul>{% for point in attention %}<li>{{ point }}</li>{% endfor %}</ul>
+    </div>
+    {% else %}
+    <div class="attention ok"><div class="title">{% trans "No open issues detected" %}</div></div>
+    {% endif %}
+
+    <h2 class="block-title">{% trans "Risk level distribution" %}</h2>
+    <table class="dist">
+        {% for d in distribution %}
+        <tr>
+            <td class="label">{{ d.label }}</td>
+            <td><div class="bar"><table><tr>{% for l in d.levels %}{% if l.count %}<td style="width: {{ l.pct }}%; background: {{ l.color }}"></td>{% endif %}{% endfor %}</tr></table></div></td>
+            <td class="counts">{% for l in d.levels %}{% if l.count %}<span><span class="swatch" style="background: {{ l.color }}"></span>{{ l.name }}: <strong>{{ l.count }}</strong></span>{% endif %}{% endfor %}{% if not summary.total %}<span class="muted">{% trans "No scenarios" %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2 class="block-title">{% trans "Treatment decisions" %}</h2>
+    <div class="bar"><table><tr>{% for t in treatments %}{% if t.count %}<td style="width: {{ t.pct }}%; background: {{ t.color }}"></td>{% endif %}{% endfor %}</tr></table></div>
+    <div class="legend">
+        {% for t in treatments %}<span class="item"><span class="swatch" style="background: {{ t.color }}"></span>{{ t.label }}: <strong>{{ t.count }}</strong> ({{ t.pct }}%)</span>{% endfor %}
+    </div>
+
+    <div class="chapter">
+        <div class="chapter-band"><span class="stats">{{ risk_levels|length }} {% trans "risk levels" %}</span><span class="num">1</span><span class="name">{% trans "Risk matrices" %}</span></div>
+        <table class="matrices"><tr>
+            {% for m in matrices %}
+            <td>
+                <div class="matrix-title">{{ m.title }}</div>
+                <table class="matrix">
+                    {% for row in m.rows %}
+                    <tr>
+                        <td class="axis" title="{{ row.title }}">{{ row.label }}</td>
+                        {% for cell in row.cells %}<td style="background: {{ cell.color }}; color: {{ cell.text }}">{{ cell.refs|join:", " }}</td>{% endfor %}
+                    </tr>
+                    {% endfor %}
+                    <tr>
+                        <td class="corner"></td>
+                        {% for col in m.columns %}<td class="axis">{{ col.label }}</td>{% endfor %}
+                    </tr>
+                </table>
+                <div class="axis-caption">{% trans "Rows" %}: <strong>{{ m.row_axis }}</strong> · {% trans "Columns" %}: <strong>{{ m.col_axis }}</strong></div>
+            </td>
+            {% endfor %}
+        </tr></table>
+
+        <h2 class="block-title">{% trans "Risk levels" %}</h2>
+        <table class="levels">
+            {% for r in risk_levels %}
+            <tr>
+                <td class="swatch-cell"><span class="level" style="background: {{ r.color }}; color: {{ r.text }}">{{ r.abbr|default:"&nbsp;" }}</span></td>
+                <td class="name">{{ r.name }}</td>
+                <td>{{ r.description|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="chapter">
+        <div class="chapter-band"><span class="stats">{{ summary.total }} {% trans "scenarios" %}</span><span class="num">2</span><span class="name">{% trans "Risk scenarios" %}</span></div>
+        {% if scenarios %}
+        <table class="grid">
+            <colgroup>
+                <col style="width: 5%"><col style="width: {% if include_inherent %}16%{% else %}19%{% endif %}"><col style="width: 10%"><col style="width: 9%"><col style="width: 11%">
+                {% if include_inherent %}<col style="width: 7%">{% endif %}
+                <col style="width: 7.5%"><col style="width: 7%"><col style="width: 12%"><col style="width: 7.5%"><col style="width: 5%"><col style="width: 7%">
+            </colgroup>
+            <thead><tr>
+                <th>{% trans "Ref" %}</th><th>{% trans "Scenario" %}</th><th>{% trans "Threats" %}</th><th>{% trans "Assets" %}</th><th>{% trans "Existing controls" %}</th>
+                {% if include_inherent %}<th>{% trans "Inherent" %}</th>{% endif %}
+                <th>{% trans "Current" %}</th><th>{% trans "Treatment" %}</th><th>{% trans "Treatment controls" %}</th><th>{% trans "Residual" %}</th><th>{% trans "SoK" %}</th><th>{% trans "Owner" %}</th>
+            </tr></thead>
+            <tbody>
+            {% for s in scenarios %}
+                <tr>
+                    <td class="strong">{{ s.ref_id|default:"—" }}</td>
+                    <td><span class="strong" dir="{{ s.name|text_dir }}">{{ s.name }}</span>{% if s.description %}<span class="desc" dir="{{ s.description|text_dir }}">{{ s.description|truncatechars:220 }}</span>{% endif %}</td>
+                    <td>{{ s.threats|join:", "|default:"—" }}</td>
+                    <td>{{ s.assets|join:", "|default:"—" }}</td>
+                    <td>{% if s.existing_controls %}{{ s.existing_controls|join:", " }}{% endif %}{% if s.existing_text %}<span class="desc">{{ s.existing_text|truncatechars:160 }}</span>{% endif %}{% if not s.existing_controls and not s.existing_text %}<span class="muted">—</span>{% endif %}</td>
+                    {% if include_inherent %}<td><span class="level" style="background: {{ s.inherent.color }}; color: {{ s.inherent.text }}">{{ s.inherent.name }}</span></td>{% endif %}
+                    <td><span class="level" style="background: {{ s.current.color }}; color: {{ s.current.text }}">{{ s.current.name }}</span>{% if s.current_above %}<span class="desc" style="color: #DC2626">{% trans "Above tolerance" %}</span>{% endif %}</td>
+                    <td><span class="pill" style="background: {{ s.treatment_color }}">{{ s.treatment_label }}</span></td>
+                    <td>{% for c in s.controls %}<div><span class="dot" style="background: {{ c.color }}"></span>{{ c.name }}</div>{% empty %}<span class="muted">—</span>{% endfor %}</td>
+                    <td><span class="level" style="background: {{ s.residual.color }}; color: {{ s.residual.text }}">{{ s.residual.name }}</span>{% if s.residual_above %}<span class="desc" style="color: #DC2626">{% trans "Above tolerance" %}</span>{% endif %}</td>
+                    <td>{{ s.sok_symbol }} {{ s.sok }}</td>
+                    <td>{{ s.owners|join:", "|default:"—" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">{% trans "No risk scenarios have been added to this assessment yet." %}</div>
+        {% endif %}
+    </div>
+
+    <div class="chapter">
+        <div class="chapter-band"><span class="stats">{{ controls.items|length }} {% trans "controls" %}{% if controls.overdue %} · {{ controls.overdue }} {% trans "overdue" %}{% endif %}</span><span class="num">3</span><span class="name">{% trans "Treatment plan" %}</span></div>
+        {% if controls.items %}
+        <div class="bar"><table><tr>{% for st in controls.by_status %}{% if st.count %}<td style="width: {{ st.pct }}%; background: {{ st.color }}"></td>{% endif %}{% endfor %}</tr></table></div>
+        <div class="legend" style="margin-bottom: 0.2cm">
+            {% for st in controls.by_status %}<span class="item"><span class="swatch" style="background: {{ st.color }}"></span>{{ st.label }}: <strong>{{ st.count }}</strong></span>{% endfor %}
+        </div>
+        {% include 'core/_risk_controls_table.html' with items=controls.items %}
+        {% else %}
+        <div class="empty">{% trans "No treatment controls are linked to the scenarios of this assessment." %}</div>
+        {% endif %}
+    </div>
+</main>
 {% endblock %}

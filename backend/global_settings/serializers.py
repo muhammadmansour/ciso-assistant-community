@@ -214,7 +214,7 @@ class FeatureFlagsSerializer(serializers.ModelSerializer):
         source="value.contracts", required=False, default=False
     )
     reports = serializers.BooleanField(
-        source="value.reports", required=False, default=False
+        source="value.reports", required=False, default=True
     )
     validation_flows = serializers.BooleanField(
         source="value.validation_flows", required=False, default=False

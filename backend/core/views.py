@@ -36,6 +36,7 @@ from django.db.models import (
     ManyToManyField,
     QuerySet,
     Prefetch,
+    prefetch_related_objects,
 )
 from django.db.models.functions import Greatest, Coalesce
 
@@ -159,6 +160,10 @@ from core.models import (
     RiskMatrix,
     RiskScenario,
     AssetClass,
+)
+from core.risk_assessment_pdf import (
+    risk_action_plan_pdf_context,
+    risk_assessment_pdf_context,
 )
 from core.serializers import ComplianceAssessmentReadSerializer
 from core.utils import (
@@ -3374,49 +3379,27 @@ class RiskAssessmentViewSet(BaseModelViewSet):
         )
         if UUID(pk) in object_ids_view:
             risk_assessment = self.get_object()
-            context = RiskScenario.objects.filter(
-                risk_assessment=risk_assessment
-            ).order_by("ref_id")
-            for scenario in context:
-                scenario.strength_of_knowledge = RiskScenario.DEFAULT_SOK_OPTIONS[
-                    scenario.strength_of_knowledge
-                ]["name"]
             general_settings = GlobalSettings.objects.filter(name="general").first()
-            swap_axes = general_settings.value.get("risk_matrix_swap_axes", False)
-            flip_vertical = general_settings.value.get(
-                "risk_matrix_flip_vertical", False
-            )
-            matrix_settings = {
-                "swap_axes": "_swapaxes" if swap_axes else "",
-                "flip_vertical": "_vflip" if flip_vertical else "",
-            }
+            general_values = general_settings.value if general_settings else {}
             ff_settings = GlobalSettings.objects.filter(
                 name=GlobalSettings.Names.FEATURE_FLAGS
             ).first()
-            if ff_settings is None:
-                feature_flags = {}
-            else:
-                feature_flags = ff_settings.value
-            data = {
-                "context": context,
-                "risk_assessment": risk_assessment,
-                "ri_clusters": build_scenario_clusters(
-                    risk_assessment,
-                    include_inherent=feature_flags.get("inherent_risk", False),
-                ),
-                "risk_matrix": risk_assessment.risk_matrix,
-                "settings": matrix_settings,
-                "feature_flags": feature_flags,
-            }
-            if not WEASYPRINT_AVAILABLE:
-                return Response(
-                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
-                    status=status.HTTP_501_NOT_IMPLEMENTED
+            feature_flags = ff_settings.value if ff_settings else {}
+            data = risk_assessment_pdf_context(
+                risk_assessment,
+                include_inherent=feature_flags.get("inherent_risk", False),
+                swap_axes=general_values.get("risk_matrix_swap_axes", False),
+                flip_vertical=general_values.get("risk_matrix_flip_vertical", False),
+            )
+            try:
+                pdf_file = _render_weasyprint_pdf(
+                    render_to_string("core/ra_pdf.html", data)
                 )
-            html = render_to_string("core/ra_pdf.html", data)
-            pdf_file = HTML(string=html).write_pdf()
-            response = HttpResponse(pdf_file, content_type="application/pdf")
-            return response
+            except RuntimeError as exc:
+                return Response(
+                    {"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED
+                )
+            return HttpResponse(pdf_file, content_type="application/pdf")
         else:
             return Response({"error": "Permission denied"})
 
@@ -3426,49 +3409,16 @@ class RiskAssessmentViewSet(BaseModelViewSet):
             Folder.get_root_folder(), request.user, RiskAssessment
         )
         if UUID(pk) in object_ids_view:
-            context = {
-                "to_do": list(),
-                "in_progress": list(),
-                "on_hold": list(),
-                "active": list(),
-                "deprecated": list(),
-                "--": list(),
-            }
-            color_map = {
-                "to_do": "#FFF8F0",
-                "in_progress": "#392F5A",
-                "on_hold": "#F4D06F",
-                "active": "#9DD9D2",
-                "deprecated": "#ff8811",
-                "--": "#e5e7eb",
-            }
-            status = AppliedControl.Status.choices
-            risk_assessment_object: RiskAssessment = self.get_object()
-            risk_scenarios_objects = risk_assessment_object.risk_scenarios.all()
-            applied_controls = (
-                AppliedControl.objects.filter(risk_scenarios__in=risk_scenarios_objects)
-                .distinct()
-                .order_by("eta")
-            )
-            for applied_control in applied_controls:
-                context[applied_control.status].append(
-                    applied_control
-                ) if applied_control.status else context["--"].append(applied_control)
-            data = {
-                "status_text": status,
-                "color_map": color_map,
-                "context": context,
-                "risk_assessment": risk_assessment_object,
-            }
-            if not WEASYPRINT_AVAILABLE:
-                return Response(
-                    {"error": "PDF export is not available. WeasyPrint library is not installed."},
-                    status=status.HTTP_501_NOT_IMPLEMENTED
+            data = risk_action_plan_pdf_context(self.get_object())
+            try:
+                pdf_file = _render_weasyprint_pdf(
+                    render_to_string("core/risk_action_plan_pdf.html", data)
                 )
-            html = render_to_string("core/risk_action_plan_pdf.html", data)
-            pdf_file = HTML(string=html).write_pdf()
-            response = HttpResponse(pdf_file, content_type="application/pdf")
-            return response
+            except RuntimeError as exc:
+                return Response(
+                    {"error": str(exc)}, status=status.HTTP_501_NOT_IMPLEMENTED
+                )
+            return HttpResponse(pdf_file, content_type="application/pdf")
         else:
             return Response({"error": "Permission denied"})
 
@@ -9016,6 +8966,120 @@ class CampaignViewSet(BaseModelViewSet):
                 compliance_assessment.create_requirement_assessments()
 
 
+PDF_RESULT_ORDER = [
+    "compliant",
+    "partially_compliant",
+    "non_compliant",
+    "not_applicable",
+    "not_assessed",
+]
+
+
+def _pdf_percent(part, whole):
+    return round(part * 100 / whole) if whole else 0
+
+
+def _pdf_result_breakdown(rows, labels):
+    counts = {key: 0 for key in PDF_RESULT_ORDER}
+    for ra in rows:
+        counts[ra.result if ra.result in counts else "not_assessed"] += 1
+    total = len(rows)
+    assessed = total - counts["not_assessed"]
+    applicable = assessed - counts["not_applicable"]
+    return {
+        "total": total,
+        "assessed": assessed,
+        "progress_pct": _pdf_percent(assessed, total),
+        "compliance_pct": _pdf_percent(counts["compliant"], applicable),
+        "has_applicable": applicable > 0,
+        "results": [
+            {
+                "key": key,
+                "label": str(labels.get(key, key)),
+                "count": counts[key],
+                "pct": _pdf_percent(counts[key], total),
+            }
+            for key in PDF_RESULT_ORDER
+        ],
+    }
+
+
+def _compliance_assessment_pdf_context(compliance_assessment, requirement_assessments=None):
+    """Context for the assessment report PDF: rows grouped under their
+    framework sections, with overall and per-section result breakdowns."""
+    if requirement_assessments is None:
+        requirement_assessments = list(
+            compliance_assessment.get_requirement_assessments(
+                include_non_assessable=False
+            )
+        )
+    rows = list(requirement_assessments)
+    prefetch_related_objects(rows, "requirement", "applied_controls", "evidences")
+
+    nodes = {
+        node.urn: node
+        for node in RequirementNode.objects.filter(
+            framework=compliance_assessment.framework
+        ).only("urn", "parent_urn", "ref_id", "name", "order_id")
+    }
+
+    def ancestors(node):
+        chain = []
+        parent = nodes.get(node.parent_urn) if node.parent_urn else None
+        while parent is not None and len(chain) < 20:
+            chain.append(parent)
+            parent = nodes.get(parent.parent_urn) if parent.parent_urn else None
+        return list(reversed(chain))
+
+    placed = []
+    for ra in rows:
+        chain = ancestors(ra.requirement)
+        sort_key = tuple(node.order_id or 0 for node in [*chain, ra.requirement])
+        placed.append((sort_key, chain, ra))
+    placed.sort(key=lambda item: item[0])
+
+    labels = dict(RequirementAssessment.Result.choices)
+    sections = {}
+    for _, chain, ra in placed:
+        section_node = chain[0] if chain else None
+        group_node = chain[1] if len(chain) > 1 else None
+        section = sections.setdefault(
+            section_node.urn if section_node else "",
+            {"node": section_node, "groups": {}, "rows": []},
+        )
+        section["rows"].append(ra)
+        group = section["groups"].setdefault(
+            group_node.urn if group_node else "",
+            {"node": group_node, "rows": []},
+        )
+        group["rows"].append(ra)
+
+    section_list = []
+    for section in sections.values():
+        section_list.append(
+            {
+                "node": section["node"],
+                "groups": list(section["groups"].values()),
+                "breakdown": _pdf_result_breakdown(section["rows"], labels),
+            }
+        )
+
+    ordered_rows = [ra for _, _, ra in placed]
+    scores = [
+        ra.score for ra in ordered_rows if ra.is_scored and ra.score is not None
+    ]
+    return {
+        "compliance_assessment": compliance_assessment,
+        "requirement_assessments": ordered_rows,
+        "summary": _pdf_result_breakdown(ordered_rows, labels),
+        "sections": section_list,
+        "average_score": round(sum(scores) / len(scores), 1) if scores else None,
+        "scored_count": len(scores),
+        "generated_on": timezone.localtime(),
+        "total_count": len(ordered_rows),
+    }
+
+
 class ComplianceAssessmentViewSet(BaseModelViewSet):
     """
     API endpoint that allows compliance assessments to be viewed or edited.
@@ -9555,30 +9619,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                 status=status.HTTP_501_NOT_IMPLEMENTED,
             )
 
-        compliance_assessment_object: ComplianceAssessment = self.get_object()
-        requirement_assessments = (
-            compliance_assessment_object.get_requirement_assessments(
-                include_non_assessable=False
-            )
-        )
-        requirement_assessments = sorted(
-            requirement_assessments,
-            key=lambda ra: (ra.requirement.order_id or 0),
-        )
-
-        # Aggregate result counts for a small summary table.
-        result_labels = dict(RequirementAssessment.Result.choices)
-        result_counts = {key: 0 for key in result_labels}
-        for ra in requirement_assessments:
-            result_counts[ra.result] = result_counts.get(ra.result, 0) + 1
-
-        data = {
-            "compliance_assessment": compliance_assessment_object,
-            "requirement_assessments": requirement_assessments,
-            "result_labels": result_labels,
-            "result_counts": result_counts,
-            "total_count": len(requirement_assessments),
-        }
+        data = _compliance_assessment_pdf_context(self.get_object())
         try:
             html = render_to_string("core/compliance_assessment_pdf.html", data)
             pdf_file = _render_weasyprint_pdf(html)

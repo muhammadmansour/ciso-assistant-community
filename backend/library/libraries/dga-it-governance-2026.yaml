@@ -1,0 +1,1407 @@
+urn: urn:intuitem:risk:library:dga-it-gov-2026
+locale: en
+ref_id: DGA-1-2-5-108
+name: DGA IT Governance Controls 2026
+description: Controls for Information Technology Governance in Digital Government, document DGA-1-2-5-108, version 3.0, June 2026, issued by the Saudi Digital Government Authority. Public document. https://dga.gov.sa/en/regulatory-documents/IT-governance-controls-in-digital-government
+copyright: Digital Government Authority
+version: 3
+publication_date: '2026-06-01'
+provider: DGA
+packager: DGA
+objects:
+  framework:
+    urn: urn:intuitem:risk:framework:dga-it-gov-2026
+    ref_id: DGA-1-2-5-108
+    name: Controls for IT Governance in Digital Government
+    description: 'DGA-1-2-5-108, version 3.0, June 2026. Five levels: IT management, IT planning, building and implementing IT systems, realizing added value from IT, and performance monitoring and continuous improvement. Applies to government entities and operating entities that provide digital government services.'
+    min_score: 0
+    max_score: 100
+    requirement_nodes:
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+      assessable: false
+      depth: 1
+      ref_id: '7.1'
+      name: Information Technology Management
+      description: Enable senior management to oversee the maturity and effectiveness of Information Technology Governance within the entity.
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+      assessable: false
+      depth: 2
+      ref_id: 7.1.1
+      name: Operations Management Controls
+      description: Provide qualified human resources and appropriate skill sets to enable effective oversight and control of the overall Information Technology approach within government entities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01
+      assessable: true
+      depth: 3
+      ref_id: 5-108-01
+      name: IT Governance Steering Committee
+      description: Senior management of the government entity shall establish an internal steering committee to oversee IT governance operations, in compliance with Council of Ministers Resolution No. 40 dated 27/2/1427H.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-01.01
+      name: Committee chair
+      description: A senior executive from the entity's top management shall chair the Information Technology Governance Steering Committee. The chair shall be a Saudi national and shall possess experience commensurate with the assigned duties and responsibilities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-01.02
+      name: IT representative on the committee
+      description: The senior executive responsible for Information Technology, or their designated representative, shall be a member of the Committee.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-01.03
+      name: Representation of sectors and departments
+      description: Representation shall include members from relevant sectors and departments within the government entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-01
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02
+      assessable: true
+      depth: 3
+      ref_id: 5-108-02
+      name: Steering Committee charter
+      description: The Charter of the Information Technology Governance Steering Committee, after its adoption and circulation by senior management, shall contain at a minimum the elements in the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-02.01
+      name: Charter objectives and separation of duties
+      description: The charter shall state the objectives of the Steering Committee and define the roles and responsibilities of its members, including the principles of separation of duties and avoidance of conflicts of interest.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-02.02
+      name: Membership and voting
+      description: The charter shall determine the number of participants represented from sectors and departments in the meeting and the mechanism for voting on decisions.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-02.03
+      name: Meetings and reporting
+      description: The charter shall set the periodicity of meetings (at least quarterly) and the mechanism for documenting meetings and following up on decisions. Periodic reports shall be shared with the Digital Transformation Committee of the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02.04
+      assessable: true
+      depth: 4
+      ref_id: 5-108-02.04
+      name: Formal approval of the charter
+      description: The charter shall be documented and formally approved by the authorized authority, in accordance with the entity's internal governance and approval framework.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-02
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-03
+      assessable: true
+      depth: 3
+      ref_id: 5-108-03
+      name: IT financial controls
+      description: Establish financial controls for Information Technology-related activities, covering budgeting, cost management, and the prioritization of expenditures in alignment with the entity's strategic objectives and the IT strategy.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-04
+      assessable: true
+      depth: 3
+      ref_id: 5-108-04
+      name: Periodic IT budget review
+      description: Review the main IT budget periodically, and adjust it according to IT requirements and business needs.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-05
+      assessable: true
+      depth: 3
+      ref_id: 5-108-05
+      name: Workforce acquisition and succession
+      description: Develop a workforce acquisition and succession plan for attracting and retaining specialists across Information Technology departments, and clearly define critical and sensitive roles and responsibilities, in coordination with the Human Resources function.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.2
+      assessable: false
+      depth: 2
+      ref_id: 7.1.2
+      name: Information Technology Policies and Procedures Controls
+      description: Issue Information Technology policies and procedures that facilitate the implementation of principles, rules, and directives, so the entity can achieve its operational and strategic objectives.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-06
+      assessable: true
+      depth: 3
+      ref_id: 5-108-06
+      name: Adopt and implement IT policies
+      description: Adopt, disseminate, and implement Information Technology policies and procedures internally. They shall include, at a minimum, objectives, scope, and applicability; general and specific Information Technology roles and responsibilities; and linkage with relevant national legislative and regulatory controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-07
+      assessable: true
+      depth: 3
+      ref_id: 5-108-07
+      name: Primary IT policy
+      description: Establish a primary Information Technology policy aligned with other internal policies. It shall include, at a minimum, a Cybersecurity Policy, a Risk Policy and Business Continuity Policy, and a Human Resources Policy.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-08
+      assessable: true
+      depth: 3
+      ref_id: 5-108-08
+      name: Periodic policy update
+      description: Information Technology policies and procedures shall be updated periodically, at least annually or upon any major change in policy objectives or implemented procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.3
+      assessable: false
+      depth: 2
+      ref_id: 7.1.3
+      name: Roles and Responsibilities Definition Controls
+      description: Define the roles and responsibilities of authorized stakeholders in the governance and management of Information Technology, and ensure that all parties understand their roles.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+      assessable: true
+      depth: 3
+      ref_id: 5-108-09
+      name: Functions of the IT unit
+      description: Assign the head of the Information Technology unit to define and formalize the functions of the unit, including at a minimum the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.01
+      name: IT strategy and budget
+      description: Develop and implement the Information Technology strategy and budget.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.02
+      name: IT governance methodology
+      description: Establish an IT governance methodology aligned with the entity's digital transformation framework and obtain approval from relevant stakeholders.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.03
+      name: Governance and management responsibilities
+      description: Enhance responsibilities related to Information Technology governance and management practices.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.04
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.04
+      name: IT job descriptions
+      description: Approve all job descriptions for Information Technology personnel.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.05
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.05
+      name: IT KPIs and KRIs
+      description: Design and approve Key Performance Indicators and Key Risk Indicators for Information Technology, in coordination with relevant entities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.06
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.06
+      name: Compliance monitoring mechanism
+      description: Define a mechanism for monitoring compliance with Information Technology-related laws, policies, regulatory controls, and procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.07
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.07
+      name: Reporting of KPIs and KRIs
+      description: Define, monitor, and report on IT Key Performance Indicators, and oversee Key Risk Indicators.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.08
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.08
+      name: Incident reporting to the committee and DGA
+      description: Establish a mechanism for the continuous monitoring and reporting of Information Technology incidents to the IT Governance Steering Committee and the Digital Government Authority.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.09
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.09
+      name: Incident investigation
+      description: Define a mechanism to oversee the investigation of digital and technical incidents related to Information Technology within the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09.10
+      assessable: true
+      depth: 4
+      ref_id: 5-108-09.10
+      name: Personnel compliance with IT procedures
+      description: Establish a mechanism to ensure that all entity personnel comply with relevant Information Technology policies, regulatory controls, and operational procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-09
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+      assessable: false
+      depth: 2
+      ref_id: 7.1.4
+      name: Information Technology Risk Management Controls
+      description: Implement Information Technology risk management and align it with the entity's enterprise risk management framework, including identification, analysis, treatment, monitoring, and review, in accordance with DGA and relevant regulatory documents.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-10
+      assessable: true
+      depth: 3
+      ref_id: 5-108-10
+      name: IT risk management policies
+      description: Adopt, circulate, and implement Information Technology risk management policies and procedures internally.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-11
+      assessable: true
+      depth: 3
+      ref_id: 5-108-11
+      name: Alignment with DGA risk and continuity controls
+      description: Align Information Technology risk management policies and procedures with the controls issued for risk management and business continuity within the DGA framework and other relevant regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12
+      assessable: true
+      depth: 3
+      ref_id: 5-108-12
+      name: IT risk procedures
+      description: Prepare Information Technology risk management procedures in alignment with the entity's enterprise risk management processes, covering the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-12.01
+      name: Risk identification and treatment
+      description: Procedures for risk identification, analysis, classification, and treatment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-12.02
+      name: Risk reporting and escalation
+      description: Procedures for risk reporting and escalation mechanisms.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-12.03
+      name: Risk monitoring and periodic reporting
+      description: Procedures for risk monitoring, characterization, and periodic reporting.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-12
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-13
+      assessable: true
+      depth: 3
+      ref_id: 5-108-13
+      name: Risk management over the asset register
+      description: Implement Information Technology risk management processes on the register of the entity's digital and non-digital information assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-14
+      assessable: true
+      depth: 3
+      ref_id: 5-108-14
+      name: Risk assessment at defined stages
+      description: Conduct IT risk assessments at least at the initiation of technology programs, projects, and digital services; prior to critical and fundamental changes to information assets and IT infrastructure; when planning outsourcing or the use of hosting services; and prior to the acquisition of new or emerging systems, tools, and technologies.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-15
+      assessable: true
+      depth: 3
+      ref_id: 5-108-15
+      name: Periodic assessment by asset criticality
+      description: Perform periodic risk assessments of existing Information Technology assets based on their criticality and associated threats. Assess all critical information assets at least twice annually, and non-critical information assets at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-16
+      assessable: true
+      depth: 3
+      ref_id: 5-108-16
+      name: Assessment by risk owners
+      description: Risk Owners shall conduct IT risk assessment at least annually, in coordination with IT Department Heads and with systems and technology administrators.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-17
+      assessable: true
+      depth: 3
+      ref_id: 5-108-17
+      name: IT risk response strategies
+      description: Develop and implement IT risk response strategies, including avoidance, reduction, transfer, or acceptance, and control strategies aligned with the values of information assets and the risk tolerance defined by the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-18
+      assessable: true
+      depth: 3
+      ref_id: 5-108-18
+      name: IT Key Risk Indicators
+      description: Adopt and implement IT Key Risk Indicators in alignment with the entity's enterprise risk management framework.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-19
+      assessable: true
+      depth: 3
+      ref_id: 5-108-19
+      name: Effectiveness of IT risk management
+      description: Measure and periodically evaluate, at least annually, the effectiveness of IT risk management procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.5
+      assessable: false
+      depth: 2
+      ref_id: 7.1.5
+      name: Information Technology Capabilities and Competencies Management Controls
+      description: Provide government entity personnel with the skills and knowledge to manage digital assets in a controlled and governed manner, and provide training to identify, operate, and implement IT-related controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-20
+      assessable: true
+      depth: 3
+      ref_id: 5-108-20
+      name: Defined IT roles
+      description: Define and establish roles within the IT sector or department, including at a minimum the Head of IT, Database Administrator, System Administrator, Network Administrator, and Application Administrator, in coordination with Human Resources and in accordance with relevant regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-21
+      assessable: true
+      depth: 3
+      ref_id: 5-108-21
+      name: Succession for sensitive IT roles
+      description: Develop and implement procedures to ensure effective succession planning for sensitive roles within the IT Department, in order to safeguard the entity's business continuity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-22
+      assessable: true
+      depth: 3
+      ref_id: 5-108-22
+      name: Periodic review of role requirements
+      description: Conduct periodic assessments of human resource requirements and functional roles, at least annually, or based on significant changes in the operating environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-23
+      assessable: true
+      depth: 3
+      ref_id: 5-108-23
+      name: Mandatory annual IT training plan
+      description: In line with Cabinet Resolution No. (555) dated 23/09/1440 H, develop and implement a mandatory annual training plan, in coordination with Human Resources, for IT personnel, based on a competency and capability study. Review the plan at least annually. It shall cover personnel in sensitive IT positions, the required professional certifications, the IT risk assessment process, and the development or management of information assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.1.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2
+      assessable: false
+      depth: 1
+      ref_id: '7.2'
+      name: Information Technology Planning
+      description: Ensure that Information Technology risk management is effective and that the governance model and the entity's Information Technology strategies are efficient.
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.1
+      assessable: false
+      depth: 2
+      ref_id: 7.2.1
+      name: Information Technology Strategy Development Controls
+      description: Develop an Information Technology strategy that is aligned with the strategic objectives of the government entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-24
+      assessable: true
+      depth: 3
+      ref_id: 5-108-24
+      name: IT strategy
+      description: Develop, adopt, and implement an IT strategy that includes, at a minimum, the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-24.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-24.01
+      name: Current state, target, and initiatives
+      description: The strategy shall cover the business environment, current IT components, future direction, and the initiatives required to achieve the future target, in alignment with the entity's digital transformation strategy.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-24
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-24.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-24.02
+      name: Strategic technical and digital risks
+      description: Identify strategic technical and digital risks that may affect the entity's objectives and the digital government agenda, and the extent of IT's impact and accrued benefits in relation to those objectives.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-24
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-25
+      assessable: true
+      depth: 3
+      ref_id: 5-108-25
+      name: IT initiatives roadmap
+      description: Develop a roadmap for IT initiatives that includes the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-25.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-25.01
+      name: Advanced digital technologies
+      description: The roadmap shall include advanced digital technologies to improve procedures and the manner in which services are delivered to beneficiaries.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-25
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-25.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-25.02
+      name: Implementation priorities
+      description: Determine the implementation priorities for technical projects based on the evaluation of their outcomes and dependencies, as identified by the relevant departments.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-25
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.2
+      assessable: false
+      depth: 2
+      ref_id: 7.2.2
+      name: Technical Infrastructure Management Controls
+      description: Support digital transformation and the maturity of the technical architecture, in alignment with the entity's strategic directions, digital transformation strategy, business processes, and information technology domains, including platforms, applications, data, and technology infrastructure.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26
+      assessable: true
+      depth: 3
+      ref_id: 5-108-26
+      name: Technical architecture strategy
+      description: Develop a technical architecture strategy in alignment with the National Enterprise Architecture Methodology (NORA) and any directives issued by the DGA. The strategy shall include, at a minimum, the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-26.01
+      name: Capabilities and continuity plans
+      description: Include a strategic plan for the technical capabilities of the government entity, together with technical infrastructure management and business continuity plans, and review it at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-26.02
+      name: Operate the internal technical architecture
+      description: Implement and operate the entity's internal technical architecture.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-26.03
+      name: Gap analysis and transformation roadmap
+      description: Identify gaps between the current and target status of the technical infrastructure, develop a digital transformation roadmap for initiatives and projects, follow up on implementation from the business perspective, and apply emerging technologies and regulatory requirements.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-26
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-27
+      assessable: true
+      depth: 3
+      ref_id: 5-108-27
+      name: Regulatory compliance monitoring
+      description: Establish a mechanism to monitor compliance with relevant laws, regulations, and regulatory requirements.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-28
+      assessable: true
+      depth: 3
+      ref_id: 5-108-28
+      name: Infrastructure strategy reporting
+      description: Monitor performance indicators and governance processes of the technical infrastructure strategy through periodic reports to senior management.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-29
+      assessable: true
+      depth: 3
+      ref_id: 5-108-29
+      name: Annual architecture review
+      description: Review the technical architecture strategy periodically, at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+      assessable: false
+      depth: 2
+      ref_id: 7.2.3
+      name: Service Level Agreement Management Controls
+      description: Establish formal agreements containing service level provisions for digital and technical services, defining the roles and relationships of internal and external stakeholders, and ensuring accountability, compliance, and performance measurement.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-30
+      assessable: true
+      depth: 3
+      ref_id: 5-108-30
+      name: Internal IT service level agreements
+      description: Identify, adopt, and internally circulate the Internal (Operational) IT Service Level Agreements, and verify their effectiveness within the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-31
+      assessable: true
+      depth: 3
+      ref_id: 5-108-31
+      name: Content of the internal SLA
+      description: The internal IT service level agreement shall include specific and measurable objectives for the level of IT services, in line with the entity's key performance indicators and evaluated at least annually, and the roles and responsibilities of the IT Department and other departments.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-32
+      assessable: true
+      depth: 3
+      ref_id: 5-108-32
+      name: External service level agreements
+      description: Define and sign Service Level Agreements with external parties and the entity's digital and technology service providers.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-33
+      assessable: true
+      depth: 3
+      ref_id: 5-108-33
+      name: Provider compliance with DGA regulations
+      description: All outsourcing service providers shall comply with the legislation and regulations issued by the Digital Government Authority, and with all other applicable regulations and legislation.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-34
+      assessable: true
+      depth: 3
+      ref_id: 5-108-34
+      name: Non-disclosure agreements
+      description: Sign Non-Disclosure Agreements with the entity's service providers to ensure the confidentiality and protection of data and information.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-35
+      assessable: true
+      depth: 3
+      ref_id: 5-108-35
+      name: Vendor due diligence
+      description: Prepare a Vendor Due Diligence Form, in coordination with the relevant departments, to be signed by companies intended to be contracted with, directly or indirectly, for IT services. Update the form's data at least annually. It shall include company identification data, administrative structure and ownership, and contact details.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+      assessable: true
+      depth: 3
+      ref_id: 5-108-36
+      name: Procedures for external service relationships
+      description: Establish, adopt, internally circulate, and implement procedures that define the relationship with external parties providing digital and technical services, covering the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-36.01
+      name: Availability of outsourced services
+      description: Procedures that ensure the availability of data, digital services, and the applications that are outsourced.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-36.02
+      name: Notification of service changes
+      description: Procedures for notifying changes in service delivery.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-36.03
+      name: Risk assessment in contracting
+      description: Procedures for conducting risk assessments as an integral part of the contracting process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36.04
+      assessable: true
+      depth: 4
+      ref_id: 5-108-36.04
+      name: SLA escalation
+      description: Escalation procedures to be followed in the event of non-compliance with the Service Level Agreement.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36.05
+      assessable: true
+      depth: 4
+      ref_id: 5-108-36.05
+      name: Provider reports
+      description: Issue periodic reports from service providers.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-36
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-37
+      assessable: true
+      depth: 3
+      ref_id: 5-108-37
+      name: On-site provider officer
+      description: Obtain a binding commitment from service providers to assign an experienced officer at the work site to provide the required technical and functional support when critical situations arise within the outsourced operational processes.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-38
+      assessable: true
+      depth: 3
+      ref_id: 5-108-38
+      name: Evaluation of internal SLAs
+      description: Monitor, measure, and evaluate the effectiveness of the Internal (Operational) IT Service Level Agreements at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-39
+      assessable: true
+      depth: 3
+      ref_id: 5-108-39
+      name: Audit of provider control environments
+      description: Ensure that periodic reviews and audits are conducted by the entity to verify the effectiveness of the internal control environment of outsourcing service providers.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.2.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+      assessable: false
+      depth: 1
+      ref_id: '7.3'
+      name: Building, Developing, and Implementing Information Technology Systems
+      description: Identify, design, test, and implement changes related to information assets and digital services, reduce the impact of change-related risks, and achieve planned objectives.
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+      assessable: false
+      depth: 2
+      ref_id: 7.3.1
+      name: Systems and Applications Procurement Controls
+      description: 'Carry out the building, development, and implementation of digital services through change management: identifying, designing, testing, and implementing changes related to digital assets, services, applications, software, data, and digital platforms.'
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-40
+      assessable: true
+      depth: 3
+      ref_id: 5-108-40
+      name: Acquisition procedures
+      description: Identify, approve, internally circulate, and implement procedures for the acquisition of systems, applications, and digital services, in alignment with the National Enterprise Architecture Methodology.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-41
+      assessable: true
+      depth: 3
+      ref_id: 5-108-41
+      name: Business and technical requirements
+      description: Identify business and technical requirements for digital systems, applications, and services, and approve them as part of the system acquisition procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-42
+      assessable: true
+      depth: 3
+      ref_id: 5-108-42
+      name: Feasibility and return on investment
+      description: Conduct a feasibility study of the business and technical requirements to measure the benefits gained and the return on investment in the system or application acquisition process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-43
+      assessable: true
+      depth: 3
+      ref_id: 5-108-43
+      name: Supplier and implementation evaluation
+      description: Include, in the evaluation of the system or application, the capabilities of the suppliers and alignment with project management. Cover, at a minimum, compatibility with the entity's requirements, a plan for implementation, development or customization, testing, and commissioning, the timeline for each stage, and the human resources allocated.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-44
+      assessable: true
+      depth: 3
+      ref_id: 5-108-44
+      name: Effectiveness of acquisition procedures
+      description: Measure the effectiveness of the procedures for the acquisition of digital systems, applications, and services, and evaluate them at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.2
+      assessable: false
+      depth: 2
+      ref_id: 7.3.2
+      name: Systems and Applications Configuration Management Controls
+      description: Define, adopt, internally circulate, and implement a configuration management process for the specifications of systems, platforms, and applications, in order to maintain reliable information on the configuration items of the entity's digital information assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45
+      assessable: true
+      depth: 3
+      ref_id: 5-108-45
+      name: Configuration and change procedures
+      description: Prepare, adopt, internally circulate, and implement configuration and change management procedures covering the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-45.01
+      name: Configuration roles
+      description: Define roles and responsibilities for the implementation of configuration management.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-45.02
+      name: Configuration item register
+      description: Identify and register configuration items and their criticality in relation to the operational processes they support.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-45.03
+      name: Dependencies between configuration items
+      description: Record the interrelationships and interdependencies between configuration items across information assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45.04
+      assessable: true
+      depth: 4
+      ref_id: 5-108-45.04
+      name: Periodic verification of configuration items
+      description: Establish a mechanism for the periodic verification of configuration items within the IT operational environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-45
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-46
+      assessable: true
+      depth: 3
+      ref_id: 5-108-46
+      name: Configuration management database
+      description: Establish a Configuration Management Database to identify, maintain, and periodically verify information related to the entity's digital assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-47
+      assessable: true
+      depth: 3
+      ref_id: 5-108-47
+      name: Annual configuration review
+      description: Review and periodically evaluate, at least annually, configuration management procedures and processes.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+      assessable: false
+      depth: 2
+      ref_id: 7.3.3
+      name: Change Management Controls
+      description: Establish a change management process so that all changes to the entity's digital information assets and platforms are classified, tested, and approved before deployment to the production environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-48
+      assessable: true
+      depth: 3
+      ref_id: 5-108-48
+      name: Change management procedures
+      description: Prepare, adopt, internally circulate, and implement change management procedures. Include, at a minimum, the definition of change requirements and their approval mechanism, risk assessment and prioritization, change testing and a rollback plan, roles and responsibilities, release management, change documentation and lessons learned, and change awareness and training.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-49
+      assessable: true
+      depth: 3
+      ref_id: 5-108-49
+      name: Approval before implementation
+      description: Approve the change request from the relevant committee or the authorized person before the implementation of any change.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-50
+      assessable: true
+      depth: 3
+      ref_id: 5-108-50
+      name: Ongoing change record
+      description: Record, monitor, and document any changes in digital information assets on an ongoing basis.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-51
+      assessable: true
+      depth: 3
+      ref_id: 5-108-51
+      name: Separation of environments
+      description: Maintain a clear separation between the development environment, testing environment, pre-production environment, and production environment across all change request scenarios.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+      assessable: true
+      depth: 3
+      ref_id: 5-108-52
+      name: Change test documentation
+      description: Document the change request and test data, including at a minimum the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.01
+      name: Test case identity
+      description: Record the name of the test case and the unique identifier (Test ID).
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.02
+      name: Test case design
+      description: Record the test case designed and tested.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.03
+      name: Expected test outcome
+      description: Describe the test status with the expected test outcome.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.04
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.04
+      name: Test priority and date
+      description: Record the test priority and execution date.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.05
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.05
+      name: Test data type
+      description: Record the type of data used for testing.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52.06
+      assessable: true
+      depth: 4
+      ref_id: 5-108-52.06
+      name: Third-party test certificate
+      description: Obtain a certificate of testing the effectiveness of the change when a third party implements the change.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-52
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53
+      assessable: true
+      depth: 3
+      ref_id: 5-108-53
+      name: Required test types
+      description: Implement and document the following types of tests as part of change management.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-53.01
+      name: User acceptance testing
+      description: User Acceptance Testing conducted by the Business Owner.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-53.02
+      name: Functional test
+      description: Functional test.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-53.03
+      name: Performance test
+      description: Performance test.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-53
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-54
+      assessable: true
+      depth: 3
+      ref_id: 5-108-54
+      name: Release management
+      description: Implement release management procedures during the testing phase and deployment to the production environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-55
+      assessable: true
+      depth: 3
+      ref_id: 5-108-55
+      name: Release at the disaster recovery site
+      description: Complete the release process on the equivalent system or application at the disaster recovery site following the successful implementation of changes in the primary site's production environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-56
+      assessable: true
+      depth: 3
+      ref_id: 5-108-56
+      name: Emergency change review
+      description: Review emergency change requests related to digital and technical information assets for reference or audit purposes.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+      assessable: false
+      depth: 2
+      ref_id: 7.3.4
+      name: Systems and Applications Development Controls
+      description: Govern, adopt, and implement the methodologies for developing systems, applications, digital services, and platforms, in alignment with the Regulations of Government Free and Open-Source Software issued pursuant to Council of Ministers Resolution No. (14) dated 02/01/1443 H.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-57
+      assessable: true
+      depth: 3
+      ref_id: 5-108-57
+      name: Development methodology
+      description: Develop, adopt, internally circulate, implement, and evaluate a methodology and procedures for the development of systems, applications, and platforms. Include, at a minimum, the system or application design document, the development methodology such as Agile or Waterfall, unit, regression, and stress testing, version control and documentation, quality control and correction management, the data transfer and migration mechanism, and training of beneficiaries.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-58
+      assessable: true
+      depth: 3
+      ref_id: 5-108-58
+      name: Low-level design
+      description: Include low-level design requirements in the system design document, covering at a minimum configuration requirements, integration requirements, performance requirements, and data definition requirements.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-59
+      assessable: true
+      depth: 3
+      ref_id: 5-108-59
+      name: Risk and continuity in the development lifecycle
+      description: Incorporate risk management and business continuity activities into the system and application development lifecycle, in alignment with local regulations and international best practices.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-60
+      assessable: true
+      depth: 3
+      ref_id: 5-108-60
+      name: Source code review
+      description: Conduct source code reviews for all applications developed within the entity and ensure that the source code is documented for each new release.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61
+      assessable: true
+      depth: 3
+      ref_id: 5-108-61
+      name: Software development warranty
+      description: Where software development warranty agreements exist, they shall include at a minimum the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-61.01
+      name: Rights to the source code
+      description: Secure unlimited rights to the source code for the purposes of reuse, copying, modification, and distribution among government entities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-61.02
+      name: Update and release packages
+      description: Deliver update and release packages according to defined time intervals or based on critical updates.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-61.03
+      name: Delivery to the Government Software Repository
+      description: The service provider shall deliver the source code and all related documentation to the government entity for submission to the Government Software Repository when the service provider ceases to deliver its services or upon project cancellation.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-61
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-62
+      assessable: true
+      depth: 3
+      ref_id: 5-108-62
+      name: Quality assessment before production
+      description: Assess the quality of all changes in systems, applications, and platforms, by the Total Quality Management Unit, before transferring them to the operating environment.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-63
+      assessable: true
+      depth: 3
+      ref_id: 5-108-63
+      name: Quality review reports
+      description: Prepare assessment results and quality review reports and submit them to the relevant stakeholders for implementation of the proposed corrective action plans.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-64
+      assessable: true
+      depth: 3
+      ref_id: 5-108-64
+      name: Patch and vulnerability monitoring
+      description: Periodically inspect and monitor the implementation of patches across all systems and applications and detect any vulnerabilities within systems and digital services.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-65
+      assessable: true
+      depth: 3
+      ref_id: 5-108-65
+      name: Post-patch monitoring
+      description: Monitor systems and applications following the deployment of patches in the live production environment. Conduct root cause analysis if a problem is identified after implementation, and take the measures required to remediate it.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-66
+      assessable: true
+      depth: 3
+      ref_id: 5-108-66
+      name: Effectiveness of development procedures
+      description: Monitor and periodically evaluate, at least annually, the effectiveness of system development procedures and methodology.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+      assessable: false
+      depth: 2
+      ref_id: 7.3.5
+      name: Digital and Technical Assets Management Controls
+      description: Provide the entity with clear visibility of its digital and technical information assets through a continuously updated asset inventory.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-67
+      assessable: true
+      depth: 3
+      ref_id: 5-108-67
+      name: Asset management policies
+      description: Prepare, adopt, internally circulate, and implement asset management policies, procedures, and processes. Include, at a minimum, initial provisioning and commissioning, classification, labeling, handling, and processing, the inventory mechanism, utilization tracking, and useful life, and authorization for approval, disposal, and decommissioning, not to exceed ten years or as required by applicable regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-68
+      assessable: true
+      depth: 3
+      ref_id: 5-108-68
+      name: Complete asset inventory
+      description: Maintain a complete inventory or register of all technical and digital assets, updated at least annually, or whenever a new asset is added, disposed of, or removed.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-69
+      assessable: true
+      depth: 3
+      ref_id: 5-108-69
+      name: Sensitive asset register
+      description: Establish and update, at least annually or whenever an asset is added, disposed of, or removed, a register of the entity's sensitive digital and technical assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-70
+      assessable: true
+      depth: 3
+      ref_id: 5-108-70
+      name: Continuity measures for sensitive assets
+      description: Take measures to address sensitive assets to ensure the continuity of the availability of critical services, including business continuity plans.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-71
+      assessable: true
+      depth: 3
+      ref_id: 5-108-71
+      name: Data center and disaster recovery site controls
+      description: Data centers and internal ICT disaster recovery centers shall, at a minimum and without contradicting the regulations of the relevant authorities, restrict access based on authorized privileges, log visitor entry and escort visitors, provide security and safety systems and smoke and fire detection, provide humidity control and temperature monitoring, and install CCTV inside and outside the centers.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-72
+      assessable: true
+      depth: 3
+      ref_id: 5-108-72
+      name: Hosted data center compliance
+      description: Ensure that outsourcing service providers comply with the requirements of the DGA and relevant government entities when hosting data centers and ICT disaster recovery centers.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-73
+      assessable: true
+      depth: 3
+      ref_id: 5-108-73
+      name: Hosting contract oversight
+      description: Ensure the effectiveness of oversight controls within contracts for hosting data centers and ICT disaster recovery centers. Obtain System and Organization Controls reports from outsourcing service providers at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-74
+      assessable: true
+      depth: 3
+      ref_id: 5-108-74
+      name: Testing of data center controls
+      description: Continuously monitor, test, and evaluate the controls of data centers and ICT disaster recovery centers within the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-75
+      assessable: true
+      depth: 3
+      ref_id: 5-108-75
+      name: Effectiveness of asset management
+      description: Monitor, measure, and evaluate the effectiveness of asset management at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.6
+      assessable: false
+      depth: 2
+      ref_id: 7.3.6
+      name: Information Technology Project Management Controls
+      description: Adopt an effective methodology for the management of IT projects and digital services and monitor all associated risks throughout the project lifecycle.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-76
+      assessable: true
+      depth: 3
+      ref_id: 5-108-76
+      name: IT project management framework
+      description: Establish a framework for the management of technical and digital projects, encompassing the adopted policies and procedures from initiation through closure, in alignment with the project management practices of the government entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.6
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-77
+      assessable: true
+      depth: 3
+      ref_id: 5-108-77
+      name: Cybersecurity engagement in projects
+      description: Engage the department responsible for cybersecurity throughout the phases of the IT project management lifecycle.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.6
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-78
+      assessable: true
+      depth: 3
+      ref_id: 5-108-78
+      name: Review of project deliverables
+      description: Review all technical and digital project deliverables prior to deployment in the production environment, to ensure the quality of deliverables and the achievement of objectives.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.6
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-79
+      assessable: true
+      depth: 3
+      ref_id: 5-108-79
+      name: Effectiveness of IT project management
+      description: Monitor, measure, and periodically evaluate, at least annually, the effectiveness of the IT project management process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.6
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+      assessable: false
+      depth: 2
+      ref_id: 7.3.7
+      name: Digital Service Availability and Capacity Management Controls
+      description: Ensure the continuity and availability of digital services, and prevent performance degradation, by monitoring current utilization and forecasting future capacity and resource requirements.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-80
+      assessable: true
+      depth: 3
+      ref_id: 5-108-80
+      name: Availability and capacity procedures
+      description: Establish, approve, internally circulate, and implement procedures for digital service availability and capacity management.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-81
+      assessable: true
+      depth: 3
+      ref_id: 5-108-81
+      name: Capacity and availability plan
+      description: Develop a capacity and availability management plan for digital services. Include, at a minimum, the current capacity of systems, resources, and assets, alignment with current and future operational objectives, continuity and availability plan requirements, roles and responsibilities for maintaining the plan, and service provider dependencies as part of capacity planning within the business continuity plans.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82
+      assessable: true
+      depth: 3
+      ref_id: 5-108-82
+      name: Digital service performance indicators
+      description: Prepare and monitor the performance indicators of digital services and systems, including at a minimum the sub-controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82.01
+      assessable: true
+      depth: 4
+      ref_id: 5-108-82.01
+      name: Agreed service levels
+      description: The agreed Service Level Agreement with outsourcing service providers and beneficiaries.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82.02
+      assessable: true
+      depth: 4
+      ref_id: 5-108-82.02
+      name: Infrastructure indicators
+      description: IT infrastructure.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82.03
+      assessable: true
+      depth: 4
+      ref_id: 5-108-82.03
+      name: Service slowdowns and disruptions
+      description: Slowdowns and disruptions in digital services and core systems supporting beneficiary service channels.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-82
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-83
+      assessable: true
+      depth: 3
+      ref_id: 5-108-83
+      name: Reporting of performance indicators
+      description: Document, monitor, and periodically report performance indicator results to senior management and the steering committee responsible for overseeing IT governance operations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-84
+      assessable: true
+      depth: 3
+      ref_id: 5-108-84
+      name: Effectiveness of capacity management
+      description: Monitor, measure, and periodically evaluate, at least annually, the effectiveness of digital service and system continuity and availability procedures for capacity management.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.3.7
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+      assessable: false
+      depth: 1
+      ref_id: '7.4'
+      name: Realizing Added Value from Information Technology
+      description: Realize benefits from the entity's Information Technology environment and support digital government objectives through effective management and continuous monitoring.
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+      assessable: false
+      depth: 2
+      ref_id: 7.4.1
+      name: Backup Service Management Controls
+      description: Ensure the availability of digital services through strategies, policies, and procedures for data backup, recovery, and testing, so that data and services can be recovered within the targeted recovery timeframe.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-85
+      assessable: true
+      depth: 3
+      ref_id: 5-108-85
+      name: Backup and recovery policies
+      description: Establish, approve, internally circulate, and implement data backup and recovery management policies and procedures, without prejudice to the regulations issued by the relevant authorities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-86
+      assessable: true
+      depth: 3
+      ref_id: 5-108-86
+      name: Content of backup policies
+      description: Data backup management policies shall include, at a minimum, the backup and recovery execution mechanism, an alternative backup and recovery mechanism, the data labeling, storage, and retrieval mechanism, and the data retention mechanism in accordance with applicable local legal, regulatory, and legislative requirements.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-87
+      assessable: true
+      depth: 3
+      ref_id: 5-108-87
+      name: Backup and recovery procedures
+      description: Define, approve, and implement backup and recovery procedures. Include, at a minimum, data retention requirements aligned with the business continuity plans, backup methodologies such as offline, online, complete, and incremental, and the backup execution schedule.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-88
+      assessable: true
+      depth: 3
+      ref_id: 5-108-88
+      name: Synchronization with the disaster recovery site
+      description: Synchronize data and information between the data center and the ICT disaster recovery site in accordance with the backup management strategy and business continuity plans.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-89
+      assessable: true
+      depth: 3
+      ref_id: 5-108-89
+      name: Disaster recovery and backup testing
+      description: Test ICT disaster recovery plans and conduct periodic testing of backup capabilities to minimize the probability of digital service interruptions in the event of a disaster.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-90
+      assessable: true
+      depth: 3
+      ref_id: 5-108-90
+      name: Effectiveness of backup and recovery
+      description: Measure and periodically evaluate, at least annually, the effectiveness of backup and recovery procedures.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.2
+      assessable: false
+      depth: 2
+      ref_id: 7.4.2
+      name: Reliability and Interconnection Controls
+      description: Manage the dependencies and interdependencies of the entity's critical digital and technical information assets, in order to ensure the availability and continuity of digital services and operational activities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-91
+      assessable: true
+      depth: 3
+      ref_id: 5-108-91
+      name: Dependency management procedures
+      description: Define, approve, internally circulate, and implement procedures for managing dependencies and interconnections of the entity's digital and technical assets.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-92
+      assessable: true
+      depth: 3
+      ref_id: 5-108-92
+      name: Dependencies in continuity testing
+      description: Identify dependencies and interconnections among digital information assets, platforms, and critical processes within the infrastructure, and incorporate them into the business continuity plan and ICT disaster recovery testing.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-93
+      assessable: true
+      depth: 3
+      ref_id: 5-108-93
+      name: Stakeholder and beneficiary register
+      description: Identify relevant internal and external stakeholders and beneficiaries, together with their significance to digital platforms and services, and update their data at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.3
+      assessable: false
+      depth: 2
+      ref_id: 7.4.3
+      name: Information and Digital Network Infrastructure Controls
+      description: Manage the effectiveness of the entity's information and digital network through controls that mitigate or prevent technical incidents affecting network performance, without prejudice to the regulations of the relevant authorities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-94
+      assessable: true
+      depth: 3
+      ref_id: 5-108-94
+      name: Network diagram
+      description: Design and approve a comprehensive current network diagram of the entity's information and digital network, encompassing both the internal network and the guest network.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-95
+      assessable: true
+      depth: 3
+      ref_id: 5-108-95
+      name: Monitoring of critical network components
+      description: Ensure continuous monitoring of the performance of all critical and sensitive components of the information and digital network.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-96
+      assessable: true
+      depth: 3
+      ref_id: 5-108-96
+      name: Acceptable use of the network
+      description: Measure and periodically evaluate, at least annually, the effectiveness of acceptable use of the information and digital network.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.4
+      assessable: false
+      depth: 2
+      ref_id: 7.4.4
+      name: Virtualization Software Controls
+      description: Implement a mechanism for the creation, operation, storage, utilization, and decommissioning of virtual appliances and virtual containers once they are no longer needed, in accordance with the entity's policies.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-97
+      assessable: true
+      depth: 3
+      ref_id: 5-108-97
+      name: Virtual environment procedures
+      description: Develop, internally circulate, approve, and implement procedures for the provisioning of virtual technical operating environments, in accordance with the entity's policies.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-98
+      assessable: true
+      depth: 3
+      ref_id: 5-108-98
+      name: Alignment with legislation
+      description: Ensure alignment of the entity's defined policies, procedures, and standards with the relevant legislation and regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-99
+      assessable: true
+      depth: 3
+      ref_id: 5-108-99
+      name: Virtual environment event log
+      description: Activate a digital event log, in accordance with applicable regulations, to review and monitor all changes to the operating environment and virtual components. The log shall include creation, deployment, and removal events, and all high-privilege activities and activities with elevated access rights.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-100
+      assessable: true
+      depth: 3
+      ref_id: 5-108-100
+      name: Effectiveness of virtual operations
+      description: Measure and periodically evaluate, at least annually, the effectiveness of the virtual technology environment operating process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+      assessable: false
+      depth: 2
+      ref_id: 7.4.5
+      name: Batch Data Processing Controls
+      description: Define, approve, and implement data batch management policies and procedures for managing data processing and process batches, or automating processes in batch mode, without prejudice to the regulations of the relevant authorities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-101
+      assessable: true
+      depth: 3
+      ref_id: 5-108-101
+      name: Batch processing policies
+      description: Issue, approve, and implement data batch processing policies and procedures, without prejudice to the applicable regulations and legislation issued by the authorities.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-102
+      assessable: true
+      depth: 3
+      ref_id: 5-108-102
+      name: Content of batch procedures
+      description: Data batch processing procedures shall include, at a minimum, scheduling of process execution, roles and responsibilities, batch and process flow monitoring and control, error and exception handling, and a notification and escalation mechanism.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-103
+      assessable: true
+      depth: 3
+      ref_id: 5-108-103
+      name: Approval of schedule changes
+      description: Changes to batch and process schedules shall be approved by the relevant stakeholders.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-104
+      assessable: true
+      depth: 3
+      ref_id: 5-108-104
+      name: Batch execution log
+      description: Maintain an event log containing information on the execution status of data batches, such as successful or unsuccessful, in accordance with the relevant regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-105
+      assessable: true
+      depth: 3
+      ref_id: 5-108-105
+      name: Effectiveness of batch processing
+      description: Measure and periodically evaluate, at least annually, the effectiveness of the data batch processing management process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.4.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5
+      assessable: false
+      depth: 1
+      ref_id: '7.5'
+      name: Performance Monitoring and Continuous Improvement
+      description: Monitor the performance, efficiency, and effectiveness of digital services and technology, and ensure continuous improvement through performance measurement, internal reviews, and measurement of compliance with relevant regulations.
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.1
+      assessable: false
+      depth: 2
+      ref_id: 7.5.1
+      name: Performance Management Controls
+      description: Achieve the objectives of digital and technical services through continuous measurement of the efficiency and effectiveness of IT operations, by monitoring Key Performance Indicators and Key Goal and Outcome Indicators.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-106
+      assessable: true
+      depth: 3
+      ref_id: 5-108-106
+      name: IT performance indicators
+      description: Develop, approve, and implement Key Performance Indicators to measure the quality of Information Technology operations and the performance of the entity's platforms and digital services.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-107
+      assessable: true
+      depth: 3
+      ref_id: 5-108-107
+      name: Indicator levels
+      description: The Key Performance Indicators shall encompass IT Governance, Human Resources, Operations and Digital Services, and Technical Solutions.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-108
+      assessable: true
+      depth: 3
+      ref_id: 5-108-108
+      name: Performance reporting to senior management
+      description: Monitor the performance levels and submit periodic reports to senior management on the results.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-109
+      assessable: true
+      depth: 3
+      ref_id: 5-108-109
+      name: Effectiveness of performance management
+      description: Measure and periodically evaluate, at least annually, the effectiveness of the performance management process.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.1
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+      assessable: false
+      depth: 2
+      ref_id: 7.5.2
+      name: Information Technology Internal Audit Controls
+      description: Measure the efficiency of technical and digital controls through continuous IT internal audits across applications, digital services, and platforms, to verify the design and implementation of controls.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-110
+      assessable: true
+      depth: 3
+      ref_id: 5-108-110
+      name: IT audit plan
+      description: Develop an Information Technology audit plan identifying the key audit domains, including Information Technology Governance, Human Resources, Operations, and Technologies.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-111
+      assessable: true
+      depth: 3
+      ref_id: 5-108-111
+      name: Alignment with cybersecurity audit controls
+      description: Align IT audits with cybersecurity audit controls in accordance with the relevant regulations, and document and present findings to the authorized personnel.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-112
+      assessable: true
+      depth: 3
+      ref_id: 5-108-112
+      name: Annual audit cycle
+      description: Approve a regular IT controls audit cycle, at least annually.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-113
+      assessable: true
+      depth: 3
+      ref_id: 5-108-113
+      name: Audit cycle aligned to risk
+      description: Align the internal IT audit cycle with the sensitivity level and risk profile of IT systems or procedures, in accordance with the relevant regulations.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-114
+      assessable: true
+      depth: 3
+      ref_id: 5-108-114
+      name: Committee approval of the audit plan
+      description: Approve the Information Technology audit plan by the steering committee responsible for overseeing Information Technology governance, and submit periodic reports to the committee.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-115
+      assessable: true
+      depth: 3
+      ref_id: 5-108-115
+      name: IT audit report content
+      description: Issue an IT audit report that includes, at a minimum, observations, recommendations, and corrective action plans within a defined timeframe, and assignment of responsibility for implementation of those plans.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-116
+      assessable: true
+      depth: 3
+      ref_id: 5-108-116
+      name: Remediation tracking
+      description: Develop procedures for tracking remediation plans so the entity can monitor implementation status.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-117
+      assessable: true
+      depth: 3
+      ref_id: 5-108-117
+      name: Independent compliance audit
+      description: Conduct periodic compliance audits of IT governance controls by an independent party.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-118
+      assessable: true
+      depth: 3
+      ref_id: 5-108-118
+      name: Effectiveness of the audit plan
+      description: Measure and periodically evaluate, at least annually, the effectiveness of the approved internal Information Technology audit plan.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.2
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.3
+      assessable: false
+      depth: 2
+      ref_id: 7.5.3
+      name: Compliance Controls
+      description: Ensure the effectiveness of compliance with regulations and legislation related to Information Technology, digital services, and platforms, and facilitate reporting and escalation within and outside the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-119
+      assessable: true
+      depth: 3
+      ref_id: 5-108-119
+      name: IT compliance policies
+      description: Establish compliance policies and procedures for regulatory controls and requirements related to information technology. Include periodic implementation, at least annually, and development of corrective action plans, or upon the issuance of new regulatory requirements; a mechanism for engaging relevant parties and stakeholders; and a mechanism for maintaining an updated register of all relevant legislative, regulatory, and contractual requirements, their impact, and the internal procedures required to manage Information Technology dependent operational processes.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.3
+    - urn: urn:intuitem:risk:req_node:dga-it-gov-2026:5-108-120
+      assessable: true
+      depth: 3
+      ref_id: 5-108-120
+      name: Compliance reporting
+      description: Submit periodic compliance reports to the entity's senior executive, relevant stakeholders, and the Information Technology Governance Steering Committee, and monitor corrective action plans as deemed appropriate by the entity.
+      parent_urn: urn:intuitem:risk:req_node:dga-it-gov-2026:7.5.3

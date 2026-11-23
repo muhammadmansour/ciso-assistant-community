@@ -1,4 +1,6 @@
 import os
+import unicodedata
+
 from django import template
 from django.utils.safestring import mark_safe
 
@@ -116,6 +118,18 @@ def get_answers(question, answers):
 @register.filter(name="get_item")
 def get_item(dictionary, key):
     return dictionary.get(key)
+
+
+@register.filter(name="text_dir")
+def text_dir(value):
+    """'rtl' or 'ltr' from the first strong character. WeasyPrint ignores dir="auto"."""
+    for char in str(value or ""):
+        direction = unicodedata.bidirectional(char)
+        if direction in ("R", "AL"):
+            return "rtl"
+        if direction == "L":
+            return "ltr"
+    return "ltr"
 
 
 @register.filter(name="basename")

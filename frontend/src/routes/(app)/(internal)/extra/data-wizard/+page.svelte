@@ -121,24 +121,9 @@
 			description: m.thirdPartiesImportHelpText()
 		},
 		{
-			id: 'EbiosRMStudyARM',
-			label: m.ebiosRMStudyARM(),
-			description: m.ebiosRMStudyARMDescription()
-		},
-		{
-			id: 'EbiosRMStudyExcel',
-			label: m.ebiosRMStudyExcel(),
-			description: m.ebiosRMStudyExcelDescription()
-		},
-		{
 			id: 'TaskTemplate',
 			label: m.taskTemplates(),
 			description: m.taskTemplatesDescription()
-		},
-		{
-			id: 'EbiosRMStudyEgerieXML',
-			label: m.ebiosRMStudyEgerieXML(),
-			description: m.ebiosRMStudyEgerieXMLDescription()
 		}
 	];
 
@@ -167,12 +152,9 @@
 		'TaskTemplate'
 	]);
 
-	// Per-model accepted file extensions. Most importers consume Excel;
-	// Egerie ships an XML export, hence the explicit branch.
-	const XML_MODELS = new Set(['EbiosRMStudyEgerieXML']);
+	// Per-model accepted file extensions. Most importers consume Excel.
 	const CSV_CAPABLE_MODELS = new Set(['TaskTemplate', 'Processing']);
 	function extensionsFor(modelId: string): string[] {
-		if (XML_MODELS.has(modelId)) return ['.xml'];
 		if (CSV_CAPABLE_MODELS.has(modelId)) return ['.xls', '.xlsx', '.csv'];
 		return ['.xls', '.xlsx'];
 	}
@@ -209,11 +191,7 @@
 	let isFrameworkDisabled = $derived(selectedModel !== 'ComplianceAssessment');
 
 	let isMatrixDisabled = $derived(
-		selectedModel !== 'RiskAssessment' &&
-			selectedModel !== 'BusinessImpactAnalysis' &&
-			selectedModel !== 'EbiosRMStudyARM' &&
-			selectedModel !== 'EbiosRMStudyExcel' &&
-			selectedModel !== 'EbiosRMStudyEgerieXML'
+		selectedModel !== 'RiskAssessment' && selectedModel !== 'BusinessImpactAnalysis'
 	);
 
 	// Models that don't need perimeter selection
@@ -231,10 +209,7 @@
 		'SecurityException',
 		'Incident',
 		'TPRM',
-		'EbiosRMStudyARM',
-		'EbiosRMStudyExcel',
 		'TaskTemplate',
-		'EbiosRMStudyEgerieXML',
 		'Vulnerability'
 	];
 

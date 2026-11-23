@@ -76,46 +76,46 @@ export const navData = {
 				}
 			]
 		},
-		// {
-		// 	name: 'overview',
-		// 	items: [
-		// 		{
-		// 			name: 'analytics',
-		// 			fa_icon: 'fa-solid fa-gauge',
-		// 			href: '/analytics',
-		// 			permissions: [
-		// 				'view_perimeter',
-		// 				'view_riskscenario',
-		// 				'view_referencecontrol',
-		// 				'view_assessment',
-		// 				'view_riskassessment'
-		// 			]
-		// 		},
-		// 		{
-		// 			name: 'reports',
-		// 			fa_icon: 'fas fa-file-invoice',
-		// 			href: '/reports',
-		// 			permissions: [
-		// 				'view_perimeter',
-		// 				'view_riskscenario',
-		// 				'view_referencecontrol',
-		// 				'view_riskassessment'
-		// 			]
-		// 		},
-		// 		{
-		// 			name: 'myAssignments',
-		// 			fa_icon: 'fa-solid fa-list-check',
-		// 			href: '/my-assignments',
-		// 			permissions: [
-		// 				'view_perimeter',
-		// 				'view_riskscenario',
-		// 				'view_referencecontrol',
-		// 				'view_assessment',
-		// 				'view_riskassessment'
-		// 			]
-		// 		}
-		// 	]
-		// },
+		{
+			name: 'overview',
+			items: [
+				// {
+				// 	name: 'analytics',
+				// 	fa_icon: 'fa-solid fa-gauge',
+				// 	href: '/analytics',
+				// 	permissions: [
+				// 		'view_perimeter',
+				// 		'view_riskscenario',
+				// 		'view_referencecontrol',
+				// 		'view_assessment',
+				// 		'view_riskassessment'
+				// 	]
+				// },
+				{
+					name: 'reports',
+					fa_icon: 'fas fa-file-invoice',
+					href: '/reports',
+					permissions: [
+						'view_perimeter',
+						'view_riskscenario',
+						'view_referencecontrol',
+						'view_riskassessment'
+					]
+				}
+				// {
+				// 	name: 'myAssignments',
+				// 	fa_icon: 'fa-solid fa-list-check',
+				// 	href: '/my-assignments',
+				// 	permissions: [
+				// 		'view_perimeter',
+				// 		'view_riskscenario',
+				// 		'view_referencecontrol',
+				// 		'view_assessment',
+				// 		'view_riskassessment'
+				// 	]
+				// }
+			]
+		},
 		// {
 		// 	name: 'catalog',
 		// 	items: [
@@ -189,12 +189,6 @@ export const navData = {
 					name: 'incidents',
 					fa_icon: 'fa-solid fa-bug',
 					href: '/incidents'
-				},
-				{
-					name: 'tasks',
-					fa_icon: 'fa-solid fa-note-sticky',
-					href: '/task-templates',
-					permissions: ['view_tasktemplate']
 				}
 			]
 		},
@@ -409,12 +403,6 @@ export const navData = {
 					fa_icon: 'fa-solid fa-hat-wizard',
 					href: '/extra/data-wizard',
 					permissions: ['change_folder']
-				},
-				{
-					name: 'experimental',
-					fa_icon: 'fa-solid fa-flask',
-					href: '/experimental',
-					permissions: ['change_globalsettings']
 				}
 			]
 		},

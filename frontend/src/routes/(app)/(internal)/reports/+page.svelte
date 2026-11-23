@@ -31,6 +31,15 @@
 			category: 'compliance',
 			href: '/reports/dora-roi',
 			tags: ['DORA', 'Regulation', 'Entities', 'Beta']
+		},
+		{
+			id: 'audit-report',
+			title: 'Audit Report',
+			description: 'Input: Selecting audit assessment -- Output: structured report',
+			icon: 'fa-solid fa-clipboard-check',
+			category: 'compliance',
+			href: '/reports/audit',
+			tags: ['Assessment', 'Results by domain', 'Findings', 'Observations', 'Action plan']
 		}
 	];
 

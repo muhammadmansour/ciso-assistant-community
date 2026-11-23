@@ -1,0 +1,205 @@
+{% extends 'core/base_pdf.html' %}
+{% block content %}
+{% load i18n core_extras %}
+{% include 'core/_report_pdf_styles.html' %}
+
+<style>
+    .badge { display: inline-block; padding: 0 0.15cm; border-radius: 3px; font-size: 6.5pt; font-weight: 600; color: #316FD3; background: #EEF3FB; border: 1px solid #C7D5EE; vertical-align: 0.03cm; }
+    .section { margin-top: 0.45cm; }
+    .section-title { font-size: 11.5pt; font-weight: 700; color: #192A44; margin: 0; page-break-after: avoid; }
+    .section-title .n { color: #316FD3; margin-right: 0.12cm; }
+    .section-note { font-size: 7.5pt; color: #64748B; margin: 0.02cm 0 0.15cm 0; page-break-after: avoid; }
+
+    table.kv { width: 100%; border-collapse: collapse; }
+    table.kv td { padding: 0.1cm 0.15cm; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
+    table.kv td.k { width: 22%; font-weight: 600; color: #192A44; }
+    table.kv .formula { color: #64748B; }
+
+    table.kpis .kpi-value.good { color: #16A34A; }
+    table.kpis .kpi-value.warn { color: #D97706; }
+    table.kpis .kpi-value.bad { color: #DC2626; }
+
+    .sev { display: inline-block; padding: 0.01cm 0.16cm; border-radius: 3px; font-size: 6.8pt; font-weight: 700; white-space: nowrap; }
+    .sev-critical { background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; }
+    .sev-high { background: #FFEDD5; color: #C2410C; border: 1px solid #FDBA74; }
+    .sev-medium { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
+    .sev-low { background: #DBEAFE; color: #1D4ED8; border: 1px solid #93C5FD; }
+    .sev-info { background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
+    .st-open { background: #FEE2E2; color: #B91C1C; }
+    .st-progress { background: #FEF3C7; color: #B45309; }
+    .st-done { background: #DCFCE7; color: #15803D; }
+    .st-muted { background: #F1F5F9; color: #475569; }
+    .ctl-active { background: #DCFCE7; color: #15803D; }
+    .ctl-other { background: #DBEAFE; color: #1D4ED8; }
+    .code { font-weight: 700; color: #316FD3; white-space: nowrap; }
+
+    .card { border: 1px solid #E2E8F0; border-left: 3px solid #CBD5E1; border-radius: 5px; padding: 0.18cm 0.3cm; margin-bottom: 0.2cm; page-break-inside: avoid; background: #FFFFFF; }
+    .card.critical { border-left-color: #DC2626; }
+    .card.high { border-left-color: #EA580C; }
+    .card .head { font-weight: 700; color: #192A44; margin-bottom: 0.08cm; }
+    .card .head .sev { float: right; }
+    .card table { width: 100%; border-collapse: collapse; }
+    .card td { padding: 0.04cm 0; vertical-align: top; font-size: 8pt; }
+    .card td.k { width: 3.2cm; font-size: 6.8pt; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B; padding-top: 0.07cm; }
+    tr.total td { font-weight: 700; color: #192A44; border-top: 1px solid #CBD5E1; }
+    tr.weakest td { background: #FEF2F2 !important; }
+</style>
+
+<div class="report-header">
+    <table><tr>
+        <td><img src="{% muhkam_logo %}" alt="Muhkam"></td>
+        <td class="title"><strong>{{ assessment.name }}</strong> &middot; {% trans "Audit report" %}</td>
+    </tr></table>
+</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on }}</div>
+
+<main>
+    <p class="eyebrow">{% trans "Audit report — Outcome" %}</p>
+    <h1 class="report-title" dir="{{ assessment.name|text_dir }}">{% if assessment.framework_ref %}{{ assessment.framework_ref }} — {% endif %}{{ assessment.name }}</h1>
+    <p class="report-subtitle">{{ assessment.framework }} &middot; {% trans "Generated" %} {{ generated_on }} <span class="badge">{% trans "data-only report" %}</span></p>
+
+    <table class="meta">
+        <tr>
+            <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ assessment.folder }}{% if assessment.perimeter %} — {{ assessment.perimeter }}{% endif %}</span></td>
+            <td><span class="label">{% trans "Assessment status" %}</span><span class="value">{{ assessment.status|default:"—" }} &middot; {{ summary.reviewed_pct }}% {% trans "reviewed" %}</span></td>
+            <td><span class="label">{% trans "Authors" %}</span><span class="value">{{ assessment.authors|join:", "|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Reviewers" %}</span><span class="value">{{ assessment.reviewers|join:", "|default:"—" }}</span></td>
+        </tr>
+    </table>
+
+    <table class="kpis">
+        <tr>
+            <td><div class="kpi-value {% if summary.ratio is None %}{% elif summary.ratio >= 80 %}good{% elif summary.ratio >= 60 %}warn{% else %}bad{% endif %}">{% if summary.ratio is not None %}{{ summary.ratio }}%{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Compliance ratio" %}</div></td>
+            <td><div class="kpi-value">{{ summary.assessed }}</div><div class="kpi-label">{% trans "Controls assessed" %}{% if summary.not_assessed %} · {{ summary.not_assessed }} {% trans "pending" %}{% endif %}</div></td>
+            <td><div class="kpi-value">{{ summary.compliant }} · {{ summary.partially_compliant }} · {{ summary.non_compliant }} · {{ summary.not_applicable }}</div><div class="kpi-label">I · PI · NI · N/A</div></td>
+            <td><div class="kpi-value {% if findings %}warn{% endif %}">{{ findings|length }}</div><div class="kpi-label">{% trans "Findings" %}{% if findings %} · {% for s in severity_counts %}{% if s.count %}{{ s.count }}{{ s.short }} {% endif %}{% endfor %}{% endif %}</div></td>
+            <td><div class="kpi-value">{{ observations|length }}</div><div class="kpi-label">{% trans "Observations" %}</div></td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <h2 class="section-title"><span class="n">1.</span>{% trans "Summary" %}</h2>
+        <p class="section-note">{% trans "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded." %}</p>
+        <table class="kv">
+            <tr><td class="k">{% trans "Compliance ratio" %}</td><td>{% if summary.ratio is not None %}<strong>{{ summary.ratio }}%</strong> <span class="formula">= ({{ summary.compliant }} + 0.5×{{ summary.partially_compliant }}) / {{ summary.assessable }}</span>{% else %}<span class="muted">{% trans "No implemented, partial or non-implemented answers yet" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Controls assessed" %}</td><td>{{ summary.assessed }} ({{ summary.not_applicable }} {% trans "not applicable" %}){% if summary.not_assessed %} · <span class="muted">{{ summary.not_assessed }} {% trans "of" %} {{ summary.total }} {% trans "not assessed yet" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Strongest domain" %}</td><td>{% if summary.strongest %}{{ summary.strongest.ref_id }} {{ summary.strongest.name }} — {{ summary.strongest.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Weakest domain" %}</td><td>{% if summary.weakest %}{{ summary.weakest.ref_id }} {{ summary.weakest.name }} — {{ summary.weakest.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Findings" %}</td><td>{{ findings|length }} — {% for s in severity_counts %}<span class="sev sev-{{ s.key }}">{{ s.label }}</span> {% endfor %}({% for s in severity_counts %}{{ s.count }}{% if not forloop.last %} / {% endif %}{% endfor %})</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title"><span class="n">2.</span>{% trans "Results by domain" %}</h2>
+        <p class="section-note">{% trans "Requirement answers grouped by top-level framework node. Same ratio formula per group." %}</p>
+        <table class="grid">
+            <colgroup><col style="width: 38%"><col style="width: 7%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 7%"><col style="width: 28%"></colgroup>
+            <thead><tr><th>{% trans "Domain" %}</th><th class="num">{% trans "Controls" %}</th><th class="num">I</th><th class="num">PI</th><th class="num">NI</th><th class="num">N/A</th><th class="num">{% trans "Ratio" %}</th><th>{% trans "Findings" %}</th></tr></thead>
+            <tbody>
+            {% for d in domains %}
+                <tr class="{% if summary.weakest and summary.weakest.index == d.index %}weakest{% endif %}">
+                    <td class="strong">{{ d.ref_id }} {{ d.name }}{% if d.not_assessed %}<span class="desc">{{ d.not_assessed }} {% trans "not assessed" %}</span>{% endif %}</td>
+                    <td class="num">{{ d.assessed }}</td>
+                    <td class="num">{{ d.compliant }}</td>
+                    <td class="num">{{ d.partially_compliant }}</td>
+                    <td class="num">{{ d.non_compliant }}</td>
+                    <td class="num">{{ d.not_applicable }}</td>
+                    <td class="num strong">{% if d.ratio is not None %}{{ d.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{% for code in d.findings %}<span class="code">{{ code }}</span>{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
+                </tr>
+            {% endfor %}
+                <tr class="total">
+                    <td>{% trans "Total" %}</td>
+                    <td class="num">{{ summary.assessed }}</td>
+                    <td class="num">{{ summary.compliant }}</td>
+                    <td class="num">{{ summary.partially_compliant }}</td>
+                    <td class="num">{{ summary.non_compliant }}</td>
+                    <td class="num">{{ summary.not_applicable }}</td>
+                    <td class="num">{% if summary.ratio is not None %}{{ summary.ratio }}%{% else %}—{% endif %}</td>
+                    <td>{{ findings|length }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title"><span class="n">3.</span>{% trans "Findings" %}</h2>
+        <p class="section-note">{% trans "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control." %}</p>
+        {% if findings %}
+        <table class="grid">
+            <colgroup><col style="width: 7%"><col style="width: 69%"><col style="width: 11%"><col style="width: 13%"></colgroup>
+            <thead><tr><th>ID</th><th>{% trans "Title" %}</th><th>{% trans "Severity" %}</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+            {% for f in findings %}
+                <tr>
+                    <td class="code">{{ f.code }}</td>
+                    <td class="strong" dir="{{ f.name|text_dir }}">{{ f.name }}</td>
+                    <td><span class="sev sev-{{ f.severity_key }}">{{ f.severity_label }}</span></td>
+                    <td><span class="sev st-{{ f.status_tone }}">{{ f.status_label }}</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% if detailed_findings %}
+        <h3 class="sub-title" style="color: #192A44">{% trans "Details — Critical & High" %}</h3>
+        {% for f in detailed_findings %}
+        <div class="card {{ f.severity_key }}">
+            <div class="head"><span class="sev sev-{{ f.severity_key }}">{{ f.severity_label }}</span><span class="code">{{ f.code }}</span> <span dir="{{ f.name|text_dir }}">{{ f.name }}</span></div>
+            <table>
+                <tr><td class="k">{% trans "Description" %}</td><td dir="{{ f.description|text_dir }}">{{ f.description|default:"—"|linebreaksbr }}</td></tr>
+                <tr><td class="k">{% trans "Requirement obs." %}</td><td>{% for r in f.requirements %}{{ r.ref_id }}: {% if r.observation %}{{ r.observation }} {% endif %}({{ r.abbr }}){% if not forloop.last %}; {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td></tr>
+                <tr><td class="k">{% trans "Applied control" %}</td><td>{% for c in f.controls %}<div><strong>{{ c.name }}</strong> <span class="sev {% if c.status == 'active' %}ctl-active{% else %}ctl-other{% endif %}">{{ c.status_label }}</span> <span class="small">· {% trans "owner" %} {{ c.owners|join:", "|default:"—" }} · ETA {{ c.eta|default:"—" }}</span></div>{% empty %}<span class="muted">{% trans "None linked" %}</span>{% endfor %}</td></tr>
+                <tr><td class="k">{% trans "Evidence" %}</td><td>{% if f.evidence %}{{ f.evidence|join:", " }}{% else %}<span class="muted">{% trans "None attached" %}</span>{% endif %}</td></tr>
+            </table>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% else %}
+        <div class="empty">{% trans "No findings are linked to this assessment's requirements or applied controls." %}</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2 class="section-title"><span class="n">4.</span>{% trans "Observations" %}</h2>
+        <p class="section-note">{% trans "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim." %}</p>
+        {% if observations %}
+        <table class="grid">
+            <colgroup><col style="width: 7%"><col style="width: 11%"><col style="width: 82%"></colgroup>
+            <thead><tr><th>ID</th><th>{% trans "Ref" %}</th><th>{% trans "Observation" %}</th></tr></thead>
+            <tbody>
+            {% for o in observations %}
+                <tr><td class="muted">{{ o.code }}</td><td class="strong">{{ o.ref_id }}</td><td dir="{{ o.observation|text_dir }}">{% if o.observation %}{{ o.observation }}{% else %}<span class="muted">{% trans "No observation recorded" %}</span>{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">{% trans "No partially implemented requirements without a finding." %}</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2 class="section-title"><span class="n">5.</span>{% trans "Action plan" %}</h2>
+        <p class="section-note">{% trans "All non-active applied controls linked to this assessment's findings, sorted by ETA." %}</p>
+        {% if action_plan %}
+        <table class="grid">
+            <colgroup><col style="width: 38%"><col style="width: 17%"><col style="width: 22%"><col style="width: 11%"><col style="width: 12%"></colgroup>
+            <thead><tr><th>{% trans "Applied control" %}</th><th>{% trans "Linked findings" %}</th><th>{% trans "Owner" %}</th><th>ETA</th><th>{% trans "Status" %}</th></tr></thead>
+            <tbody>
+            {% for c in action_plan %}
+                <tr>
+                    <td class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</td>
+                    <td>{% for code in c.findings %}<span class="code">{{ code }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                    <td>{{ c.owners|join:", "|default:"—" }}</td>
+                    <td>{{ c.eta|default:"—" }}</td>
+                    <td><span class="sev ctl-other">{{ c.status_label }}</span></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">{% trans "No pending applied controls are linked to the findings." %}</div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

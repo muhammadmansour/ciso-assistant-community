@@ -43,6 +43,9 @@
 	if (!$lastAccordionItem.includes('operations')) {
 		$lastAccordionItem = [...$lastAccordionItem, 'operations'];
 	}
+	if (!$lastAccordionItem.includes('overview')) {
+		$lastAccordionItem = [...$lastAccordionItem, 'overview'];
+	}
 
 	interface Props {
 		sideBarVisibleItems: Record<string, boolean>;

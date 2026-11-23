@@ -82,7 +82,7 @@ export function getSidebarVisibleItems(
 		documentTemplates: featureFlags?.document_management ?? true,
 		objectClassifications: featureFlags?.document_management ?? true,
 		contracts: featureFlags?.contracts ?? false,
-		reports: featureFlags?.reports ?? false,
+		reports: featureFlags?.reports ?? true,
 		validationFlows: true,
 		metrology: featureFlags?.metrology ?? true
 	};

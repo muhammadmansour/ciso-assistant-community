@@ -1,83 +1,53 @@
 {% extends 'core/base_pdf.html' %}
 {% block content %}
 {% load i18n core_extras %}
+{% include 'core/_report_pdf_styles.html' %}
 
-<style>
-    table, th, td {
-        border: 1px solid black;
-      }
-</style>
+<div class="report-header">
+    <table><tr>
+        <td><img src="{% muhkam_logo %}" alt="Muhkam"></td>
+        <td class="title"><strong>{{ assessment.name }}</strong> &middot; {% trans "Action plan" %}</td>
+    </tr></table>
+</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on }}</div>
 
-<main class="p-2 m-2 main">
-    <h1 class="flex justify-center">{% trans "Action plan" %}</h1>
-    <div class="bg-white p-2 m-2 space-x-3 flex flex-row justify-center">
-        <p class="font-semibold text-lg"> {% trans "Domain" %}: {{ risk_assessment.perimeter.folder }}</p>
-        <p class="font-semibold text-lg">/</p>
-        <p class="font-semibold text-lg"> {% trans "Perimeter" %}: {{ risk_assessment.perimeter.name }}</p>
-        <p class="font-semibold text-lg">/</p>
-        <p class="font-semibold text-lg"> {% trans "Risk Assessment" %}: {{ risk_assessment.name }} - {{ risk_assessment.version }}</p>
+<main>
+    <p class="eyebrow">{% trans "Risk treatment action plan" %}</p>
+    <h1 class="report-title" dir="{{ assessment.name|text_dir }}">{{ assessment.name }}</h1>
+    <p class="report-subtitle">{% trans "Applied controls linked to the risk scenarios, grouped by status and sorted by target date" %}</p>
+
+    <table class="meta">
+        <tr>
+            <td><span class="label">{% trans "Domain" %}</span><span class="value">{{ assessment.folder|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ assessment.perimeter|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Version" %}</span><span class="value">{{ assessment.version|default:"—" }}</span></td>
+            <td><span class="label">{% trans "Status" %}</span><span class="value">{{ assessment.status|default:"—" }}</span></td>
+        </tr>
+    </table>
+
+    <table class="kpis">
+        <tr>
+            <td><div class="kpi-value">{{ controls.items|length }}</div><div class="kpi-label">{% trans "Controls" %} · {{ scenario_count }} {% trans "scenarios" %}</div></td>
+            {% for st in controls.by_status %}{% if st.key != '--' or st.count %}
+            <td style="border-top-color: {{ st.color }}"><div class="kpi-value">{{ st.count }}</div><div class="kpi-label">{{ st.label }}</div></td>
+            {% endif %}{% endfor %}
+            <td class="{% if controls.overdue %}alert{% endif %}"><div class="kpi-value">{{ controls.overdue }}</div><div class="kpi-label">{% trans "Overdue" %}</div></td>
+        </tr>
+    </table>
+
+    {% if controls.items %}
+    <h2 class="block-title">{% trans "Progress" %}</h2>
+    <div class="bar"><table><tr>{% for st in controls.by_status %}{% if st.count %}<td style="width: {{ st.pct }}%; background: {{ st.color }}"></td>{% endif %}{% endfor %}</tr></table></div>
+    <div class="legend">
+        {% for st in controls.by_status %}{% if st.count %}<span class="item"><span class="swatch" style="background: {{ st.color }}"></span>{{ st.label }}: <strong>{{ st.count }}</strong> ({{ st.pct }}%)</span>{% endif %}{% endfor %}
     </div>
-    <p class="p-2 m-2 text-lg font-semibold"> {% trans "Associated applied controls" %}: </p>
-    <p class="m-2 p-2" style="color: #374151">{% trans "Separated by status and sorted by eta" %}</p>
-    {{ status }}
-    {% for status, applied_controls in context.items %}
-        {% for status_color, color in color_map.items %}
-            {% if status_color == status and status == "--" %}
-                <p class="flex p-2 m-2 text-lg font-semibold justify-center" style="background-color: {{color}}">{% trans "No status" %}</p>
-            {% else %}
-                {% for text in status_text %}
-                    {% if status_color == status and text.0 == status %}
-                        <p class="flex p-2 m-2 text-lg font-semibold justify-center" style="background-color: {{color}}">{{ text.1 }}:</p>
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
+
+        {% for group in controls.groups %}
+        <div class="chapter-band" style="margin-top: 0.45cm; background: #192A44"><span class="stats">{{ group.count }} {% trans "controls" %}</span><span class="dot" style="background: {{ group.color }}"></span><span class="name">{{ group.label }}</span></div>
+        {% include 'core/_risk_controls_table.html' with items=group.items %}
         {% endfor %}
-        <div class="bg-white p-2 m-2 shadow overflow-hidden rounded-lg flex flex-row">  
-            <div class="flex w-full">
-                <table class="w-full p-2 mt-2">
-                    <thead>
-                        <tr class="uppercase">
-                            <th class="text-md p-2 text-center">{% trans "Name" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Description" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Category" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "CSF function" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "ETA" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Expiry date" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Effort" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Cost" %}</th>
-                            <th class="text-md p-2 text-center">{% trans "Matching scenarios" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for applied_control in applied_controls %}
-                        <tr>
-                            <td class="text-md p-2 text-center">{{ applied_control.name }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.description|default:"--"|linebreaksbr }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.get_category_display|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.get_csf_function_display|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.eta|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.expiry_date|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.get_effort_display|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">{{ applied_control.cost|default:"--" }}</td>
-                            <td class="text-md p-2 text-center">
-                                {% for req in applied_control.risk_scenarios.all %}
-                                    {{ req }}<br>
-                                {% empty %}
-                                    --
-                                {% endfor %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                            <tr>
-                                <td class="text-md p-2 text-center" colspan="9">
-                                    <p>{% trans "No entries found" %}</p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    {% endfor %}
+    {% else %}
+    <div class="empty" style="margin-top: 0.4cm">{% trans "No applied controls are linked to the scenarios of this assessment." %}</div>
+    {% endif %}
 </main>
 {% endblock %}
