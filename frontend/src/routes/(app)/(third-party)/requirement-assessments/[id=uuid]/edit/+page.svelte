@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { FindingSchema, RequirementAssessmentSchema } from '$lib/utils/schemas';
+	import type { z } from 'zod';
 	import { getModelInfo } from '$lib/utils/crud';
 	import { canPerformActionOnObject } from '$lib/utils/access-control';
 	import { getFlash } from 'sveltekit-flash-message';
@@ -198,7 +199,9 @@
 
 	const flash = getFlash(pageStore);
 
-	async function modalFindingCreateForm(): Promise<void> {
+	async function modalFindingCreateForm(
+		prefill: Partial<z.infer<typeof FindingSchema>> = {}
+	): Promise<void> {
 		// The audit's binder is created on first use, so the finding has somewhere to live
 		// and the audit gets its findings list for free.
 		const res = await fetch(
@@ -218,6 +221,7 @@
 			props: {
 				form: defaults(
 					{
+						...prefill,
 						findings_assessment: binder.id,
 						// The assessment implies the requirement; setting the catalog node too
 						// just renders the same thing twice on the finding.
@@ -525,7 +529,20 @@
 		gRec: string | null,
 		gTitle: string | null = null
 	) {
-		gapFindingPrefill = buildGapFindingPrefill(idx, gGap, gRec, gTitle);
+		const prefill = buildGapFindingPrefill(idx, gGap, gRec, gTitle);
+		// A finding raised in the audit's binder shows in the audit report against its
+		// requirement; the follow-up modal remains for teams without that workflow.
+		if (canRaiseFinding) {
+			modalFindingCreateForm({
+				name: prefill.name,
+				description: prefill.description,
+				observation: prefill.observation,
+				evidences: prefill.evidences,
+				status: 'identified'
+			});
+			return;
+		}
+		gapFindingPrefill = prefill;
 		showGapFindingModal = true;
 	}
 
@@ -1499,7 +1516,7 @@
 											<span class="flex flex-row justify-end items-center">
 												<button
 													class="btn preset-filled-primary-500 self-end"
-													onclick={modalFindingCreateForm}
+													onclick={() => modalFindingCreateForm()}
 													data-testid="raise-finding-button"
 													type="button"
 												>
