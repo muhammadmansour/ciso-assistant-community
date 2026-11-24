@@ -216,11 +216,17 @@
 		const binder = await res.json();
 
 		const findingModel = getModelInfo('findings');
+		// The requirement's controls, including any picked but not yet saved, are the
+		// ones a finding on it is about.
+		const requirementControls = ($formStore.applied_controls ?? []).filter(
+			(id: unknown) => typeof id === 'string'
+		);
 		const modalComponent: ModalComponent = {
 			ref: CreateModal,
 			props: {
 				form: defaults(
 					{
+						applied_controls: requirementControls,
 						...prefill,
 						findings_assessment: binder.id,
 						// The assessment implies the requirement; setting the catalog node too
