@@ -437,6 +437,23 @@ class TestGapFollowUps:
         follow_up = FindingsAssessment.objects.get(id=res.json()["id"])
         assert follow_up.compliance_assessment_id == assessment.id
 
+    def test_the_audit_report_places_a_finding_under_its_requirement(self, setup, audit):
+        from core.audit_report_views import build_audit_report
+
+        assessment, ra = audit
+        binder = FindingsAssessment.objects.create(
+            name="ISO audit (findings)", folder=setup["domain"], compliance_assessment=assessment
+        )
+        Finding.objects.create(
+            name="Raised here", folder=setup["domain"], findings_assessment=binder, requirement_assessment=ra
+        )
+        admin = User.objects.get(email="findings-admin@tests.com")
+
+        report = build_audit_report(admin, str(assessment.id))
+        (finding,) = report["findings"]
+        assert finding["requirement_ids"] == [ra.requirement_id]
+        assert report["domains"][finding["sections"][0]]["findings"] == ["Raised here"]
+
     def test_a_follow_up_without_a_source_stays_unbound(self, setup, audit):
         res = setup["client"].post(
             "/api/findings-assessments/",

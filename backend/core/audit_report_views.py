@@ -107,6 +107,7 @@ def _findings(assessment, user, ra_by_requirement, section_of):
         Finding.objects.filter(id__in=_accessible_ids(user, Finding))
         .filter(bound_here | unbound)
         .distinct()
+        .select_related("requirement_assessment")
         .prefetch_related(
             "evidences",
             Prefetch(
@@ -128,7 +129,10 @@ def _findings(assessment, user, ra_by_requirement, section_of):
     items = []
     for finding in findings:
         requirement_ids = []
-        if finding.requirement_node_id in ra_by_requirement:
+        raised_on = finding.requirement_assessment
+        if raised_on and raised_on.requirement_id in ra_by_requirement and raised_on.compliance_assessment_id == assessment.id:
+            requirement_ids.append(raised_on.requirement_id)
+        if finding.requirement_node_id in ra_by_requirement and finding.requirement_node_id not in requirement_ids:
             requirement_ids.append(finding.requirement_node_id)
         controls = list(finding.applied_controls.all())
         for control in controls:
