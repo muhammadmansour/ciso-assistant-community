@@ -47,13 +47,18 @@
 
 	const appliedControlModel = getModelInfo('applied-controls');
 
+	// Opened from a page that has not loaded the finding choices, the form renders before
+	// they arrive, so it starts empty and fills in.
+	let selectOptions: Record<string, any> = $state(model.selectOptions ?? {});
+
 	onMount(async () => {
 		if (!model.selectOptions) {
-			const selectOptions = {
-				status: await fetch('/findings/status').then((r) => r.json()),
-				priority: await fetch('/findings/priority').then((r) => r.json()),
-				severity: await fetch('/findings/severity').then((r) => r.json())
-			};
+			const [status, priority, severity] = await Promise.all(
+				['status', 'priority', 'severity'].map((field) =>
+					fetch(`/findings/${field}`).then((r) => r.json())
+				)
+			);
+			selectOptions = { status, priority, severity };
 			model.selectOptions = selectOptions;
 		}
 	});
@@ -97,7 +102,7 @@
 />
 <Select
 	{form}
-	options={model.selectOptions['severity']}
+	options={selectOptions.severity ?? []}
 	field="severity"
 	label={m.severity()}
 	cacheLock={cacheLocks['severity']}
@@ -105,7 +110,7 @@
 />
 <Select
 	{form}
-	options={model.selectOptions['priority']}
+	options={selectOptions.priority ?? []}
 	field="priority"
 	label={m.priority()}
 	cacheLock={cacheLocks['priority']}
@@ -127,7 +132,7 @@
 />
 <Select
 	{form}
-	options={model.selectOptions['status']}
+	options={selectOptions.status ?? []}
 	field="status"
 	label={m.status()}
 	cacheLock={cacheLocks['status']}
