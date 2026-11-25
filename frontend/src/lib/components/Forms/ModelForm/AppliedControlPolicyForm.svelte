@@ -16,7 +16,7 @@
 	import { safeTranslate } from '$lib/utils/i18n';
 	import { getLocale } from '$paraglide/runtime';
 
-	let displayCurrency = $state(page.data?.settings?.currency ?? '€'); // Default to Euro
+	let displayCurrency = $state(page.data?.settings?.currency ?? 'SAR');
 
 	interface Props {
 		form: SuperValidated<any>;

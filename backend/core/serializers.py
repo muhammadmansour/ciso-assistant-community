@@ -1121,8 +1121,8 @@ class AppliedControlReadSerializer(AppliedControlWriteSerializer):
 
     def get_currency(self, obj):
         if not obj.cost:
-            return "€"  # Default currency
-        return obj.cost.get("currency", "€")
+            return "SAR"  # Default currency
+        return obj.cost.get("currency", "SAR")
 
     def get_annual_cost_display(self, obj):
         annual_cost = obj.annual_cost

@@ -257,7 +257,7 @@ class Project(NameDescriptionFolderMixin, FilteringLabelMixin):
         null=True,
         validators=[MinValueValidator(0)],
     )
-    currency = models.CharField(max_length=3, blank=True)
+    currency = models.CharField(max_length=3, blank=True, default="SAR")
     linked_collection = models.ForeignKey(
         GenericCollection,
         on_delete=models.SET_NULL,

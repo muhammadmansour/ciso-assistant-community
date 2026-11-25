@@ -1662,7 +1662,7 @@ def startup(sender: AppConfig, **kwargs):
         "ebios_radar_red_zone_radius": 2.5,
         "notifications_enable_mailing": False,
         "interface_agg_scenario_matrix": False,
-        "currency": "€",
+        "currency": "SAR",
         "daily_rate": 500,
         "mapping_max_depth": 3,
         "show_warning_external_links": True,

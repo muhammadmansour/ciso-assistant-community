@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 
 	interface ScenarioData {
 		name: string;
@@ -14,6 +15,7 @@
 		width?: string;
 		height?: string;
 		classesContainer?: string;
+		currency?: string;
 	}
 
 	let {
@@ -21,7 +23,8 @@
 		title = 'ALE Comparison by Scenario',
 		width = 'w-auto',
 		height = 'h-96',
-		classesContainer = ''
+		classesContainer = '',
+		currency = page.data?.settings?.currency ?? 'SAR'
 	}: Props = $props();
 
 	const chart_id = `ale_comparison_${Math.random().toString(36).substr(2, 9)}`;
@@ -40,11 +43,11 @@
 		const formatCurrency = (value: number) => {
 			const absValue = Math.abs(value);
 			if (absValue >= 1_000_000) {
-				return `${(value / 1_000_000).toFixed(1)}M €`;
+				return `${(value / 1_000_000).toFixed(1)}M ${currency}`;
 			} else if (absValue >= 1_000) {
-				return `${(value / 1_000).toFixed(0)}K €`;
+				return `${(value / 1_000).toFixed(0)}K ${currency}`;
 			} else {
-				return `${value.toFixed(0)} €`;
+				return `${value.toFixed(0)} ${currency}`;
 			}
 		};
 

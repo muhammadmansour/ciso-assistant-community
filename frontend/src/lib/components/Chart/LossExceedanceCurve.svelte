@@ -38,7 +38,7 @@
 		toleranceData = undefined,
 		residualData = undefined,
 		lossThreshold = undefined,
-		currency = '€',
+		currency = 'SAR',
 		title = m.lossExceedanceCurve(),
 		showTitle = false,
 		xAxisLabel = m.lossAmount(),

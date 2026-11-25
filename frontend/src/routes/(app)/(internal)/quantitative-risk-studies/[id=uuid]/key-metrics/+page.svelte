@@ -151,7 +151,7 @@
 	}
 
 	// Helper functions for column formatting
-	const formatCurrencyForGrid = (value: any, currency: string = '€') => {
+	const formatCurrencyForGrid = (value: any, currency: string = 'SAR') => {
 		if (value === null || value === undefined) return 'N/A';
 		return formatCurrency(value, currency);
 	};
@@ -162,7 +162,7 @@
 	};
 
 	// Define all available grid columns with sorting and built-in filtering
-	const getAllColumns = (currency: string = '€') => [
+	const getAllColumns = (currency: string = 'SAR') => [
 		{
 			id: 'scenario',
 			header: {
@@ -241,7 +241,7 @@
 	];
 
 	// Create reactive columns and get all columns list
-	const allColumns = $derived.by(() => getAllColumns('€')); // We'll update currency later when we have the data
+	const allColumns = $derived.by(() => getAllColumns('SAR')); // We'll update currency later when we have the data
 
 	// Filter columns based on visibility settings
 	const visibleColumns = $derived(

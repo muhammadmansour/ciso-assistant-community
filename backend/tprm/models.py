@@ -126,6 +126,7 @@ class Entity(
     currency = models.CharField(
         max_length=3,
         choices=CURRENCY_CHOICES,
+        default="SAR",
         blank=True,
         verbose_name=_("Currency"),
         help_text=_("Default currency for the entity"),
@@ -472,6 +473,7 @@ class Contract(NameDescriptionMixin, FolderMixin, FilteringLabelMixin):
     currency = models.CharField(
         max_length=3,
         choices=CURRENCY_CHOICES,
+        default="SAR",
         blank=True,
         verbose_name=_("Currency"),
         help_text=_("Currency for contract expenses"),

@@ -371,7 +371,7 @@ class QuantitativeRiskHypothesisReadSerializer(BaseModelSerializer):
         from global_settings.models import GlobalSettings
 
         general_settings = GlobalSettings.objects.filter(name="general").first()
-        return general_settings.value.get("currency", "€") if general_settings else "€"
+        return general_settings.value.get("currency", "SAR") if general_settings else "SAR"
 
     loss_threshold = serializers.SerializerMethodField()
     loss_threshold_display = serializers.SerializerMethodField()

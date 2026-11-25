@@ -741,12 +741,12 @@ def get_report_timezone():
 
 
 def get_global_currency() -> str:
-    """Get the currency from global settings, defaulting to €."""
+    """Get the currency from global settings, defaulting to SAR."""
     from global_settings.models import GlobalSettings
 
     general_settings = GlobalSettings.objects.filter(name="general").first()
     value = general_settings.value if general_settings else None
-    return (value or {}).get("currency") or "€"
+    return (value or {}).get("currency") or "SAR"
 
 
 def escape_excel_formula(value):

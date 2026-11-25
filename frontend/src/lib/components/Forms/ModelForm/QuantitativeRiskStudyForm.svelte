@@ -11,7 +11,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 
-	let displayCurrency = $derived(page.data?.settings?.currency ?? '€'); // Default to Euro
+	let displayCurrency = $derived(page.data?.settings?.currency ?? 'SAR');
 
 	interface Props {
 		form: SuperValidated<any>;

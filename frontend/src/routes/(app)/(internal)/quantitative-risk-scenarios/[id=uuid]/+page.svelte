@@ -16,7 +16,7 @@
 			const echarts = await import('echarts');
 			const chart = echarts.init(document.getElementById('combined-lec-chart'));
 
-			const currency = data.lec.currency || '€';
+			const currency = data.lec.currency || 'SAR';
 			const lossThreshold = data.lec.loss_threshold;
 
 			const series = data.lec.curves.map((curve: any, index: number) => {

@@ -93,7 +93,7 @@ class QuantitativeRiskStudy(NameDescriptionMixin, ETADueDateMixin, FolderMixin):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         points = self.risk_tolerance["points"]
@@ -143,7 +143,7 @@ class QuantitativeRiskStudy(NameDescriptionMixin, ETADueDateMixin, FolderMixin):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         return f"{self.loss_threshold:,.0f} {currency}"
@@ -475,7 +475,7 @@ class QuantitativeRiskScenario(NameDescriptionMixin, FolderMixin):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         if value >= 1_000_000:
@@ -740,7 +740,7 @@ class QuantitativeRiskHypothesis(
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         if value >= 1_000_000:

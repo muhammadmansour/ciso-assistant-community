@@ -60,7 +60,7 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         # Initialize totals
@@ -164,7 +164,7 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         curves = []
@@ -329,7 +329,7 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         # Get all selected scenarios regardless of status, ordered by priority then ref_id
@@ -670,7 +670,7 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         scenarios_data = []
@@ -777,7 +777,7 @@ class QuantitativeRiskStudyViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         scenarios_data = []
@@ -1202,7 +1202,7 @@ class QuantitativeRiskScenarioViewSet(BaseModelViewSet):
         # Get currency from global settings
         general_settings = GlobalSettings.objects.filter(name="general").first()
         currency = (
-            general_settings.value.get("currency", "€") if general_settings else "€"
+            general_settings.value.get("currency", "SAR") if general_settings else "SAR"
         )
 
         # Return the combined curves data

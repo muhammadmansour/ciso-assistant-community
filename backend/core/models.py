@@ -4506,7 +4506,7 @@ class TimelineEntry(AbstractBaseModel, FolderMixin):
 
 def _get_default_applied_control_cost():
     return {
-        "currency": "€",
+        "currency": "SAR",
         "amortization_period": 1,
         "build": {"fixed_cost": 0, "people_days": 0},
         "run": {"fixed_cost": 0, "people_days": 0},

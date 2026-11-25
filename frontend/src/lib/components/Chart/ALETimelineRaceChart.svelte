@@ -29,7 +29,7 @@
 
 	let {
 		scenarios,
-		currency = '€',
+		currency = 'SAR',
 		title = 'ALE Evolution Timeline',
 		width = 'w-full',
 		height = 'h-96',
