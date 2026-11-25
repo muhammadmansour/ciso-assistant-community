@@ -107,7 +107,33 @@ def cairo_font_face_css() -> str:
         " font-weight: 100 900;"
         " font-style: normal;"
         "}"
-    )
+    ) + _saudi_riyal_font_face_css()
+
+
+_SAUDI_RIYAL_FONTS = (("saudi_riyal-regular.ttf", "normal"), ("saudi_riyal-bold.ttf", "bold"))
+
+
+def _saudi_riyal_font_face_css() -> str:
+    """Adds the Saudi Riyal sign (U+20C1, legacy U+E900) to the Cairo family.
+
+    The range is required: the font also carries A–D glyphs that must not replace Cairo's.
+    """
+    faces = []
+    for filename, weight in _SAUDI_RIYAL_FONTS:
+        path = _FONTS_DIR / filename
+        if not path.is_file():
+            continue
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        faces.append(
+            "@font-face {"
+            f" font-family: '{CAIRO_FONT_FAMILY}';"
+            f" src: url('data:font/ttf;base64,{encoded}') format('truetype');"
+            f" font-weight: {weight};"
+            " font-style: normal;"
+            " unicode-range: U+20C1, U+E900;"
+            "}"
+        )
+    return "".join(faces)
 
 
 # -- Excel (openpyxl) ---------------------------------------------------------

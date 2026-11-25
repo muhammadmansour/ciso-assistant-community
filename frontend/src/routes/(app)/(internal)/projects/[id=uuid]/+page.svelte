@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
 	import Anchor from '$lib/components/Anchor/Anchor.svelte';
@@ -86,7 +87,7 @@
 
 	function money(value: unknown): string {
 		if (value === null || value === undefined || value === '') return '—';
-		const currency = project.currency ? ` ${project.currency}` : '';
+		const currency = project.currency ? ` ${currencySymbol(project.currency)}` : '';
 		return `${value}${currency}`;
 	}
 

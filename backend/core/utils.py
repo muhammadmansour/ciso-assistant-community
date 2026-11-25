@@ -749,6 +749,20 @@ def get_global_currency() -> str:
     return (value or {}).get("currency") or "SAR"
 
 
+SAUDI_RIYAL_SIGN = "\u20c1"
+
+
+def currency_symbol(currency: str | None) -> str:
+    """Display form of a stored currency: the Saudi Riyal sign for SAR, else unchanged.
+
+    The sign needs the bundled Saudi Riyal font, so only use it where that font
+    is loaded (the web app and PDF exports), not in Word or spreadsheet exports.
+    """
+    if not currency:
+        return ""
+    return SAUDI_RIYAL_SIGN if currency == "SAR" else currency
+
+
 def escape_excel_formula(value):
     """
     Escape Excel formula injection by prefixing dangerous characters.

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import AutocompleteSelect from '../AutocompleteSelect.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
 	import MarkdownField from '$lib/components/Forms/MarkdownField.svelte';
@@ -173,7 +174,7 @@
 	<TextField
 		{form}
 		field="impact.lb"
-		label="{m.expectedLossLowerBound()} ({displayCurrency})"
+		label="{m.expectedLossLowerBound()} ({currencySymbol(displayCurrency)})"
 		type="number"
 		step="10"
 		min="10"
@@ -184,7 +185,7 @@
 	<TextField
 		{form}
 		field="impact.ub"
-		label="{m.expectedLossUpperBound()} ({displayCurrency})"
+		label="{m.expectedLossUpperBound()} ({currencySymbol(displayCurrency)})"
 		type="number"
 		step="10"
 		min="20"

@@ -13,7 +13,7 @@ from core.serializer_fields import (
     HashSlugRelatedField,
     PathField,
 )
-from core.utils import time_state
+from core.utils import currency_symbol, time_state
 from ebios_rm.models import EbiosRMStudy, Stakeholder
 from tprm.models import Contract, Solution
 from global_settings.utils import ff_is_enabled
@@ -1128,7 +1128,7 @@ class AppliedControlReadSerializer(AppliedControlWriteSerializer):
         annual_cost = obj.annual_cost
         if annual_cost == 0:
             return ""
-        currency = self.get_currency(obj)
+        currency = currency_symbol(self.get_currency(obj))
         return f"{annual_cost:,.2f} {currency}"
 
     def to_representation(self, instance):

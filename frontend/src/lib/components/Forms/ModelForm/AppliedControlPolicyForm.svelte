@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import AutocompleteSelect from '../AutocompleteSelect.svelte';
 	import Select from '../Select.svelte';
 	import Checkbox from '$lib/components/Forms/Checkbox.svelte';
@@ -210,7 +211,7 @@
 				<NumberField
 					{form}
 					field="cost.build.fixed_cost"
-					label="{m.fixedCost()} ({displayCurrency})"
+					label="{m.fixedCost()} ({currencySymbol(displayCurrency)})"
 					helpText={m.oneTimeImplementationCost()}
 					min={0}
 					step={1}
@@ -243,7 +244,7 @@
 				<NumberField
 					{form}
 					field="cost.run.fixed_cost"
-					label="{m.fixedCost()} ({displayCurrency})"
+					label="{m.fixedCost()} ({currencySymbol(displayCurrency)})"
 					helpText={m.annualOperationalCost()}
 					min={0}
 					step={1}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
 	import { m } from '$paraglide/messages';
@@ -25,7 +26,8 @@
 	let showColumnControls = $state(false);
 
 	// Enhanced function to format currency values with better rounding and units
-	function formatCurrency(value: number | null, currency: string): string {
+	function formatCurrency(value: number | null, code: string): string {
+		const currency = currencySymbol(code);
 		if (value === null || value === undefined) return 'N/A';
 
 		const absValue = Math.abs(value);
@@ -319,7 +321,7 @@
 				<div class="flex justify-between items-center mb-4">
 					<h2 class="text-xl font-semibold text-gray-900">{m.studyOverview()}</h2>
 					<div class="text-sm text-gray-600">
-						{keyMetricsData.currency} • {keyMetricsData.total_scenarios}
+						{currencySymbol(keyMetricsData.currency)} • {keyMetricsData.total_scenarios}
 						{m.scenarios()}
 					</div>
 				</div>

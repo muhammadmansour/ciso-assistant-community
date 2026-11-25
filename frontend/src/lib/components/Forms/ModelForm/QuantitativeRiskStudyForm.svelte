@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import AutocompleteSelect from '../AutocompleteSelect.svelte';
 	import TextField from '$lib/components/Forms/TextField.svelte';
 	import NumberField from '$lib/components/Forms/NumberField.svelte';
@@ -170,7 +171,7 @@
 		<NumberField
 			{form}
 			field="loss_threshold"
-			label="{m.lossThreshold()} ({displayCurrency})"
+			label="{m.lossThreshold()} ({currencySymbol(displayCurrency)})"
 			min={0}
 			step={1}
 			helpText={m.lossThresholdHelpText()}
@@ -206,7 +207,7 @@
 				<NumberField
 					{form}
 					field="risk_tolerance.points.point1.acceptable_loss"
-					label="Point 1 - Tolerable Loss ({displayCurrency})"
+					label="Point 1 - Tolerable Loss ({currencySymbol(displayCurrency)})"
 					min={1}
 					step={1}
 					helpText="Acceptable loss amount for point 1"
@@ -238,7 +239,7 @@
 				<NumberField
 					{form}
 					field="risk_tolerance.points.point2.acceptable_loss"
-					label="Point 2 - Tolerable Loss ({displayCurrency})"
+					label="Point 2 - Tolerable Loss ({currencySymbol(displayCurrency)})"
 					min={1}
 					step={1}
 					helpText="Acceptable loss amount for point 2"

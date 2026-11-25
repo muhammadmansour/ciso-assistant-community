@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
 	import { onMount } from 'svelte';
+	import { CHART_FONT_FAMILY, currencySymbol } from '$lib/utils/currency';
 
 	interface TreatmentControl {
 		id: string;
@@ -47,13 +48,13 @@
 	const formatCurrency = (value: number) => {
 		const absValue = Math.abs(value);
 		if (absValue >= 1_000_000_000) {
-			return `${(value / 1_000_000_000).toFixed(1)}B ${currency}`;
+			return `${(value / 1_000_000_000).toFixed(1)}B ${currencySymbol(currency)}`;
 		} else if (absValue >= 1_000_000) {
-			return `${(value / 1_000_000).toFixed(1)}M ${currency}`;
+			return `${(value / 1_000_000).toFixed(1)}M ${currencySymbol(currency)}`;
 		} else if (absValue >= 1_000) {
-			return `${(value / 1_000).toFixed(0)}K ${currency}`;
+			return `${(value / 1_000).toFixed(0)}K ${currencySymbol(currency)}`;
 		} else {
-			return `${value.toFixed(0)} ${currency}`;
+			return `${value.toFixed(0)} ${currencySymbol(currency)}`;
 		}
 	};
 
@@ -196,6 +197,7 @@
 		const maxValue = Math.max(...frame.data.map((d: any) => d.value));
 
 		const option = {
+			textStyle: { fontFamily: CHART_FONT_FAMILY },
 			title: {
 				text: frame.dateDisplay,
 				left: 'center',

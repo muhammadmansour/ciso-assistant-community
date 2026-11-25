@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { CHART_FONT_FAMILY, currencySymbol } from '$lib/utils/currency';
 	import type { PageData } from './$types';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import { onMount } from 'svelte';
@@ -16,7 +17,7 @@
 			const echarts = await import('echarts');
 			const chart = echarts.init(document.getElementById('combined-lec-chart'));
 
-			const currency = data.lec.currency || 'SAR';
+			const currency = currencySymbol(data.lec.currency || 'SAR');
 			const lossThreshold = data.lec.loss_threshold;
 
 			const series = data.lec.curves.map((curve: any, index: number) => {
@@ -97,6 +98,7 @@
 			});
 
 			const option = {
+				textStyle: { fontFamily: CHART_FONT_FAMILY },
 				tooltip: {
 					show: true,
 					trigger: 'axis',

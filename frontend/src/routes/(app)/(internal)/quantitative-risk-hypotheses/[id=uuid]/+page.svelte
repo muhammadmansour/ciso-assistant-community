@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import type { ActionData, PageData } from './$types';
 	import DetailView from '$lib/components/DetailView/DetailView.svelte';
 	import { page } from '$app/state';
@@ -147,7 +148,7 @@
 				</div>
 				{#if data.lec?.metrics && Object.keys(data.lec.metrics).length > 0}
 					{@const metrics = data.lec.metrics}
-					{@const currency = data.data.currency || '$'}
+					{@const currency = currencySymbol(data.data.currency || '$')}
 					{@const formatCurrency = (value) => {
 						if (value >= 1000000000) return `${currency}${(value / 1000000000).toFixed(1)}B`;
 						if (value >= 1000000) return `${currency}${(value / 1000000).toFixed(1)}M`;

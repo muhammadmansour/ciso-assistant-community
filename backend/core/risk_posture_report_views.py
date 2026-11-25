@@ -17,6 +17,7 @@ from core.audit_report_views import report_language
 from core.models import AppliedControl, RiskAssessment, RiskScenario
 from core.nca_ecc_report_views import _accessible_ids
 from core.risk_assessment_pdf import _matrix_view, _rating
+from core.utils import currency_symbol
 from global_settings.models import GlobalSettings
 
 SECTION_KEYS = [
@@ -157,7 +158,10 @@ def _heatmap(matrix, kind, title, scenarios, swap_axes, flip_vertical):
     return {"kind": kind, "title": _(title), **view}
 
 
-def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | None:
+def build_risk_posture_report(
+    user, assessment_id: str | None = None, riyal_sign: bool = True
+) -> dict | None:
+    """``riyal_sign`` shows SAR as its sign; Word and XLSX keep the code, as they lack the font."""
     choices = _assessment_choices(_accessible_ids(user, RiskAssessment))
     if assessment_id:
         if not any(choice["id"] == assessment_id for choice in choices):
@@ -200,6 +204,8 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
             if control.cost and control.cost.get("currency"):
                 currencies[control.cost["currency"]] += 1
     currency = currencies.most_common(1)[0][0] if currencies else ""
+    if riyal_sign:
+        currency = currency_symbol(currency)
     annual = {cid: float(entry["control"].annual_cost or 0) for cid, entry in controls.items()}
 
     risks = []
@@ -809,8 +815,10 @@ def risk_posture_document(payload: dict) -> bytes:
     return doc.to_bytes()
 
 
-def _payload_or_404(request):
-    payload = build_risk_posture_report(request.user, request.query_params.get("assessment"))
+def _payload_or_404(request, riyal_sign=True):
+    payload = build_risk_posture_report(
+        request.user, request.query_params.get("assessment"), riyal_sign
+    )
     if payload is None:
         return None, Response(
             {"error": "Risk assessment not found or not visible."},
@@ -838,7 +846,7 @@ class RiskPostureReportXlsxView(APIView):
 
     def get(self, request):
         with report_language(request):
-            payload, error = _payload_or_404(request)
+            payload, error = _payload_or_404(request, riyal_sign=False)
             if error or payload["assessment"] is None:
                 return error or Response(status=status.HTTP_404_NOT_FOUND)
             workbook = risk_posture_workbook(payload)
@@ -855,7 +863,7 @@ class RiskPostureReportDocxView(APIView):
 
     def get(self, request):
         with report_language(request):
-            payload, error = _payload_or_404(request)
+            payload, error = _payload_or_404(request, riyal_sign=False)
             if error or payload["assessment"] is None:
                 return error or Response(status=status.HTTP_404_NOT_FOUND)
             document = risk_posture_document(payload)

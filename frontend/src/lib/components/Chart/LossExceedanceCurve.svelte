@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { CHART_FONT_FAMILY, currencySymbol } from '$lib/utils/currency';
 	import { m } from '$paraglide/messages';
 
 	interface Props {
@@ -88,6 +89,7 @@
 		let chart = echarts.init(document.getElementById(chart_id), null, { renderer: 'svg' });
 
 		const option = {
+			textStyle: { fontFamily: CHART_FONT_FAMILY },
 			title: showTitle
 				? {
 						text: title,
@@ -177,7 +179,7 @@
 					if (params.length === 0) return '';
 
 					const lossAmount = params[0].value[0];
-					let tooltip = `${xAxisLabel.replace('($)', `(${currency})`)}: ${currency}${lossAmount.toLocaleString()}<br/>`;
+					let tooltip = `${xAxisLabel.replace('($)', `(${currencySymbol(currency)})`)}: ${currencySymbol(currency)}${lossAmount.toLocaleString()}<br/>`;
 
 					// Find different series
 					const currentRiskParam = params.find((p: any) => p.seriesName === m.currentRisk());
@@ -236,13 +238,13 @@
 				axisLabel: {
 					formatter: function (value: number) {
 						if (value >= 1000000000) {
-							return currency + (value / 1000000000).toFixed(0) + 'B';
+							return currencySymbol(currency) + (value / 1000000000).toFixed(0) + 'B';
 						} else if (value >= 1000000) {
-							return currency + (value / 1000000).toFixed(0) + 'M';
+							return currencySymbol(currency) + (value / 1000000).toFixed(0) + 'M';
 						} else if (value >= 1000) {
-							return currency + (value / 1000).toFixed(0) + 'K';
+							return currencySymbol(currency) + (value / 1000).toFixed(0) + 'K';
 						} else {
-							return currency + value.toFixed(0);
+							return currencySymbol(currency) + value.toFixed(0);
 						}
 					}
 				},
@@ -308,7 +310,7 @@
 									label: {
 										show: true,
 										position: 'end',
-										formatter: `${m.lossThresholdLabel()}: ${currency}${lossThreshold.toLocaleString()}`,
+										formatter: `${m.lossThresholdLabel()}: ${currencySymbol(currency)}${lossThreshold.toLocaleString()}`,
 										fontSize: 12,
 										color: '#7c3aed',
 										backgroundColor: 'rgba(255, 255, 255, 0.9)',

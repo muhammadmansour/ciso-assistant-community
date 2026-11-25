@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { currencySymbol } from '$lib/utils/currency';
 	import type { PageData } from './$types';
 	import { page } from '$app/state';
 	import LossExceedanceCurve from '$lib/components/Chart/LossExceedanceCurve.svelte';
@@ -397,7 +398,7 @@
 																	{#if control.annual_cost && control.annual_cost > 0}
 																		<div class="text-xs text-blue-700 mt-1">
 																			{m.costYear()}
-																			{summaryData.currency}{control.annual_cost.toLocaleString()}{m.costPerYear()}
+																			{currencySymbol(summaryData.currency)}{control.annual_cost.toLocaleString()}{m.costPerYear()}
 																		</div>
 																	{/if}
 																</div>
