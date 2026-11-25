@@ -208,6 +208,41 @@ export const navData = {
 					alwaysShow: true
 				},
 				{
+					name: 'laws',
+					fa_icon: 'fa-solid fa-scale-balanced',
+					href: '/laws',
+					permissions: ['view_legalinstrument'],
+					adminFallback: true
+				},
+				{
+					name: 'cabinetDecisions',
+					fa_icon: 'fa-solid fa-landmark',
+					href: '/cabinet-decisions',
+					permissions: ['view_legalinstrument'],
+					adminFallback: true
+				},
+				{
+					name: 'regulatorInstructions',
+					fa_icon: 'fa-solid fa-file-circle-exclamation',
+					href: '/regulator-instructions',
+					permissions: ['view_legalinstrument'],
+					adminFallback: true
+				},
+				{
+					name: 'boardDecisions',
+					fa_icon: 'fa-solid fa-people-roof',
+					href: '/board-decisions',
+					permissions: ['view_legalinstrument'],
+					adminFallback: true
+				},
+				{
+					name: 'officialLetters',
+					fa_icon: 'fa-solid fa-envelope-open-text',
+					href: '/official-letters',
+					permissions: ['view_legalinstrument'],
+					adminFallback: true
+				},
+				{
 					name: 'organisationObjectives',
 					fa_icon: 'fa-solid fa-bullseye',
 					href: '/organisation-objectives',

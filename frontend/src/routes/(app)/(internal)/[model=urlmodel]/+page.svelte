@@ -24,6 +24,7 @@
 	} from '$lib/components/Modals/stores';
 
 	import QuickStartModal from '$lib/components/SideBar/QuickStart/QuickStartModal.svelte';
+	import { LEGAL_INSTRUMENT_URL_MODELS } from '$lib/utils/legalInstruments';
 
 	interface Props {
 		data: PageData;
@@ -283,6 +284,15 @@
 										data-testid="import-button"
 										id="import-button"
 										{title}><i class="fa-solid fa-file-import mr-2"></i></Anchor
+									>
+								{/if}
+								{#if LEGAL_INSTRUMENT_URL_MODELS.includes(URLModel)}
+									<Anchor
+										href={`/libraries?object_type=${URLModel.replace(/-/g, '_')}`}
+										label={m.libraries()}
+										class="inline-block p-3 btn-mini-tertiary w-12 focus:relative"
+										data-testid="import-button"
+										title={m.libraries()}><i class="fa-solid fa-file-import mr-2"></i></Anchor
 									>
 								{/if}
 								{#if URLModel === 'assets'}

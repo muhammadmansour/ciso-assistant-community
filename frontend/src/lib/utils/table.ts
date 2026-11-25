@@ -350,6 +350,21 @@ export const APPLIED_CONTROL_STATUS_FILTER: ListViewFilterConfig = {
 	}
 };
 
+const legalInstrumentListView = (urlModel: string) => ({
+	head: ['refId', 'name', 'issuingAuthority', 'issueDate', 'status', 'library', 'domain'],
+	body: ['ref_id', 'name', 'issuing_authority', 'issue_date', 'status', 'library', 'folder'],
+	meta: ['id', 'urn'],
+	filters: {
+		folder: DOMAIN_FILTER,
+		status: {
+			...APPLIED_CONTROL_STATUS_FILTER,
+			props: { ...APPLIED_CONTROL_STATUS_FILTER.props, optionsEndpoint: `${urlModel}/status` }
+		},
+		library: LIBRARY_FILTER,
+		filtering_labels: LABELS_FILTER
+	}
+});
+
 export const APPLIED_CONTROL_IMPACT_FILTER: ListViewFilterConfig = {
 	component: AutocompleteSelect,
 	props: {
@@ -1351,6 +1366,11 @@ export const listViewFields = {
 			filtering_labels: LABELS_FILTER
 		}
 	},
+	laws: legalInstrumentListView('laws'),
+	'cabinet-decisions': legalInstrumentListView('cabinet-decisions'),
+	'regulator-instructions': legalInstrumentListView('regulator-instructions'),
+	'board-decisions': legalInstrumentListView('board-decisions'),
+	'official-letters': legalInstrumentListView('official-letters'),
 	'risk-scenarios': {
 		head: [
 			'ref_id',

@@ -94,6 +94,46 @@
 			hoverClass: 'hover:border-pink-400 hover:bg-pink-50',
 			label: m.requirementMappingSets()
 		},
+		laws: {
+			type: 'string',
+			field: 'object_type',
+			icon: 'fa-scale-balanced',
+			selectedClass: 'bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-slate-200',
+			hoverClass: 'hover:border-slate-400 hover:bg-slate-50',
+			label: m.laws()
+		},
+		cabinet_decisions: {
+			type: 'string',
+			field: 'object_type',
+			icon: 'fa-landmark',
+			selectedClass: 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-teal-200',
+			hoverClass: 'hover:border-teal-400 hover:bg-teal-50',
+			label: m.cabinetDecisions()
+		},
+		regulator_instructions: {
+			type: 'string',
+			field: 'object_type',
+			icon: 'fa-file-circle-exclamation',
+			selectedClass: 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-orange-200',
+			hoverClass: 'hover:border-orange-400 hover:bg-orange-50',
+			label: m.regulatorInstructions()
+		},
+		board_decisions: {
+			type: 'string',
+			field: 'object_type',
+			icon: 'fa-people-roof',
+			selectedClass: 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-indigo-200',
+			hoverClass: 'hover:border-indigo-400 hover:bg-indigo-50',
+			label: m.boardDecisions()
+		},
+		official_letters: {
+			type: 'string',
+			field: 'object_type',
+			icon: 'fa-envelope-open-text',
+			selectedClass: 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-cyan-200',
+			hoverClass: 'hover:border-cyan-400 hover:bg-cyan-50',
+			label: m.officialLetters()
+		},
 		is_update: {
 			type: 'boolean',
 			field: 'is_update',

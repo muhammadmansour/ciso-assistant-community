@@ -1660,6 +1660,81 @@ class ThreatViewSet(BaseModelViewSet):
         return Response(my_map)
 
 
+class LegalInstrumentViewSet(BaseModelViewSet):
+    """
+    Laws, cabinet decisions, regulator instructions, board decisions and
+    official letters. Subclasses pin `fixed_kind` to expose one type per endpoint.
+    """
+
+    model = LegalInstrument
+    fixed_kind: str | None = None
+    filterset_fields = [
+        "folder",
+        "provider",
+        "library",
+        "kind",
+        "status",
+        "filtering_labels",
+    ]
+    search_fields = ["name", "ref_id", "description", "issuing_authority"]
+    ordering = ["-issue_date", "ref_id"]
+
+    def get_queryset(self):
+        queryset = (
+            super()
+            .get_queryset()
+            .select_related("folder", "folder__parent_folder", "library")
+            .prefetch_related("filtering_labels__folder")
+        )
+        if self.fixed_kind:
+            queryset = queryset.filter(kind=self.fixed_kind)
+        return queryset
+
+    def perform_create(self, serializer):
+        instance = (
+            serializer.save(kind=self.fixed_kind) if self.fixed_kind else serializer.save()
+        )
+        dispatch_webhook_event(instance, "created", serializer=serializer)
+        return instance
+
+    @action(detail=False, name="Get kind choices")
+    def kind(self, request):
+        return Response(dict(LegalInstrument.Kind.choices))
+
+    @action(detail=False, name="Get status choices")
+    def status(self, request):
+        return Response(dict(LegalInstrument.Status.choices))
+
+    @action(detail=False, name="Get provider choices")
+    def provider(self, request):
+        providers = set(
+            self.get_queryset()
+            .filter(provider__isnull=False)
+            .values_list("provider", flat=True)
+        )
+        return Response({p: p for p in providers})
+
+
+class LawViewSet(LegalInstrumentViewSet):
+    fixed_kind = LegalInstrument.Kind.LAW
+
+
+class CabinetDecisionViewSet(LegalInstrumentViewSet):
+    fixed_kind = LegalInstrument.Kind.CABINET_DECISION
+
+
+class RegulatorInstructionViewSet(LegalInstrumentViewSet):
+    fixed_kind = LegalInstrument.Kind.REGULATOR_INSTRUCTION
+
+
+class BoardDecisionViewSet(LegalInstrumentViewSet):
+    fixed_kind = LegalInstrument.Kind.BOARD_DECISION
+
+
+class OfficialLetterViewSet(LegalInstrumentViewSet):
+    fixed_kind = LegalInstrument.Kind.OFFICIAL_LETTER
+
+
 class AssetFilter(GenericFilterSet):
     folder = df.ModelMultipleChoiceFilter(queryset=Folder.objects.all())
     asset_class = df.ModelMultipleChoiceFilter(queryset=AssetClass.objects.all())
@@ -8335,7 +8410,8 @@ class EvidenceViewSet(BaseModelViewSet):
         if UUID(pk) in object_ids_view:
             evidence = self.get_object()
             if (
-                not evidence.last_revision.attachment
+                not evidence.last_revision
+                or not evidence.last_revision.attachment
                 or not evidence.last_revision.attachment.storage.exists(
                     evidence.last_revision.attachment.name
                 )

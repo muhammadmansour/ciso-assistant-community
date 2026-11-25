@@ -524,6 +524,11 @@ class LibraryUpdater:
         self.threats = new_library_content.get("threats", [])
         self.reference_controls = new_library_content.get("reference_controls", [])
         self.metric_definitions = new_library_content.get("metric_definitions", [])
+        self.legal_instruments = [
+            (kind, instrument)
+            for key, kind in LegalInstrument.LIBRARY_KEYS.items()
+            for instrument in new_library_content.get(key, [])
+        ]
 
     def update_dependencies(self) -> Union[str, None]:
         for dependency_urn in self.dependencies:
@@ -567,6 +572,21 @@ class LibraryUpdater:
                     **self.referential_object_dict,
                     **self.i18n_object_dict,
                     **threat,
+                    "library": self.old_library,
+                },
+            )
+
+    def update_legal_instruments(self):
+        for kind, instrument in self.legal_instruments:
+            normalized_urn = instrument["urn"].lower()
+            LegalInstrument.objects.update_or_create(
+                urn=normalized_urn,
+                defaults={**instrument, "kind": kind},
+                create_defaults={
+                    **self.referential_object_dict,
+                    **self.i18n_object_dict,
+                    **instrument,
+                    "kind": kind,
                     "library": self.old_library,
                 },
             )
@@ -1202,6 +1222,7 @@ class LibraryUpdater:
             self.old_library.dependencies.add(new_dependency)
 
         self.update_threats()
+        self.update_legal_instruments()
         self.update_reference_controls()
         self.update_metric_definitions()
 
@@ -1253,6 +1274,13 @@ class LoadedLibrary(LibraryMixin):
                 update_translations_in_object(model_to_dict(reference_control))
                 for reference_control in self.reference_controls.all()
             ]
+        for key, kind in LegalInstrument.LIBRARY_KEYS.items():
+            instruments = self.legal_instruments.filter(kind=kind)
+            if instruments.exists():
+                res[key] = [
+                    update_translations_in_object(model_to_dict(instrument))
+                    for instrument in instruments
+                ]
         if self.risk_matrices.exists():
             matrix = self.risk_matrices.first()
             res["risk_matrix"] = update_translations_in_object(model_to_dict(matrix))
@@ -1869,6 +1897,72 @@ class Threat(
 
     def __str__(self):
         return self.name
+
+
+class LegalInstrument(
+    ReferentialObjectMixin,
+    I18nObjectMixin,
+    PublishInRootFolderMixin,
+    FilteringLabelMixin,
+):
+    class Kind(models.TextChoices):
+        LAW = "law", _("Law")
+        CABINET_DECISION = "cabinet_decision", _("Cabinet decision")
+        REGULATOR_INSTRUCTION = "regulator_instruction", _("Regulator instruction")
+        BOARD_DECISION = "board_decision", _("Board decision")
+        OFFICIAL_LETTER = "official_letter", _("Official letter")
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", _("Draft")
+        IN_FORCE = "in_force", _("In force")
+        AMENDED = "amended", _("Amended")
+        REPEALED = "repealed", _("Repealed")
+
+    # Library YAML "objects" key for each kind.
+    LIBRARY_KEYS = {
+        "laws": Kind.LAW,
+        "cabinet_decisions": Kind.CABINET_DECISION,
+        "regulator_instructions": Kind.REGULATOR_INSTRUCTION,
+        "board_decisions": Kind.BOARD_DECISION,
+        "official_letters": Kind.OFFICIAL_LETTER,
+    }
+
+    library = models.ForeignKey(
+        LoadedLibrary,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="legal_instruments",
+    )
+    kind = models.CharField(
+        max_length=32, choices=Kind.choices, default=Kind.LAW, verbose_name=_("Kind")
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.IN_FORCE,
+        verbose_name=_("Status"),
+    )
+    issuing_authority = models.CharField(
+        max_length=255, null=True, blank=True, verbose_name=_("Issuing authority")
+    )
+    issue_date = models.DateField(null=True, blank=True, verbose_name=_("Issue date"))
+    effective_date = models.DateField(
+        null=True, blank=True, verbose_name=_("Effective date")
+    )
+    link = models.URLField(max_length=2048, null=True, blank=True, verbose_name=_("Link"))
+
+    is_published = models.BooleanField(_("published"), default=True)
+
+    fields_to_check = ["ref_id", "name"]
+
+    class Meta:
+        verbose_name = _("Legal instrument")
+        verbose_name_plural = _("Legal instruments")
+        ordering = ["kind", "ref_id"]
+
+    def __str__(self):
+        return self.display_short
 
 
 class ReferenceControl(ReferentialObjectMixin, I18nObjectMixin, FilteringLabelMixin):
@@ -8492,6 +8586,10 @@ auditlog.register(
 )
 auditlog.register(
     Threat,
+    exclude_fields=common_exclude,
+)
+auditlog.register(
+    LegalInstrument,
     exclude_fields=common_exclude,
 )
 auditlog.register(

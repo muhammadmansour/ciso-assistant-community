@@ -15,6 +15,7 @@ from core.models import (
     ReferenceControl,
     Terminology,
     Threat,
+    LegalInstrument,
 )
 from metrology.models import MetricDefinition
 from django.db import transaction
@@ -357,6 +358,53 @@ class ThreatImporter:
         )
 
 
+class LegalInstrumentImporter:
+    REQUIRED_FIELDS = {"ref_id", "urn"}
+    STATUSES = set(LegalInstrument.Status.values)
+    OPTIONAL_FIELDS = [
+        "name",
+        "description",
+        "annotation",
+        "issuing_authority",
+        "issue_date",
+        "effective_date",
+        "link",
+    ]
+
+    def __init__(self, kind: str, instrument_data: dict):
+        self.kind = kind
+        self.instrument_data = instrument_data
+
+    def is_valid(self) -> Union[str, None]:
+        if not isinstance(self.instrument_data, dict):
+            return "Each legal instrument must be a mapping"
+        if missing_fields := self.REQUIRED_FIELDS - set(self.instrument_data.keys()):
+            return "Missing the following fields : {}".format(", ".join(missing_fields))
+        status = self.instrument_data.get("status")
+        if status is not None and status not in self.STATUSES:
+            return "Invalid status '{}', the status must be among the following list : {}".format(
+                status, ", ".join(sorted(self.STATUSES))
+            )
+
+    def import_legal_instrument(self, library_object: LoadedLibrary):
+        LegalInstrument.objects.create(
+            library=library_object,
+            kind=self.kind,
+            urn=self.instrument_data["urn"].lower(),
+            ref_id=self.instrument_data["ref_id"],
+            status=self.instrument_data.get("status") or LegalInstrument.Status.IN_FORCE,
+            **{
+                field: self.instrument_data.get(field)
+                for field in self.OPTIONAL_FIELDS
+            },
+            provider=library_object.provider,
+            is_published=True,
+            locale=library_object.locale,
+            translations=self.instrument_data.get("translations", {}),
+            default_locale=library_object.default_locale,
+        )
+
+
 # The couple (URN, locale) is unique. ===> Check it in the future
 class ReferenceControlImporter:
     REQUIRED_FIELDS = {"ref_id", "urn"}
@@ -517,6 +565,7 @@ class LibraryImporter:
         "frameworks",
         "requirement_mapping_set",  # This field name is deprecated
         "requirement_mapping_sets",
+        *LegalInstrument.LIBRARY_KEYS,
     ]
     NON_DEPRECATED_OBJECT_FIELDS = [
         field
@@ -532,6 +581,24 @@ class LibraryImporter:
         self._metric_definitions = []
         self._risk_matrices = []
         self._requirement_mapping_sets = []
+        self._legal_instruments = []
+
+    def init_legal_instruments(self, library_objects: dict) -> Union[str, None]:
+        importers = []
+        for key, kind in LegalInstrument.LIBRARY_KEYS.items():
+            if key not in library_objects:
+                continue
+            entries = library_objects[key]
+            if not isinstance(entries, list):
+                return "[LEGAL_INSTRUMENT_ERROR] '{}' must be a list".format(key)
+            for index, instrument_data in enumerate(entries):
+                importer = LegalInstrumentImporter(kind, instrument_data)
+                if (error := importer.is_valid()) is not None:
+                    return "[LEGAL_INSTRUMENT_ERROR] '{}' entry {} has the following error : {}".format(
+                        key, index + 1, error
+                    )
+                importers.append(importer)
+        self._legal_instruments = importers
 
     def init_threats(self, threats: List[dict]) -> Union[str, None]:
         threat_importers = []
@@ -790,6 +857,12 @@ class LibraryImporter:
             ) is not None:
                 return metric_definition_import_error
 
+        if (
+            legal_instrument_error := self.init_legal_instruments(library_objects)
+        ) is not None:
+            logger.error("Legal instrument import error", error=legal_instrument_error)
+            return legal_instrument_error
+
     def check_and_import_dependencies(self) -> Union[str, None]:
         """Check and import library dependencies."""
         if (
@@ -860,6 +933,9 @@ class LibraryImporter:
 
         for threat in self._threats:
             threat.import_threat(library_object)
+
+        for legal_instrument in self._legal_instruments:
+            legal_instrument.import_legal_instrument(library_object)
 
         for reference_control in self._reference_controls:
             reference_control.import_reference_control(library_object)

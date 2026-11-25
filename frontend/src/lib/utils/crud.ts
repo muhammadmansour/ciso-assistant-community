@@ -157,6 +157,28 @@ type ModelMap = {
 	[key: string]: ModelMapEntry;
 };
 
+function legalInstrumentModel(
+	localName: string,
+	localNamePlural: string,
+	verboseName: string,
+	verboseNamePlural: string
+): ModelMapEntry {
+	return {
+		name: 'legalinstrument',
+		localName,
+		localNamePlural,
+		verboseName,
+		verboseNamePlural,
+		foreignKeyFields: [
+			{ field: 'folder', urlModel: 'folders', urlParams: 'content_type=DO&content_type=GL' },
+			{ field: 'library', urlModel: 'loaded-libraries' },
+			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
+		],
+		selectFields: [{ field: 'status' }],
+		filters: [{ field: 'status' }, { field: 'folder' }]
+	};
+}
+
 export const URL_MODEL_MAP: ModelMap = {
 	folders: {
 		name: 'folder',
@@ -255,6 +277,31 @@ export const URL_MODEL_MAP: ModelMap = {
 			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
 		]
 	},
+	laws: legalInstrumentModel('law', 'laws', 'Law', 'Laws'),
+	'cabinet-decisions': legalInstrumentModel(
+		'cabinetDecision',
+		'cabinetDecisions',
+		'Cabinet decision',
+		'Cabinet decisions'
+	),
+	'regulator-instructions': legalInstrumentModel(
+		'regulatorInstruction',
+		'regulatorInstructions',
+		'Regulator instruction',
+		'Regulator instructions'
+	),
+	'board-decisions': legalInstrumentModel(
+		'boardDecision',
+		'boardDecisions',
+		'Board decision',
+		'Board decisions'
+	),
+	'official-letters': legalInstrumentModel(
+		'officialLetter',
+		'officialLetters',
+		'Official letter',
+		'Official letters'
+	),
 	'risk-scenarios': {
 		name: 'riskscenario',
 		localName: 'riskScenario',

@@ -922,3 +922,50 @@ msgstr[3] "%(n)s من سيناريوهات التخفيف لم يعد لها ض�
 msgstr[4] "%(n)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
 msgstr[5] "%(n)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
 
+msgid "Law"
+msgstr "نظام"
+
+msgid "Cabinet decision"
+msgstr "قرار مجلس الوزراء"
+
+msgid "Regulator instruction"
+msgstr "تعميم أو تشريع"
+
+msgid "Board decision"
+msgstr "قرار مجلس الإدارة"
+
+msgid "Official letter"
+msgstr "خطاب رسمي"
+
+msgid "Draft"
+msgstr "مسودة"
+
+msgid "In force"
+msgstr "نافذ"
+
+msgid "Amended"
+msgstr "معدّل"
+
+msgid "Repealed"
+msgstr "ملغى"
+
+msgid "Kind"
+msgstr "النوع"
+
+msgid "Issuing authority"
+msgstr "جهة الإصدار"
+
+msgid "Issue date"
+msgstr "تاريخ الإصدار"
+
+msgid "Effective date"
+msgstr "تاريخ النفاذ"
+
+msgid "Link"
+msgstr "الرابط"
+
+msgid "Legal instrument"
+msgstr "وثيقة تنظيمية"
+
+msgid "Legal instruments"
+msgstr "الوثائق التنظيمية"
