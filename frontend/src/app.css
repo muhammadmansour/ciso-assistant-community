@@ -24,6 +24,7 @@
   font-weight: 100 500;
   font-display: swap;
   unicode-range: U+20C1, U+E900;
+  size-adjust: 125%;
 }
 @font-face {
   font-family: 'Cairo';
@@ -31,6 +32,7 @@
   font-weight: 600 900;
   font-display: swap;
   unicode-range: U+20C1, U+E900;
+  size-adjust: 125%;
 }
 @font-face {
   font-family: 'Saudi Riyal';
@@ -38,6 +40,7 @@
   font-weight: 100 500;
   font-display: swap;
   unicode-range: U+20C1, U+E900;
+  size-adjust: 125%;
 }
 @font-face {
   font-family: 'Saudi Riyal';
@@ -45,6 +48,7 @@
   font-weight: 600 900;
   font-display: swap;
   unicode-range: U+20C1, U+E900;
+  size-adjust: 125%;
 }
 
 /* 2. Apply as the default font for the whole app */
