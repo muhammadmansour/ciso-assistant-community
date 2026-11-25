@@ -19,6 +19,13 @@
 		current: m.rptHeatmapCurrent,
 		residual: m.rptHeatmapResidual
 	};
+	type RiskLink = { ref: string; href: string; name: string };
+	const riskHrefs = $derived(
+		new Map<string, string>((report.top_risks ?? []).map((r: RiskLink) => [r.ref, r.href]))
+	);
+	const riskNames = $derived(
+		new Map<string, string>((report.top_risks ?? []).map((r: RiskLink) => [r.ref, r.name]))
+	);
 	const tagLabels: Record<string, () => string> = {
 		twice_average: m.rptTagTwiceAverage,
 		no_reduction: m.rptTagNoReduction,
@@ -101,7 +108,17 @@
 {/snippet}
 
 {#snippet chip(text: string)}
-	<span class="me-1 mb-1 inline-block whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 text-[11px] font-semibold text-gray-700">{text}</span>
+	{@const href = riskHrefs.get(text)}
+	{#if href}
+		<a
+			{href}
+			title={riskNames.get(text)}
+			class="me-1 mb-1 inline-block whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 text-[11px] font-semibold text-gray-700 hover:border-blue-500 hover:text-blue-700"
+			>{text}</a
+		>
+	{:else}
+		<span class="me-1 mb-1 inline-block whitespace-nowrap rounded border border-gray-300 bg-white px-1.5 text-[11px] font-semibold text-gray-700">{text}</span>
+	{/if}
 {/snippet}
 
 {#snippet riskRef(href: string, refId: string)}
