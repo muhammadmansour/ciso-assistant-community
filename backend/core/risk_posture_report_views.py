@@ -663,7 +663,8 @@ def risk_posture_document(payload: dict) -> bytes:
         doc.heading(
             numbers.get("scoring"),
             _("Scoring method"),
-            f"{_("Rendered verbatim from the assessment's risk matrix")} ({assessment['risk_matrix']}, {payload['matrix_size']}). "
+            _("Rendered verbatim from the assessment's risk matrix")
+            + f" ({assessment['risk_matrix']}, {payload['matrix_size']}). "
             + _("Score range per band = min–max of the scores of the grid cells mapped to it."),
         )
         doc.grid(
