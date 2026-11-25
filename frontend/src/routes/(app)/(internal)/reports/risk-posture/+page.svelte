@@ -69,10 +69,10 @@
 </script>
 
 <div class="px-4 py-6 max-w-4xl mx-auto space-y-6">
-	<p class="text-sm text-gray-500">
+	<p class="flex items-center gap-2 text-sm text-gray-500">
 		<a href="/reports" class="hover:text-blue-700">{m.reports()}</a>
-		<span class="inline-block rtl:rotate-180">›</span>
-		{m.rptRiskPostureReport()}
+		<i class="fa-solid fa-angle-right text-xs rtl:rotate-180" aria-hidden="true"></i>
+		<span>{m.rptRiskPostureReport()}</span>
 	</p>
 
 	<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
@@ -97,12 +97,12 @@
 				</label>
 				<select
 					id="risk-assessment"
-					class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-normal"
+					class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-start text-sm font-normal"
 					bind:value={selectedId}
 					required
 				>
 					{#each assessments as item}
-						<option value={item.id} dir="auto">{optionLabel(item)}</option>
+						<option value={item.id}>{optionLabel(item)}</option>
 					{/each}
 				</select>
 				{#if selected}

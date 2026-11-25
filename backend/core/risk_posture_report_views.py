@@ -298,7 +298,9 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
     total_cost = sum(c["annual_cost"] for c in costed)
 
     measured = [r for r in risks if r["points"] is not None]
-    spending = [r for r in measured if r["allocated"]]
+    # A residual score above the current score is an increase, not a reduction, so it
+    # does not belong in the cost-per-point average.
+    spending = [r for r in measured if r["allocated"] and r["points"] >= 0]
     spent_points = sum(r["points"] for r in spending)
     average_per_point = round(sum(r["allocated"] for r in spending) / spent_points) if spent_points > 0 else None
     with_cost_per_point = []
@@ -320,17 +322,21 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
             "tag": None,
             "tag_label": "",
         }
-        if risk["allocated"] and risk["points"] > 0:
+        if risk["points"] < 0:
+            row["tag"] = "risk_increased"
+            row["tag_label"] = _("Risk increased (+%(increase)s)") % {"increase": -risk["points"]}
+            without_cost_per_point.append(row)
+        elif risk["allocated"] and risk["points"] > 0:
             row["cost_per_point"] = round(risk["allocated"] / risk["points"])
             row["cost_per_point_label"] = _compact_money(row["cost_per_point"], currency)
             if average_per_point and row["cost_per_point"] >= 2 * average_per_point:
                 row["tag"] = "twice_average"
+                row["tag_label"] = _(EFFECTIVENESS_TAGS[row["tag"]])
             with_cost_per_point.append(row)
         else:
             row["tag"] = "no_reduction" if risk["points"] <= 0 else "no_costed_control"
-            without_cost_per_point.append(row)
-        if row["tag"]:
             row["tag_label"] = _(EFFECTIVENESS_TAGS[row["tag"]])
+            without_cost_per_point.append(row)
     with_cost_per_point.sort(key=lambda r: (-r["cost_per_point"], r["ref"]))
     without_cost_per_point.sort(key=lambda r: (-(r["current"] or 0), r["ref"]))
     top_cost_per_point = with_cost_per_point[0]["cost_per_point"] if with_cost_per_point else 0
@@ -747,9 +753,15 @@ def risk_posture_document(payload: dict) -> bytes:
                         e["ref_id"] or "—",
                         e["name"],
                         e["allocated_label"],
-                        f"{e['current']} {arrow} {e['residual']} = {e['points']}",
+                        (
+                            f"{e['current']} {arrow} {e['residual']} = {e['points']}"
+                            if e["points"] is not None and e["points"] >= 0
+                            else f"{e['current']} {arrow} {e['residual']}"
+                        ),
                         (f"{e['cost_per_point_label']} {e['tag_label']}".strip(), color("B91C1C"))
                         if e["tag"] == "twice_average"
+                        else (e["tag_label"], color("B91C1C"))
+                        if e["tag"] == "risk_increased"
                         else (e["cost_per_point_label"] or e["tag_label"]),
                     ]
                     for e in payload["effectiveness"]

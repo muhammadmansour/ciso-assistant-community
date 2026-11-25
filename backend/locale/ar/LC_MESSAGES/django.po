@@ -813,6 +813,10 @@ msgstr "لا توجد سيناريوهات مقيّمة للمقارنة."
 msgid "No reduction"
 msgstr "لا يوجد خفض"
 
+#, python-format
+msgid "Risk increased (+%(increase)s)"
+msgstr "ازدادت المخاطر (+%(increase)s)"
+
 msgid "No risk scenarios yet."
 msgstr "لا توجد سيناريوهات مخاطر بعد."
 

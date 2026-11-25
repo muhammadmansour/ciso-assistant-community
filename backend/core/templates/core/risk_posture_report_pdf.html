@@ -206,8 +206,8 @@
             <thead><tr><th>{% trans "Ref" %}</th><th>{% trans "Risk" %}</th><th class="num">{% trans "Allocated cost" %}</th><th class="num">{% trans "Points reduced" %}</th><th>{% trans "Cost per point" %}</th></tr></thead>
             <tbody>{% for e in effectiveness %}<tr class="{% if e.tag == 'twice_average' %}flagged{% endif %}">
                 <td class="code">{{ e.ref_id|default:"—" }}</td><td>{{ e.name }}</td><td class="num">{{ e.allocated_label }}</td>
-                <td class="num" dir="ltr">{{ e.current }} → {{ e.residual }} = <strong>{{ e.points }}</strong></td>
-                <td>{% if e.cost_per_point %}<span class="cpp-bar{% if e.tag == 'twice_average' %} hot{% endif %}" style="width: {% widthratio e.bar_pct 100 55 %}%"></span><strong dir="ltr">{{ e.cost_per_point_label }}</strong>{% if e.tag == 'twice_average' %} <span class="tag warn">{{ e.tag_label }}</span>{% endif %}{% else %}<span class="tag">{{ e.tag_label }}</span>{% endif %}</td>
+                <td class="num" dir="ltr">{{ e.current }} → {{ e.residual }}{% if e.points >= 0 %} = <strong>{{ e.points }}</strong>{% endif %}</td>
+                <td>{% if e.cost_per_point %}<span class="cpp-bar{% if e.tag == 'twice_average' %} hot{% endif %}" style="width: {% widthratio e.bar_pct 100 55 %}%"></span><strong dir="ltr">{{ e.cost_per_point_label }}</strong>{% if e.tag == 'twice_average' %} <span class="tag warn">{{ e.tag_label }}</span>{% endif %}{% elif e.tag == 'risk_increased' %}<span class="tag warn">{{ e.tag_label }}</span>{% else %}<span class="tag">{{ e.tag_label }}</span>{% endif %}</td>
             </tr>{% endfor %}</tbody>
         </table>
         {% else %}<div class="empty">{% trans "No rated scenarios to compare." %}</div>{% endif %}

@@ -447,9 +447,11 @@
 										<td class="py-2 pe-3">{@render riskRef(item.href, item.ref_id)}</td>
 										<td class="py-2 pe-3 text-gray-900">{item.name}</td>
 										<td class="py-2 pe-3 num"><bdi dir="ltr">{item.allocated_label}</bdi></td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{item.current} → {item.residual} = <strong>{item.points}</strong></bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir="ltr">{item.current} → {item.residual}{#if item.points >= 0} = <strong>{item.points}</strong>{/if}</bdi></td>
 										<td class="py-2">
-											{#if item.cost_per_point}
+											{#if item.tag === 'risk_increased'}
+												<span class="whitespace-nowrap rounded bg-red-100 px-1.5 text-xs text-red-700">{m.rptTagRiskIncreased({ increase: -item.points })}</span>
+											{:else if item.cost_per_point}
 												<span class="flex items-center gap-2">
 													<span class="h-2 shrink-0 rounded-sm {hot ? 'bg-red-500' : 'bg-blue-300'}" style="width: {item.bar_pct * 0.55}%"></span>
 													<bdi dir="ltr" class="font-semibold whitespace-nowrap">{item.cost_per_point_label}</bdi>

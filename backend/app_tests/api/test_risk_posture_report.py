@@ -108,6 +108,37 @@ class TestRiskPostureReport:
         assert rows["R-02"]["tag"] == "no_reduction"
         assert report["average_per_point"] == 240
 
+    def test_a_higher_residual_is_an_increase_and_stays_out_of_the_average(self, report):
+        assessment = RiskAssessment.objects.get(name="Payments 2026")
+        worse = RiskScenario.objects.create(
+            name="Residual worse than current",
+            ref_id="R-03",
+            risk_assessment=assessment,
+            treatment="open",
+            current_proba=0,
+            current_impact=1,
+            residual_proba=1,
+            residual_impact=1,
+        )
+        worse.existing_applied_controls.add(
+            AppliedControl.objects.create(
+                name="Unused spend",
+                folder=assessment.folder,
+                status="active",
+                cost=_cost(100),
+            )
+        )
+        user = User.objects.get(email="posture-admin@tests.com")
+        payload = build_risk_posture_report(user, str(assessment.id))
+        row = next(item for item in payload["effectiveness"] if item["ref"] == "R-03")
+        assert row["current"] == 2
+        assert row["residual"] == 4
+        assert row["points"] == -2
+        assert row["tag"] == "risk_increased"
+        assert row["tag_label"] == "Risk increased (+2)"
+        assert row["cost_per_point"] is None
+        assert payload["average_per_point"] == 240
+
     def test_the_treatment_plan_lists_planned_controls_and_accepted_risks(self, report):
         treatment = report["treatment"]
         assert [(row["risk_ref"], row["control_name"]) for row in treatment["planned"]] == [
