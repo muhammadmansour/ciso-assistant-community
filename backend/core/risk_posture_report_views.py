@@ -22,27 +22,23 @@ from global_settings.models import GlobalSettings
 SECTION_KEYS = [
     "summary",
     "scoring",
-    "areas",
-    "top_risks",
     "heatmaps",
+    "top_risks",
     "controls",
-    "cost_allocation",
     "cost_effectiveness",
     "treatment",
 ]
-TOP_RISK_COUNT = 10
-UNCLASSIFIED_AREA = gettext_noop("Unclassified")
-NO_OBJECTIVE = gettext_noop("No objective")
-EFFECTIVENESS_FLAGS = {
-    "no_reduction": gettext_noop("No score reduction from current controls"),
-    "twice_average": gettext_noop("At least twice the average cost per point"),
-    "above_tolerance": gettext_noop("Still above risk tolerance"),
-}
+TREATMENT_ORDER = ["mitigate", "transfer", "accept", "avoid", "open"]
 HEATMAP_TITLES = (
-    ("inherent", gettext_noop("Inherent risk")),
-    ("current", gettext_noop("Current risk")),
-    ("residual", gettext_noop("Residual risk")),
+    ("current", gettext_noop("Current (before planned treatment)")),
+    ("residual", gettext_noop("Residual (after treatment)")),
 )
+EFFECTIVENESS_TAGS = {
+    "twice_average": gettext_noop("> 2× average"),
+    "no_reduction": gettext_noop("No reduction"),
+    "no_costed_control": gettext_noop("No costed control"),
+}
+HEATMAP_TEXT = "#1E293B"
 
 
 def _selected_sections(raw: str | None) -> list[str]:
@@ -95,16 +91,33 @@ def _money(value, currency):
     return f"{currency} {amount}".strip() if currency else amount
 
 
+def _compact_money(value, currency):
+    """Short amounts for tiles and bars: 5.13M, 230k."""
+    if value is None:
+        return "—"
+    if abs(value) >= 1_000_000:
+        amount = f"{value / 1_000_000:.2f}M"
+    elif abs(value) >= 10_000:
+        amount = f"{value / 1_000:.0f}k"
+    else:
+        amount = f"{value:,.0f}"
+    return f"{currency} {amount}".strip() if currency else amount
+
+
+def _pastel(hex_value, strength=0.35):
+    """The band colour washed out towards white, so reference chips stay readable on the grid."""
+    value = (hex_value or "").lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    try:
+        channels = [int(value[i : i + 2], 16) for i in (0, 2, 4)]
+    except ValueError:
+        return "#F1F5F9"
+    return "#" + "".join(f"{round(255 - (255 - c) * strength):02X}" for c in channels)
+
+
 def _ref(item):
     return item.ref_id or item.name
-
-
-def _control_category(control):
-    parts = [
-        control.get_category_display() if control.category else "",
-        control.get_csf_function_display() if control.csf_function else "",
-    ]
-    return " · ".join(p for p in parts if p) or "—"
 
 
 def _status_label(control):
@@ -115,6 +128,33 @@ def _matrix_settings():
     general = GlobalSettings.objects.filter(name="general").first()
     values = general.value if general else {}
     return values.get("risk_matrix_swap_axes", False), values.get("risk_matrix_flip_vertical", False)
+
+
+def _band_ranges(matrix):
+    scores = {}
+    for p, row in enumerate(matrix["grid"]):
+        for i, level in enumerate(row):
+            scores.setdefault(level, []).append((p + 1) * (i + 1))
+    return {level: (min(values), max(values)) for level, values in scores.items()}
+
+
+def _heatmap(matrix, kind, title, scenarios, swap_axes, flip_vertical):
+    cells = {}
+    for scenario in scenarios:
+        if getattr(scenario, f"{kind}_level") is None or getattr(scenario, f"{kind}_level") < 0:
+            continue
+        key = (getattr(scenario, f"{kind}_proba"), getattr(scenario, f"{kind}_impact"))
+        cells.setdefault(key, []).append(_ref(scenario))
+    view = _matrix_view(matrix, cells, swap_axes, flip_vertical)
+    for row in view["rows"]:
+        row["label"] = row["title"]
+        for cell in row["cells"]:
+            cell["band_color"] = cell["color"]
+            cell["color"] = _pastel(cell["color"])
+            cell["text"] = HEATMAP_TEXT
+    for column in view["columns"]:
+        column["label"] = column["title"]
+    return {"kind": kind, "title": _(title), **view}
 
 
 def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | None:
@@ -131,309 +171,233 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
         "folder", "perimeter", "risk_matrix"
     ).get(id=assessment_id)
     matrix = assessment.risk_matrix.parse_json_translated()
-    tolerance = assessment.risk_tolerance
-    has_tolerance = tolerance is not None and 0 <= tolerance < len(matrix["risk"])
     max_score = len(matrix["probability"]) * len(matrix["impact"])
+    levels = matrix["risk"]
 
-    control_prefetch = AppliedControl.objects.prefetch_related("owner", "objectives")
+    control_prefetch = AppliedControl.objects.prefetch_related("owner")
     scenarios = list(
         RiskScenario.objects.filter(risk_assessment=assessment)
         .prefetch_related(
             "owner",
-            "qualifications",
             Prefetch("existing_applied_controls", queryset=control_prefetch),
             Prefetch("applied_controls", queryset=control_prefetch),
         )
         .order_by("ref_id", "created_at")
     )
 
+    # A control counts once however many scenarios it is linked to, existing or planned.
+    linked = {}
+    controls = {}
+    currencies = Counter()
+    for scenario in scenarios:
+        own = {}
+        for control in [*scenario.existing_applied_controls.all(), *scenario.applied_controls.all()]:
+            own.setdefault(control.id, control)
+        linked[scenario.id] = list(own.values())
+        for control in own.values():
+            entry = controls.setdefault(control.id, {"control": control, "scenarios": []})
+            entry["scenarios"].append(scenario)
+            if control.cost and control.cost.get("currency"):
+                currencies[control.cost["currency"]] += 1
+    currency = currencies.most_common(1)[0][0] if currencies else ""
+    annual = {cid: float(entry["control"].annual_cost or 0) for cid, entry in controls.items()}
+
     risks = []
     for scenario in scenarios:
         current = _rated(matrix, scenario, "current")
-        areas = [q.get_name_translated for q in scenario.qualifications.all()]
+        residual = _rated(matrix, scenario, "residual")
+        allocated = sum(annual[c.id] / len(controls[c.id]["scenarios"]) for c in linked[scenario.id])
+        points = (
+            current["score"] - residual["score"]
+            if current["score"] is not None and residual["score"] is not None
+            else None
+        )
         risks.append(
             {
-                "scenario": scenario,
                 "id": str(scenario.id),
                 "ref": _ref(scenario),
                 "ref_id": scenario.ref_id or "",
                 "name": scenario.name,
                 "description": scenario.description or "",
                 "href": f"/risk-scenarios/{scenario.id}",
-                "area": areas[0] if areas else _(UNCLASSIFIED_AREA),
-                "areas": areas,
                 "owners": [str(o) for o in scenario.owner.all()],
                 "treatment": scenario.treatment,
                 "treatment_label": scenario.get_treatment_display(),
-                "inherent": _rated(matrix, scenario, "inherent"),
+                "justification": scenario.justification or "",
                 "current": current,
-                "residual": _rated(matrix, scenario, "residual"),
-                "above": has_tolerance and current["rated"] and current["value"] > tolerance,
-                "residual_above": has_tolerance
-                and scenario.residual_level >= 0
-                and scenario.residual_level > tolerance,
+                "residual": residual,
+                "control_count": len(linked[scenario.id]),
+                "allocated": round(allocated),
+                "allocated_label": _money(allocated, currency),
+                "points": points,
+                "scenario": scenario,
             }
         )
 
-    ranked = sorted(
-        [r for r in risks if r["current"]["rated"]],
-        key=lambda r: (
-            -r["current"]["value"],
-            -(r["current"]["score"] or 0),
-            -(r["inherent"]["score"] or 0),
-            r["ref"],
-        ),
-    )
-    top = ranked[:TOP_RISK_COUNT]
+    def public(risk):
+        return {k: v for k, v in risk.items() if k != "scenario"}
 
-    currencies = Counter()
-    controls = {}
-    for risk in top:
-        for control in risk["scenario"].existing_applied_controls.all():
-            entry = controls.setdefault(
-                control.id, {"control": control, "risks": []}
-            )
-            entry["risks"].append(risk)
-            if control.cost and control.cost.get("currency"):
-                currencies[control.cost["currency"]] += 1
-        for control in risk["scenario"].applied_controls.all():
-            if control.cost and control.cost.get("currency"):
-                currencies[control.cost["currency"]] += 1
-    currency = currencies.most_common(1)[0][0] if currencies else ""
+    top_risks = [
+        public(r)
+        for r in sorted(
+            risks,
+            key=lambda r: (
+                r["residual"]["score"] is None,
+                -(r["residual"]["score"] or 0),
+                -(r["current"]["score"] or 0),
+                r["ref"],
+            ),
+        )
+    ]
 
-    objective_names = {}
-    risk_cost = {r["id"]: 0.0 for r in top}
-    risk_parts = {r["id"]: [] for r in top}
-    risk_objective_cost = {r["id"]: Counter() for r in top}
+    def average(kind):
+        values = [r[kind]["score"] for r in risks if r[kind]["score"] is not None]
+        return round(sum(values) / len(values), 1) if values else None
+
+    residual_counts = Counter(r["residual"]["value"] for r in risks if r["residual"]["rated"])
+    residual_bands = [
+        {
+            "name": level.get("name", ""),
+            "color": level.get("hexcolor") or "#CBD5E1",
+            "text": _rating(matrix, index, 0, 0)["text"],
+            "count": residual_counts[index],
+        }
+        for index, level in enumerate(levels)
+    ]
+    top_band_indexes = list(range(len(levels)))[-2:]
+    top_band_names = [levels[i].get("name", "") for i in reversed(top_band_indexes)]
+    residual_high = sum(residual_counts[i] for i in top_band_indexes)
+
+    rated_residual = [r for r in risks if r["residual"]["score"] is not None]
+    highest_score = max((r["residual"]["score"] for r in rated_residual), default=None)
+    highest = [r for r in rated_residual if r["residual"]["score"] == highest_score]
+
     control_items = []
-    for entry in controls.values():
+    for cid, entry in controls.items():
         control = entry["control"]
-        annual = float(control.annual_cost or 0)
-        share = 1 / len(entry["risks"])
-        objectives = list(control.objectives.all())
-        for objective in objectives:
-            objective_names[str(objective.id)] = (
-                f"{objective.ref_id} {objective.name}".strip() if objective.ref_id else objective.name
-            )
-        for risk in entry["risks"]:
-            amount = annual * share
-            risk_cost[risk["id"]] += amount
-            if amount:
-                risk_parts[risk["id"]].append(
-                    {"ref": _ref(control), "amount": round(amount), "label": _money(amount, currency)}
-                )
-            keys = [str(o.id) for o in objectives] or [NO_OBJECTIVE]
-            for key in keys:
-                risk_objective_cost[risk["id"]][key] += amount / len(keys)
+        cost = annual[cid]
         control_items.append(
             {
                 "id": str(control.id),
-                "ref": _ref(control),
                 "ref_id": control.ref_id or "",
                 "name": control.name,
                 "href": f"/applied-controls/{control.id}",
-                "type": _control_category(control),
                 "category": control.category or "",
+                "category_label": control.get_category_display() if control.category else "—",
                 "csf_function": control.csf_function or "",
+                "csf_function_label": control.get_csf_function_display() if control.csf_function else "—",
                 "status": control.status or "--",
                 "status_label": _status_label(control),
-                "effort": control.get_effort_display() if control.effort else "",
-                "owners": [str(o) for o in control.owner.all()],
-                "objectives": [objective_names[str(o.id)] for o in objectives],
-                "annual_cost": round(annual),
-                "annual_cost_label": _money(annual, currency),
-                "risks": [
-                    {"ref": r["ref"], "pct": round(share * 100)} for r in entry["risks"]
-                ],
+                "annual_cost": round(cost) if cost else None,
+                "annual_cost_label": _money(cost, currency) if cost else "—",
+                "covers": [_ref(s) for s in entry["scenarios"]],
             }
         )
-    control_items.sort(key=lambda c: (-c["annual_cost"], c["ref"].lower()))
-    total_control_cost = sum(c["annual_cost"] for c in control_items)
+    control_items.sort(key=lambda c: (c["annual_cost"] is None, -(c["annual_cost"] or 0), c["name"].lower()))
+    costed = [c for c in control_items if c["annual_cost"]]
+    total_cost = sum(c["annual_cost"] for c in costed)
 
-    objective_keys = sorted(objective_names, key=lambda k: objective_names[k].lower())
-    if any(risk_objective_cost[r["id"]].get(NO_OBJECTIVE) for r in top):
-        objective_keys.append(NO_OBJECTIVE)
-        objective_names[NO_OBJECTIVE] = _(NO_OBJECTIVE)
-
-    top_items = []
-    for rank, risk in enumerate(top, start=1):
-        cost = risk_cost[risk["id"]]
-        reduction = None
-        if risk["inherent"]["score"] is not None and risk["current"]["score"] is not None:
-            reduction = risk["inherent"]["score"] - risk["current"]["score"]
-        planned = list(risk["scenario"].applied_controls.all())
-        top_items.append(
-            {
-                **{k: v for k, v in risk.items() if k != "scenario"},
-                "rank": rank,
-                "control_cost": round(cost),
-                "control_cost_label": _money(cost, currency),
-                "cost_parts": risk_parts[risk["id"]],
-                "reduction": reduction,
-                "cost_per_point": round(cost / reduction) if cost and reduction and reduction > 0 else None,
-                "objective_costs": [
-                    {
-                        "key": key,
-                        "amount": round(risk_objective_cost[risk["id"]].get(key, 0)),
-                        "label": _money(risk_objective_cost[risk["id"]][key], currency)
-                        if risk_objective_cost[risk["id"]].get(key)
-                        else "",
-                    }
-                    for key in objective_keys
-                ],
-                "objectives": [
-                    objective_names[k] for k in objective_keys if risk_objective_cost[risk["id"]].get(k) and k != NO_OBJECTIVE
-                ],
-                "planned_controls": [
-                    {
-                        "ref": _ref(c),
-                        "ref_id": c.ref_id or "",
-                        "name": c.name,
-                        "href": f"/applied-controls/{c.id}",
-                        "status": c.status or "--",
-                        "status_label": _status_label(c),
-                        "eta": c.eta.isoformat() if c.eta else None,
-                        "annual_cost": round(float(c.annual_cost or 0)),
-                    }
-                    for c in planned
-                ],
-            }
-        )
-
-    objective_totals = [
-        {
-            "key": key,
-            "name": objective_names[key],
-            "amount": round(sum(risk_objective_cost[r["id"]].get(key, 0) for r in top)),
+    measured = [r for r in risks if r["points"] is not None]
+    spending = [r for r in measured if r["allocated"]]
+    spent_points = sum(r["points"] for r in spending)
+    average_per_point = round(sum(r["allocated"] for r in spending) / spent_points) if spent_points > 0 else None
+    with_cost_per_point = []
+    without_cost_per_point = []
+    for risk in measured:
+        row = {
+            "ref": risk["ref"],
+            "ref_id": risk["ref_id"],
+            "name": risk["name"],
+            "href": risk["href"],
+            "allocated": risk["allocated"],
+            "allocated_label": risk["allocated_label"],
+            "current": risk["current"]["score"],
+            "residual": risk["residual"]["score"],
+            "points": risk["points"],
+            "cost_per_point": None,
+            "cost_per_point_label": "",
+            "bar_pct": 0,
+            "tag": None,
+            "tag_label": "",
         }
-        for key in objective_keys
-    ]
-    for item in objective_totals:
-        item["label"] = _money(item["amount"], currency)
-        item["pct"] = round(item["amount"] * 100 / total_control_cost) if total_control_cost else 0
-        item["above_count"] = sum(
-            1
-            for r in top_items
-            if r["above"] and any(o["key"] == item["key"] and o["amount"] for o in r["objective_costs"])
-        )
+        if risk["allocated"] and risk["points"] > 0:
+            row["cost_per_point"] = round(risk["allocated"] / risk["points"])
+            row["cost_per_point_label"] = _compact_money(row["cost_per_point"], currency)
+            if average_per_point and row["cost_per_point"] >= 2 * average_per_point:
+                row["tag"] = "twice_average"
+            with_cost_per_point.append(row)
+        else:
+            row["tag"] = "no_reduction" if risk["points"] <= 0 else "no_costed_control"
+            without_cost_per_point.append(row)
+        if row["tag"]:
+            row["tag_label"] = _(EFFECTIVENESS_TAGS[row["tag"]])
+    with_cost_per_point.sort(key=lambda r: (-r["cost_per_point"], r["ref"]))
+    without_cost_per_point.sort(key=lambda r: (-(r["current"] or 0), r["ref"]))
+    top_cost_per_point = with_cost_per_point[0]["cost_per_point"] if with_cost_per_point else 0
+    for row in with_cost_per_point:
+        row["bar_pct"] = max(2, round(row["cost_per_point"] * 100 / top_cost_per_point))
+    effectiveness = with_cost_per_point + without_cost_per_point
 
-    areas = {}
-    for risk in top_items:
-        area = areas.setdefault(
-            risk["area"],
-            {"name": risk["area"], "risks": [], "above": [], "inherent_sum": 0, "current_sum": 0, "cost": 0, "top": None},
-        )
-        area["risks"].append(risk["ref"])
-        if risk["above"]:
-            area["above"].append(risk["ref"])
-        area["inherent_sum"] += risk["inherent"]["score"] or 0
-        area["current_sum"] += risk["current"]["score"] or 0
-        area["cost"] += risk["control_cost"]
-        best = area["top"]
-        if best is None or (risk["current"]["value"], risk["current"]["score"] or 0) > (
-            best["value"],
-            best["score"] or 0,
-        ):
-            area["top"] = risk["current"]
-    area_items = sorted(
-        areas.values(),
-        key=lambda a: (-a["top"]["value"], -(a["top"]["score"] or 0), -len(a["above"]), a["name"]),
+    mitigating = sorted(
+        [r for r in risks if r["treatment"] == "mitigate"],
+        key=lambda r: (-(r["current"]["score"] or 0), r["ref"]),
     )
-    for rank, area in enumerate(area_items, start=1):
-        area["rank"] = rank
-        area["cost_label"] = _money(area["cost"], currency)
-        area["cost_pct"] = round(area["cost"] * 100 / total_control_cost) if total_control_cost else 0
-
-    reductions = [r for r in top_items if r["reduction"] and r["reduction"] > 0 and r["control_cost"]]
-    total_reduction = sum(r["reduction"] for r in reductions)
-    average_per_point = round(sum(r["control_cost"] for r in reductions) / total_reduction) if total_reduction else None
-    effectiveness = []
-    for risk in sorted(
-        [r for r in top_items if r["control_cost"]],
-        key=lambda r: (r["cost_per_point"] is not None, -(r["cost_per_point"] or 0)),
-    ):
-        flag_keys = []
-        if not risk["reduction"] or risk["reduction"] <= 0:
-            flag_keys.append("no_reduction")
-        elif average_per_point and risk["cost_per_point"] >= 2 * average_per_point:
-            flag_keys.append("twice_average")
-        if risk["above"]:
-            flag_keys.append("above_tolerance")
-        flags = [_(EFFECTIVENESS_FLAGS[key]) for key in flag_keys]
-        effectiveness.append(
-            {
-                "ref": risk["ref"],
-                "ref_id": risk["ref_id"],
-                "name": risk["name"],
-                "href": risk["href"],
-                "cost": risk["control_cost"],
-                "cost_label": risk["control_cost_label"],
-                "inherent": risk["inherent"]["score"],
-                "current": risk["current"]["score"],
-                "reduction": risk["reduction"],
-                "cost_per_point": risk["cost_per_point"],
-                "cost_per_point_label": _money(risk["cost_per_point"], currency),
-                "flags": flags,
-                "flag_keys": flag_keys,
-            }
+    planned_rows = []
+    planned_ids = set()
+    unplanned = 0
+    for risk in mitigating:
+        planned = [c for c in linked[risk["scenario"].id] if c.status != "active"]
+        if not planned:
+            unplanned += 1
+        for control in planned:
+            planned_ids.add(control.id)
+            cost = annual[control.id]
+            planned_rows.append(
+                {
+                    "risk_ref": risk["ref"],
+                    "risk_ref_id": risk["ref_id"],
+                    "risk_name": risk["name"],
+                    "risk_href": risk["href"],
+                    "current": risk["current"],
+                    "residual": risk["residual"],
+                    "owners": risk["owners"],
+                    "control_ref_id": control.ref_id or "",
+                    "control_name": control.name,
+                    "control_href": f"/applied-controls/{control.id}",
+                    "status": control.status or "--",
+                    "status_label": _status_label(control),
+                    "annual_cost": round(cost) if cost else None,
+                    "annual_cost_label": _money(cost, currency) if cost else "—",
+                    "eta": control.eta.isoformat() if control.eta else None,
+                }
+            )
+    planned_extra = sum(annual[cid] for cid in planned_ids)
+    accepted = [
+        {
+            "ref": r["ref"],
+            "ref_id": r["ref_id"],
+            "name": r["name"],
+            "href": r["href"],
+            "residual": r["residual"],
+            "owners": r["owners"],
+            "justification": r["justification"],
+        }
+        for r in sorted(
+            [r for r in risks if r["treatment"] == "accept"],
+            key=lambda r: (-(r["residual"]["score"] or 0), r["ref"]),
         )
+    ]
 
-    if has_tolerance:
-        treatment_risks = [r for r in top_items if r["above"]]
-    else:
-        treatment_risks = [r for r in top_items if r["planned_controls"] and r["treatment"] != "accept"]
-    treatment = []
-    for risk in treatment_risks:
-        extra = sum(c["annual_cost"] for c in risk["planned_controls"])
-        etas = [c["eta"] for c in risk["planned_controls"] if c["eta"]]
-        treatment.append(
-            {
-                "ref": risk["ref"],
-                "ref_id": risk["ref_id"],
-                "name": risk["name"],
-                "href": risk["href"],
-                "current": risk["current"],
-                "residual": risk["residual"],
-                "treatment": risk["treatment"],
-                "treatment_label": risk["treatment_label"],
-                "controls": risk["planned_controls"],
-                "extra_cost": extra,
-                "extra_cost_label": _money(extra, currency),
-                "owners": risk["owners"],
-                "target_date": max(etas) if etas else None,
-                "residual_above": risk["residual_above"],
-            }
-        )
-    total_extra = sum(t["extra_cost"] for t in treatment)
+    treatment_counts = Counter(r["treatment"] for r in risks)
+    treatment_labels = dict(RiskScenario.TREATMENT_OPTIONS)
+    treatment_split = [
+        {"key": key, "label": str(treatment_labels[key]), "count": treatment_counts[key]}
+        for key in TREATMENT_ORDER
+        if treatment_counts[key]
+    ]
 
+    ranges = _band_ranges(matrix)
     swap_axes, flip_vertical = _matrix_settings()
-    heatmaps = []
-    for kind, title in HEATMAP_TITLES:
-        cells = {}
-        for risk in top_items:
-            if risk[kind]["rated"]:
-                scenario = next(s for s in scenarios if str(s.id) == risk["id"])
-                key = (getattr(scenario, f"{kind}_proba"), getattr(scenario, f"{kind}_impact"))
-                cells.setdefault(key, []).append(risk["ref"])
-        heatmaps.append({"kind": kind, "title": _(title), **_matrix_view(matrix, cells, swap_axes, flip_vertical)})
-
-    def _avg(kind):
-        values = [r[kind]["score"] for r in top_items if r[kind]["score"] is not None]
-        return round(sum(values) / len(values), 1) if values else None
-
-    level_counts = Counter(r["current"]["value"] for r in top_items)
-    band_mix = [
-        {"name": matrix["risk"][level].get("name", ""), "count": level_counts[level]}
-        for level in sorted(level_counts, reverse=True)
-    ]
-    highest = top_items[0]["current"] if top_items else None
-    highest_refs = [
-        r["ref"]
-        for r in top_items
-        if highest and r["current"]["value"] == highest["value"] and r["current"]["score"] == highest["score"]
-    ]
-    least_effective = next((e for e in effectiveness if e["cost_per_point"] is not None), None)
-    top_objective = max(objective_totals, key=lambda o: o["amount"], default=None)
 
     return {
         "assessments": choices,
@@ -443,49 +407,55 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
             "ref_id": assessment.ref_id or "",
             "version": assessment.version or "",
             "status": assessment.get_status_display() if assessment.status else "",
+            "status_key": assessment.status or "",
             "folder": assessment.folder.name if assessment.folder else "",
             "perimeter": assessment.perimeter.name if assessment.perimeter else "",
             "risk_matrix": str(assessment.risk_matrix),
             "authors": [str(a) for a in assessment.authors.all()],
             "reviewers": [str(r) for r in assessment.reviewers.all()],
+            "scenario_count": len(risks),
             "href": f"/risk-assessments/{assessment.id}",
         },
         "generated_on": date_format(timezone.localtime(), "j M Y, H:i"),
         "generated_at": timezone.localtime().isoformat(),
         "currency": currency,
         "max_score": max_score,
-        "tolerance": (
-            {"value": tolerance, "name": matrix["risk"][tolerance].get("name", ""),
-             "color": matrix["risk"][tolerance].get("hexcolor") or "#CBD5E1"}
-            if has_tolerance
-            else None
-        ),
+        "matrix_size": f"{len(matrix['probability'])}×{len(matrix['impact'])}",
         "summary": {
-            "total_risks": len(risks),
-            "rated_risks": len(ranked),
-            "top_count": len(top_items),
-            "posture": highest["name"] if highest else None,
-            "posture_color": highest["color"] if highest else None,
-            "band_mix": band_mix,
-            "above": [{"ref": r["ref"], "ref_id": r["ref_id"], "name": r["name"]} for r in top_items if r["above"]],
-            "highest_refs": highest_refs,
-            "highest": highest,
-            "exposure_areas": [a["name"] for a in area_items[:2]],
-            "control_count": len(control_items),
-            "total_control_cost": total_control_cost,
-            "total_control_cost_label": _money(total_control_cost, currency),
-            "top_objective": top_objective,
-            "least_effective": least_effective,
-            "average_per_point": average_per_point,
-            "average_per_point_label": _money(average_per_point, currency),
-            "total_extra": total_extra,
-            "total_extra_label": _money(total_extra, currency),
-            "after_treatment_label": _money(total_control_cost + total_extra, currency),
-            "avg_inherent": _avg("inherent"),
-            "avg_current": _avg("current"),
-            "avg_residual": _avg("residual"),
+            "residual_bands": residual_bands,
+            "top_band_names": top_band_names,
+            "residual_high": residual_high,
+            "avg_current": average("current"),
+            "avg_residual": average("residual"),
+            "highest_residual": (
+                {
+                    "score": highest_score,
+                    "rating": highest[0]["residual"],
+                    "risks": [{"ref": r["ref"], "ref_id": r["ref_id"], "name": r["name"]} for r in highest],
+                }
+                if highest
+                else None
+            ),
+            "control_count": len(costed),
+            "uncosted_count": len(control_items) - len(costed),
+            "total_cost": total_cost,
+            "total_cost_label": _money(total_cost, currency),
+            "total_cost_compact": _compact_money(total_cost, currency),
+            "treatment_split": treatment_split,
+            "mitigate_count": treatment_counts["mitigate"],
+            "accept_count": treatment_counts["accept"],
         },
         "scales": {
+            "bands": [
+                {
+                    "name": level.get("name", ""),
+                    "description": level.get("description") or "",
+                    "color": level.get("hexcolor") or "#CBD5E1",
+                    "text": _rating(matrix, index, 0, 0)["text"],
+                    "range": "–".join(str(v) for v in dict.fromkeys(ranges[index])) if index in ranges else "—",
+                }
+                for index, level in reversed(list(enumerate(levels)))
+            ],
             "probability": [
                 {"value": i + 1, "name": p.get("name", ""), "description": p.get("description") or ""}
                 for i, p in enumerate(matrix["probability"])
@@ -494,24 +464,27 @@ def build_risk_posture_report(user, assessment_id: str | None = None) -> dict | 
                 {"value": i + 1, "name": p.get("name", ""), "description": p.get("description") or ""}
                 for i, p in enumerate(matrix["impact"])
             ],
-            "levels": [
-                {
-                    "name": r.get("name", ""),
-                    "description": r.get("description") or "",
-                    "color": r.get("hexcolor") or "#CBD5E1",
-                    "within_tolerance": has_tolerance and index <= tolerance,
-                }
-                for index, r in reversed(list(enumerate(matrix["risk"])))
-            ],
         },
-        "objectives": objective_totals,
-        "areas": area_items,
-        "top_risks": top_items,
-        "heatmaps": heatmaps,
+        "heatmaps": [
+            _heatmap(matrix, kind, title, scenarios, swap_axes, flip_vertical) for kind, title in HEATMAP_TITLES
+        ],
+        "top_risks": top_risks,
         "controls": control_items,
         "effectiveness": effectiveness,
-        "treatment": treatment,
+        "average_per_point": average_per_point,
+        "average_per_point_label": _money(average_per_point, currency),
+        "treatment": {
+            "planned": planned_rows,
+            "extra_cost": round(planned_extra),
+            "extra_cost_label": _money(planned_extra, currency),
+            "unplanned_count": unplanned,
+            "accepted": accepted,
+        },
     }
+
+
+def _rating_text(value):
+    return f"{value['score']} {value['name']} ({value['lxi']})" if value.get("rated") else "—"
 
 
 def risk_posture_workbook(payload: dict) -> bytes:
@@ -527,22 +500,25 @@ def risk_posture_workbook(payload: dict) -> bytes:
         [_("Domain"), assessment["folder"]],
         [_("Perimeter"), assessment["perimeter"]],
         [_("Risk matrix"), assessment["risk_matrix"]],
-        [_("Risk tolerance"), payload["tolerance"]["name"] if payload["tolerance"] else _("Not set")],
+        [_("Status"), assessment["status"]],
+        [_("Scenarios"), assessment["scenario_count"]],
         [_("Generated on"), payload["generated_on"]],
     ]:
         sheet.append(row)
     if "summary" in sections:
+        highest = summary["highest_residual"]
         for row in [
             [],
-            [_("Overall posture"), summary["posture"] or "-"],
-            [_("Risks in scope"), f"{summary['top_count']} {_('of')} {summary['total_risks']}"],
-            [_("Risks above tolerance"), ", ".join(r["ref"] for r in summary["above"]) or "-"],
-            [_("Highest current risks"), ", ".join(summary["highest_refs"]) or "-"],
-            [_("Highest-exposure areas"), ", ".join(summary["exposure_areas"]) or "-"],
-            [_("Annual cost of controls"), summary["total_control_cost_label"]],
-            [_("Average inherent score"), summary["avg_inherent"]],
-            [_("Average current score"), summary["avg_current"]],
-            [_("Extra investment planned"), summary["total_extra_label"]],
+            [_("Residual risk by band"), ", ".join(f"{b['name']} {b['count']}" for b in summary["residual_bands"])],
+            [_("Average score, current → residual"), f"{summary['avg_current'] or '—'} → {summary['avg_residual'] or '—'}"],
+            [
+                _("Highest residual risks"),
+                f"{'; '.join(r['ref'] for r in highest['risks'])} — {highest['score']} {highest['rating']['name']}"
+                if highest
+                else "—",
+            ],
+            [_("Annual cost of controls"), summary["total_cost"]],
+            [_("Treatment split"), ", ".join(f"{t['label']} {t['count']}" for t in summary["treatment_split"])],
         ]:
             sheet.append(row)
 
@@ -555,67 +531,63 @@ def risk_posture_workbook(payload: dict) -> bytes:
         for row in rows:
             target.append(row)
 
+    scales = payload["scales"]
     table(
         "scoring",
-        _("Scoring"),
-        [_("Scale"), _("Value"), _("Name"), _("Description")],
-        [[_("Probability"), p["value"], p["name"], p["description"]] for p in payload["scales"]["probability"]]
-        + [[_("Impact"), p["value"], p["name"], p["description"]] for p in payload["scales"]["impact"]]
-        + [[_("Risk level"), "", l["name"], l["description"]] for l in payload["scales"]["levels"]],
+        _("Scoring method"),
+        [_("Scale"), _("Value"), _("Name"), _("Score range"), _("Meaning")],
+        [[_("Band"), "", b["name"], b["range"], b["description"]] for b in scales["bands"]]
+        + [[_("Probability"), p["value"], p["name"], "", p["description"]] for p in scales["probability"]]
+        + [[_("Impact"), p["value"], p["name"], "", p["description"]] for p in scales["impact"]],
     )
     table(
-        "areas",
-        _("Risk areas"),
-        [_("Rank"), _("Area"), _("Top risks"), _("Highest current"), _("Above tolerance"), _("Inherent sum"),
-         _("Current sum"), _("Control cost")],
-        [[a["rank"], a["name"], ", ".join(a["risks"]), f"{a['top']['score']} {a['top']['name']}",
-          ", ".join(a["above"]), a["inherent_sum"], a["current_sum"], a["cost"]] for a in payload["areas"]],
+        "heatmaps",
+        _("Heatmaps"),
+        ["ID", _("Risk"), _("Current"), _("Residual")],
+        [[r["ref_id"], r["name"], r["current"]["lxi"], r["residual"]["lxi"]] for r in payload["top_risks"]],
     )
     table(
         "top_risks",
         _("Top risks"),
-        [_("Rank"), "ID", _("Risk"), _("Area"), _("Inherent LxI"), _("Inherent score"), _("Inherent level"),
-         _("Current LxI"), _("Current score"), _("Current level"), _("Residual score"), _("Residual level"),
-         _("Above tolerance"), _("Treatment"), _("Objectives"), _("Owners")],
-        [[r["rank"], r["ref_id"], r["name"], r["area"], r["inherent"]["lxi"], r["inherent"]["score"], r["inherent"]["name"],
-          r["current"]["lxi"], r["current"]["score"], r["current"]["name"], r["residual"]["score"], r["residual"]["name"],
-          _("Yes") if r["above"] else _("No"), r["treatment_label"], ", ".join(r["objectives"]), ", ".join(r["owners"])]
+        ["ID", _("Risk"), _("Current score"), _("Current level"), _("Residual score"), _("Residual level"),
+         _("Treatment"), _("Owner"), _("Controls")],
+        [[r["ref_id"], r["name"], r["current"]["score"], r["current"]["name"], r["residual"]["score"],
+          r["residual"]["name"], r["treatment_label"], ", ".join(r["owners"]), r["control_count"]]
          for r in payload["top_risks"]],
     )
     table(
         "controls",
-        _("Controls in place"),
-        ["ID", _("Control"), _("Type"), _("Status"), _("Annual cost"), _("Risks covered"), _("Objectives"), _("Owners")],
-        [[c["ref_id"], c["name"], c["type"], c["status_label"], c["annual_cost"],
-          ", ".join(f"{r['ref']} {r['pct']}%" for r in c["risks"]), ", ".join(c["objectives"]), ", ".join(c["owners"])]
-         for c in payload["controls"]],
-    )
-    table(
-        "cost_allocation",
-        _("Cost allocation"),
-        [_("Risk"), _("Built from controls"), _("Total")] + [o["name"] for o in payload["objectives"]],
-        [[f"{r['ref_id']} {r['name']}".strip(), "; ".join(f"{p['ref']} {p['amount']}" for p in r["cost_parts"]), r["control_cost"]]
-         + [o["amount"] or "" for o in r["objective_costs"]] for r in payload["top_risks"]]
-        + [[_("Total"), "", payload["summary"]["total_control_cost"]] + [o["amount"] for o in payload["objectives"]]],
+        _("Controls & costs"),
+        ["ID", _("Control"), _("Category"), _("CSF function"), _("Status"), _("Annual cost"), _("Covers")],
+        [[c["ref_id"], c["name"], c["category_label"], c["csf_function_label"], c["status_label"],
+          c["annual_cost"] or "", ", ".join(c["covers"])] for c in payload["controls"]]
+        + [["", _("Total"), "", "", "", summary["total_cost"], ""]],
     )
     table(
         "cost_effectiveness",
         _("Cost-effectiveness"),
-        ["ID", _("Risk"), _("Control cost"), _("Inherent score"), _("Current score"), _("Points reduced"),
-         _("Cost per point"), _("Flags")],
-        [[e["ref_id"], e["name"], e["cost"], e["inherent"], e["current"], e["reduction"], e["cost_per_point"] or "",
-          "; ".join(e["flags"])] for e in payload["effectiveness"]],
+        ["ID", _("Risk"), _("Allocated cost"), _("Current score"), _("Residual score"), _("Points reduced"),
+         _("Cost per point"), _("Flag")],
+        [[e["ref_id"], e["name"], e["allocated"], e["current"], e["residual"], e["points"],
+          e["cost_per_point"] or "", e["tag_label"]] for e in payload["effectiveness"]],
     )
+    treatment = payload["treatment"]
     table(
         "treatment",
         _("Treatment plan"),
-        ["ID", _("Risk"), _("Current"), _("Treatment"), _("Planned controls"), _("Extra annual cost"),
-         _("Target residual"), _("Owners"), _("Target date")],
-        [[t["ref_id"], t["name"], f"{t['current']['score']} ({t['current']['lxi']}) {t['current']['name']}", t["treatment_label"],
-          "; ".join(f"{c['ref_id']} {c['name']} [{c['status_label']}]".strip() for c in t["controls"]), t["extra_cost"],
-          f"{t['residual']['score']} {t['residual']['name']}" if t["residual"]["rated"] else "-",
-          ", ".join(t["owners"]), t["target_date"] or ""] for t in payload["treatment"]],
+        [_("Risk"), _("Current"), _("Planned control"), _("Status"), _("Annual cost"), _("ETA"),
+         _("Target residual"), _("Owner")],
+        [[f"{t['risk_ref_id']} {t['risk_name']}".strip(), _rating_text(t["current"]),
+          f"{t['control_ref_id']} {t['control_name']}".strip(), t["status_label"], t["annual_cost"] or "",
+          t["eta"] or "", _rating_text(t["residual"]), ", ".join(t["owners"])] for t in treatment["planned"]],
     )
+    if "treatment" in sections and treatment["accepted"]:
+        target = workbook.create_sheet(_("Accepted risks"))
+        target.sheet_view.rightToLeft = get_language_bidi()
+        target.append([_("Risk"), _("Residual"), _("Owner"), _("Justification")])
+        for a in treatment["accepted"]:
+            target.append([f"{a['ref_id']} {a['name']}".strip(), _rating_text(a["residual"]), ", ".join(a["owners"]),
+                           a["justification"]])
 
     buffer = io.BytesIO()
     workbook.save(buffer)
@@ -623,21 +595,20 @@ def risk_posture_workbook(payload: dict) -> bytes:
 
 
 def risk_posture_document(payload: dict) -> bytes:
-    from core.report_docx import CONTENT_WIDTH_CM, NAVY, ReportDocument
+    from core.report_docx import NAVY, ReportDocument, color
 
     assessment = payload["assessment"]
     summary = payload["summary"]
     sections = payload.get("sections") or SECTION_KEYS
     numbers = payload.get("section_numbers") or {}
-    tolerance = payload["tolerance"]
     doc = ReportDocument(f"{assessment['name']} · {_('Risk posture report')}")
     arrow = "←" if get_language_bidi() else "→"
 
-    def rating(value):
-        return f"{value['score']} {value['name']} ({value['lxi']})" if value.get("rated") else "—"
-
     def joined(values, separator=", "):
         return separator.join(str(v) for v in values) or "—"
+
+    def band(value):
+        return (_rating_text(value), color(value["color"])) if value.get("rated") else "—"
 
     doc.title(
         _("Risk posture report"),
@@ -648,277 +619,179 @@ def risk_posture_document(payload: dict) -> bytes:
     doc.key_values(
         [
             (_("Perimeter"), perimeter),
-            (_("Risk tolerance"), tolerance["name"] if tolerance else _("Not set")),
+            (_("Risk matrix"), assessment["risk_matrix"]),
+            (_("Status"), assessment["status"] or "—"),
             (_("Authors"), ", ".join(assessment["authors"])),
-            (_("Reviewers"), ", ".join(assessment["reviewers"])),
+            (_("Scenarios"), str(assessment["scenario_count"])),
         ]
     )
 
     if "summary" in sections:
         doc.heading(
             numbers.get("summary"),
-            _("Executive summary"),
-            f"{_('Top')} {summary['top_count']} {_('of')} {summary['total_risks']} "
-            + _("risk scenarios, ranked by current risk level then score. Score = probability × impact on the matrix scales."),
+            _("Summary"),
+            _("Computed from the assessment's scenarios: score (probability index + 1) × (impact index + 1); band read from the matrix grid."),
         )
-        posture = (
-            f"{summary['posture']} — " + ", ".join(f"{b['count']} {b['name']}" for b in summary["band_mix"])
-            if summary["posture"]
-            else _("No rated risks yet")
+        highest = summary["highest_residual"]
+        highest_names = joined((f"{r['ref_id']} {r['name']}".strip() for r in highest["risks"]), "; ") if highest else ""
+        uncosted = (
+            f" · {summary['uncosted_count']} {_('without cost excluded')}" if summary["uncosted_count"] else ""
         )
-        if tolerance:
-            above = f"{len(summary['above'])}"
-            if summary["above"]:
-                above += ": " + ", ".join(f"{r['ref_id']} {r['name']}".strip() for r in summary["above"])
-        else:
-            above = _("Risk tolerance is not set on this assessment")
-        highest = summary["highest"]
-        top_objective = summary["top_objective"]
-        least = summary["least_effective"]
         doc.key_values(
             [
-                (_("Overall posture"), posture),
-                (_("Risks above tolerance"), above),
+                (_("Residual risk by band"), joined(f"{b['name']} {b['count']}" for b in summary["residual_bands"])),
                 (
-                    _("Highest current risks"),
-                    f"{joined(summary['highest_refs'])} — {highest['score']} ({highest['name']})" if highest else "—",
+                    _("Average score, current → residual"),
+                    f"{summary['avg_current'] or '—'} {arrow} {summary['avg_residual'] or '—'} / {payload['max_score']}",
                 ),
-                (_("Highest-exposure areas"), joined(summary["exposure_areas"], "; ")),
+                (
+                    _("Highest residual risks"),
+                    f"{highest_names} — {highest['score']} {highest['rating']['name']}"
+                    if highest
+                    else "—",
+                ),
                 (
                     _("Annual cost of controls"),
-                    f"{summary['total_control_cost_label']} {_('across')} {summary['control_count']} {_('controls')}",
+                    f"{summary['total_cost_label']} {_('across')} {summary['control_count']} {_('controls')}{uncosted}",
                 ),
-                (
-                    _("Objective with the most spend"),
-                    f"{top_objective['name']} — {top_objective['label']} ({top_objective['pct']}%)"
-                    if top_objective and top_objective.get("amount")
-                    else "—",
-                ),
-                (
-                    _("Least cost-effective spend"),
-                    f"{least['ref']}: {least['cost_label']} {_('for')} {least['reduction']} {_('points')} "
-                    f"({least['cost_per_point_label']} {_('per point')})"
-                    if least
-                    else "—",
-                ),
-                (
-                    _("Extra investment planned"),
-                    f"{summary['total_extra_label']} {_('a year; total after treatment')} {summary['after_treatment_label']}",
-                ),
+                (_("Treatment split"), joined(f"{t['label']} {t['count']}" for t in summary["treatment_split"])),
             ]
         )
 
     if "scoring" in sections:
+        scales = payload["scales"]
         doc.heading(
             numbers.get("scoring"),
-            _("Context, objectives and scoring method"),
-            _("Objectives come from the controls that treat the top risks. Scores use the assessment's risk matrix."),
+            _("Scoring method"),
+            f"{_("Rendered verbatim from the assessment's risk matrix")} ({assessment['risk_matrix']}, {payload['matrix_size']}). "
+            + _("Score range per band = min–max of the scores of the grid cells mapped to it."),
         )
-        if payload["objectives"]:
+        doc.grid(
+            [_("Band"), _("Score range"), _("Meaning")],
+            [[(b["name"], color(b["color"])), b["range"], b["description"] or "—"] for b in scales["bands"]],
+            [4.0, 3.0, 10.4],
+        )
+        for title, scale in ((_("Probability"), scales["probability"]), (_("Impact"), scales["impact"])):
+            doc.subheading(title)
             doc.grid(
-                [_("Objective"), _("Control spend"), _("Share"), _("Risks above tolerance")],
-                [[o["name"], o["label"], f"{o['pct']}%", o["above_count"]] for o in payload["objectives"]],
-                [7.4, 3.6, 2.4, 4.0],
+                ["#", _("Name"), _("Meaning")],
+                [[p["value"], p["name"], p["description"] or "—"] for p in scale],
+                [1.2, 5.0, 11.2],
             )
-        else:
-            doc.paragraph(_("No objectives are linked to the controls of the top risks."))
-        scales = payload["scales"]
-        rows = [[_("Probability"), f"{p['value']} · {p['name']}", p["description"] or "—"] for p in scales["probability"]]
-        rows += [[_("Impact"), f"{p['value']} · {p['name']}", p["description"] or "—"] for p in scales["impact"]]
-        rows += [
-            [
-                _("Risk levels"),
-                level["name"] + (f" ({_('within tolerance')})" if level["within_tolerance"] else ""),
-                level["description"] or "—",
-            ]
-            for level in scales["levels"]
-        ]
-        doc.subheading(_("Scales"))
-        doc.grid([_("Scale"), _("Value"), _("Description")], rows, [2.8, 4.6, 10.0])
 
-    if "areas" in sections:
+    if "heatmaps" in sections:
         doc.heading(
-            numbers.get("areas"),
-            _("High-risk areas"),
-            _("Top risks grouped by their first qualification, ranked by highest current level, then tolerance breaches."),
+            numbers.get("heatmaps"),
+            _("Heatmaps — current vs residual"),
+            _("Grid size and cell colours come from the matrix; each scenario sits at (probability, impact) for its current and its residual rating. Unrated scenarios are left off."),
         )
-        if payload["areas"]:
-            doc.grid(
-                ["#", _("Risk area"), _("Top risks"), _("Highest current"), _("Above tolerance"),
-                 _("Inherent → current"), _("Annual control cost")],
-                [
-                    [
-                        a["rank"],
-                        a["name"],
-                        joined(a["risks"]),
-                        f"{a['top']['score']} {a['top']['name']}",
-                        f"{len(a['above'])} ({joined(a['above'])})" if a["above"] else "0",
-                        f"{a['inherent_sum']} {arrow} {a['current_sum']}",
-                        f"{a['cost_label']} ({a['cost_pct']}%)",
-                    ]
-                    for a in payload["areas"]
-                ],
-                [0.8, 3.0, 3.2, 2.6, 2.8, 2.2, 2.8],
-            )
-        else:
-            doc.paragraph(_("No rated risks yet."))
+        for heatmap in payload["heatmaps"]:
+            doc.heatmap(heatmap["title"], heatmap)
 
     if "top_risks" in sections:
         doc.heading(
             numbers.get("top_risks"),
             _("Top risks"),
-            _("Inherent assumes no controls, current reflects controls in place, residual is the target after planned treatment."),
+            _("One row per scenario, sorted by residual score, then current score."),
         )
         if payload["top_risks"]:
             doc.grid(
-                ["ID", _("Risk"), _("Area"), _("Inherent"), _("Current"), _("Residual"), _("Status"), _("Owner")],
+                ["ID", _("Risk"), _("Current"), _("Residual"), _("Treatment"), _("Owner"), _("Controls")],
                 [
-                    [
-                        r["ref_id"] or "—",
-                        r["name"],
-                        r["area"],
-                        rating(r["inherent"]),
-                        rating(r["current"]),
-                        rating(r["residual"]),
-                        (_("Above") if r["above"] else _("Within")) if tolerance else "—",
-                        joined(r["owners"]),
-                    ]
+                    [r["ref_id"] or "—", r["name"], band(r["current"]), band(r["residual"]), r["treatment_label"],
+                     joined(r["owners"]), r["control_count"]]
                     for r in payload["top_risks"]
                 ],
-                [1.8, 3.6, 2.0, 2.3, 2.3, 2.3, 1.4, 1.7],
+                [1.6, 4.6, 2.6, 2.6, 2.0, 2.6, 1.4],
             )
         else:
-            doc.paragraph(_("No rated risks yet."))
-
-    if "heatmaps" in sections:
-        doc.heading(
-            numbers.get("heatmaps"),
-            _("Inherent, current and residual heatmaps"),
-            _("Top risks placed on the risk matrix at each stage."),
-        )
-        for heatmap in payload["heatmaps"]:
-            doc.heatmap(heatmap["title"], heatmap)
+            doc.paragraph(_("No risk scenarios yet."))
 
     if "controls" in sections:
         doc.heading(
             numbers.get("controls"),
-            _("Controls in place for the top risks"),
-            _(
-                "Existing applied controls. Annual cost = run cost + amortised build cost; "
-                "a control covering several top risks has its cost split evenly."
-            ),
+            _("Controls & costs"),
+            _("Union of the controls linked to the scenarios, each listed once. Status stands in for tested effectiveness, which has no field."),
         )
         if payload["controls"]:
             rows = [
-                [
-                    c["ref_id"] or "—",
-                    c["name"],
-                    c["type"] or "—",
-                    c["status_label"],
-                    c["annual_cost_label"],
-                    joined(f"{r['ref']} {r['pct']}%" for r in c["risks"]),
-                    joined(c["objectives"]),
-                ]
+                [c["name"], c["category_label"], c["csf_function_label"], c["status_label"], c["annual_cost_label"],
+                 joined(c["covers"])]
                 for c in payload["controls"]
             ]
-            rows.append(["", (_("Total"), NAVY), "", "", summary["total_control_cost_label"], "", ""])
+            rows.append([(_("Total"), NAVY), "", "", "", (summary["total_cost_label"], NAVY), ""])
             doc.grid(
-                ["ID", _("Control"), _("Type"), _("Status"), _("Annual cost"), _("Risks covered"), _("Objectives")],
+                [_("Control"), _("Category"), _("CSF function"), _("Status"), _("Annual cost"), _("Covers")],
                 rows,
-                [1.8, 4.0, 2.4, 1.8, 2.2, 2.6, 2.6],
+                [5.2, 2.2, 2.2, 2.2, 2.6, 3.0],
             )
         else:
-            doc.paragraph(_("No existing applied controls are linked to the top risks."))
-
-    if "cost_allocation" in sections:
-        doc.heading(
-            numbers.get("cost_allocation"),
-            _("How control costs add up to risks and objectives"),
-            _("Control cost is split across the risks it covers, then across the control's objectives."),
-        )
-        objectives = payload["objectives"]
-        if payload["top_risks"] and payload["controls"]:
-            rows = [
-                [
-                    f"{r['ref_id']} {r['name']}".strip(),
-                    joined((f"{p['ref']} {p['label']}" for p in r["cost_parts"]), "; "),
-                    r["control_cost_label"],
-                    *[o["label"] for o in r["objective_costs"]],
-                ]
-                for r in payload["top_risks"]
-            ]
-            rows.append([(_("Total"), NAVY), "", summary["total_control_cost_label"], *[o["label"] for o in objectives]])
-            fixed = [4.2, 4.0, 2.2]
-            rest = (CONTENT_WIDTH_CM - sum(fixed)) / max(len(objectives), 1)
-            doc.grid(
-                [_("Risk"), _("Built from controls"), _("Total"), *[o["name"] for o in objectives]],
-                rows,
-                fixed + [rest] * len(objectives),
-            )
-        else:
-            doc.paragraph(_("No control costs to allocate."))
+            doc.paragraph(_("No applied controls are linked to the scenarios."))
 
     if "cost_effectiveness" in sections:
-        note = _("Cost per point = annual control cost ÷ (inherent score − current score).")
-        if summary["average_per_point"]:
-            note += f" {_('Average')}: {summary['average_per_point_label']} {_('per point')}."
-        doc.heading(numbers.get("cost_effectiveness"), _("Cost-effectiveness of control spend"), note)
+        note = _("alloc(s) = Σ cost(c) ÷ scenarios(c) · points(s) = current − residual · cost per point = alloc ÷ points.")
+        if payload["average_per_point"]:
+            note += f" {_('Average')}: {payload['average_per_point_label']} {_('per point')}."
+        doc.heading(numbers.get("cost_effectiveness"), _("Cost-effectiveness"), note)
+        doc.paragraph(
+            _("Estimate: the model has no cost-share weights on the control ↔ scenario link, so each control's cost is split equally across the scenarios it covers."),
+            color=color("92400E"),
+            size=8,
+        )
         if payload["effectiveness"]:
             doc.grid(
-                ["ID", _("Risk"), _("Control cost"), _("Inherent → current"), _("Points reduced"),
-                 _("Cost per point"), _("Flags")],
+                ["ID", _("Risk"), _("Allocated cost"), _("Points reduced"), _("Cost per point")],
                 [
                     [
                         e["ref_id"] or "—",
                         e["name"],
-                        e["cost_label"],
-                        f"{e['inherent'] if e['inherent'] is not None else '—'} {arrow} "
-                        f"{e['current'] if e['current'] is not None else '—'}",
-                        e["reduction"] if e["reduction"] is not None else "—",
-                        e["cost_per_point_label"],
-                        joined(e["flags"], "; "),
+                        e["allocated_label"],
+                        f"{e['current']} {arrow} {e['residual']} = {e['points']}",
+                        (f"{e['cost_per_point_label']} {e['tag_label']}".strip(), color("B91C1C"))
+                        if e["tag"] == "twice_average"
+                        else (e["cost_per_point_label"] or e["tag_label"]),
                     ]
                     for e in payload["effectiveness"]
                 ],
-                [1.8, 4.0, 2.2, 2.2, 1.8, 2.2, 3.2],
+                [1.6, 6.2, 3.2, 2.8, 3.6],
             )
         else:
-            doc.paragraph(_("No costed controls are linked to the top risks."))
+            doc.paragraph(_("No rated scenarios to compare."))
 
     if "treatment" in sections:
-        intro = (
-            _("Top risks above tolerance, with their planned applied controls.")
-            if tolerance
-            else _("Top risks with planned applied controls (no risk tolerance set).")
-        )
-        doc.heading(
-            numbers.get("treatment"),
-            _("Treatment plan"),
-            f"{intro} {_('Extra annual cost')}: {summary['total_extra_label']}.",
-        )
-        if payload["treatment"]:
+        treatment = payload["treatment"]
+        note = _("Scenarios with treatment = mitigate and their non-active linked controls (cost, ETA); target = the scenario's residual rating. Accepted scenarios show their justification verbatim.")
+        if treatment["unplanned_count"]:
+            note += f" {treatment['unplanned_count']} {_('mitigate scenarios have no planned control left.')}"
+        doc.heading(numbers.get("treatment"), _("Treatment plan"), note)
+        doc.subheading(f"{_('Mitigate — planned controls')} · {_('extra annual cost')} {treatment['extra_cost_label']}")
+        if treatment["planned"]:
             doc.grid(
-                [_("Risk"), _("Current"), _("Treatment"), _("Extra annual cost"), _("Target residual"), _("Owner"),
-                 _("Target date")],
+                [_("Risk"), _("Current"), _("Planned control"), _("Status"), _("Annual cost"), _("ETA"),
+                 _("Target residual"), _("Owner")],
                 [
-                    [
-                        f"{t['ref_id']} {t['name']}".strip(),
-                        rating(t["current"]),
-                        t["treatment_label"]
-                        + "".join(f"\n• {c['ref_id'] + ' ' if c['ref_id'] else ''}{c['name']} [{c['status_label']}]" for c in t["controls"]),
-                        t["extra_cost_label"],
-                        rating(t["residual"]) + (f"\n{_('Still above tolerance')}" if t["residual_above"] else ""),
-                        joined(t["owners"]),
-                        t["target_date"] or "—",
-                    ]
-                    for t in payload["treatment"]
+                    [f"{t['risk_ref_id']} {t['risk_name']}".strip(), band(t["current"]), t["control_name"],
+                     t["status_label"], t["annual_cost_label"], t["eta"] or "—", band(t["residual"]),
+                     joined(t["owners"])]
+                    for t in treatment["planned"]
                 ],
-                [3.4, 2.3, 3.9, 2.0, 2.3, 1.8, 1.7],
+                [3.2, 2.0, 3.0, 1.6, 2.0, 1.8, 2.0, 1.8],
             )
         else:
-            doc.paragraph(
-                _("No top risk is above tolerance.") if tolerance else _("No planned treatment controls on the top risks.")
+            doc.paragraph(_("No planned controls on mitigate scenarios."))
+        doc.subheading(_("Accepted risks"))
+        if treatment["accepted"]:
+            doc.grid(
+                [_("Risk"), _("Residual"), _("Owner"), _("Justification (as written)")],
+                [
+                    [f"{a['ref_id']} {a['name']}".strip(), band(a["residual"]), joined(a["owners"]),
+                     a["justification"] or "—"]
+                    for a in treatment["accepted"]
+                ],
+                [4.2, 2.6, 2.4, 8.2],
             )
+        else:
+            doc.paragraph(_("No accepted scenarios."))
 
     return doc.to_bytes()
 

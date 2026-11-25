@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { m } from '$paraglide/messages';
 	import type { PageData } from './$types';
 
@@ -20,27 +21,28 @@
 	let { data }: Props = $props();
 
 	const assessments = $derived((data.assessments ?? []) as AssessmentChoice[]);
-	let selectedId = $state((data.assessments?.[0]?.id as string) ?? '');
+	const requestedId = page.url.searchParams.get('assessment');
+	let selectedId = $state(
+		(data.assessments?.find((item: AssessmentChoice) => item.id === requestedId)?.id ??
+			data.assessments?.[0]?.id ??
+			'') as string
+	);
 
 	const reportSections = $derived([
 		{ key: 'summary', label: m.rptExecutiveSummary() },
 		{ key: 'scoring', label: m.rptScoringSection() },
-		{ key: 'areas', label: m.rptHighRiskAreas() },
-		{ key: 'top_risks', label: m.rptTopRisks() },
 		{ key: 'heatmaps', label: m.rptHeatmaps() },
-		{ key: 'controls', label: m.rptControlsInPlace() },
-		{ key: 'cost_allocation', label: m.rptCostAllocation() },
+		{ key: 'top_risks', label: m.rptTopRisks() },
+		{ key: 'controls', label: m.rptControlsCosts() },
 		{ key: 'cost_effectiveness', label: m.rptCostEffectiveness() },
 		{ key: 'treatment', label: m.rptTreatmentPlan() }
 	]);
 	const sectionKeys = [
 		'summary',
 		'scoring',
-		'areas',
-		'top_risks',
 		'heatmaps',
+		'top_risks',
 		'controls',
-		'cost_allocation',
 		'cost_effectiveness',
 		'treatment'
 	];

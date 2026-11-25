@@ -708,3 +708,216 @@ msgstr "نقل"
 msgid "Info"
 msgstr "معلوماتي"
 
+msgid "> 2× average"
+msgstr "> ضعف المتوسط"
+
+msgid "Accepted risks"
+msgstr "المخاطر المقبولة"
+
+msgid "Allocated cost"
+msgstr "التكلفة المخصصة"
+
+msgid "Average across scenarios with costed controls (Σ alloc ÷ Σ points)"
+msgstr "المتوسط عبر السيناريوهات ذات الضوابط المكلفة (Σ التخصيص ÷ Σ النقاط)"
+
+msgid "Average score, current → residual"
+msgstr "متوسط الدرجة، الحالية ← المتبقية"
+
+msgid "Avg score, current → residual"
+msgstr "متوسط الدرجة، الحالية ← المتبقية"
+
+msgid "Band"
+msgstr "المستوى"
+
+msgid "CSF function"
+msgstr "وظيفة CSF"
+
+msgid "Category"
+msgstr "الفئة"
+
+msgid "Computed from the assessment's scenarios: score"
+msgstr "محسوب من سيناريوهات التقييم: الدرجة"
+
+msgid "Computed from the assessment's scenarios: score (probability index + 1) × (impact index + 1); band read from the matrix grid."
+msgstr "محسوب من سيناريوهات التقييم: الدرجة (مؤشر الاحتمالية + 1) × (مؤشر الأثر + 1)؛ ويُقرأ المستوى من مصفوفة المخاطر."
+
+msgid "Controls & costs"
+msgstr "الضوابط والتكاليف"
+
+msgid "Covers"
+msgstr "يغطي"
+
+msgid "Current (before planned treatment)"
+msgstr "الحالية (قبل المعالجة المخطط لها)"
+
+msgid "Estimate: the model has no cost-share weights on the control ↔ scenario link, so each control's cost is split equally across the scenarios it covers."
+msgstr "تقدير: لا يحتوي النموذج على أوزان لتوزيع التكلفة على رابط الضابط ↔ السيناريو، لذا تُقسم تكلفة كل ضابط بالتساوي على السيناريوهات التي يغطيها."
+
+msgid "Flag"
+msgstr "تنبيه"
+
+msgid "Grid size and cell colours come from the matrix; each scenario sits at (probability, impact) for its current and its residual rating. Unrated scenarios are left off."
+msgstr "حجم المصفوفة وألوان الخلايا مأخوذة من مصفوفة المخاطر؛ يوضع كل سيناريو عند (الاحتمالية، الأثر) لتقييمه الحالي والمتبقي. تُستبعد السيناريوهات غير المقيّمة."
+
+msgid "Headline"
+msgstr "العنوان"
+
+msgid "Heatmaps"
+msgstr "الخرائط الحرارية"
+
+msgid "Heatmaps — current vs residual"
+msgstr "الخرائط الحرارية — الحالية مقابل المتبقية"
+
+msgid "Highest residual"
+msgstr "أعلى خطر متبقٍ"
+
+msgid "Highest residual risks"
+msgstr "أعلى المخاطر المتبقية"
+
+msgid "How exposed the organisation is today, in one view for the board."
+msgstr "مدى تعرض الجهة للمخاطر اليوم، في عرض واحد للمجلس."
+
+msgid "How far the planned and existing controls move each risk on the matrix."
+msgstr "إلى أي مدى تحرك الضوابط القائمة والمخطط لها كل خطر على المصفوفة."
+
+msgid "Justification"
+msgstr "المبرر"
+
+msgid "Justification (as written)"
+msgstr "المبرر (كما كُتب)"
+
+msgid "Meaning"
+msgstr "المعنى"
+
+msgid "Mitigate · accept"
+msgstr "تخفيف · قبول"
+
+msgid "Mitigate — planned controls"
+msgstr "التخفيف — الضوابط المخطط لها"
+
+msgid "No accepted scenarios."
+msgstr "لا توجد سيناريوهات مقبولة."
+
+msgid "No applied controls are linked to the scenarios."
+msgstr "لا توجد ضوابط مطبقة مرتبطة بالسيناريوهات."
+
+msgid "No costed control"
+msgstr "لا يوجد ضابط مكلف"
+
+msgid "No planned controls on mitigate scenarios."
+msgstr "لا توجد ضوابط مخطط لها على سيناريوهات التخفيف."
+
+msgid "No rated scenarios to compare."
+msgstr "لا توجد سيناريوهات مقيّمة للمقارنة."
+
+msgid "No reduction"
+msgstr "لا يوجد خفض"
+
+msgid "No risk scenarios yet."
+msgstr "لا توجد سيناريوهات مخاطر بعد."
+
+msgid "One row per scenario, sorted by residual score, then current score."
+msgstr "صف لكل سيناريو، مرتبة حسب الدرجة المتبقية ثم الدرجة الحالية."
+
+msgid "Planned control"
+msgstr "الضابط المخطط"
+
+msgid "Ref"
+msgstr "المرجع"
+
+msgid "Rendered verbatim from the assessment's risk matrix"
+msgstr "معروضة حرفياً من مصفوفة المخاطر الخاصة بالتقييم"
+
+#, python-format
+msgid "Residual %(first)s or %(second)s"
+msgstr "متبقٍ %(first)s أو %(second)s"
+
+msgid "Residual (after treatment)"
+msgstr "المتبقية (بعد المعالجة)"
+
+msgid "Residual risk by band"
+msgstr "المخاطر المتبقية حسب المستوى"
+
+msgid "Result"
+msgstr "النتيجة"
+
+msgid "Scenarios"
+msgstr "السيناريوهات"
+
+msgid "Scenarios with treatment = mitigate and their non-active linked controls (cost, ETA); target = the scenario's residual rating. Accepted scenarios show their justification verbatim."
+msgstr "السيناريوهات ذات المعالجة = تخفيف وضوابطها المرتبطة غير المفعّلة (التكلفة، الموعد المتوقع)؛ الهدف = التقييم المتبقي للسيناريو. تُعرض مبررات السيناريوهات المقبولة كما كُتبت."
+
+msgid "Score range"
+msgstr "نطاق الدرجات"
+
+msgid "Score range per band = min–max of the scores of the grid cells mapped to it."
+msgstr "نطاق الدرجات لكل مستوى = أدنى وأعلى درجة لخلايا المصفوفة المرتبطة به."
+
+msgid "Scoring method"
+msgstr "منهجية التقييم"
+
+msgid "The risks that matter most, where controls leave them, and who owns them."
+msgstr "أهم المخاطر، وأين تتركها الضوابط، ومن المسؤول عنها."
+
+msgid "Treatment split"
+msgstr "توزيع المعالجة"
+
+msgid "Union of the controls linked to the scenarios, each listed once. Status stands in for tested effectiveness, which has no field."
+msgstr "مجموع الضوابط المرتبطة بالسيناريوهات، يُذكر كل منها مرة واحدة. تُستخدم الحالة بديلاً عن الفعالية المختبرة لعدم وجود حقل لها."
+
+msgid "What is planned to bring the remaining risks down, at what cost and by when — and what was accepted."
+msgstr "ما المخطط لخفض المخاطر المتبقية، وبأي تكلفة، ومتى — وما الذي تم قبوله."
+
+msgid "What the organisation spends to keep these risks under control."
+msgstr "ما تنفقه الجهة لإبقاء هذه المخاطر تحت السيطرة."
+
+msgid "What the scores mean, so the board reads every number the same way the tool does."
+msgstr "ما تعنيه الدرجات، ليقرأ المجلس كل رقم بالطريقة نفسها التي تحسبه بها الأداة."
+
+msgid "Whether the control spend buys real risk reduction, and where it does not."
+msgstr "هل يحقق الإنفاق على الضوابط خفضاً حقيقياً للمخاطر، وأين لا يحققه."
+
+msgid "alloc(s) = Σ cost(c) ÷ scenarios(c) · points(s) = current − residual · cost per point = alloc ÷ points."
+msgstr "التخصيص(س) = Σ التكلفة(ض) ÷ السيناريوهات(ض) · النقاط(س) = الحالية − المتبقية · التكلفة لكل نقطة = التخصيص ÷ النقاط."
+
+msgid "band read from the matrix grid."
+msgstr "ويُقرأ المستوى من مصفوفة المخاطر."
+
+msgid "each control once"
+msgstr "كل ضابط مرة واحدة"
+
+msgid "extra annual cost"
+msgstr "تكلفة سنوية إضافية"
+
+msgid "mean of rated scenario scores"
+msgstr "متوسط درجات السيناريوهات المقيّمة"
+
+msgid "mitigate scenarios have no planned control left."
+msgstr "من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+
+msgid "per point; rows above 2× are flagged."
+msgstr "لكل نقطة؛ تُميَّز الصفوف التي تتجاوز ضعفه."
+
+msgid "without cost excluded"
+msgstr "استُبعدت لعدم وجود تكلفة"
+
+#, python-format
+msgid "%(counter)s control without a cost shown as — and excluded from totals."
+msgid_plural "%(counter)s controls without a cost shown as — and excluded from totals."
+msgstr[0] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+msgstr[1] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+msgstr[2] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+msgstr[3] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+msgstr[4] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+msgstr[5] "%(counter)s ضوابط بلا تكلفة تظهر بعلامة — وتُستبعد من المجاميع."
+
+#, python-format
+msgid "%(counter)s mitigate scenario has no planned control left."
+msgid_plural "%(counter)s mitigate scenarios have no planned control left."
+msgstr[0] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+msgstr[1] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+msgstr[2] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+msgstr[3] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+msgstr[4] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+msgstr[5] "%(counter)s من سيناريوهات التخفيف لم يعد لها ضابط مخطط."
+

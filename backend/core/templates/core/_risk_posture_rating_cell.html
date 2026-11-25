@@ -1,1 +1,1 @@
-<td>{% if v.rated %}<span class="level" style="background: {{ v.color }}; color: {{ v.text }}">{{ v.name }}</span><span class="desc">{{ v.score }} · {{ v.lxi }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+{% load core_extras %}<td>{% if v.rated %}<span class="score">{{ v.score }}</span> <span class="level" dir="{{ v.name|text_dir }}" style="background: {{ v.color }}; color: {{ v.text }}">{{ v.name }}</span><span class="desc" dir="ltr">{{ v.lxi }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
