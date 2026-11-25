@@ -747,8 +747,7 @@ def risk_posture_document(payload: dict) -> bytes:
             note += f" {_('Average')}: {payload['average_per_point_label']} {_('per point')}."
         doc.heading(numbers.get("cost_effectiveness"), _("Cost-effectiveness"), note)
         doc.paragraph(
-            _("Estimate: the model has no cost-share weights on the control ↔ scenario link, so each control's cost is split equally across the scenarios it covers."),
-            color=color("92400E"),
+            _("Whether the control spend buys real risk reduction, and where it does not. Each control's cost is split equally across the scenarios it covers."),
             size=8,
         )
         if payload["effectiveness"]:

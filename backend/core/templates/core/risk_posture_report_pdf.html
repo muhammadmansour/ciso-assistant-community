@@ -197,9 +197,8 @@
     {% if "cost_effectiveness" in sections %}
     <div class="section">
         <h2 class="section-title"><span class="n">{{ section_numbers.cost_effectiveness }}.</span>{% trans "Cost-effectiveness" %}</h2>
-        <p class="section-purpose">{% trans "Whether the control spend buys real risk reduction, and where it does not." %}</p>
+        <p class="section-purpose">{% trans "Whether the control spend buys real risk reduction, and where it does not. Each control's cost is split equally across the scenarios it covers." %}</p>
         <p class="section-note"><span class="formula">alloc(s) = Σ cost(c) ÷ scenarios(c)</span> · <span class="formula">points(s) = current − residual</span> · <span class="formula">cost per point = alloc ÷ points</span>{% if average_per_point %} · {% trans "Average across scenarios with costed controls (Σ alloc ÷ Σ points)" %}: <strong>{{ average_per_point_label }}</strong> {% trans "per point; rows above 2× are flagged." %}{% endif %}</p>
-        <div class="callout">{% trans "Estimate: the model has no cost-share weights on the control ↔ scenario link, so each control's cost is split equally across the scenarios it covers." %}</div>
         {% if effectiveness %}
         <table class="grid">
             <colgroup><col style="width: 9%"><col style="width: 35%"><col style="width: 15%"><col style="width: 13%"><col style="width: 28%"></colgroup>

@@ -448,7 +448,6 @@
 					{@render formula('alloc(s) = Σ cost(c) ÷ scenarios(c)')} · {@render formula('points(s) = current − residual')} · {@render formula('cost per point = alloc ÷ points')}
 					{#if report.average_per_point}· {m.rptAverageAcross({ amount: report.average_per_point_label })}{/if}
 				</p>
-				<p class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{m.rptEstimateCallout()}</p>
 				{#if report.effectiveness.length === 0}
 					{@render empty(m.rptNoRatedToCompare())}
 				{:else}

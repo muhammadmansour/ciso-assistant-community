@@ -750,9 +750,6 @@ msgstr "يغطي"
 msgid "Current (before planned treatment)"
 msgstr "الحالية (قبل المعالجة المخطط لها)"
 
-msgid "Estimate: the model has no cost-share weights on the control ↔ scenario link, so each control's cost is split equally across the scenarios it covers."
-msgstr "تقدير: لا يحتوي النموذج على أوزان لتوزيع التكلفة على رابط الضابط ↔ السيناريو، لذا تُقسم تكلفة كل ضابط بالتساوي على السيناريوهات التي يغطيها."
-
 msgid "Flag"
 msgstr "تنبيه"
 
@@ -878,8 +875,8 @@ msgstr "ما تنفقه الجهة لإبقاء هذه المخاطر تحت ا�
 msgid "What the scores mean, so the board reads every number the same way the tool does."
 msgstr "ما تعنيه الدرجات، ليقرأ المجلس كل رقم بالطريقة نفسها التي تحسبه بها الأداة."
 
-msgid "Whether the control spend buys real risk reduction, and where it does not."
-msgstr "هل يحقق الإنفاق على الضوابط خفضاً حقيقياً للمخاطر، وأين لا يحققه."
+msgid "Whether the control spend buys real risk reduction, and where it does not. Each control's cost is split equally across the scenarios it covers."
+msgstr "هل يحقق الإنفاق على الضوابط خفضاً حقيقياً للمخاطر، وأين لا يحققه. تُقسم تكلفة كل ضابط بالتساوي على السيناريوهات التي يغطيها."
 
 msgid "alloc(s) = Σ cost(c) ÷ scenarios(c) · points(s) = current − residual · cost per point = alloc ÷ points."
 msgstr "التخصيص(س) = Σ التكلفة(ض) ÷ السيناريوهات(ض) · النقاط(س) = الحالية − المتبقية · التكلفة لكل نقطة = التخصيص ÷ النقاط."
