@@ -13,27 +13,13 @@
 
 /* 1. Register as a Tailwind v4 theme token → enables font-cairo utility */
 @theme {
-  --font-cairo: 'Cairo', sans-serif;
+  --font-cairo: 'Saudi Riyal', 'Cairo', sans-serif;
 }
 
-/* Saudi Riyal sign (U+20C1, legacy U+E900) joins the Cairo family; the range keeps
-   the font's other glyphs (A–D) from replacing Cairo's. */
-@font-face {
-  font-family: 'Cairo';
-  src: url('/fonts/saudi-riyal/saudi_riyal-regular.woff2') format('woff2');
-  font-weight: 100 500;
-  font-display: swap;
-  unicode-range: U+20C1, U+E900;
-  size-adjust: 125%;
-}
-@font-face {
-  font-family: 'Cairo';
-  src: url('/fonts/saudi-riyal/saudi_riyal-bold.woff2') format('woff2');
-  font-weight: 600 900;
-  font-display: swap;
-  unicode-range: U+20C1, U+E900;
-  size-adjust: 125%;
-}
+/* Saudi Riyal sign (U+20C1, legacy U+E900), listed ahead of Cairo. The range keeps the
+   font's other glyphs (A–D) from replacing Cairo's. It must stay a separate family:
+   inside 'Cairo' its weight range wins font matching and Cairo's own Arabic faces for
+   that weight never load. */
 @font-face {
   font-family: 'Saudi Riyal';
   src: url('/fonts/saudi-riyal/saudi_riyal-regular.woff2') format('woff2');
@@ -54,7 +40,7 @@
 /* 2. Apply as the default font for the whole app */
 html,
 body {
-  font-family: 'Cairo', sans-serif;
+  font-family: 'Saudi Riyal', 'Cairo', sans-serif;
 }
 
 /* 3. Ensure everything inherits (overrides any component resets) */
