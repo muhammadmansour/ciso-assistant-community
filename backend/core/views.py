@@ -111,6 +111,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict
 from rest_framework.views import APIView
 from rest_framework.exceptions import NotFound, PermissionDenied
 
+from core import branding
 
 # WeasyPrint is optional - PDF generation will be disabled if not available
 try:
@@ -147,7 +148,7 @@ def _render_weasyprint_pdf(html: str) -> bytes:
 
     base = Path(settings.BASE_DIR) / "core"
     return HTML(
-        string=html,
+        string=branding.pdf_html(html),
         base_url=base.as_uri() + "/",
         url_fetcher=_weasyprint_url_fetcher,
     ).write_pdf()
@@ -9640,7 +9641,7 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
                     status=status.HTTP_501_NOT_IMPLEMENTED
                 )
             html = render_to_string("core/action_plan_pdf.html", data)
-            pdf_file = HTML(string=html).write_pdf()
+            pdf_file = HTML(string=branding.pdf_html(html)).write_pdf()
             response = HttpResponse(pdf_file, content_type="application/pdf")
             return response
         else:
@@ -12928,7 +12929,7 @@ class FindingsAssessmentViewSet(BaseModelViewSet):
                 status=status.HTTP_501_NOT_IMPLEMENTED
             )
         html = render_to_string("core/findings_assessment_pdf.html", context)
-        pdf_file = HTML(string=html).write_pdf()
+        pdf_file = HTML(string=branding.pdf_html(html)).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
         safe_name = slugify(findings_assessment.name) or "findings_assessment"
         response["Content-Disposition"] = (
@@ -13329,7 +13330,7 @@ class IncidentViewSet(ExportMixin, BaseModelViewSet):
                 status=status.HTTP_501_NOT_IMPLEMENTED
             )
         html = render_to_string("core/incident_pdf.html", context)
-        pdf_file = HTML(string=html).write_pdf()
+        pdf_file = HTML(string=branding.pdf_html(html)).write_pdf()
         response = HttpResponse(pdf_file, content_type="application/pdf")
         safe_name = slugify(incident.name) or "incident"
         response["Content-Disposition"] = (

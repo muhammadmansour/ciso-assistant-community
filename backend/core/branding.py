@@ -13,6 +13,7 @@ Brand tokens (from the supplied Muhkam asset pack):
 """
 
 import base64
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -110,13 +111,45 @@ def cairo_font_face_css() -> str:
     ) + _saudi_riyal_font_face_css()
 
 
+SAUDI_RIYAL_FONT_FAMILY = "Saudi Riyal"
+_SAUDI_RIYAL_SIGN = "\u20c1"
+_SAUDI_RIYAL_LEGACY_SIGN = "\ue900"
+
+
+_SAUDI_RIYAL_PDF_MARKUP = (
+    f"<span style=\"font-family: '{SAUDI_RIYAL_FONT_FAMILY}'\">"
+    f"{_SAUDI_RIYAL_LEGACY_SIGN}</span>"
+)
+_HTML_TAG = re.compile(r"(<[^>]*>)")
+
+
+def pdf_html(html: str) -> str:
+    """Prepares rendered HTML for WeasyPrint.
+
+    Pango/fontconfig builds that predate Unicode 17 never pick the bundled font
+    for U+20C1 and draw a missing-glyph box, so the sign becomes the font's
+    legacy private-use code point. It sits in its own span so adjacent spaces
+    are not shaped with the sign font, which has no space glyph. Only text
+    between tags is touched, never attribute values.
+    """
+    if _SAUDI_RIYAL_SIGN not in html:
+        return html
+    return "".join(
+        part
+        if part.startswith("<")
+        else part.replace(_SAUDI_RIYAL_SIGN, _SAUDI_RIYAL_PDF_MARKUP)
+        for part in _HTML_TAG.split(html)
+    )
 _SAUDI_RIYAL_FONTS = (("saudi_riyal-regular.ttf", "normal"), ("saudi_riyal-bold.ttf", "bold"))
 
 
 def _saudi_riyal_font_face_css() -> str:
-    """Adds the Saudi Riyal sign (U+20C1, legacy U+E900) to the Cairo family.
+    """Registers the Saudi Riyal sign (U+20C1, legacy U+E900) as its own family.
 
-    The range is required: the font also carries A–D glyphs that must not replace Cairo's.
+    Templates must list it after Cairo: the font also carries A–D glyphs that
+    must not replace Cairo's, and folding it into the Cairo family through
+    unicode-range alone is ignored by some Linux WeasyPrint/fontconfig builds,
+    which then draw a missing-glyph box for the sign.
     """
     faces = []
     for filename, weight in _SAUDI_RIYAL_FONTS:
@@ -126,7 +159,7 @@ def _saudi_riyal_font_face_css() -> str:
         encoded = base64.b64encode(path.read_bytes()).decode("ascii")
         faces.append(
             "@font-face {"
-            f" font-family: '{CAIRO_FONT_FAMILY}';"
+            f" font-family: '{SAUDI_RIYAL_FONT_FAMILY}';"
             f" src: url('data:font/ttf;base64,{encoded}') format('truetype');"
             f" font-weight: {weight};"
             " font-style: normal;"

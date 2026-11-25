@@ -1,5 +1,6 @@
 {% load i18n core_extras %}
 <style>
+    {% cairo_font_css %}
     @page {
         size: A4 portrait;
         margin: 2.1cm 1.2cm 1.5cm 1.2cm;
@@ -7,13 +8,13 @@
         @bottom-left { content: element(reportFooter); }
         @bottom-right {
             content: "{% trans 'Page' %} " counter(page, {% num_counter_style %}) " / " counter(pages, {% num_counter_style %});
-            font-family: 'Cairo', sans-serif;
+            font-family: 'Cairo', 'Saudi Riyal', sans-serif;
             font-size: 7.5pt;
             color: #64748B;
         }
     }
 
-    body { font-family: 'Cairo', sans-serif; color: #1E293B; font-size: 8.5pt; line-height: 1.45; }
+    body { font-family: 'Cairo', 'Saudi Riyal', sans-serif; color: #1E293B; font-size: 8.5pt; line-height: 1.45; }
     th { text-align: left; }
     ul { list-style: disc; padding-left: 0.45cm; margin: 0; }
     [dir="rtl"] { direction: rtl; text-align: right; }
