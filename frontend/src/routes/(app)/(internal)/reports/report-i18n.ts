@@ -34,12 +34,15 @@ export function arabicDigits(): boolean {
 
 /**
  * A report figure in the reader's digits. Only for values the report computes: reference IDs,
- * formulas and user-entered names keep their Western digits.
+ * formulas and user-entered names keep their Western digits. In Arabic a leading currency
+ * symbol moves after the amount ("٣٤٥ ⃁"), so render amounts with numDir().
  */
 export function num(value: unknown, fallback = '—'): string {
 	if (value === null || value === undefined || value === '') return fallback;
-	const text = String(value);
+	let text = String(value);
 	if (!arabicDigits()) return text;
+	const amount = /^([^\s0-9]+) ([0-9].*)$/.exec(text);
+	if (amount) text = `${amount[2]} ${amount[1]}`;
 	return text
 		.replace(/(\d)([kMB])\b/g, (_, digit, unit) => `${digit} ${ARABIC_COMPACT_UNITS[unit]}`)
 		.replace(/(\d)\.(?=\d)/g, '$1٫')

@@ -85,7 +85,7 @@
             <td class="{% if summary.residual_high %}alert{% endif %}"><div class="kpi-value">{{ summary.residual_high|num }}</div><div class="kpi-label">{% blocktrans with first=summary.top_band_names.0 second=summary.top_band_names.1 %}Residual {{ first }} or {{ second }}{% endblocktrans %}</div></td>
             <td><div class="kpi-value" dir="{% num_dir %}">{{ summary.avg_current|num }} {% num_arrow %} {{ summary.avg_residual|num }}</div><div class="kpi-label">{% trans "Avg score, current → residual" %} (/{{ max_score|num }})</div></td>
             <td><div class="kpi-value">{{ summary.highest_residual.score|num }}</div><div class="kpi-label">{% trans "Highest residual" %}{% if summary.highest_residual %} · {% for r in summary.highest_residual.risks %}{{ r.ref }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div></td>
-            <td><div class="kpi-value" dir="ltr">{{ summary.total_cost_compact|num }}</div><div class="kpi-label">{{ summary.control_count|num }} {% trans "controls · annual cost" %}</div></td>
+            <td><div class="kpi-value" dir="{% num_dir %}">{{ summary.total_cost_compact|num }}</div><div class="kpi-label">{{ summary.control_count|num }} {% trans "controls · annual cost" %}</div></td>
             <td><div class="kpi-value">{{ summary.mitigate_count|num }} {% num_separator %} {{ summary.accept_count|num }}</div><div class="kpi-label">{% trans "Mitigate · accept" %}</div></td>
         </tr>
     </table>
@@ -100,7 +100,7 @@
             <tr><td class="k">{% trans "Residual risk by band" %}</td><td>{% for b in summary.residual_bands %}<span class="level" dir="{{ b.name|text_dir }}" style="background: {{ b.color }}; color: {{ b.text }}">{{ b.name }}</span> <strong>{{ b.count|num }}</strong>&nbsp;&nbsp;{% endfor %}</td></tr>
             <tr><td class="k">{% trans "Average score, current → residual" %}</td><td><strong dir="{% num_dir %}">{{ summary.avg_current|num }} {% num_arrow %} {{ summary.avg_residual|num }}</strong> / {{ max_score|num }} <span class="formula">{% trans "mean of rated scenario scores" %}</span></td></tr>
             <tr><td class="k">{% trans "Highest residual risks" %}</td><td>{% if summary.highest_residual %}{% for r in summary.highest_residual.risks %}{% if r.ref_id %}<span class="code">{{ r.ref_id }}</span> {% endif %}{{ r.name }}{% if not forloop.last %}; {% endif %}{% endfor %} — <strong>{{ summary.highest_residual.score|num }}</strong> <span class="level" dir="{{ summary.highest_residual.rating.name|text_dir }}" style="background: {{ summary.highest_residual.rating.color }}; color: {{ summary.highest_residual.rating.text }}">{{ summary.highest_residual.rating.name }}</span> <span class="muted" dir="{% num_dir %}">({{ summary.highest_residual.rating.lxi|num }})</span>{% else %}<span class="muted">{% trans "No rated risks yet." %}</span>{% endif %}</td></tr>
-            <tr><td class="k">{% trans "Annual cost of controls" %}</td><td><strong dir="ltr">{{ summary.total_cost_label|num }}</strong> {% trans "across" %} {{ summary.control_count|num }} {% trans "controls" %} <span class="formula">Σ annual_cost, {% trans "each control once" %}</span>{% if summary.uncosted_count %} <span class="muted">· {{ summary.uncosted_count|num }} {% trans "without cost excluded" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Annual cost of controls" %}</td><td><strong dir="{% num_dir %}">{{ summary.total_cost_label|num }}</strong> {% trans "across" %} {{ summary.control_count|num }} {% trans "controls" %} <span class="formula">Σ annual_cost, {% trans "each control once" %}</span>{% if summary.uncosted_count %} <span class="muted">· {{ summary.uncosted_count|num }} {% trans "without cost excluded" %}</span>{% endif %}</td></tr>
             <tr><td class="k">{% trans "Treatment split" %}</td><td>{% for t in summary.treatment_split %}<span class="tag t-{{ t.key }}">{{ t.label }}</span> <strong>{{ t.count|num }}</strong>&nbsp;&nbsp;{% empty %}—{% endfor %}</td></tr>
         </table>
     </div>
@@ -184,10 +184,10 @@
             <tbody>{% for c in controls %}<tr>
                 <td class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</td><td>{{ c.category_label }}</td><td>{{ c.csf_function_label }}</td>
                 <td><span class="tag s-{{ c.status }}">{{ c.status_label }}</span></td>
-                <td class="num" dir="ltr">{{ c.annual_cost_label|num }}</td>
+                <td class="num" dir="{% num_dir %}">{{ c.annual_cost_label|num }}</td>
                 <td>{% for ref in c.covers %}<span class="chip">{{ ref }}</span>{% endfor %}</td>
             </tr>{% endfor %}
-            <tr class="total"><td>{% trans "Total" %}</td><td></td><td></td><td></td><td class="num" dir="ltr">{{ summary.total_cost_label|num }}</td><td></td></tr>
+            <tr class="total"><td>{% trans "Total" %}</td><td></td><td></td><td></td><td class="num" dir="{% num_dir %}">{{ summary.total_cost_label|num }}</td><td></td></tr>
             </tbody>
         </table>
         {% else %}<div class="empty">{% trans "No applied controls are linked to the scenarios." %}</div>{% endif %}
@@ -198,15 +198,15 @@
     <div class="section">
         <h2 class="section-title"><span class="n">{{ section_numbers.cost_effectiveness|num }}.</span>{% trans "Cost-effectiveness" %}</h2>
         <p class="section-purpose">{% trans "Whether the control spend buys real risk reduction, and where it does not. Each control's cost is split equally across the scenarios it covers." %}</p>
-        <p class="section-note"><span class="formula">alloc(s) = Σ cost(c) ÷ scenarios(c)</span> · <span class="formula">points(s) = current − residual</span> · <span class="formula">cost per point = alloc ÷ points</span>{% if average_per_point %} · {% trans "Average across scenarios with costed controls (Σ alloc ÷ Σ points)" %}: <strong dir="ltr">{{ average_per_point_label|num }}</strong> {% trans "per point; rows above 2× are flagged." %}{% endif %}</p>
+        <p class="section-note"><span class="formula">alloc(s) = Σ cost(c) ÷ scenarios(c)</span> · <span class="formula">points(s) = current − residual</span> · <span class="formula">cost per point = alloc ÷ points</span>{% if average_per_point %} · {% trans "Average across scenarios with costed controls (Σ alloc ÷ Σ points)" %}: <strong dir="{% num_dir %}">{{ average_per_point_label|num }}</strong> {% trans "per point; rows above 2× are flagged." %}{% endif %}</p>
         {% if effectiveness %}
         <table class="grid">
             <colgroup><col style="width: 9%"><col style="width: 35%"><col style="width: 15%"><col style="width: 13%"><col style="width: 28%"></colgroup>
             <thead><tr><th>{% trans "Ref" %}</th><th>{% trans "Risk" %}</th><th class="num">{% trans "Allocated cost" %}</th><th class="num">{% trans "Points reduced" %}</th><th>{% trans "Cost per point" %}</th></tr></thead>
             <tbody>{% for e in effectiveness %}<tr class="{% if e.tag == 'twice_average' %}flagged{% endif %}">
-                <td class="code">{{ e.ref_id|default:"—" }}</td><td>{{ e.name }}</td><td class="num" dir="ltr">{{ e.allocated_label|num }}</td>
+                <td class="code">{{ e.ref_id|default:"—" }}</td><td>{{ e.name }}</td><td class="num" dir="{% num_dir %}">{{ e.allocated_label|num }}</td>
                 <td class="num" dir="{% num_dir %}">{{ e.current|num }} {% num_arrow %} {{ e.residual|num }}{% if e.points >= 0 %} = <strong>{{ e.points|num }}</strong>{% endif %}</td>
-                <td>{% if e.cost_per_point %}<span class="cpp-bar{% if e.tag == 'twice_average' %} hot{% endif %}" style="width: {% widthratio e.bar_pct 100 55 %}%"></span><strong dir="ltr">{{ e.cost_per_point_label|num }}</strong>{% if e.tag == 'twice_average' %} <span class="tag warn">{{ e.tag_label }}</span>{% endif %}{% elif e.tag == 'risk_increased' %}<span class="tag warn">{{ e.tag_label }}</span>{% else %}<span class="tag">{{ e.tag_label }}</span>{% endif %}</td>
+                <td>{% if e.cost_per_point %}<span class="cpp-bar{% if e.tag == 'twice_average' %} hot{% endif %}" style="width: {% widthratio e.bar_pct 100 55 %}%"></span><strong dir="{% num_dir %}">{{ e.cost_per_point_label|num }}</strong>{% if e.tag == 'twice_average' %} <span class="tag warn">{{ e.tag_label }}</span>{% endif %}{% elif e.tag == 'risk_increased' %}<span class="tag warn">{{ e.tag_label }}</span>{% else %}<span class="tag">{{ e.tag_label }}</span>{% endif %}</td>
             </tr>{% endfor %}</tbody>
         </table>
         {% else %}<div class="empty">{% trans "No rated scenarios to compare." %}</div>{% endif %}
@@ -218,7 +218,7 @@
         <h2 class="section-title"><span class="n">{{ section_numbers.treatment|num }}.</span>{% trans "Treatment plan" %}</h2>
         <p class="section-purpose">{% trans "What is planned to bring the remaining risks down, at what cost and by when — and what was accepted." %}</p>
         <p class="section-note">{% trans "Scenarios with treatment = mitigate and their non-active linked controls (cost, ETA); target = the scenario's residual rating. Accepted scenarios show their justification verbatim." %}{% if treatment.unplanned_count %} {% blocktrans with n=treatment.unplanned_count|num count counter=treatment.unplanned_count %}{{ n }} mitigate scenario has no planned control left.{% plural %}{{ n }} mitigate scenarios have no planned control left.{% endblocktrans %}{% endif %}</p>
-        <div class="sub">{% trans "Mitigate — planned controls" %} <span class="small">· {% trans "extra annual cost" %} <span dir="ltr">{{ treatment.extra_cost_label|num }}</span></span></div>
+        <div class="sub">{% trans "Mitigate — planned controls" %} <span class="small">· {% trans "extra annual cost" %} <span dir="{% num_dir %}">{{ treatment.extra_cost_label|num }}</span></span></div>
         {% if treatment.planned %}
         <table class="grid dense">
             <colgroup><col style="width: 19%"><col style="width: 11%"><col style="width: 19%"><col style="width: 10%"><col style="width: 11%"><col style="width: 9%"><col style="width: 11%"><col style="width: 10%"></colgroup>
@@ -228,7 +228,7 @@
                 {% include "core/_risk_posture_rating_cell.html" with v=t.current %}
                 <td>{{ t.control_name }}</td>
                 <td><span class="tag s-{{ t.status }}">{{ t.status_label }}</span></td>
-                <td class="num" dir="ltr">{{ t.annual_cost_label|num }}</td>
+                <td class="num" dir="{% num_dir %}">{{ t.annual_cost_label|num }}</td>
                 <td dir="{% num_dir %}">{{ t.eta|num }}</td>
                 {% include "core/_risk_posture_rating_cell.html" with v=t.residual %}
                 <td>{{ t.owners|join:", "|default:"—" }}</td>

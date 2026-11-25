@@ -213,7 +213,7 @@
 					</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<bdi dir="ltr" class="block text-2xl font-bold text-gray-900">{num(summary.total_cost_compact)}</bdi>
+					<bdi dir={numDir()} class="block text-2xl font-bold text-gray-900">{num(summary.total_cost_compact)}</bdi>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptControlsAnnualCost({ count: num(summary.control_count) })}</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -424,14 +424,14 @@
 										<td class="py-2 pe-3">{label(control.category, control.category_label)}</td>
 										<td class="py-2 pe-3">{label(control.csf_function, control.csf_function_label)}</td>
 										<td class="py-2 pe-3">{@render statusPill(control.status, control.status_label)}</td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{num(control.annual_cost_label)}</bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(control.annual_cost_label)}</bdi></td>
 										<td class="py-2">{#each control.covers as ref}{@render chip(ref)}{/each}</td>
 									</tr>
 								{/each}
 								<tr class="border-t-2 border-gray-200 font-semibold">
 									<td class="py-2 pe-3">{m.total()}</td>
 									<td></td><td></td><td></td>
-									<td class="py-2 pe-3 num"><bdi dir="ltr">{num(summary.total_cost_label)}</bdi></td>
+									<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(summary.total_cost_label)}</bdi></td>
 									<td></td>
 								</tr>
 							</tbody>
@@ -462,7 +462,7 @@
 									<tr class="border-t border-gray-100 {hot ? 'bg-red-50' : ''}">
 										<td class="py-2 pe-3">{@render riskRef(item.href, item.ref_id)}</td>
 										<td class="py-2 pe-3 text-gray-900">{item.name}</td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{num(item.allocated_label)}</bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(item.allocated_label)}</bdi></td>
 										<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(item.current)} {numArrow()} {num(item.residual)}{#if item.points >= 0} = <strong>{num(item.points)}</strong>{/if}</bdi></td>
 										<td class="py-2">
 											{#if item.tag === 'risk_increased'}
@@ -470,7 +470,7 @@
 											{:else if item.cost_per_point}
 												<span class="flex items-center gap-2">
 													<span class="h-2 shrink-0 rounded-sm {hot ? 'bg-red-500' : 'bg-blue-300'}" style="width: {item.bar_pct * 0.55}%"></span>
-													<bdi dir="ltr" class="font-semibold whitespace-nowrap">{num(item.cost_per_point_label)}</bdi>
+													<bdi dir={numDir()} class="font-semibold whitespace-nowrap">{num(item.cost_per_point_label)}</bdi>
 													{#if hot}<span class="whitespace-nowrap rounded bg-red-100 px-1.5 text-xs text-red-700">{tagLabels[item.tag]()}</span>{/if}
 												</span>
 											{:else}
@@ -515,7 +515,7 @@
 											<td class="py-2 pe-3">{@render rating(item.current)}</td>
 											<td class="py-2 pe-3"><a href={item.control_href} class="hover:text-blue-700 hover:underline">{item.control_name}</a></td>
 											<td class="py-2 pe-3">{@render statusPill(item.status, item.status_label)}</td>
-											<td class="py-2 pe-3 num"><bdi dir="ltr">{num(item.annual_cost_label)}</bdi></td>
+											<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(item.annual_cost_label)}</bdi></td>
 											<td class="py-2 pe-3"><bdi dir={numDir()} class="whitespace-nowrap">{num(item.eta)}</bdi></td>
 											<td class="py-2 pe-3">{@render rating(item.residual)}</td>
 											<td class="py-2">{item.owners.join(', ') || '—'}</td>

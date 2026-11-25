@@ -147,12 +147,14 @@ def num(value, fallback="—"):
     """A report figure in the reader's digits: Arabic-Indic (with ٫ ٬ separators) in Arabic.
 
     Only for values the report computes; reference IDs and user-entered names keep their digits.
+    In Arabic a leading currency symbol moves after the amount, so render amounts with num_dir.
     """
     if value is None or value == "":
         return fallback
     text = str(value)
     if not _arabic_digits():
         return text
+    text = re.sub(r"^([^\s0-9]+) ([0-9].*)$", r"\2 \1", text)
     text = re.sub(r"([0-9])([kMB])\b", lambda m: f"{m[1]} {ARABIC_COMPACT_UNITS[m[2]]}", text)
     text = re.sub(r"([0-9])\.(?=[0-9])", "\\1٫", text)
     text = re.sub(r"([0-9]),(?=[0-9])", "\\1٬", text)
