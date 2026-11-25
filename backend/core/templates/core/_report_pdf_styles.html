@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n core_extras %}
 <style>
     @page {
         size: A4 portrait;
@@ -6,7 +6,7 @@
         @top-left { content: element(reportHeader); width: 100%; }
         @bottom-left { content: element(reportFooter); }
         @bottom-right {
-            content: "{% trans 'Page' %} " counter(page) " / " counter(pages);
+            content: "{% trans 'Page' %} " counter(page, {% num_counter_style %}) " / " counter(pages, {% num_counter_style %});
             font-family: 'Cairo', sans-serif;
             font-size: 7.5pt;
             color: #64748B;
@@ -49,7 +49,7 @@
     table.kpis { width: 100%; border-collapse: separate; border-spacing: 0.25cm 0; margin: 0.3cm -0.25cm 0 -0.25cm; }
     table.kpis td { border: 1px solid #E2E8F0; border-top: 3px solid #316FD3; border-radius: 6px; padding: 0.2cm 0.3cm; background: #FFFFFF; }
     table.kpis td.alert { border-top-color: #DC2626; }
-    table.kpis .kpi-value { font-size: 16pt; font-weight: 700; color: #192A44; line-height: 1.15; }
+    table.kpis .kpi-value { font-size: 16pt; font-weight: 700; color: #192A44; line-height: 1.15; white-space: nowrap; }
     table.kpis .kpi-label { font-size: 7.5pt; color: #64748B; }
 
     .attention { margin-top: 0.3cm; border: 1px solid #FDE68A; background: #FFFBEB; border-radius: 6px; padding: 0.2cm 0.35cm; }

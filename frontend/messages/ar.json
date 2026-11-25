@@ -4436,7 +4436,7 @@
 	"rptOpenAssessment": "فتح التقييم",
 	"rptGenerated": "أُنشئ في {date}",
 	"rptAssessmentStatus": "حالة التقييم",
-	"rptReviewedPct": "تمت مراجعة {pct}%",
+	"rptReviewedPct": "تمت مراجعة {pct}٪",
 	"rptComplianceRatio": "نسبة الامتثال",
 	"rptControlsAssessed": "الضوابط المقيّمة",
 	"rptPending": "{count} قيد الانتظار",

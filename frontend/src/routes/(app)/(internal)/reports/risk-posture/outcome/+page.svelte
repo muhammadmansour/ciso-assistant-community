@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
 	import { getLocale } from '$paraglide/runtime';
-	import { formatGenerated, isEnglish, label } from '../../report-i18n';
+	import { formatGenerated, isEnglish, label, num, numArrow, numDir, numSeparator } from '../../report-i18n';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -67,7 +67,7 @@
 {#snippet sectionTitle(key: string, icon: string, title: string, purpose: string)}
 	<div class="mb-1">
 		<h2 class="text-lg font-semibold text-gray-900">
-			<span class="text-blue-600">{sectionNumbers[key]}.</span>
+			<span class="text-blue-600">{num(sectionNumbers[key])}.</span>
 			<i class="{icon} mx-1 text-blue-600"></i>{title}
 		</h2>
 		<p class="mt-1 text-sm text-gray-700">{purpose}</p>
@@ -92,8 +92,8 @@
 
 {#snippet rating(value: any)}
 	{#if value?.rated}
-		<span class="whitespace-nowrap"><span class="font-bold text-gray-900">{value.score}</span> {@render band(value.name, value.color, value.text)}</span>
-		<bdi dir="ltr" class="block text-xs text-gray-400">{value.lxi}</bdi>
+		<span class="whitespace-nowrap"><span class="font-bold text-gray-900">{num(value.score)}</span> {@render band(value.name, value.color, value.text)}</span>
+		<bdi dir={numDir()} class="block text-xs text-gray-400">{num(value.lxi)}</bdi>
 	{:else}
 		<span class="text-gray-400">—</span>
 	{/if}
@@ -186,7 +186,7 @@
 					[m.riskMatrix(), report.assessment.risk_matrix],
 					[m.status(), report.assessment.status_key ? label(report.assessment.status_key, report.assessment.status) : '—'],
 					[m.authors(), report.assessment.authors.join(', ') || '—'],
-					[m.rptScenarios(), String(report.assessment.scenario_count)]
+					[m.rptScenarios(), num(report.assessment.scenario_count)]
 				] as item}
 					<div class="min-w-0">
 						<div class="text-xs uppercase tracking-wide text-gray-500">{item[0]}</div>
@@ -197,27 +197,27 @@
 
 			<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold {summary.residual_high ? 'text-red-600' : 'text-gray-900'}">{summary.residual_high}</div>
+					<div class="text-2xl font-bold {summary.residual_high ? 'text-red-600' : 'text-gray-900'}">{num(summary.residual_high)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">
 						{m.rptResidualTopBands({ first: summary.top_band_names?.[0] ?? '', second: summary.top_band_names?.[1] ?? '' })}
 					</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<bdi dir="ltr" class="block text-2xl font-bold text-gray-900">{summary.avg_current ?? '—'} → {summary.avg_residual ?? '—'}</bdi>
-					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptAvgScore({ max: report.max_score })}</div>
+					<bdi dir={numDir()} class="block text-2xl font-bold text-gray-900">{num(summary.avg_current)} {numArrow()} {num(summary.avg_residual)}</bdi>
+					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptAvgScore({ max: num(report.max_score) })}</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold text-gray-900">{summary.highest_residual?.score ?? '—'}</div>
+					<div class="text-2xl font-bold text-gray-900">{num(summary.highest_residual?.score)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">
 						{m.rptHighestResidual()}{#if summary.highest_residual} · {summary.highest_residual.risks.map((r: { ref: string }) => r.ref).join(', ')}{/if}
 					</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<bdi dir="ltr" class="block text-2xl font-bold text-gray-900">{summary.total_cost_compact}</bdi>
-					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptControlsAnnualCost({ count: summary.control_count })}</div>
+					<bdi dir="ltr" class="block text-2xl font-bold text-gray-900">{num(summary.total_cost_compact)}</bdi>
+					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptControlsAnnualCost({ count: num(summary.control_count) })}</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold text-gray-900">{summary.mitigate_count} · {summary.accept_count}</div>
+					<div class="text-2xl font-bold text-gray-900">{num(summary.mitigate_count)} {numSeparator()} {num(summary.accept_count)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptMitigateAccept()}</div>
 				</div>
 			</div>
@@ -239,7 +239,7 @@
 							<td class="py-2">
 								<span class="flex flex-wrap items-center gap-x-3 gap-y-1">
 									{#each summary.residual_bands as item}
-										<span class="whitespace-nowrap">{@render band(item.name, item.color, item.text)} <strong>{item.count}</strong></span>
+										<span class="whitespace-nowrap">{@render band(item.name, item.color, item.text)} <strong>{num(item.count)}</strong></span>
 									{/each}
 								</span>
 							</td>
@@ -247,7 +247,7 @@
 						<tr class="border-t border-gray-100">
 							<td class="py-2 pe-3 font-medium">{m.rptAvgCurrentResidual()}</td>
 							<td class="py-2">
-								<bdi dir="ltr" class="font-semibold">{summary.avg_current ?? '—'} → {summary.avg_residual ?? '—'}</bdi> / {report.max_score}
+								<bdi dir={numDir()} class="font-semibold">{num(summary.avg_current)} {numArrow()} {num(summary.avg_residual)}</bdi> / {num(report.max_score)}
 								{@render formula(m.rptMeanOfRatedScores())}
 							</td>
 						</tr>
@@ -258,18 +258,18 @@
 									{#each summary.highest_residual.risks as risk, i}
 										{#if risk.ref_id}<span class="font-semibold">{risk.ref_id}</span>{/if} {risk.name}{i < summary.highest_residual.risks.length - 1 ? '; ' : ''}
 									{/each}
-									— <strong>{summary.highest_residual.score}</strong>
+									— <strong>{num(summary.highest_residual.score)}</strong>
 									{@render band(summary.highest_residual.rating.name, summary.highest_residual.rating.color, summary.highest_residual.rating.text)}
-									<bdi dir="ltr" class="text-xs text-gray-400">({summary.highest_residual.rating.lxi})</bdi>
+									<bdi dir={numDir()} class="text-xs text-gray-400">({num(summary.highest_residual.rating.lxi)})</bdi>
 								{:else}<span class="text-gray-400">{m.rptNoRatedRisks()}</span>{/if}
 							</td>
 						</tr>
 						<tr class="border-t border-gray-100">
 							<td class="py-2 pe-3 font-medium">{m.rptAnnualCostOfControls()}</td>
 							<td class="py-2">
-								<strong>{m.rptCostAcrossControls({ amount: summary.total_cost_label, count: summary.control_count })}</strong>
+								<strong>{m.rptCostAcrossControls({ amount: num(summary.total_cost_label), count: num(summary.control_count) })}</strong>
 								{@render formula(`Σ annual_cost, ${m.rptEachControlOnce()}`)}
-								{#if summary.uncosted_count}<span class="text-gray-400"> · {m.rptWithoutCostExcluded({ count: summary.uncosted_count })}</span>{/if}
+								{#if summary.uncosted_count}<span class="text-gray-400"> · {m.rptWithoutCostExcluded({ count: num(summary.uncosted_count) })}</span>{/if}
 							</td>
 						</tr>
 						<tr class="border-t border-gray-100">
@@ -277,7 +277,7 @@
 							<td class="py-2">
 								<span class="flex flex-wrap items-center gap-x-3 gap-y-1">
 									{#each summary.treatment_split as item}
-										<span class="whitespace-nowrap">{@render treatmentPill(item.key, item.label)} <strong>{item.count}</strong></span>
+										<span class="whitespace-nowrap">{@render treatmentPill(item.key, item.label)} <strong>{num(item.count)}</strong></span>
 									{:else}—{/each}
 								</span>
 							</td>
@@ -292,7 +292,7 @@
 				<div>
 					{@render sectionTitle('scoring', 'fa-solid fa-bullseye', m.rptScoringSection(), m.rptScoringPurpose())}
 					<p class="text-xs text-gray-500">
-						{m.rptScoringNoteMatrix({ matrix: report.assessment.risk_matrix, size: report.matrix_size })}
+						{m.rptScoringNoteMatrix({ matrix: report.assessment.risk_matrix, size: num(report.matrix_size) })}
 						{m.rptScoringNote()}
 					</p>
 				</div>
@@ -304,7 +304,7 @@
 						{#each report.scales.bands as item}
 							<tr class="border-t border-gray-100">
 								<td class="py-2 pe-3">{@render band(item.name, item.color, item.text)}</td>
-								<td class="py-2 pe-3"><bdi dir="ltr">{item.range}</bdi></td>
+								<td class="py-2 pe-3"><bdi dir={numDir()}>{num(item.range)}</bdi></td>
 								<td class="py-2 text-gray-700">{item.description || '—'}</td>
 							</tr>
 						{/each}
@@ -318,7 +318,7 @@
 								<tbody>
 									{#each scale as item}
 										<tr class="border-t border-gray-100">
-											<td class="py-1.5 pe-3 w-8 font-semibold">{item.value}</td>
+											<td class="py-1.5 pe-3 w-8 font-semibold">{num(item.value)}</td>
 											<td class="py-1.5 pe-3 font-medium text-gray-900">{item.name}</td>
 											<td class="py-1.5 text-xs text-gray-500">{item.description || '—'}</td>
 										</tr>
@@ -395,7 +395,7 @@
 										<td class="py-2 pe-3">{@render rating(risk.residual)}</td>
 										<td class="py-2 pe-3">{@render treatmentPill(risk.treatment, risk.treatment_label)}</td>
 										<td class="py-2 pe-3">{risk.owners.join(', ') || '—'}</td>
-										<td class="py-2 text-center">{risk.control_count}</td>
+										<td class="py-2 text-center">{num(risk.control_count)}</td>
 									</tr>
 								{/each}
 							</tbody>
@@ -408,7 +408,7 @@
 		{#if sections.includes('controls')}
 			<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
 				{@render sectionTitle('controls', 'fa-solid fa-shield', m.rptControlsCosts(), m.rptControlsPurpose())}
-				{@render note(`${m.rptControlsNote()}${summary.uncosted_count ? ` ${m.rptControlsUncosted({ count: summary.uncosted_count })}` : ''}`)}
+				{@render note(`${m.rptControlsNote()}${summary.uncosted_count ? ` ${m.rptControlsUncosted({ count: num(summary.uncosted_count) })}` : ''}`)}
 				{#if report.controls.length === 0}
 					{@render empty(m.rptNoLinkedControls())}
 				{:else}
@@ -424,14 +424,14 @@
 										<td class="py-2 pe-3">{label(control.category, control.category_label)}</td>
 										<td class="py-2 pe-3">{label(control.csf_function, control.csf_function_label)}</td>
 										<td class="py-2 pe-3">{@render statusPill(control.status, control.status_label)}</td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{control.annual_cost_label}</bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir="ltr">{num(control.annual_cost_label)}</bdi></td>
 										<td class="py-2">{#each control.covers as ref}{@render chip(ref)}{/each}</td>
 									</tr>
 								{/each}
 								<tr class="border-t-2 border-gray-200 font-semibold">
 									<td class="py-2 pe-3">{m.total()}</td>
 									<td></td><td></td><td></td>
-									<td class="py-2 pe-3 num"><bdi dir="ltr">{summary.total_cost_label}</bdi></td>
+									<td class="py-2 pe-3 num"><bdi dir="ltr">{num(summary.total_cost_label)}</bdi></td>
 									<td></td>
 								</tr>
 							</tbody>
@@ -446,7 +446,7 @@
 				{@render sectionTitle('cost_effectiveness', 'fa-solid fa-scale-balanced', m.rptCostEffectiveness(), m.rptCostEffectivenessPurpose())}
 				<p class="mb-3 text-xs text-gray-500">
 					{@render formula('alloc(s) = Σ cost(c) ÷ scenarios(c)')} · {@render formula('points(s) = current − residual')} · {@render formula('cost per point = alloc ÷ points')}
-					{#if report.average_per_point}· {m.rptAverageAcross({ amount: report.average_per_point_label })}{/if}
+					{#if report.average_per_point}· {m.rptAverageAcross({ amount: num(report.average_per_point_label) })}{/if}
 				</p>
 				{#if report.effectiveness.length === 0}
 					{@render empty(m.rptNoRatedToCompare())}
@@ -462,15 +462,15 @@
 									<tr class="border-t border-gray-100 {hot ? 'bg-red-50' : ''}">
 										<td class="py-2 pe-3">{@render riskRef(item.href, item.ref_id)}</td>
 										<td class="py-2 pe-3 text-gray-900">{item.name}</td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{item.allocated_label}</bdi></td>
-										<td class="py-2 pe-3 num"><bdi dir="ltr">{item.current} → {item.residual}{#if item.points >= 0} = <strong>{item.points}</strong>{/if}</bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir="ltr">{num(item.allocated_label)}</bdi></td>
+										<td class="py-2 pe-3 num"><bdi dir={numDir()}>{num(item.current)} {numArrow()} {num(item.residual)}{#if item.points >= 0} = <strong>{num(item.points)}</strong>{/if}</bdi></td>
 										<td class="py-2">
 											{#if item.tag === 'risk_increased'}
-												<span class="whitespace-nowrap rounded bg-red-100 px-1.5 text-xs text-red-700">{m.rptTagRiskIncreased({ increase: -item.points })}</span>
+												<span class="whitespace-nowrap rounded bg-red-100 px-1.5 text-xs text-red-700">{m.rptTagRiskIncreased({ increase: num(-item.points) })}</span>
 											{:else if item.cost_per_point}
 												<span class="flex items-center gap-2">
 													<span class="h-2 shrink-0 rounded-sm {hot ? 'bg-red-500' : 'bg-blue-300'}" style="width: {item.bar_pct * 0.55}%"></span>
-													<bdi dir="ltr" class="font-semibold whitespace-nowrap">{item.cost_per_point_label}</bdi>
+													<bdi dir="ltr" class="font-semibold whitespace-nowrap">{num(item.cost_per_point_label)}</bdi>
 													{#if hot}<span class="whitespace-nowrap rounded bg-red-100 px-1.5 text-xs text-red-700">{tagLabels[item.tag]()}</span>{/if}
 												</span>
 											{:else}
@@ -492,13 +492,13 @@
 					{@render sectionTitle('treatment', 'fa-solid fa-list-check', m.rptTreatmentPlan(), m.rptTreatmentPurpose())}
 					<p class="text-xs text-gray-500">
 						{m.rptTreatmentNote()}
-						{#if report.treatment.unplanned_count}{m.rptUnplannedCount({ count: report.treatment.unplanned_count })}{/if}
+						{#if report.treatment.unplanned_count}{m.rptUnplannedCount({ count: num(report.treatment.unplanned_count) })}{/if}
 					</p>
 				</div>
 				<div>
 					<h3 class="mb-2 text-sm font-semibold text-gray-900">
 						{m.rptMitigatePlanned()}
-						<span class="font-normal text-gray-500">· {m.rptExtraAnnualCostOf({ amount: report.treatment.extra_cost_label })}</span>
+						<span class="font-normal text-gray-500">· {m.rptExtraAnnualCostOf({ amount: num(report.treatment.extra_cost_label) })}</span>
 					</h3>
 					{#if report.treatment.planned.length === 0}
 						{@render empty(m.rptNoPlannedOnMitigate())}
@@ -515,8 +515,8 @@
 											<td class="py-2 pe-3">{@render rating(item.current)}</td>
 											<td class="py-2 pe-3"><a href={item.control_href} class="hover:text-blue-700 hover:underline">{item.control_name}</a></td>
 											<td class="py-2 pe-3">{@render statusPill(item.status, item.status_label)}</td>
-											<td class="py-2 pe-3 num"><bdi dir="ltr">{item.annual_cost_label}</bdi></td>
-											<td class="py-2 pe-3"><bdi dir="ltr" class="whitespace-nowrap">{item.eta ?? '—'}</bdi></td>
+											<td class="py-2 pe-3 num"><bdi dir="ltr">{num(item.annual_cost_label)}</bdi></td>
+											<td class="py-2 pe-3"><bdi dir={numDir()} class="whitespace-nowrap">{num(item.eta)}</bdi></td>
 											<td class="py-2 pe-3">{@render rating(item.residual)}</td>
 											<td class="py-2">{item.owners.join(', ') || '—'}</td>
 										</tr>

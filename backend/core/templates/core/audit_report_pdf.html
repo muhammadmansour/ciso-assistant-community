@@ -4,6 +4,7 @@
 {% block content %}
 {% load i18n core_extras %}
 {% include 'core/_report_pdf_styles.html' %}
+{% get_current_language_bidi as rtl %}
 
 <style>
     .badge { display: inline-block; padding: 0 0.15cm; border-radius: 3px; font-size: 6.5pt; font-weight: 600; color: #316FD3; background: #EEF3FB; border: 1px solid #C7D5EE; vertical-align: 0.03cm; }
@@ -58,17 +59,17 @@
         <td class="title"><strong>{{ assessment.name }}</strong> &middot; {% trans "Audit report" %}</td>
     </tr></table>
 </div>
-<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on }}</div>
+<div class="report-footer">Muhkam &middot; {% trans "Generated on" %} {{ generated_on|num }}</div>
 
 <main>
     <p class="eyebrow">{% trans "Audit report — Outcome" %}</p>
     <h1 class="report-title" dir="{{ assessment.name|text_dir }}">{% if assessment.framework_ref %}{{ assessment.framework_ref }} — {% endif %}{{ assessment.name }}</h1>
-    <p class="report-subtitle">{{ assessment.framework }} &middot; {% trans "Generated" %} {{ generated_on }}</p>
+    <p class="report-subtitle">{{ assessment.framework }} &middot; {% trans "Generated" %} {{ generated_on|num }}</p>
 
     <table class="meta">
         <tr>
             <td><span class="label">{% trans "Perimeter" %}</span><span class="value">{{ assessment.folder }}{% if assessment.perimeter %} — {{ assessment.perimeter }}{% endif %}</span></td>
-            <td><span class="label">{% trans "Assessment status" %}</span><span class="value">{{ assessment.status|default:"—" }} &middot; {{ summary.reviewed_pct }}% {% trans "reviewed" %}</span></td>
+            <td><span class="label">{% trans "Assessment status" %}</span><span class="value">{{ assessment.status|default:"—" }} &middot; {{ summary.reviewed_pct|pct }} {% trans "reviewed" %}</span></td>
             <td><span class="label">{% trans "Authors" %}</span><span class="value">{{ assessment.authors|join:", "|default:"—" }}</span></td>
             <td><span class="label">{% trans "Reviewers" %}</span><span class="value">{{ assessment.reviewers|join:", "|default:"—" }}</span></td>
         </tr>
@@ -76,31 +77,31 @@
 
     <table class="kpis">
         <tr>
-            <td><div class="kpi-value {% if summary.ratio is None %}{% elif summary.ratio >= 80 %}good{% elif summary.ratio >= 60 %}warn{% else %}bad{% endif %}">{% if summary.ratio is not None %}{{ summary.ratio }}%{% else %}—{% endif %}</div><div class="kpi-label">{% trans "Compliance ratio" %}</div></td>
-            <td><div class="kpi-value">{{ summary.assessed }}</div><div class="kpi-label">{% trans "Controls assessed" %}{% if summary.not_assessed %} · {{ summary.not_assessed }} {% trans "pending" %}{% endif %}</div></td>
-            <td><div class="kpi-value">{{ summary.compliant }} · {{ summary.partially_compliant }} · {{ summary.non_compliant }} · {{ summary.not_applicable }}</div><div class="kpi-label">I · PI · NI · N/A</div></td>
-            <td><div class="kpi-value {% if findings %}warn{% endif %}">{{ findings|length }}</div><div class="kpi-label">{% trans "Findings" %}{% if findings %} · {% for s in severity_counts %}{% if s.count %}{{ s.count }}{{ s.short }} {% endif %}{% endfor %}{% endif %}</div></td>
-            <td><div class="kpi-value">{{ observations|length }}</div><div class="kpi-label">{% trans "Observations" %}</div></td>
+            <td><div class="kpi-value {% if summary.ratio is None %}{% elif summary.ratio >= 80 %}good{% elif summary.ratio >= 60 %}warn{% else %}bad{% endif %}">{{ summary.ratio|pct }}</div><div class="kpi-label">{% trans "Compliance ratio" %}</div></td>
+            <td><div class="kpi-value">{{ summary.assessed|num }}</div><div class="kpi-label">{% trans "Controls assessed" %}{% if summary.not_assessed %} · {{ summary.not_assessed|num }} {% trans "pending" %}{% endif %}</div></td>
+            <td><div class="kpi-value">{{ summary.compliant|num }} {% num_separator %} {{ summary.partially_compliant|num }} {% num_separator %} {{ summary.non_compliant|num }} {% num_separator %} {{ summary.not_applicable|num }}</div><div class="kpi-label">{% if rtl %}I&rlm; · &rlm;PI&rlm; · &rlm;NI&rlm; · &rlm;N/A{% else %}I · PI · NI · N/A{% endif %}</div></td>
+            <td><div class="kpi-value {% if findings %}warn{% endif %}">{{ findings|length|num }}</div><div class="kpi-label">{% trans "Findings" %}{% if findings %} · {% for s in severity_counts %}{% if s.count %}{% if rtl %}{{ s.count|num }} {{ s.label }} {% else %}{{ s.count }}{{ s.short }} {% endif %}{% endif %}{% endfor %}{% endif %}</div></td>
+            <td><div class="kpi-value">{{ observations|length|num }}</div><div class="kpi-label">{% trans "Observations" %}</div></td>
         </tr>
     </table>
 
     {% if "summary" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">{{ section_numbers.summary }}.</span>{% trans "Summary" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.summary|num }}.</span>{% trans "Summary" %}</h2>
         <p class="section-note">{% trans "Computed from requirement answers: ratio = (I + 0.5×PI) / assessable, N/A excluded." %}</p>
         <table class="kv">
-            <tr><td class="k">{% trans "Compliance ratio" %}</td><td>{% if summary.ratio is not None %}<strong>{{ summary.ratio }}%</strong> <span class="formula">= ({{ summary.compliant }} + 0.5×{{ summary.partially_compliant }}) / {{ summary.assessable }}</span>{% else %}<span class="muted">{% trans "No implemented, partial or non-implemented answers yet" %}</span>{% endif %}</td></tr>
-            <tr><td class="k">{% trans "Controls assessed" %}</td><td>{{ summary.assessed }} ({{ summary.not_applicable }} {% trans "not applicable" %}){% if summary.not_assessed %} · <span class="muted">{{ summary.not_assessed }} {% trans "of" %} {{ summary.total }} {% trans "not assessed yet" %}</span>{% endif %}</td></tr>
-            <tr><td class="k">{% trans "Strongest domain" %}</td><td>{% if summary.strongest %}{{ summary.strongest.ref_id }} {{ summary.strongest.name }} — {{ summary.strongest.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td></tr>
-            <tr><td class="k">{% trans "Weakest domain" %}</td><td>{% if summary.weakest %}{{ summary.weakest.ref_id }} {{ summary.weakest.name }} — {{ summary.weakest.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td></tr>
-            <tr><td class="k">{% trans "Findings" %}</td><td>{{ findings|length }} — {% for s in severity_counts %}<span class="sev sev-{{ s.key }}">{{ s.label }}</span> {% endfor %}({% for s in severity_counts %}{{ s.count }}{% if not forloop.last %} / {% endif %}{% endfor %})</td></tr>
+            <tr><td class="k">{% trans "Compliance ratio" %}</td><td>{% if summary.ratio is not None %}<strong>{{ summary.ratio|pct }}</strong> <span class="formula" dir="{% num_dir %}">= ({{ summary.compliant|num }} + {{ "0.5"|num }}×{{ summary.partially_compliant|num }}) / {{ summary.assessable|num }}</span>{% else %}<span class="muted">{% trans "No implemented, partial or non-implemented answers yet" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Controls assessed" %}</td><td>{{ summary.assessed|num }} ({{ summary.not_applicable|num }} {% trans "not applicable" %}){% if summary.not_assessed %} · <span class="muted">{{ summary.not_assessed|num }} {% trans "of" %} {{ summary.total|num }} {% trans "not assessed yet" %}</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Strongest domain" %}</td><td>{% if summary.strongest %}{{ summary.strongest.ref_id }} {{ summary.strongest.name }} — {{ summary.strongest.ratio|pct }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Weakest domain" %}</td><td>{% if summary.weakest %}{{ summary.weakest.ref_id }} {{ summary.weakest.name }} — {{ summary.weakest.ratio|pct }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+            <tr><td class="k">{% trans "Findings" %}</td><td>{{ findings|length|num }} — {% for s in severity_counts %}<span class="sev sev-{{ s.key }}">{{ s.label }}</span> {% endfor %}<span dir="{% num_dir %}">({% for s in severity_counts %}{{ s.count|num }}{% if not forloop.last %} / {% endif %}{% endfor %})</span></td></tr>
         </table>
     </div>
     {% endif %}
 
     {% if "domains" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">{{ section_numbers.domains }}.</span>{% trans "Results by domain" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.domains|num }}.</span>{% trans "Results by domain" %}</h2>
         <p class="section-note">{% trans "Requirement answers grouped by top-level framework node. Same ratio formula per group." %}</p>
         <table class="grid">
             <colgroup><col style="width: 38%"><col style="width: 7%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 5%"><col style="width: 7%"><col style="width: 28%"></colgroup>
@@ -108,25 +109,25 @@
             <tbody>
             {% for d in domains %}
                 <tr class="{% if summary.weakest and summary.weakest.index == d.index %}weakest{% endif %}">
-                    <td class="strong">{{ d.ref_id }} {{ d.name }}{% if d.not_assessed %}<span class="desc">{{ d.not_assessed }} {% trans "not assessed" %}</span>{% endif %}</td>
-                    <td class="num">{{ d.assessed }}</td>
-                    <td class="num">{{ d.compliant }}</td>
-                    <td class="num">{{ d.partially_compliant }}</td>
-                    <td class="num">{{ d.non_compliant }}</td>
-                    <td class="num">{{ d.not_applicable }}</td>
-                    <td class="num strong">{% if d.ratio is not None %}{{ d.ratio }}%{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td class="strong">{{ d.ref_id }} {{ d.name }}{% if d.not_assessed %}<span class="desc">{{ d.not_assessed|num }} {% trans "not assessed" %}</span>{% endif %}</td>
+                    <td class="num">{{ d.assessed|num }}</td>
+                    <td class="num">{{ d.compliant|num }}</td>
+                    <td class="num">{{ d.partially_compliant|num }}</td>
+                    <td class="num">{{ d.non_compliant|num }}</td>
+                    <td class="num">{{ d.not_applicable|num }}</td>
+                    <td class="num strong">{% if d.ratio is not None %}{{ d.ratio|pct }}{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td>{% for code in d.findings %}<span class="code">{{ code }}</span>{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
                 </tr>
             {% endfor %}
                 <tr class="total">
                     <td>{% trans "Total" %}</td>
-                    <td class="num">{{ summary.assessed }}</td>
-                    <td class="num">{{ summary.compliant }}</td>
-                    <td class="num">{{ summary.partially_compliant }}</td>
-                    <td class="num">{{ summary.non_compliant }}</td>
-                    <td class="num">{{ summary.not_applicable }}</td>
-                    <td class="num">{% if summary.ratio is not None %}{{ summary.ratio }}%{% else %}—{% endif %}</td>
-                    <td>{{ findings|length }}</td>
+                    <td class="num">{{ summary.assessed|num }}</td>
+                    <td class="num">{{ summary.compliant|num }}</td>
+                    <td class="num">{{ summary.partially_compliant|num }}</td>
+                    <td class="num">{{ summary.non_compliant|num }}</td>
+                    <td class="num">{{ summary.not_applicable|num }}</td>
+                    <td class="num">{{ summary.ratio|pct }}</td>
+                    <td>{{ findings|length|num }}</td>
                 </tr>
             </tbody>
         </table>
@@ -135,7 +136,7 @@
 
     {% if "findings" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">{{ section_numbers.findings }}.</span>{% trans "Findings" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.findings|num }}.</span>{% trans "Findings" %}</h2>
         <p class="section-note">{% trans "Findings recorded in the follow-up module. Owner and ETA come from each finding's linked applied control." %}</p>
         {% if findings %}
         <table class="grid">
@@ -161,7 +162,7 @@
             <table>
                 <tr><td class="k">{% trans "Description" %}</td><td dir="{{ f.description|text_dir }}">{{ f.description|default:"—"|linebreaksbr }}</td></tr>
                 <tr><td class="k">{% trans "Requirement obs." %}</td><td>{% for r in f.requirements %}{{ r.ref_id }}: {% if r.observation %}{{ r.observation }} {% endif %}({{ r.abbr }}){% if not forloop.last %}; {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td></tr>
-                <tr><td class="k">{% trans "Applied control" %}</td><td>{% for c in f.controls %}<div><strong>{{ c.name }}</strong> <span class="sev {% if c.status == 'active' %}ctl-active{% else %}ctl-other{% endif %}">{{ c.status_label }}</span> <span class="small">· {% trans "owner" %} {{ c.owners|join:", "|default:"—" }} · ETA {{ c.eta|default:"—" }}</span></div>{% empty %}<span class="muted">{% trans "None linked" %}</span>{% endfor %}</td></tr>
+                <tr><td class="k">{% trans "Applied control" %}</td><td>{% for c in f.controls %}<div><strong>{{ c.name }}</strong> <span class="sev {% if c.status == 'active' %}ctl-active{% else %}ctl-other{% endif %}">{{ c.status_label }}</span> <span class="small">· {% trans "owner" %} {{ c.owners|join:", "|default:"—" }} · ETA <span dir="{% num_dir %}">{{ c.eta|num }}</span></span></div>{% empty %}<span class="muted">{% trans "None linked" %}</span>{% endfor %}</td></tr>
                 <tr><td class="k">{% trans "Evidence" %}</td><td>{% if f.evidence %}{{ f.evidence|join:", " }}{% else %}<span class="muted">{% trans "None attached" %}</span>{% endif %}</td></tr>
             </table>
         </div>
@@ -175,7 +176,7 @@
 
     {% if "observations" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">{{ section_numbers.observations }}.</span>{% trans "Observations" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.observations|num }}.</span>{% trans "Observations" %}</h2>
         <p class="section-note">{% trans "Requirement answers marked Partially implemented with no linked finding; text is the requirement's observation field, verbatim." %}</p>
         {% if observations %}
         <table class="grid">
@@ -195,7 +196,7 @@
 
     {% if "action_plan" in sections %}
     <div class="section">
-        <h2 class="section-title"><span class="n">{{ section_numbers.action_plan }}.</span>{% trans "Action plan" %}</h2>
+        <h2 class="section-title"><span class="n">{{ section_numbers.action_plan|num }}.</span>{% trans "Action plan" %}</h2>
         <p class="section-note">{% trans "All non-active applied controls linked to this assessment's findings, sorted by ETA." %}</p>
         {% if action_plan %}
         <table class="grid">
@@ -207,7 +208,7 @@
                     <td class="strong" dir="{{ c.name|text_dir }}">{{ c.name }}</td>
                     <td>{% for code in c.findings %}<span class="code">{{ code }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
                     <td>{{ c.owners|join:", "|default:"—" }}</td>
-                    <td>{{ c.eta|default:"—" }}</td>
+                    <td dir="{% num_dir %}">{{ c.eta|num }}</td>
                     <td><span class="sev ctl-other">{{ c.status_label }}</span></td>
                 </tr>
             {% endfor %}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$paraglide/messages';
 	import { getLocale } from '$paraglide/runtime';
-	import { formatGenerated, isEnglish, label } from '../../report-i18n';
+	import { formatGenerated, isEnglish, label, num, numDir, numSeparator } from '../../report-i18n';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -55,18 +55,18 @@
 	}
 
 	function pct(ratio: number | null) {
-		return ratio === null || ratio === undefined ? '—' : `${ratio}%`;
+		return ratio === null || ratio === undefined ? '—' : num(`${ratio}%`);
 	}
 
 	function domainLine(domain: { ref_id: string; name: string; ratio: number } | null) {
-		return domain ? `${domain.ref_id} ${domain.name} — ${domain.ratio}%`.trim() : '—';
+		return domain ? `${domain.ref_id} ${domain.name} — ${pct(domain.ratio)}`.trim() : '—';
 	}
 
 	const severityShort = $derived(
 		(report.severity_counts ?? [])
 			.filter((s: { count: number }) => s.count)
 			.map((s: { count: number; short: string; key: string }) =>
-				isEnglish() ? `${s.count}${s.short}` : `${s.count} ${label(s.key, s.short)}`
+				isEnglish() ? `${s.count}${s.short}` : `${num(s.count)} ${label(s.key, s.short)}`
 			)
 			.join(' ')
 	);
@@ -88,7 +88,7 @@
 {#snippet sectionTitle(index: string, icon: string, title: string, purpose: string, note: string)}
 	<div class="mb-3">
 		<h2 class="text-lg font-semibold text-gray-900">
-			<span class="text-blue-600">{index}.</span>
+			<span class="text-blue-600">{num(index)}.</span>
 			<i class="{icon} mx-1 text-blue-600"></i>{title}
 		</h2>
 		<p class="text-sm text-gray-700">{purpose}</p>
@@ -159,7 +159,7 @@
 			<div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
 				{#each [
 					[m.perimeter(), `${report.assessment.folder}${report.assessment.perimeter ? ` — ${report.assessment.perimeter}` : ''}`],
-					[m.rptAssessmentStatus(), `${label(report.assessment.status_key, report.assessment.status || '—')} · ${m.rptReviewedPct({ pct: report.summary.reviewed_pct })}`],
+					[m.rptAssessmentStatus(), `${label(report.assessment.status_key, report.assessment.status || '—')} · ${m.rptReviewedPct({ pct: num(report.summary.reviewed_pct) })}`],
 					[m.authors(), report.assessment.authors.join(', ') || '—'],
 					[m.reviewers(), report.assessment.reviewers.join(', ') || '—']
 				] as item}
@@ -176,25 +176,25 @@
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptComplianceRatio()}</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold text-gray-900">{report.summary.assessed}</div>
+					<div class="text-2xl font-bold text-gray-900">{num(report.summary.assessed)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">
-						{m.rptControlsAssessed()}{#if report.summary.not_assessed} · {m.rptPending({ count: report.summary.not_assessed })}{/if}
+						{m.rptControlsAssessed()}{#if report.summary.not_assessed} · {m.rptPending({ count: num(report.summary.not_assessed) })}{/if}
 					</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
 					<div class="text-2xl font-bold text-gray-900">
-						{report.summary.compliant} · {report.summary.partially_compliant} · {report.summary.non_compliant} · {report.summary.not_applicable}
+						{[report.summary.compliant, report.summary.partially_compliant, report.summary.non_compliant, report.summary.not_applicable].map((n) => num(n)).join(` ${numSeparator()} `)}
 					</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">
 						{m.rptAbbrCompliant()} · {m.rptAbbrPartial()} · {m.rptAbbrNonCompliant()} · {m.rptAbbrNotApplicable()}
 					</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold {report.findings.length ? 'text-amber-600' : 'text-gray-900'}">{report.findings.length}</div>
+					<div class="text-2xl font-bold {report.findings.length ? 'text-amber-600' : 'text-gray-900'}">{num(report.findings.length)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.findings()}{#if severityShort} · {severityShort}{/if}</div>
 				</div>
 				<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<div class="text-2xl font-bold text-gray-900">{report.observations.length}</div>
+					<div class="text-2xl font-bold text-gray-900">{num(report.observations.length)}</div>
 					<div class="text-xs uppercase tracking-wide text-gray-500 mt-1">{m.rptObservations()}</div>
 				</div>
 			</div>
@@ -212,8 +212,10 @@
 						<td class="py-2 pe-3 font-medium">{m.rptComplianceRatio()}</td>
 						<td class="py-2">
 							{#if report.summary.ratio !== null}
-								<strong>{report.summary.ratio}%</strong>
-								<bdi dir="ltr" class="text-gray-500">= ({report.summary.compliant} + 0.5×{report.summary.partially_compliant}) / {report.summary.assessable}</bdi>
+								<span dir={numDir()}>
+									<strong>{pct(report.summary.ratio)}</strong>
+									<span class="text-gray-500">{num(`= (${report.summary.compliant} + 0.5×${report.summary.partially_compliant}) / ${report.summary.assessable}`)}</span>
+								</span>
 							{:else}
 								<span class="text-gray-400">{m.rptNoAnswersYet()}</span>
 							{/if}
@@ -222,8 +224,8 @@
 					<tr class="border-t border-gray-100">
 						<td class="py-2 pe-3 font-medium">{m.rptControlsAssessed()}</td>
 						<td class="py-2">
-							{m.rptAssessedDetail({ assessed: report.summary.assessed, na: report.summary.not_applicable })}
-							{#if report.summary.not_assessed}<span class="text-gray-400"> · {m.rptNotAssessedYet({ count: report.summary.not_assessed, total: report.summary.total })}</span>{/if}
+							{m.rptAssessedDetail({ assessed: num(report.summary.assessed), na: num(report.summary.not_applicable) })}
+							{#if report.summary.not_assessed}<span class="text-gray-400"> · {m.rptNotAssessedYet({ count: num(report.summary.not_assessed), total: num(report.summary.total) })}</span>{/if}
 						</td>
 					</tr>
 					<tr class="border-t border-gray-100">
@@ -237,9 +239,9 @@
 					<tr class="border-t border-gray-100">
 						<td class="py-2 pe-3 font-medium">{m.findings()}</td>
 						<td class="py-2 flex flex-wrap items-center gap-1.5">
-							<span>{report.findings.length} —</span>
+							<span>{num(report.findings.length)} —</span>
 							{#each report.severity_counts as s}{@render pill(label(s.key, s.label), severityClass[s.key])}{/each}
-							<bdi dir="ltr" class="text-gray-500">({report.severity_counts.map((s: { count: number }) => s.count).join(' / ')})</bdi>
+							<bdi dir={numDir()} class="text-gray-500">({report.severity_counts.map((s: { count: number }) => num(s.count)).join(' / ')})</bdi>
 						</td>
 					</tr>
 				</tbody>
@@ -269,26 +271,26 @@
 							<tr class="border-t border-gray-100 {report.summary.weakest?.index === domain.index ? 'bg-red-50' : ''}">
 								<td class="py-2 pe-3 text-gray-900">
 									{domain.ref_id} {domain.name}
-									{#if domain.not_assessed}<span class="block text-xs text-gray-400">{m.rptNotAssessedCount({ count: domain.not_assessed })}</span>{/if}
+									{#if domain.not_assessed}<span class="block text-xs text-gray-400">{m.rptNotAssessedCount({ count: num(domain.not_assessed) })}</span>{/if}
 								</td>
-								<td class="py-2 pe-3">{domain.assessed}</td>
-								<td class="py-2 pe-3">{domain.compliant}</td>
-								<td class="py-2 pe-3">{domain.partially_compliant}</td>
-								<td class="py-2 pe-3">{domain.non_compliant}</td>
-								<td class="py-2 pe-3">{domain.not_applicable}</td>
+								<td class="py-2 pe-3">{num(domain.assessed)}</td>
+								<td class="py-2 pe-3">{num(domain.compliant)}</td>
+								<td class="py-2 pe-3">{num(domain.partially_compliant)}</td>
+								<td class="py-2 pe-3">{num(domain.non_compliant)}</td>
+								<td class="py-2 pe-3">{num(domain.not_applicable)}</td>
 								<td class="py-2 pe-3 font-semibold">{pct(domain.ratio)}</td>
 								<td class="py-2 text-blue-700">{domain.findings.join(', ') || '—'}</td>
 							</tr>
 						{/each}
 						<tr class="border-t-2 border-gray-200 font-semibold">
 							<td class="py-2 pe-3">{m.total()}</td>
-							<td class="py-2 pe-3">{report.summary.assessed}</td>
-							<td class="py-2 pe-3">{report.summary.compliant}</td>
-							<td class="py-2 pe-3">{report.summary.partially_compliant}</td>
-							<td class="py-2 pe-3">{report.summary.non_compliant}</td>
-							<td class="py-2 pe-3">{report.summary.not_applicable}</td>
+							<td class="py-2 pe-3">{num(report.summary.assessed)}</td>
+							<td class="py-2 pe-3">{num(report.summary.compliant)}</td>
+							<td class="py-2 pe-3">{num(report.summary.partially_compliant)}</td>
+							<td class="py-2 pe-3">{num(report.summary.non_compliant)}</td>
+							<td class="py-2 pe-3">{num(report.summary.not_applicable)}</td>
 							<td class="py-2 pe-3">{pct(report.summary.ratio)}</td>
-							<td class="py-2">{report.findings.length}</td>
+							<td class="py-2">{num(report.findings.length)}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -345,7 +347,7 @@
 											<div class="flex flex-wrap items-center gap-1.5">
 												<a href={control.href} class="font-medium text-gray-900 hover:underline" dir="auto">{control.name}</a>
 												{@render pill(label(control.status, control.status_label), controlClass(control.status))}
-												<span class="text-xs text-gray-500">· {m.rptOwnerEta({ owners: control.owners.join(', ') || '—', eta: control.eta ?? '—' })}</span>
+												<span class="text-xs text-gray-500">· {m.rptOwnerEta({ owners: control.owners.join(', ') || '—', eta: num(control.eta) })}</span>
 											</div>
 										{:else}<span class="text-gray-400">{m.rptNoneLinked()}</span>{/each}
 									</dd>
@@ -403,7 +405,7 @@
 								<td class="py-2 pe-3"><a href={control.href} class="text-gray-900 hover:underline">{control.name}</a></td>
 								<td class="py-2 pe-3 font-semibold text-blue-700">{control.findings.join(', ')}</td>
 								<td class="py-2 pe-3">{control.owners.join(', ') || '—'}</td>
-								<td class="py-2 pe-3">{control.eta ?? '—'}</td>
+								<td class="py-2 pe-3"><bdi dir={numDir()}>{num(control.eta)}</bdi></td>
 								<td class="py-2">{@render pill(label(control.status, control.status_label), controlClass(control.status))}</td>
 							</tr>
 						{/each}

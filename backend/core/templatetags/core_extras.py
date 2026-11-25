@@ -1,7 +1,9 @@
 import os
+import re
 import unicodedata
 
 from django import template
+from django.utils import translation
 from django.utils.safestring import mark_safe
 
 from ciso_assistant.settings import VERSION, BUILD, DEBUG
@@ -130,6 +132,60 @@ def text_dir(value):
         if direction == "L":
             return "ltr"
     return "ltr"
+
+
+ARABIC_INDIC_DIGITS = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+ARABIC_COMPACT_UNITS = {"k": "ألف", "M": "مليون", "B": "مليار"}
+
+
+def _arabic_digits() -> bool:
+    return (translation.get_language() or "").startswith("ar")
+
+
+@register.filter(name="num")
+def num(value, fallback="—"):
+    """A report figure in the reader's digits: Arabic-Indic (with ٫ ٬ separators) in Arabic.
+
+    Only for values the report computes; reference IDs and user-entered names keep their digits.
+    """
+    if value is None or value == "":
+        return fallback
+    text = str(value)
+    if not _arabic_digits():
+        return text
+    text = re.sub(r"([0-9])([kMB])\b", lambda m: f"{m[1]} {ARABIC_COMPACT_UNITS[m[2]]}", text)
+    text = re.sub(r"([0-9])\.(?=[0-9])", "\\1٫", text)
+    text = re.sub(r"([0-9]),(?=[0-9])", "\\1٬", text)
+    text = re.sub(r"([0-9])%", "\\1٪", text)
+    return text.translate(ARABIC_INDIC_DIGITS)
+
+
+@register.filter(name="pct")
+def pct(value):
+    return "—" if value is None or value == "" else num(f"{value}%")
+
+
+@register.simple_tag
+def num_dir():
+    """Arabic-Indic digits are right-to-left under bidi, so "a → b" spans flip with them."""
+    return "rtl" if _arabic_digits() else "ltr"
+
+
+@register.simple_tag
+def num_arrow():
+    return "←" if _arabic_digits() else "→"
+
+
+@register.simple_tag
+def num_counter_style():
+    """CSS counter style for page numbers."""
+    return "arabic-indic" if _arabic_digits() else "decimal"
+
+
+@register.simple_tag
+def num_separator():
+    """Between two figures; the Arabic-Indic zero (٠) is a dot, so a middle dot would blur into it."""
+    return "|" if _arabic_digits() else "·"
 
 
 @register.filter(name="basename")
