@@ -49,13 +49,15 @@ jobs:
         # "Load key ...: error in libcrypto" if any line breaks get lost.
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY_CORP_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_corp_instance
+          echo "${{ secrets.SSH_PRIVATE_KEY_PP_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_corp_instance
           chmod 600 ~/.ssh/id_rsa_corp_instance
-          ssh-keyscan -H ${{ secrets.SSH_HOST_CORP_INSTANCE }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SSH_HOST_PP_INSTANCE }} >> ~/.ssh/known_hosts
 
       - name: Pull latest backend code on corp-instance
+        # Scoped `git clean` removes stray migration files generated on the
+        # host, which would otherwise break `migrate` with conflicting leaves.
         run: |
-          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
             "cd ~/ciso-assistant-community && \
              git fetch origin gov-corp && \
              git reset --hard origin/gov-corp && \
@@ -64,29 +66,34 @@ jobs:
 
       - name: Copy build to corp-instance
         run: |
-          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
             "mkdir -p ~/ciso-assistant-community/frontend/build"
           rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
             -e "ssh -i ~/.ssh/id_rsa_corp_instance" \
             ./frontend/build/ \
-            ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+            ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }}:~/ciso-assistant-community/frontend/build/
 
-      - name: Run remote start script on corp-instance
+      - name: Migrate and restart services on corp-instance
+        # Non-interactive SSH skips ~/.bashrc, so poetry/pm2 are not on PATH;
+        # a login + interactive shell gets the same env as a manual session.
         run: |
-          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
-            "bash ~/ciso-assistant-community/start-pm2.sh restart"
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_PP_INSTANCE }}@${{ secrets.SSH_HOST_PP_INSTANCE }} \
+            "bash -ilc 'cd ~/ciso-assistant-community/backend && \
+             poetry run python manage.py migrate --noinput && \
+             cd .. && \
+             pm2 restart dev-backend dev-frontend dev-huey dev-mcp'"
 
       # ── gov-instance ───────────────────────────────────────────────
       - name: Setup SSH key (gov-instance)
         # base64-encoded for the same reason as the corp-instance key above.
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY_GOV_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_gov_instance
+          echo "${{ secrets.SSH_PRIVATE_KEY_SINGLEVIEW_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_gov_instance
           chmod 600 ~/.ssh/id_rsa_gov_instance
-          ssh-keyscan -H ${{ secrets.SSH_HOST_GOV_INSTANCE }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} >> ~/.ssh/known_hosts
 
       - name: Pull latest backend code on gov-instance
         run: |
-          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
             "cd ~/ciso-assistant-community && \
              git fetch origin gov-corp && \
              git reset --hard origin/gov-corp && \
@@ -95,14 +102,17 @@ jobs:
 
       - name: Copy build to gov-instance
         run: |
-          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
             "mkdir -p ~/ciso-assistant-community/frontend/build"
           rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
             -e "ssh -i ~/.ssh/id_rsa_gov_instance" \
             ./frontend/build/ \
-            ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+            ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }}:~/ciso-assistant-community/frontend/build/
 
-      - name: Run remote start script on gov-instance
+      - name: Migrate and restart services on gov-instance
         run: |
-          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
-            "bash ~/ciso-assistant-community/start-pm2.sh restart"
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_SINGLEVIEW_INSTANCE }}@${{ secrets.SSH_HOST_SINGLEVIEW_INSTANCE }} \
+            "bash -ilc 'cd ~/ciso-assistant-community/backend && \
+             poetry run python manage.py migrate --noinput && \
+             cd .. && \
+             pm2 restart dev-backend dev-frontend dev-huey dev-mcp'"
