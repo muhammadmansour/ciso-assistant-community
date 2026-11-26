@@ -1,0 +1,108 @@
+name: Deploy to Gov & Corp
+
+on:
+  push:
+    branches:
+      - gov-corp
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # pnpm 11+ needs Node >= 22.13; `version: latest` also drifted from package.json.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Create frontend .env
+        run: echo "${{ secrets.FRONTEND_ENV }}" > ./frontend/.env.staging
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install
+
+      - name: Build
+        working-directory: frontend
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      # ── corp-instance ──────────────────────────────────────────────
+      - name: Setup SSH key (corp-instance)
+        # Stored base64-encoded (single line) so it can't be corrupted by
+        # newline/whitespace mangling when pasted into the GitHub secret box —
+        # a raw multi-line PEM key is fragile to copy/paste and fails with
+        # "Load key ...: error in libcrypto" if any line breaks get lost.
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY_CORP_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_corp_instance
+          chmod 600 ~/.ssh/id_rsa_corp_instance
+          ssh-keyscan -H ${{ secrets.SSH_HOST_CORP_INSTANCE }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest backend code on corp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
+            "cd ~/ciso-assistant-community && \
+             git fetch origin gov-corp && \
+             git reset --hard origin/gov-corp && \
+             git clean -fdx backend/core/migrations/ && \
+             git log -1 --pretty=oneline"
+
+      - name: Copy build to corp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
+            "mkdir -p ~/ciso-assistant-community/frontend/build"
+          rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
+            -e "ssh -i ~/.ssh/id_rsa_corp_instance" \
+            ./frontend/build/ \
+            ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+
+      - name: Run remote start script on corp-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_corp_instance ${{ secrets.SSH_USER_CORP_INSTANCE }}@${{ secrets.SSH_HOST_CORP_INSTANCE }} \
+            "bash ~/ciso-assistant-community/start-pm2.sh restart"
+
+      # ── gov-instance ───────────────────────────────────────────────
+      - name: Setup SSH key (gov-instance)
+        # base64-encoded for the same reason as the corp-instance key above.
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY_GOV_INSTANCE }}" | base64 -d > ~/.ssh/id_rsa_gov_instance
+          chmod 600 ~/.ssh/id_rsa_gov_instance
+          ssh-keyscan -H ${{ secrets.SSH_HOST_GOV_INSTANCE }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest backend code on gov-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
+            "cd ~/ciso-assistant-community && \
+             git fetch origin gov-corp && \
+             git reset --hard origin/gov-corp && \
+             git clean -fdx backend/core/migrations/ && \
+             git log -1 --pretty=oneline"
+
+      - name: Copy build to gov-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
+            "mkdir -p ~/ciso-assistant-community/frontend/build"
+          rsync -az --delete --no-perms --no-owner --no-group --omit-dir-times \
+            -e "ssh -i ~/.ssh/id_rsa_gov_instance" \
+            ./frontend/build/ \
+            ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }}:~/ciso-assistant-community/frontend/build/
+
+      - name: Run remote start script on gov-instance
+        run: |
+          ssh -i ~/.ssh/id_rsa_gov_instance ${{ secrets.SSH_USER_GOV_INSTANCE }}@${{ secrets.SSH_HOST_GOV_INSTANCE }} \
+            "bash ~/ciso-assistant-community/start-pm2.sh restart"
