@@ -81,7 +81,7 @@ jobs:
             "bash -ilc 'cd ~/ciso-assistant-community/backend && \
              poetry run python manage.py migrate --noinput && \
              cd .. && \
-             pm2 restart dev-backend dev-frontend dev-huey dev-mcp'"
+             pm2 restart dev-backend dev-frontend dev-huey ciso-mcp-oauth'"
 
       # ── gov-instance ───────────────────────────────────────────────
       - name: Setup SSH key (gov-instance)
@@ -115,4 +115,4 @@ jobs:
             "bash -ilc 'cd ~/ciso-assistant-community/backend && \
              poetry run python manage.py migrate --noinput && \
              cd .. && \
-             pm2 restart dev-backend dev-frontend dev-huey dev-mcp'"
+             pm2 restart dev-backend dev-frontend dev-huey gov-mcp gov-muhkam-mcp'"
