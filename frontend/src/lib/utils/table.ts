@@ -351,8 +351,8 @@ export const APPLIED_CONTROL_STATUS_FILTER: ListViewFilterConfig = {
 };
 
 const legalInstrumentListView = (urlModel: string) => ({
-	head: ['refId', 'name', 'issuingAuthority', 'issueDate', 'status', 'library', 'domain'],
-	body: ['ref_id', 'name', 'issuing_authority', 'issue_date', 'status', 'library', 'folder'],
+	head: ['refId', 'name', 'issueDate', 'effectiveDate', 'status', 'owner', 'domain'],
+	body: ['ref_id', 'name', 'start_date', 'eta', 'status', 'owner', 'folder'],
 	meta: ['id', 'urn'],
 	filters: {
 		folder: DOMAIN_FILTER,

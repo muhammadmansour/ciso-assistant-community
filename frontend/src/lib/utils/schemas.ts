@@ -138,19 +138,6 @@ export const ThreatSchema = z.object({
 	filtering_labels: z.string().optional().array().optional()
 });
 
-export const LegalInstrumentSchema = z.object({
-	...NameDescriptionMixin,
-	folder: z.string(),
-	ref_id: z.string().optional().nullable(),
-	status: z.string().default('in_force'),
-	issuing_authority: z.string().optional().nullable(),
-	issue_date: z.union([z.literal('').transform(() => null), z.string().date()]).nullish(),
-	effective_date: z.union([z.literal('').transform(() => null), z.string().date()]).nullish(),
-	link: z.union([z.literal('').transform(() => null), z.string().url()]).nullish(),
-	annotation: z.string().optional().nullable(),
-	filtering_labels: z.string().optional().array().optional()
-});
-
 export const RiskScenarioSchema = z.object({
 	...NameDescriptionMixin,
 	applied_controls: z.string().uuid().optional().array().optional(),
@@ -1567,11 +1554,11 @@ const SCHEMA_MAP: Record<string, AnyZodObject> = {
 	'risk-matrices': RiskMatrixSchema,
 	'risk-assessments': RiskAssessmentSchema,
 	threats: ThreatSchema,
-	laws: LegalInstrumentSchema,
-	'cabinet-decisions': LegalInstrumentSchema,
-	'regulator-instructions': LegalInstrumentSchema,
-	'board-decisions': LegalInstrumentSchema,
-	'official-letters': LegalInstrumentSchema,
+	laws: PolicySchema,
+	'cabinet-decisions': PolicySchema,
+	'regulator-instructions': PolicySchema,
+	'board-decisions': PolicySchema,
+	'official-letters': PolicySchema,
 	'risk-scenarios': RiskScenarioSchema,
 	'applied-controls': AppliedControlSchema,
 	'applied-controls_duplicate': AppliedControlDuplicateSchema,

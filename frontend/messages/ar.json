@@ -4575,8 +4575,6 @@
 	"regulatorInstructionsDescription": "التعاميم والتعليمات والتشريعات الصادرة عن الجهات التنظيمية",
 	"boardDecisionsDescription": "القرارات الصادرة عن مجلس الإدارة",
 	"officialLettersDescription": "الخطابات الرسمية الواردة إلى الجهة أو الصادرة عنها",
-	"legalReferenceNumber": "الرقم المرجعي",
-	"issuingAuthority": "جهة الإصدار",
 	"issueDate": "تاريخ الإصدار",
 	"effectiveDate": "تاريخ النفاذ"
 }

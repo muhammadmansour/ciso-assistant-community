@@ -761,26 +761,6 @@ class ThreatReadSerializer(ReferentialSerializer):
         exclude = ["translations"]
 
 
-class LegalInstrumentWriteSerializer(BaseModelSerializer):
-    class Meta:
-        model = LegalInstrument
-        exclude = ["translations"]
-        read_only_fields = ["kind"]
-
-
-class LegalInstrumentReadSerializer(ReferentialSerializer):
-    path = PathField(read_only=True)
-    folder = FieldsRelatedField()
-    library = FieldsRelatedField(["name", "id"])
-    filtering_labels = FieldsRelatedField(["id", "folder"], many=True)
-    kind = serializers.CharField(source="get_kind_display", read_only=True)
-    status = serializers.CharField(source="get_status_display", read_only=True)
-
-    class Meta:
-        model = LegalInstrument
-        exclude = ["translations"]
-
-
 class ThreatImportExportSerializer(BaseModelSerializer):
     library = serializers.SlugRelatedField(slug_field="urn", read_only=True)
 
@@ -1101,11 +1081,13 @@ class AppliedControlWriteSerializer(BaseModelSerializer):
     class Meta:
         model = AppliedControl
         fields = "__all__"
+        read_only_fields = ["urn", "library"]
 
 
 class AppliedControlReadSerializer(AppliedControlWriteSerializer):
     path = PathField(read_only=True)
     folder = FieldsRelatedField()
+    library = FieldsRelatedField()
     reference_control = FieldsRelatedField()
     priority = serializers.CharField(source="get_priority_display")
     category = serializers.CharField(

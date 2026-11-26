@@ -11,7 +11,6 @@
 	import RiskAssessmentForm from './ModelForm/RiskAssessmentForm.svelte';
 	import PerimeterForm from './ModelForm/PerimeterForm.svelte';
 	import ThreatForm from './ModelForm/ThreatForm.svelte';
-	import LegalInstrumentForm from './ModelForm/LegalInstrumentForm.svelte';
 	import { LEGAL_INSTRUMENT_URL_MODELS } from '$lib/utils/legalInstruments';
 	import RiskScenarioForm from './ModelForm/RiskScenarioForm.svelte';
 	import AppliedControlsPoliciesForm from './ModelForm/AppliedControlPolicyForm.svelte';
@@ -405,11 +404,9 @@
 			/>
 		{:else if URLModel === 'threats'}
 			<ThreatForm {form} {model} {cacheLocks} {formDataCache} {initialData} {...rest} />
-		{:else if LEGAL_INSTRUMENT_URL_MODELS.includes(URLModel)}
-			<LegalInstrumentForm {form} {model} {cacheLocks} {formDataCache} {initialData} {...rest} />
 		{:else if URLModel === 'risk-scenarios'}
 			<RiskScenarioForm {form} {model} {cacheLocks} {formDataCache} {initialData} {...rest} />
-		{:else if URLModel === 'applied-controls' || URLModel === 'policies'}
+		{:else if URLModel === 'applied-controls' || URLModel === 'policies' || LEGAL_INSTRUMENT_URL_MODELS.includes(URLModel)}
 			<AppliedControlsPoliciesForm
 				{form}
 				{model}

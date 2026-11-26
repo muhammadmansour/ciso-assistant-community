@@ -4588,8 +4588,6 @@
 	"regulatorInstructionsDescription": "Circulars, instructions and regulations issued by regulators",
 	"boardDecisionsDescription": "Decisions taken by the board of directors",
 	"officialLettersDescription": "Official letters received or issued by the organization",
-	"legalReferenceNumber": "Reference number",
-	"issuingAuthority": "Issuing authority",
 	"issueDate": "Issue date",
 	"effectiveDate": "Effective date"
 }

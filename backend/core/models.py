@@ -30,7 +30,7 @@ from django.db.models import F, Q, OuterRef, Subquery, Prefetch
 from django.forms.models import model_to_dict
 from django.urls import reverse
 from django.utils.html import format_html
-from django.utils.translation import get_language
+from django.utils.translation import get_language, override
 from django.utils.translation import gettext_lazy as _
 from structlog import get_logger
 from django.utils.timezone import now
@@ -524,10 +524,10 @@ class LibraryUpdater:
         self.threats = new_library_content.get("threats", [])
         self.reference_controls = new_library_content.get("reference_controls", [])
         self.metric_definitions = new_library_content.get("metric_definitions", [])
-        self.legal_instruments = [
-            (kind, instrument)
-            for key, kind in LegalInstrument.LIBRARY_KEYS.items()
-            for instrument in new_library_content.get(key, [])
+        self.legal_controls = [
+            (category, entry)
+            for key, category in AppliedControl.LEGAL_LIBRARY_KEYS.items()
+            for entry in new_library_content.get(key, [])
         ]
 
     def update_dependencies(self) -> Union[str, None]:
@@ -576,17 +576,17 @@ class LibraryUpdater:
                 },
             )
 
-    def update_legal_instruments(self):
-        for kind, instrument in self.legal_instruments:
-            normalized_urn = instrument["urn"].lower()
-            LegalInstrument.objects.update_or_create(
-                urn=normalized_urn,
-                defaults={**instrument, "kind": kind},
+    def update_legal_controls(self):
+        for category, entry in self.legal_controls:
+            fields = AppliedControl.fields_from_legal_library_entry(
+                category, entry, self.old_library.locale
+            )
+            AppliedControl.objects.update_or_create(
+                urn=fields["urn"],
+                defaults=fields,
                 create_defaults={
-                    **self.referential_object_dict,
-                    **self.i18n_object_dict,
-                    **instrument,
-                    "kind": kind,
+                    **fields,
+                    "folder": Folder.get_root_folder(),
                     "library": self.old_library,
                 },
             )
@@ -1222,7 +1222,7 @@ class LibraryUpdater:
             self.old_library.dependencies.add(new_dependency)
 
         self.update_threats()
-        self.update_legal_instruments()
+        self.update_legal_controls()
         self.update_reference_controls()
         self.update_metric_definitions()
 
@@ -1274,12 +1274,15 @@ class LoadedLibrary(LibraryMixin):
                 update_translations_in_object(model_to_dict(reference_control))
                 for reference_control in self.reference_controls.all()
             ]
-        for key, kind in LegalInstrument.LIBRARY_KEYS.items():
-            instruments = self.legal_instruments.filter(kind=kind)
-            if instruments.exists():
+        for key, category in AppliedControl.LEGAL_LIBRARY_KEYS.items():
+            controls = self.applied_controls.filter(category=category)
+            if controls.exists():
                 res[key] = [
-                    update_translations_in_object(model_to_dict(instrument))
-                    for instrument in instruments
+                    model_to_dict(
+                        control,
+                        fields=["urn", "ref_id", "name", "description", "link"],
+                    )
+                    for control in controls
                 ]
         if self.risk_matrices.exists():
             matrix = self.risk_matrices.first()
@@ -1897,72 +1900,6 @@ class Threat(
 
     def __str__(self):
         return self.name
-
-
-class LegalInstrument(
-    ReferentialObjectMixin,
-    I18nObjectMixin,
-    PublishInRootFolderMixin,
-    FilteringLabelMixin,
-):
-    class Kind(models.TextChoices):
-        LAW = "law", _("Law")
-        CABINET_DECISION = "cabinet_decision", _("Cabinet decision")
-        REGULATOR_INSTRUCTION = "regulator_instruction", _("Regulator instruction")
-        BOARD_DECISION = "board_decision", _("Board decision")
-        OFFICIAL_LETTER = "official_letter", _("Official letter")
-
-    class Status(models.TextChoices):
-        DRAFT = "draft", _("Draft")
-        IN_FORCE = "in_force", _("In force")
-        AMENDED = "amended", _("Amended")
-        REPEALED = "repealed", _("Repealed")
-
-    # Library YAML "objects" key for each kind.
-    LIBRARY_KEYS = {
-        "laws": Kind.LAW,
-        "cabinet_decisions": Kind.CABINET_DECISION,
-        "regulator_instructions": Kind.REGULATOR_INSTRUCTION,
-        "board_decisions": Kind.BOARD_DECISION,
-        "official_letters": Kind.OFFICIAL_LETTER,
-    }
-
-    library = models.ForeignKey(
-        LoadedLibrary,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="legal_instruments",
-    )
-    kind = models.CharField(
-        max_length=32, choices=Kind.choices, default=Kind.LAW, verbose_name=_("Kind")
-    )
-    status = models.CharField(
-        max_length=16,
-        choices=Status.choices,
-        default=Status.IN_FORCE,
-        verbose_name=_("Status"),
-    )
-    issuing_authority = models.CharField(
-        max_length=255, null=True, blank=True, verbose_name=_("Issuing authority")
-    )
-    issue_date = models.DateField(null=True, blank=True, verbose_name=_("Issue date"))
-    effective_date = models.DateField(
-        null=True, blank=True, verbose_name=_("Effective date")
-    )
-    link = models.URLField(max_length=2048, null=True, blank=True, verbose_name=_("Link"))
-
-    is_published = models.BooleanField(_("published"), default=True)
-
-    fields_to_check = ["ref_id", "name"]
-
-    class Meta:
-        verbose_name = _("Legal instrument")
-        verbose_name_plural = _("Legal instruments")
-        ordering = ["kind", "ref_id"]
-
-    def __str__(self):
-        return self.display_short
 
 
 class ReferenceControl(ReferentialObjectMixin, I18nObjectMixin, FilteringLabelMixin):
@@ -4632,8 +4569,24 @@ class AppliedControl(
         verbose_name=_("Priority"),
     )
 
-    CATEGORY = ReferenceControl.CATEGORY
+    LEGAL_CATEGORY = [
+        ("law", _("Law")),
+        ("cabinet_decision", _("Cabinet decision")),
+        ("regulator_instruction", _("Regulator instruction")),
+        ("board_decision", _("Board decision")),
+        ("official_letter", _("Official letter")),
+    ]
+    CATEGORY = ReferenceControl.CATEGORY + LEGAL_CATEGORY
     CSF_FUNCTION = ReferenceControl.CSF_FUNCTION
+
+    # Library YAML "objects" key that loads applied controls of each legal category.
+    LEGAL_LIBRARY_KEYS = {
+        "laws": "law",
+        "cabinet_decisions": "cabinet_decision",
+        "regulator_instructions": "regulator_instruction",
+        "board_decisions": "board_decision",
+        "official_letters": "official_letter",
+    }
 
     EFFORT = [
         ("XS", "Extra Small"),
@@ -4671,11 +4624,22 @@ class AppliedControl(
     )
 
     category = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=CATEGORY,
         null=True,
         blank=True,
         verbose_name=_("Category"),
+    )
+    urn = models.CharField(
+        max_length=255, null=True, blank=True, unique=True, verbose_name=_("URN")
+    )
+    library = models.ForeignKey(
+        LoadedLibrary,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="applied_controls",
+        verbose_name=_("Library"),
     )
     csf_function = models.CharField(
         max_length=20,
@@ -4804,6 +4768,57 @@ class AppliedControl(
     class Meta:
         verbose_name = _("Applied control")
         verbose_name_plural = _("Applied controls")
+
+    # Legal status of a library entry -> applied control status. Applied
+    # control statuses are accepted as-is.
+    LEGAL_STATUS = {
+        "in_force": Status.ACTIVE,
+        "amended": Status.ACTIVE,
+        "draft": Status.TO_DO,
+        "repealed": Status.DEPRECATED,
+    }
+
+    @classmethod
+    def legal_library_entry_error(cls, entry) -> str | None:
+        if not isinstance(entry, dict):
+            return "Each entry must be a mapping"
+        if missing := {"ref_id", "urn"} - set(entry):
+            return "Missing the following fields : {}".format(", ".join(sorted(missing)))
+        status = entry.get("status")
+        allowed = set(cls.LEGAL_STATUS) | set(cls.Status.values)
+        if status is not None and status not in allowed:
+            return "Invalid status '{}', the status must be among the following list : {}".format(
+                status, ", ".join(sorted(allowed))
+            )
+
+    @classmethod
+    def fields_from_legal_library_entry(
+        cls, category: str, entry: dict, locale: str | None = None
+    ) -> dict:
+        """Maps a library entry (law, decision, letter...) onto applied control fields.
+
+        The issue date becomes the start date and the effective date the ETA,
+        since that is when compliance is due; the issuing authority is kept in
+        the observation, labelled in the library's locale.
+        """
+        status = entry.get("status") or "in_force"
+        authority = entry.get("issuing_authority")
+        observation = None
+        if authority:
+            with override(locale):
+                observation = f"{_('Issuing authority')}: {authority}"
+        return {
+            "urn": entry["urn"].lower(),
+            "ref_id": entry["ref_id"],
+            "name": entry.get("name") or entry["ref_id"],
+            "description": entry.get("description"),
+            "category": category,
+            "status": cls.LEGAL_STATUS.get(status, status),
+            "start_date": entry.get("issue_date"),
+            "eta": entry.get("effective_date"),
+            "link": entry.get("link"),
+            "observation": observation,
+        }
 
     def save(self, *args, **kwargs):
         # Track what changed
@@ -8586,10 +8601,6 @@ auditlog.register(
 )
 auditlog.register(
     Threat,
-    exclude_fields=common_exclude,
-)
-auditlog.register(
-    LegalInstrument,
     exclude_fields=common_exclude,
 )
 auditlog.register(

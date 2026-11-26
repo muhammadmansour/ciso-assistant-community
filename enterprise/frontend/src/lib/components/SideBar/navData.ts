@@ -231,31 +231,31 @@ export const navData = {
 					name: 'laws',
 					fa_icon: 'fa-solid fa-scale-balanced',
 					href: '/laws',
-					permissions: ['view_legalinstrument']
+					permissions: ['view_appliedcontrol']
 				},
 				{
 					name: 'cabinetDecisions',
 					fa_icon: 'fa-solid fa-landmark',
 					href: '/cabinet-decisions',
-					permissions: ['view_legalinstrument']
+					permissions: ['view_appliedcontrol']
 				},
 				{
 					name: 'regulatorInstructions',
 					fa_icon: 'fa-solid fa-file-circle-exclamation',
 					href: '/regulator-instructions',
-					permissions: ['view_legalinstrument']
+					permissions: ['view_appliedcontrol']
 				},
 				{
 					name: 'boardDecisions',
 					fa_icon: 'fa-solid fa-people-roof',
 					href: '/board-decisions',
-					permissions: ['view_legalinstrument']
+					permissions: ['view_appliedcontrol']
 				},
 				{
 					name: 'officialLetters',
 					fa_icon: 'fa-solid fa-envelope-open-text',
 					href: '/official-letters',
-					permissions: ['view_legalinstrument']
+					permissions: ['view_appliedcontrol']
 				},
 				{
 					name: 'organisationIssues',

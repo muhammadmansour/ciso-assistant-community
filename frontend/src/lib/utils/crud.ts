@@ -164,18 +164,57 @@ function legalInstrumentModel(
 	verboseNamePlural: string
 ): ModelMapEntry {
 	return {
-		name: 'legalinstrument',
+		name: 'appliedcontrol',
 		localName,
 		localNamePlural,
 		verboseName,
 		verboseNamePlural,
 		foreignKeyFields: [
 			{ field: 'folder', urlModel: 'folders', urlParams: 'content_type=DO&content_type=GL' },
-			{ field: 'library', urlModel: 'loaded-libraries' },
+			{ field: 'evidences', urlModel: 'evidences' },
+			{ field: 'owner', urlModel: 'actors' },
 			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
 		],
-		selectFields: [{ field: 'status' }],
-		filters: [{ field: 'status' }, { field: 'folder' }]
+		detailViewFields: [
+			{ field: 'folder' },
+			{ field: 'id' },
+			{ field: 'ref_id' },
+			{ field: 'name' },
+			{ field: 'description' },
+			{ field: 'status' },
+			{ field: 'start_date', type: 'date' },
+			{ field: 'eta', type: 'date' },
+			{ field: 'expiry_date', type: 'date' },
+			{ field: 'owner' },
+			{ field: 'link' },
+			{ field: 'observation' },
+			{ field: 'library' },
+			{ field: 'created_at', type: 'datetime' },
+			{ field: 'updated_at', type: 'datetime' },
+			{ field: 'filtering_labels', urlModel: 'filtering-labels' }
+		],
+		reverseForeignKeyFields: [
+			{ field: 'applied_controls', urlModel: 'evidences' },
+			{
+				field: 'applied_controls',
+				urlModel: 'requirement-assessments',
+				disableCreate: true,
+				disableDelete: true
+			},
+			{
+				field: 'applied_controls',
+				urlModel: 'risk-scenarios',
+				disableCreate: true,
+				disableDelete: true
+			}
+		],
+		selectFields: [
+			{ field: 'status' },
+			{ field: 'effort' },
+			{ field: 'control_impact', valueType: 'number' },
+			{ field: 'priority' }
+		],
+		filters: [{ field: 'status' }, { field: 'folder' }, { field: 'owner' }, { field: 'priority' }]
 	};
 }
 

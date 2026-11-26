@@ -53,9 +53,6 @@ router.register(r"risk-matrices", RiskMatrixViewSet, basename="risk-matrices")
 router.register(r"vulnerabilities", VulnerabilityViewSet, basename="vulnerabilities")
 router.register(r"risk-assessments", RiskAssessmentViewSet, basename="risk-assessments")
 router.register(r"threats", ThreatViewSet, basename="threats")
-router.register(
-    r"legal-instruments", LegalInstrumentViewSet, basename="legal-instruments"
-)
 router.register(r"laws", LawViewSet, basename="laws")
 router.register(
     r"cabinet-decisions", CabinetDecisionViewSet, basename="cabinet-decisions"
