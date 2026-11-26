@@ -4589,5 +4589,9 @@
 	"boardDecisionsDescription": "Decisions taken by the board of directors",
 	"officialLettersDescription": "Official letters received or issued by the organization",
 	"issueDate": "Issue date",
-	"effectiveDate": "Effective date"
+	"effectiveDate": "Effective date",
+	"issuingAuthority": "Issuing authority",
+	"inForce": "In force",
+	"amended": "Amended",
+	"repealed": "Repealed"
 }

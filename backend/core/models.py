@@ -1278,11 +1278,7 @@ class LoadedLibrary(LibraryMixin):
             controls = self.applied_controls.filter(category=category)
             if controls.exists():
                 res[key] = [
-                    model_to_dict(
-                        control,
-                        fields=["urn", "ref_id", "name", "description", "link"],
-                    )
-                    for control in controls
+                    control.to_legal_library_entry(self.locale) for control in controls
                 ]
         if self.risk_matrices.exists():
             matrix = self.risk_matrices.first()
@@ -4819,6 +4815,26 @@ class AppliedControl(
             "link": entry.get("link"),
             "observation": observation,
         }
+
+    def to_legal_library_entry(self, locale: str | None = None) -> dict:
+        """Inverse of `fields_from_legal_library_entry`, used for library exports."""
+        with override(locale):
+            prefix = f"{_('Issuing authority')}: "
+        observation = self.observation or ""
+        entry = {
+            "urn": self.urn,
+            "ref_id": self.ref_id,
+            "name": self.name,
+            "description": self.description,
+            "issuing_authority": observation.removeprefix(prefix)
+            if observation.startswith(prefix)
+            else None,
+            "issue_date": self.start_date.isoformat() if self.start_date else None,
+            "effective_date": self.eta.isoformat() if self.eta else None,
+            "status": self.status,
+            "link": self.link,
+        }
+        return {key: value for key, value in entry.items() if value is not None}
 
     def save(self, *args, **kwargs):
         # Track what changed

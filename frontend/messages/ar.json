@@ -4576,5 +4576,9 @@
 	"boardDecisionsDescription": "القرارات الصادرة عن مجلس الإدارة",
 	"officialLettersDescription": "الخطابات الرسمية الواردة إلى الجهة أو الصادرة عنها",
 	"issueDate": "تاريخ الإصدار",
-	"effectiveDate": "تاريخ النفاذ"
+	"effectiveDate": "تاريخ النفاذ",
+	"issuingAuthority": "جهة الإصدار",
+	"inForce": "نافذ",
+	"amended": "معدّل",
+	"repealed": "ملغى"
 }

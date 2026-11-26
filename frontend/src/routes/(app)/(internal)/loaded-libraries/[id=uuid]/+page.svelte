@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tableSourceMapper } from '$lib/utils/table';
 	import Dropdown from '$lib/components/Dropdown/Dropdown.svelte';
+	import LegalLibraryObjects from '$lib/components/Libraries/LegalLibraryObjects.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
 	import type { TableSource } from '$lib/components/ModelTable/types';
 	import RiskMatrix from '$lib/components/RiskMatrix/RiskMatrix.svelte';
@@ -178,6 +179,8 @@
 			/>
 		</Dropdown>
 	{/if}
+
+	<LegalLibraryObjects objects={libraryObjects} />
 
 	{#if framework}
 		<h4 class="h4 font-medium">{m.framework()}</h4>
